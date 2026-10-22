@@ -1,0 +1,40 @@
+// Text inputs: flat, square-ish, grey-bordered; the border darkens on focus. Bootstrap's
+// .form-control takes that look from _variables.scss; bare inputs outside its classes get
+// it here. Bootstrap has no hover state for inputs, so the hover darkening and shadow are
+// written for both.
+
+input:not(.form-control):not(.form-check-input) {
+  &[type='text'],
+  &[type='password'],
+  &[type='number'],
+  &[type='date'] {
+    margin: space(1);
+    padding: space(1);
+    border: border-width('base') solid color('border');
+    border-radius: radius('sm');
+    background: color('surface-control');
+    color: color('text-control');
+
+    &:focus {
+      border-color: color('border-active');
+    }
+  }
+}
+
+input {
+  &[type='text'],
+  &[type='password'],
+  &[type='number'],
+  &[type='date'] {
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: color('border-active');
+      box-shadow: shadow('control-hover');
+    }
+  }
+}
+
+select:not(.form-select) {
+  margin: space(1);
+}

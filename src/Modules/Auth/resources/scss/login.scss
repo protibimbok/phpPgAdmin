@@ -1,0 +1,35 @@
+// The login page. Bootstrap's card, grid and form classes do the heavy lifting; this only
+// lays the page out: centred logo and title, a narrow container, the button on the right.
+
+@use '@/styles/tokens' as *;
+
+#loginform {
+  margin: space(3) 0 0;
+  text-align: center;
+
+  h1,
+  .logo {
+    display: block;
+    text-align: center;
+  }
+
+  .logo img {
+    border: 0;
+  }
+
+  .container {
+    width: size('login');
+    margin: 0 auto;
+    text-align: left;
+  }
+
+  .card-footer {
+    text-align: right;
+  }
+
+  @media only screen and (width <= breakpoint('md')) {
+    .container {
+      width: 100%;
+    }
+  }
+}

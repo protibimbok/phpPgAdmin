@@ -1,0 +1,26 @@
+// Alerts: flat pastel boxes with black text.
+
+.alert {
+  padding: space(2);
+  text-align: left;
+  box-shadow: shadow('inset-thin');
+
+  a {
+    text-decoration: underline;
+  }
+}
+
+// Bootstrap calls the informational variant "primary".
+@each $status in (info, success, danger, warning) {
+  $variant: $status;
+  @if $status == info {
+    $variant: primary;
+  }
+
+  .alert-#{$variant} {
+    border-color: color('#{$status}-border');
+    background-color: color('#{$status}-bg');
+    background-image: none;
+    color: color('text-strong');
+  }
+}

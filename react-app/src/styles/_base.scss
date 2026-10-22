@@ -1,0 +1,41 @@
+// Element defaults on top of Bootstrap's reboot.
+
+body {
+  text-align: left;
+}
+
+h1 {
+  font-weight: font-weight('bold');
+}
+
+h2 {
+  padding: space(2) 0 space(2) space(1);
+  color: color('text-muted');
+  font-weight: font-weight('normal');
+  text-shadow: text-shadow('light');
+}
+
+h3 {
+  font-weight: font-weight('bold');
+}
+
+a img {
+  border: 0;
+}
+
+hr {
+  height: border-width('base');
+  border: 0;
+  background-color: color('text');
+}
+
+input,
+select {
+  font-size: 1em;
+  outline: none;
+}
+
+textarea {
+  font-family: font-family('mono');
+  font-size: 1.2em;
+}

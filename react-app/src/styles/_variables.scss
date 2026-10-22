@@ -1,0 +1,99 @@
+// Maps the design tokens onto Bootstrap's variables. Loaded before Bootstrap, so these
+// override its defaults. No literal values belong here: add a token instead.
+
+// Body & links
+$body-color: color('text');
+$body-bg: color('surface');
+$link-color: color('link');
+$link-decoration: none;
+$link-hover-color: color('link');
+$link-hover-decoration: underline;
+
+// Typography
+$font-family-base: font-family('sans');
+$font-family-monospace: font-family('mono');
+$font-size-base: font-size('base');
+$font-size-sm: font-size('sm');
+$font-size-lg: font-size('lg');
+$font-weight-normal: font-weight('normal');
+$font-weight-bold: font-weight('bold');
+$line-height-base: line-height('base');
+$h1-font-size: font-size('h1');
+$h2-font-size: font-size('h2');
+$h3-font-size: font-size('h3');
+
+// Spacing, shape & breakpoints
+$spacer: space(3);
+$spacers: $spacing;
+$grid-breakpoints: $breakpoints;
+$border-width: border-width('base');
+$border-color: color('border');
+$border-radius: radius('base');
+$border-radius-sm: radius('sm');
+$border-radius-lg: radius('lg');
+
+// Features
+$enable-gradients: true;
+$enable-shadows: true;
+$enable-transitions: false;
+$enable-caret: false;
+
+// Buttons (light grey, bordered, pill-shaped)
+$primary: color('surface-button');
+$secondary: color('surface-button');
+$btn-border-radius: radius('pill');
+$btn-line-height: line-height('tight');
+
+// Forms
+$label-margin-bottom: 0;
+$input-bg: color('surface-control');
+$input-border-color: color('border');
+$input-padding-y: space(1);
+$input-padding-x: space(1);
+$input-color: color('text-control');
+$input-border-radius: radius('sm');
+$input-focus-bg: color('surface-control');
+$input-focus-border-color: color('border-active');
+$focus-ring-color: color('focus-ring');
+$form-select-border-radius: radius('sm');
+$form-check-input-checked-bg-color: color('focus');
+
+// Cards
+$card-border-color: color('border');
+$card-bg: color('surface-raised');
+$card-cap-bg: color('surface');
+
+// Tables
+$table-cell-padding-y: 0.1em;
+$table-cell-padding-x: 0.3em;
+$table-striped-order: even;
+$table-striped-bg: color('surface-stripe');
+$table-border-width: 0;
+
+// Alerts
+$alert-margin-bottom: space(2);
+$alert-border-radius: radius('lg');
+
+// Navs
+$nav-tabs-border-color: color('border');
+$nav-tabs-link-active-border-color: color('border') color('border') color('surface');
+$nav-tabs-link-active-color: color('text-strong');
+$navbar-padding-y: 0;
+$navbar-padding-x: 0;
+$navbar-light-color: color('link');
+$navbar-light-hover-color: color('link');
+$navbar-light-active-color: color('link');
+
+// Pagination & list groups
+$pagination-active-color: color('link');
+$pagination-border-color: color('border');
+$pagination-hover-border-color: color('border');
+$pagination-active-border-color: color('border');
+$pagination-disabled-border-color: color('border');
+$list-group-bg: inherit;
+$list-group-item-padding-x: space(2);
+$list-group-item-padding-y: space(1);
+
+// Modals
+$modal-inner-padding: space(2);
+$modal-header-padding-y: space(1);

@@ -1,0 +1,224 @@
+// Design tokens: the one place colours, typography, spacing, radii, shadows and breakpoints
+// are declared. Everything else (the Bootstrap variable mapping, the theme partials, module
+// stylesheets, components through the --pga-* custom properties) reads from here.
+//
+// In a theme partial (loaded by theme.scss) the functions are global: `color(border)`.
+// In a module stylesheet: `@use '@/styles/tokens' as *;` then the same calls.
+//
+// This file emits no CSS and must not depend on Bootstrap.
+
+@use 'sass:list';
+@use 'sass:map';
+
+// ---- colour -----------------------------------------------------------------------------
+
+$colors: (
+  // text
+  'text': #444,
+  'text-strong': #000,
+  'text-muted': #777,
+  'text-control': #555,
+  'text-inverse': #fff,
+  'link': #235a81,
+  // surfaces
+  'surface': #fff,
+  'surface-raised': #eee,
+  'surface-panel': #f3f3f3,
+  'surface-bar': #d3dce3,
+  'surface-stripe': #dfdfdf,
+  'surface-control': #fff,
+  'surface-button': #ddd,
+  // borders
+  'border': #aaa,
+  'border-strong': #333,
+  'border-active': #7c7c7c,
+  // interaction
+  'highlight': #cfc,
+  'marker': #fc9,
+  'focus': #0075ff,
+  'focus-ring': rgba(#ddd, 0.25),
+  // brand (the logo uses these; keep the SVG in sync)
+  'brand': #336791,
+  'brand-light': #5b9bd1,
+  'accent': #f29111,
+  // status
+  'info-bg': #e8eef1,
+  'info-border': #3a6c7e,
+  'success-bg': #ebf8a4,
+  'success-border': #a2d246,
+  'danger-bg': pink,
+  'danger-border': #333,
+  'warning-bg': #ffc,
+  'warning-border': #fc0,
+);
+
+// Button faces are gradients; each is (top, bottom).
+$gradients: (
+  'button': (#f8f8f8, #d8d8d8),
+  'button-hover': (#fff, #ddd),
+);
+
+@function color($name) {
+  @if not map.has-key($colors, $name) {
+    @error 'Unknown colour token "#{$name}".';
+  }
+
+  @return map.get($colors, $name);
+}
+
+@function gradient($name) {
+  @if not map.has-key($gradients, $name) {
+    @error 'Unknown gradient token "#{$name}".';
+  }
+
+  $stops: map.get($gradients, $name);
+
+  @return linear-gradient(list.nth($stops, 1), list.nth($stops, 2));
+}
+
+// ---- typography -------------------------------------------------------------------------
+
+$font-families: (
+  'sans': sans-serif,
+  'mono': monospace,
+);
+
+$font-sizes: (
+  'xs': 0.7rem,
+  'sm': 0.75rem,
+  'base': 0.82rem,
+  'lg': 1rem,
+  'h1': 140%,
+  'h2': 2em,
+  'h3': 1rem,
+);
+
+$font-weights: (
+  'normal': 400,
+  'bold': 700,
+);
+
+$line-heights: (
+  'base': 1.5,
+  'tight': 1.15,
+);
+
+@function font-family($name) {
+  @return map.get($font-families, $name) or map.get($font-families, 'sans');
+}
+
+@function font-size($name) {
+  @if not map.has-key($font-sizes, $name) {
+    @error 'Unknown font size token "#{$name}".';
+  }
+
+  @return map.get($font-sizes, $name);
+}
+
+@function font-weight($name) {
+  @return map.get($font-weights, $name) or map.get($font-weights, 'normal');
+}
+
+@function line-height($name) {
+  @return map.get($line-heights, $name) or map.get($line-heights, 'base');
+}
+
+// ---- spacing ----------------------------------------------------------------------------
+
+// The same scale Bootstrap's spacing utilities use, so `space(3)` is what `.mb-3` applies.
+$spacing: (
+  0: 0,
+  1: 0.25rem,
+  2: 0.5rem,
+  3: 1rem,
+  4: 1.5rem,
+  5: 3rem,
+);
+
+@function space($step) {
+  @if not map.has-key($spacing, $step) {
+    @error 'Unknown spacing step "#{$step}".';
+  }
+
+  @return map.get($spacing, $step);
+}
+
+// ---- shape & depth ----------------------------------------------------------------------
+
+$radii: (
+  'sm': 2px,
+  'base': 0.25rem,
+  'lg': 5px,
+  'pill': 0.85rem,
+);
+
+$shadows: (
+  'inset-light': 1px 1px 2px #fff inset,
+  'inset-thin': 0 1px 1px #fff inset,
+  'float': 3px 3px 15px #bbb,
+  'control-hover': 0 1px 3px #aaa,
+  'panel': 2px 2px 5px #ccc,
+);
+
+$text-shadows: (
+  'light': 0 1px 0 #fff,
+  'soft': 1px 1px 2px #fff,
+);
+
+$border-widths: (
+  'base': 1px,
+  'thick': 2px,
+);
+
+@function radius($name) {
+  @return map.get($radii, $name) or map.get($radii, 'base');
+}
+
+@function shadow($name) {
+  @if not map.has-key($shadows, $name) {
+    @error 'Unknown shadow token "#{$name}".';
+  }
+
+  @return map.get($shadows, $name);
+}
+
+@function text-shadow($name) {
+  @return map.get($text-shadows, $name) or map.get($text-shadows, 'light');
+}
+
+@function border-width($name) {
+  @return map.get($border-widths, $name) or map.get($border-widths, 'base');
+}
+
+// ---- layout -----------------------------------------------------------------------------
+
+// Bootstrap's breakpoints, so media queries written from tokens match its grid.
+$breakpoints: (
+  'xs': 0,
+  'sm': 576px,
+  'md': 768px,
+  'lg': 992px,
+  'xl': 1200px,
+  'xxl': 1400px,
+);
+
+$sizes: (
+  'sidebar': 240px,
+  'login': 30em,
+);
+
+@function breakpoint($name) {
+  @if not map.has-key($breakpoints, $name) {
+    @error 'Unknown breakpoint token "#{$name}".';
+  }
+
+  @return map.get($breakpoints, $name);
+}
+
+@function size($name) {
+  @if not map.has-key($sizes, $name) {
+    @error 'Unknown size token "#{$name}".';
+  }
+
+  @return map.get($sizes, $name);
+}

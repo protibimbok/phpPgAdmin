@@ -1,0 +1,24 @@
+// Buttons: grey gradient with a light text shadow, bold when primary. Face and text colours
+// are Bootstrap's own, computed from the primary/secondary tokens in _variables.scss.
+
+.btn-primary,
+.btn-outline-primary {
+  font-weight: font-weight('bold');
+}
+
+.btn-primary,
+.btn-secondary {
+  border-color: color('border');
+  background-image: gradient('button');
+  text-shadow: text-shadow('light');
+
+  &:hover {
+    background-image: gradient('button-hover');
+  }
+}
+
+.btn-outline-primary,
+.btn-outline-secondary {
+  border-color: color('border');
+  color: color('text');
+}

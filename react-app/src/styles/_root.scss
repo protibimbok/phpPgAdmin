@@ -1,0 +1,50 @@
+// Publishes the tokens as custom properties, so components and inline styles can use them
+// at runtime: `var(--pga-color-link)`, `var(--pga-space-3)`, `var(--pga-radius-sm)`.
+
+@use 'sass:list';
+
+:root {
+  @each $name, $value in $colors {
+    --pga-color-#{$name}: #{$value};
+  }
+
+  @each $name, $stops in $gradients {
+    --pga-gradient-#{$name}: #{linear-gradient(list.nth($stops, 1), list.nth($stops, 2))};
+  }
+
+  @each $name, $value in $font-families {
+    --pga-font-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $font-sizes {
+    --pga-font-size-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $font-weights {
+    --pga-font-weight-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $line-heights {
+    --pga-line-height-#{$name}: #{$value};
+  }
+
+  @each $step, $value in $spacing {
+    --pga-space-#{$step}: #{$value};
+  }
+
+  @each $name, $value in $radii {
+    --pga-radius-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $shadows {
+    --pga-shadow-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $text-shadows {
+    --pga-text-shadow-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $sizes {
+    --pga-size-#{$name}: #{$value};
+  }
+}

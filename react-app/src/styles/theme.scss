@@ -1,0 +1,15 @@
+// The application theme, assembled like a phpMyAdmin theme: tokens, then the Bootstrap
+// variables derived from them, then Bootstrap itself, then the partials that restyle it.
+// Bootstrap 5 is still built on @import, so the partials are loaded the same way to share
+// one scope with its variables and mixins (vite.config.ts silences the deprecation notice).
+
+@import 'tokens';
+@import 'variables';
+@import 'bootstrap/scss/bootstrap';
+
+@import 'root';
+@import 'base';
+@import 'forms';
+@import 'buttons';
+@import 'card';
+@import 'alert';

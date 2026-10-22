@@ -1,0 +1,38 @@
+// Cards: a raised panel whose header is a small label floating over the top edge.
+
+.card {
+  margin-top: 2 * space(3); // 2rem: clears the header floating over the top edge
+  margin-bottom: space(2);
+  text-shadow: text-shadow('soft');
+  box-shadow: shadow('inset-light');
+
+  > .card-header + .card-body {
+    padding-top: 0;
+  }
+}
+
+.card-header {
+  position: relative;
+  top: -#{space(3)};
+  width: max-content;
+  max-width: calc(100% - #{space(2)});
+  margin: 0 space(1);
+  padding: space(1) space(2);
+  border: border-width('base') solid color('border');
+  font-size: 1em;
+  font-weight: font-weight('bold');
+  box-shadow: shadow('float');
+
+  &,
+  &:first-child {
+    border-radius: radius('sm');
+  }
+}
+
+.card-footer {
+  padding: space(2);
+  background: color('surface-bar');
+  color: color('text-strong');
+  text-shadow: text-shadow('soft');
+  box-shadow: shadow('inset-light');
+}
