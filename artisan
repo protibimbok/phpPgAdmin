@@ -1,0 +1,72 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * A stand-in for Laravel's artisan that supports only what laramod-vite-plugin needs:
+ *
+ *     php artisan laramod:vite
+ *
+ * prints the registered modules as JSON, in the shape the plugin reads:
+ * { "modules": [ { "name", "path", "file", "entries": [] } ] }. Paths are relative
+ * to the project root and use forward slashes. Entries come from modules that implement
+ * ProvidesViteEntries and are relative to the module, like in Laramod.
+ */
+
+require __DIR__ . '/vendor/autoload.php';
+
+use PhpPgAdmin\App;
+use PhpPgAdmin\Core\Contracts\Module;
+use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
+use PhpPgAdmin\Core\Module\ModuleRegistry;
+
+$command = $argv[1] ?? null;
+
+if ($command === null || in_array($command, ['list', '--help', '-h'], true)) {
+    fwrite(STDOUT, "Usage: php artisan laramod:vite\n\nAvailable commands:\n  laramod:vite  Print the registered modules and their Vite entries as JSON\n");
+    exit(0);
+}
+
+if ($command !== 'laramod:vite') {
+    fwrite(STDERR, sprintf("Command \"%s\" is not defined.\n", $command));
+    exit(1);
+}
+
+$root = App::basePath();
+
+/** Relative to the project root with forward slashes, unless the path lies outside of it. */
+$relative = static function (string $path) use ($root): string {
+    $path = str_replace('\\', '/', $path);
+    $base = rtrim(str_replace('\\', '/', $root), '/') . '/';
+
+    return str_starts_with($path, $base) ? substr($path, strlen($base)) : $path;
+};
+
+try {
+    /** @var list<class-string<Module>> $classes */
+    $classes = require App::basePath('bootstrap/modules.php');
+
+    $registry = (new ModuleRegistry())->register($classes);
+
+    $modules = [];
+
+    foreach ($registry->all() as $module) {
+        $entries = $module instanceof ProvidesViteEntries ? $module->viteEntries() : [];
+
+        $modules[] = [
+            'name' => $module->name(),
+            'path' => $relative($module->path()),
+            'file' => $relative((new ReflectionClass($module))->getFileName()),
+            'entries' => array_values(array_unique(array_map(
+                static fn (string $entry): string => $relative($registry->path($module, $entry)),
+                $entries,
+            ))),
+        ];
+    }
+} catch (Throwable $e) {
+    fwrite(STDERR, sprintf("%s: %s\n  in %s:%d\n", $e::class, $e->getMessage(), $e->getFile(), $e->getLine()));
+    exit(1);
+}
+
+echo json_encode(['modules' => $modules], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), "\n";

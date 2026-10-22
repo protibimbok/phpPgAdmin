@@ -11,6 +11,7 @@ use PhpPgAdmin\Core\Contracts\Ordered;
 use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesGlobalMiddlewares;
 use PhpPgAdmin\Core\Contracts\ProvidesRoutes;
+use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 
 final class ModuleRegistry
 {
@@ -23,6 +24,7 @@ final class ModuleRegistry
         'routes' => ProvidesRoutes::class,
         'api' => ProvidesApiRoutes::class,
         'global-middlewares' => ProvidesGlobalMiddlewares::class,
+        'vite' => ProvidesViteEntries::class,
     ];
 
     /** @var array<string, Module> keyed by name, in registration order */
