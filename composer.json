@@ -3,7 +3,10 @@
     "description": "phpPgAdmin - PostgreSQL web administration",
     "type": "project",
     "require": {
-        "php": ">=8.1"
+        "php": ">=8.3",
+        "league/route": "^7.0",
+        "nyholm/psr7": "^1.8",
+        "nyholm/psr7-server": "^1.1"
     },
     "license": "MIT",
     "autoload": {
