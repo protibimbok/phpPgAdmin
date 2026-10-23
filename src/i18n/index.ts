@@ -8,7 +8,7 @@ import { readConfig, type Locale } from './config'
  *
  * Every module's resources/lang/<locale>.json becomes an i18next namespace named after the
  * module, so `t('login.title', { ns: 'auth' })` reads what PHP reads as `auth::login.title`.
- * The host app's react-app/src/lang/<locale>.json is the default "app" namespace. The files
+ * The host app's src/lang/<locale>.json is the default "app" namespace. The files
  * are split into one chunk each by Vite and loaded on demand, so a page costs only the
  * namespaces it uses in the locale it runs in.
  */
@@ -16,7 +16,7 @@ import { readConfig, type Locale } from './config'
 type Messages = Record<string, unknown>
 type Loader = () => Promise<{ default: Messages }>
 
-const moduleFiles = import.meta.glob<{ default: Messages }>('../../../src/Modules/*/resources/lang/*.json')
+const moduleFiles = import.meta.glob<{ default: Messages }>('../../Modules/*/resources/lang/*.json')
 const appFiles = import.meta.glob<{ default: Messages }>('../lang/*.json')
 
 export const DEFAULT_NAMESPACE = 'app'

@@ -5,7 +5,7 @@
       <stop offset="1" stop-color="#336791"/>
     </linearGradient>
   </defs>
-  <!-- the database cylinder from the logo (src/Modules/Auth/resources/img/logo.svg), squared up -->
+  <!-- the database cylinder from the logo (Modules/Auth/resources/img/logo.svg), squared up -->
   <g transform="translate(4 6)">
     <path d="M0 10v34c0 5.5 12.5 10 28 10s28-4.5 28-10V10" fill="url(#g)"/>
     <ellipse cx="28" cy="10" rx="28" ry="10" fill="#5b9bd1"/>

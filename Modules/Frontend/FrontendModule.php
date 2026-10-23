@@ -9,7 +9,7 @@ use PhpPgAdmin\Core\Contracts\Ordered;
 use PhpPgAdmin\Core\Contracts\ProvidesRoutes;
 
 /**
- * Serves the HTML shell the React application in react-app/ boots from. Every path that
+ * Serves the HTML shell the React application in src/ boots from. Every path that
  * is not an API route gets the shell, so the client decides what to show.
  */
 final class FrontendModule implements Module, ProvidesRoutes, Ordered

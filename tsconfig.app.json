@@ -23,18 +23,18 @@
     ],
     "paths": {
       "@/*": [
-        "./react-app/src/*"
+        "./src/*"
       ],
       "@i18n/*": [
-        "./src/Modules/I18n/resources/*"
+        "./Modules/I18n/resources/*"
       ],
       "@auth/*": [
-        "./src/Modules/Auth/resources/*"
+        "./Modules/Auth/resources/*"
       ]
     }
   },
   "include": [
-    "react-app/src",
-    "src/Modules/*/resources/js"
+    "src",
+    "Modules/*/resources/js"
   ]
 }

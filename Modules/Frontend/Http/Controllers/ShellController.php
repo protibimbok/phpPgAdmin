@@ -14,7 +14,7 @@ use Psr\Http\Message\ServerRequestInterface;
 final class ShellController
 {
     /** The Vite entry that bootstraps the UI. */
-    private const string ENTRY = 'react-app/src/main.tsx';
+    private const string ENTRY = 'src/main.tsx';
 
     public function show(ServerRequestInterface $request): ResponseInterface
     {

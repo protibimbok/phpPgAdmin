@@ -11,10 +11,11 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "PhpPgAdmin\\": "src/"
+            "PhpPgAdmin\\Modules\\": "Modules/",
+            "PhpPgAdmin\\": "app/"
         },
         "files": [
-            "src/Core/helpers.php"
+            "app/Core/helpers.php"
         ]
     },
     "minimum-stability": "stable"

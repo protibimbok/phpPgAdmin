@@ -24,7 +24,7 @@ final class Vite
     ) {
     }
 
-    /** @param list<string> $entries Source paths relative to the project root, e.g. "react-app/src/main.tsx". */
+    /** @param list<string> $entries Source paths relative to the project root, e.g. "src/main.tsx". */
     public function tags(array $entries): string
     {
         $hot = $this->hotUrl();
