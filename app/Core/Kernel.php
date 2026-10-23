@@ -6,10 +6,12 @@ namespace PhpPgAdmin\Core;
 
 use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesGlobalMiddlewares;
+use PhpPgAdmin\Core\Contracts\ProvidesMigrations;
 use PhpPgAdmin\Core\Contracts\ProvidesRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Facades\Lang;
 use PhpPgAdmin\Core\Facades\Route;
+use PhpPgAdmin\Core\Facades\Storage;
 use PhpPgAdmin\Core\I18n\Translator;
 use PhpPgAdmin\Core\Http\ApiStrategy;
 use PhpPgAdmin\Core\Module\ModuleRegistry;
@@ -70,6 +72,7 @@ final class Kernel
         }
 
         $this->bootTranslations();
+        $this->bootMigrations();
         $this->bootGlobalMiddlewares();
         $this->bootRoutes();
 
@@ -90,6 +93,16 @@ final class Kernel
     {
         foreach ($this->modules->providing(ProvidesTranslations::class) as $module) {
             $this->translator->addNamespace($module->name(), $this->modules->path($module, $module->translationsPath()));
+        }
+    }
+
+    /**
+     * Hand each module's migration directory to the storage, which runs them when first used.
+     */
+    private function bootMigrations(): void
+    {
+        foreach ($this->modules->providing(ProvidesMigrations::class) as $module) {
+            Storage::storage()->migrator()->add($module->name(), $this->modules->path($module, $module->migrationsPath()));
         }
     }
 

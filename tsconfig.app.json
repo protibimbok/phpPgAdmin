@@ -30,6 +30,9 @@
       ],
       "@auth/*": [
         "./Modules/Auth/resources/*"
+      ],
+      "@databases/*": [
+        "./Modules/Databases/resources/*"
       ]
     }
   },

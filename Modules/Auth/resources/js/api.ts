@@ -1,5 +1,11 @@
 export interface User {
   username: string
+  /** The PostgreSQL server the session is connected to. */
+  server: {
+    host: string
+    port: number
+    version: string | null
+  }
 }
 
 /** The error body the API's JSON strategy sends for an HTTP exception. */
@@ -8,7 +14,7 @@ interface ApiError {
   reason_phrase?: string
 }
 
-async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, {
     ...init,
     credentials: 'same-origin',
@@ -23,11 +29,26 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T
 }
 
-export function login(username: string, password: string): Promise<User> {
-  return request<{ user: User }>('/api/auth/login', {
+/** The user, and the locale the session runs in now: the role's saved one when it has one. */
+export function login(username: string, password: string): Promise<{ user: User; locale: string }> {
+  return request<{ user: User; locale: string }>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
-  }).then(({ user }) => user)
+  })
+}
+
+export type Preferences = Record<string, unknown>
+
+export function getPreferences(): Promise<Preferences> {
+  return request<{ preferences: Preferences }>('/api/preferences').then(({ preferences }) => preferences)
+}
+
+/** Merge the given keys into the role's preferences; a null value removes its key. */
+export function updatePreferences(changes: Preferences): Promise<Preferences> {
+  return request<{ preferences: Preferences }>('/api/preferences', {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  }).then(({ preferences }) => preferences)
 }
 
 /** The signed-in user, or null when the session has none. */

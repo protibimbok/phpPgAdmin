@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PhpPgAdmin\Modules\Auth\AuthModule;
+use PhpPgAdmin\Modules\Databases\DatabasesModule;
 use PhpPgAdmin\Modules\Frontend\FrontendModule;
 use PhpPgAdmin\Modules\I18n\I18nModule;
 
@@ -12,5 +13,6 @@ use PhpPgAdmin\Modules\I18n\I18nModule;
 return [
     I18nModule::class,
     AuthModule::class,
+    DatabasesModule::class,
     FrontendModule::class,
 ];

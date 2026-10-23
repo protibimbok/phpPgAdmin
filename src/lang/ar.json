@@ -2,5 +2,6 @@
   "language": "لغة",
   "signed_in_as": "تم تسجيل الدخول باسم {{username}}.",
   "log_out": "تسجيل خروج",
-  "loading": "جار التحميل…"
+  "loading": "جار التحميل…",
+  "connected_to": "PostgreSQL {{version}} على {{host}}:{{port}}"
 }

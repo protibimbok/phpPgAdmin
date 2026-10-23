@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
+import i18n from '@/i18n'
 import LocaleSelect from '@/i18n/LocaleSelect'
 import logo from '../../img/logo.svg'
 import { login, type User } from '../api'
@@ -29,7 +30,12 @@ export default function Login({ onLogin }: LoginProps) {
     setPending(true)
 
     try {
-      onLogin(await login(username, password))
+      const { user, locale } = await login(username, password)
+      // The role's saved language, when it has one, takes over from the login page's.
+      if (locale !== i18n.language) {
+        await i18n.changeLanguage(locale)
+      }
+      onLogin(user)
     } catch (e) {
       setError(e instanceof Error ? e.message : t('login.failed'))
       setPending(false)

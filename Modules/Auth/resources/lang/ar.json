@@ -9,6 +9,7 @@
     "failed": "فشل تسجيل الدخول"
   },
   "errors": {
-    "credentials_required": "اسم المستخدم وكلمة المرور مطلوبان."
+    "credentials_required": "اسم المستخدم مطلوب.",
+    "invalid_preferences": "يجب أن تكون التفضيلات كائنًا من المفاتيح والقيم."
   }
 }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import Login from '@auth/js/Pages/Login'
 import { logout, me, type User } from '@auth/js/api'
 import LocaleSelect from '@/i18n/LocaleSelect'
+import Databases from '@databases/js/Pages/Databases'
 
 /**
  * Bootstraps the UI: asks the session who is signed in, shows the Auth module's login
@@ -28,7 +29,8 @@ export default function App() {
     <main className="container-fluid py-3">
       <h2>phpPgAdmin</h2>
       <p>{t('signed_in_as', { username: user.username })}</p>
-      <div className="d-flex align-items-center gap-3">
+      <p className="text-muted">{t('connected_to', { host: user.server.host, port: user.server.port, version: user.server.version ?? '?' })}</p>
+      <div className="d-flex align-items-center gap-3 mb-4">
         <button type="button" className="btn btn-secondary" onClick={() => void logout().then(() => setUser(null))}>
           {t('log_out')}
         </button>
@@ -37,6 +39,7 @@ export default function App() {
           <LocaleSelect className="w-auto" />
         </label>
       </div>
+      <Databases />
     </main>
   )
 }

@@ -9,6 +9,7 @@
     "failed": "Login failed"
   },
   "errors": {
-    "credentials_required": "Username and password are required."
+    "credentials_required": "A username is required.",
+    "invalid_preferences": "The preferences must be an object of keys and values."
   }
 }

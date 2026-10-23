@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace PhpPgAdmin;
 
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PhpPgAdmin\Core\Facades\Config;
+use PhpPgAdmin\Core\Facades\Storage;
 use PhpPgAdmin\Core\I18n\Translator;
 use PhpPgAdmin\Core\Kernel;
 use PhpPgAdmin\Core\Module\ModuleRegistry;
+use PhpPgAdmin\Core\Storage\Storage as StorageManager;
 
 final class App
 {
@@ -20,17 +23,40 @@ final class App
 
     public static function create(bool $debug = false): Kernel
     {
+        $config = self::loadConfig();
+        Config::swap($config);
+        Storage::swap(new StorageManager((string) Config::get('storage.path', self::basePath('storage/phppgadmin.sqlite'))));
+
         /** @var list<class-string<Core\Contracts\Module>> $modules */
         $modules = require self::basePath('bootstrap/modules.php');
 
-        /** @var array{routes?: array<string, array<string, mixed>>} $config */
-        $config = require self::basePath('config/modules.php');
+        /** @var array{routes?: array<string, array<string, mixed>>} $moduleConfig */
+        $moduleConfig = $config['modules'] ?? [];
 
         /** @var array{default?: string, fallback?: string, locales?: array<string, array{name?: string, native?: string, dir?: string}>} $i18n */
-        $i18n = require self::basePath('config/i18n.php');
+        $i18n = $config['i18n'] ?? [];
 
         $registry = (new ModuleRegistry())->register($modules);
 
-        return (new Kernel($registry, new Psr17Factory(), $config['routes'] ?? [], $debug, Translator::fromConfig($i18n)))->boot();
+        return (new Kernel($registry, new Psr17Factory(), $moduleConfig['routes'] ?? [], $debug, Translator::fromConfig($i18n)))->boot();
+    }
+
+    /**
+     * Every config/<name>.php, keyed by name, so config/db.php is read as Config::get('db.…').
+     *
+     * @return array<string, mixed>
+     */
+    private static function loadConfig(): array
+    {
+        $config = [];
+
+        foreach (glob(self::basePath('config/*.php')) ?: [] as $file) {
+            $values = require $file;
+            if (is_array($values)) {
+                $config[basename($file, '.php')] = $values;
+            }
+        }
+
+        return $config;
     }
 }

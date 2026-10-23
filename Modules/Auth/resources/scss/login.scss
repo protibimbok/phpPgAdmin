@@ -27,6 +27,11 @@
     text-align: right;
   }
 
+  // A failed connection shows the server's own message, which libpq may spread over lines.
+  .alert {
+    white-space: pre-line;
+  }
+
   @media only screen and (width <= breakpoint('md')) {
     .container {
       width: 100%;

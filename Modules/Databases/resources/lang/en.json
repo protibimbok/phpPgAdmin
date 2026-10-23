@@ -1,0 +1,15 @@
+{
+  "title": "Databases",
+  "columns": {
+    "database": "Database",
+    "owner": "Owner",
+    "encoding": "Encoding",
+    "collation": "Collation",
+    "size": "Size",
+    "comment": "Comment"
+  },
+  "total_one": "Total: {{count}} database",
+  "total_other": "Total: {{count}} databases",
+  "no_connect": "The current role may not connect to this database",
+  "template": "Template"
+}

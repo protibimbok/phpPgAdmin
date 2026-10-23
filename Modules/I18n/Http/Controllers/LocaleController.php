@@ -9,6 +9,7 @@ use League\Route\Http\Exception\UnprocessableEntityException;
 use PhpPgAdmin\Core\Facades\Lang;
 use PhpPgAdmin\Core\I18n\Locale;
 use PhpPgAdmin\Core\I18n\LocaleResolver;
+use PhpPgAdmin\Modules\Auth\Preferences;
 use Psr\Http\Message\ServerRequestInterface;
 
 final class LocaleController
@@ -45,6 +46,9 @@ final class LocaleController
         if (session_status() === PHP_SESSION_ACTIVE) {
             $_SESSION[LocaleResolver::SESSION_KEY] = $locale->code;
         }
+
+        // A signed-in role keeps the choice across sessions, in the application storage.
+        Preferences::forSession()?->set(Preferences::LOCALE, $locale->code);
 
         return ['locale' => $locale->toArray()];
     }
