@@ -7,9 +7,10 @@ namespace PhpPgAdmin\Modules\Auth;
 use PhpPgAdmin\Core\Contracts\Module;
 use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesGlobalMiddlewares;
+use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\AddAuthHeader;
 
-final class AuthModule implements Module, ProvidesApiRoutes, ProvidesGlobalMiddlewares
+final class AuthModule implements Module, ProvidesApiRoutes, ProvidesGlobalMiddlewares, ProvidesTranslations
 {
     public function name(): string
     {
@@ -29,5 +30,10 @@ final class AuthModule implements Module, ProvidesApiRoutes, ProvidesGlobalMiddl
     public function globalMiddlewares(): array
     {
         return [AddAuthHeader::class];
+    }
+
+    public function translationsPath(): string
+    {
+        return 'resources/lang';
     }
 }

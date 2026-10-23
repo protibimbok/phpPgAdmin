@@ -7,7 +7,10 @@ namespace PhpPgAdmin\Core;
 use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesGlobalMiddlewares;
 use PhpPgAdmin\Core\Contracts\ProvidesRoutes;
+use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
+use PhpPgAdmin\Core\Facades\Lang;
 use PhpPgAdmin\Core\Facades\Route;
+use PhpPgAdmin\Core\I18n\Translator;
 use PhpPgAdmin\Core\Http\ApiStrategy;
 use PhpPgAdmin\Core\Module\ModuleRegistry;
 use PhpPgAdmin\Core\Routing\Router;
@@ -23,6 +26,8 @@ final class Kernel
 {
     private readonly Router $router;
 
+    private readonly Translator $translator;
+
     private bool $booted = false;
 
     /**
@@ -33,11 +38,14 @@ final class Kernel
         ResponseFactoryInterface $responseFactory,
         private readonly array $routeGroups = [],
         bool $debug = false,
+        ?Translator $translator = null,
     ) {
         $this->router = new Router();
         $this->router->setStrategy(new ApiStrategy($responseFactory, $debug));
+        $this->translator = $translator ?? Translator::fromConfig([]);
 
         Route::swap($this->router);
+        Lang::swap($this->translator);
     }
 
     public function router(): Router
@@ -50,12 +58,18 @@ final class Kernel
         return $this->modules;
     }
 
+    public function translator(): Translator
+    {
+        return $this->translator;
+    }
+
     public function boot(): self
     {
         if ($this->booted) {
             return $this;
         }
 
+        $this->bootTranslations();
         $this->bootGlobalMiddlewares();
         $this->bootRoutes();
 
@@ -67,6 +81,16 @@ final class Kernel
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         return $this->boot()->router->dispatch($request);
+    }
+
+    /**
+     * Register each module's message directory under the module's name as namespace.
+     */
+    private function bootTranslations(): void
+    {
+        foreach ($this->modules->providing(ProvidesTranslations::class) as $module) {
+            $this->translator->addNamespace($module->name(), $this->modules->path($module, $module->translationsPath()));
+        }
     }
 
     /**

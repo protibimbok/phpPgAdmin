@@ -1,0 +1,5 @@
+{
+  "errors": {
+    "unsupported_locale": "The locale \"{{locale}}\" is not supported."
+  }
+}

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import laramod from 'laramod-vite-plugin'
+import postcssRTLCSS from 'postcss-rtlcss'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
@@ -20,6 +21,15 @@ export default defineConfig({
     },
   },
   css: {
+    postcss: {
+      plugins: [
+        // Right-to-left support the way phpMyAdmin gets it, flipping the stylesheet with rtlcss,
+        // except that the flipped rules are emitted next to the originals under a [dir="rtl"]
+        // prefix. The direction then follows the dir attribute on <html>, which the PHP shell
+        // sets and the client updates when the locale changes, with no second stylesheet.
+        postcssRTLCSS(),
+      ],
+    },
     preprocessorOptions: {
       scss: {
         // Bootstrap 5 is written with @import; keep Sass's deprecation notices about it quiet.

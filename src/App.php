@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPgAdmin;
 
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PhpPgAdmin\Core\I18n\Translator;
 use PhpPgAdmin\Core\Kernel;
 use PhpPgAdmin\Core\Module\ModuleRegistry;
 
@@ -25,8 +26,11 @@ final class App
         /** @var array{routes?: array<string, array<string, mixed>>} $config */
         $config = require self::basePath('config/modules.php');
 
+        /** @var array{default?: string, fallback?: string, locales?: array<string, array{name?: string, native?: string, dir?: string}>} $i18n */
+        $i18n = require self::basePath('config/i18n.php');
+
         $registry = (new ModuleRegistry())->register($modules);
 
-        return (new Kernel($registry, new Psr17Factory(), $config['routes'] ?? [], $debug))->boot();
+        return (new Kernel($registry, new Psr17Factory(), $config['routes'] ?? [], $debug, Translator::fromConfig($i18n)))->boot();
     }
 }

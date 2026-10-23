@@ -1,0 +1,14 @@
+{
+  "welcome": "Welcome to <app>phpPgAdmin</app>",
+  "noscript": "Javascript must be enabled past this point!",
+  "login": {
+    "title": "Log in",
+    "username": "Username:",
+    "password": "Password:",
+    "submit": "Log in",
+    "failed": "Login failed"
+  },
+  "errors": {
+    "credentials_required": "Username and password are required."
+  }
+}

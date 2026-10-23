@@ -1,0 +1,14 @@
+{
+  "welcome": "أهلا بك في <app>phpPgAdmin</app>",
+  "noscript": "يجب تفعيل Javascript بعد هذه النقطة!",
+  "login": {
+    "title": "دخول",
+    "username": "اسم المستخدم:",
+    "password": "كلمة المرور:",
+    "submit": "دخول",
+    "failed": "فشل تسجيل الدخول"
+  },
+  "errors": {
+    "credentials_required": "اسم المستخدم وكلمة المرور مطلوبان."
+  }
+}

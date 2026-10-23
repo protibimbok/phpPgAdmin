@@ -25,6 +25,9 @@
       "@/*": [
         "./react-app/src/*"
       ],
+      "@i18n/*": [
+        "./src/Modules/I18n/resources/*"
+      ],
       "@auth/*": [
         "./src/Modules/Auth/resources/*"
       ]

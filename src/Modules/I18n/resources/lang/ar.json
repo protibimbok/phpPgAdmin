@@ -1,0 +1,5 @@
+{
+  "errors": {
+    "unsupported_locale": "اللغة \"{{locale}}\" غير مدعومة."
+  }
+}

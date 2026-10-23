@@ -11,7 +11,11 @@ final class ResponseEmitter
     public function emit(ResponseInterface $response): void
     {
         if (!headers_sent()) {
+            // A translated exception message may end up as the reason phrase; the status line must stay ASCII.
             $reason = $response->getReasonPhrase();
+            if (!preg_match('/^[\x20-\x7E]*$/', $reason)) {
+                $reason = '';
+            }
             header(sprintf(
                 'HTTP/%s %d%s',
                 $response->getProtocolVersion(),

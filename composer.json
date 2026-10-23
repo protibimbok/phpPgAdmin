@@ -12,7 +12,10 @@
     "autoload": {
         "psr-4": {
             "PhpPgAdmin\\": "src/"
-        }
+        },
+        "files": [
+            "src/Core/helpers.php"
+        ]
     },
     "minimum-stability": "stable"
 }

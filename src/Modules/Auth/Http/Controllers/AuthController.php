@@ -20,7 +20,7 @@ final class AuthController
         $password = (string) ($input['password'] ?? '');
 
         if ($username === '' || $password === '') {
-            throw new BadRequestException('username and password are required');
+            throw new BadRequestException(__('auth::errors.credentials_required'));
         }
 
         // TODO: verify against PostgreSQL. For now, store the username in session.

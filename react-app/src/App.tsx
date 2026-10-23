@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Login from '@auth/js/Pages/Login'
 import { logout, me, type User } from '@auth/js/api'
+import LocaleSelect from '@/i18n/LocaleSelect'
 
 /**
  * Bootstraps the UI: asks the session who is signed in, shows the Auth module's login
  * page until someone is, then the application.
  */
 export default function App() {
+  const { t } = useTranslation()
   const [user, setUser] = useState<User | null | undefined>(undefined)
 
   useEffect(() => {
@@ -24,10 +27,16 @@ export default function App() {
   return (
     <main className="container-fluid py-3">
       <h2>phpPgAdmin</h2>
-      <p>Signed in as {user.username}.</p>
-      <button type="button" className="btn btn-secondary" onClick={() => void logout().then(() => setUser(null))}>
-        Log out
-      </button>
+      <p>{t('signed_in_as', { username: user.username })}</p>
+      <div className="d-flex align-items-center gap-3">
+        <button type="button" className="btn btn-secondary" onClick={() => void logout().then(() => setUser(null))}>
+          {t('log_out')}
+        </button>
+        <label className="d-flex align-items-center gap-2 mb-0">
+          <span>{t('language')}</span>
+          <LocaleSelect className="w-auto" />
+        </label>
+      </div>
     </main>
   )
 }

@@ -56,6 +56,11 @@ $input-focus-bg: color('surface-control');
 $input-focus-border-color: color('border-active');
 $focus-ring-color: color('focus-ring');
 $form-select-border-radius: radius('sm');
+// Bootstrap reserves three times the horizontal padding for the select's caret, which is fine
+// at its default 0.75rem but not at our 0.25rem: the 16px caret would sit under the text. Give
+// it its own width plus the padding on both sides. The RTL build then flips the select whole,
+// caret on the left and text after it, as phpMyAdmin's does, with no special rule.
+$form-select-indicator-padding: space(1) * 2 + 1rem;
 $form-check-input-checked-bg-color: color('focus');
 
 // Cards

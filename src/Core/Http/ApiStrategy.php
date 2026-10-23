@@ -22,7 +22,7 @@ final class ApiStrategy extends JsonStrategy
 {
     public function __construct(ResponseFactoryInterface $responseFactory, private readonly bool $debug = false)
     {
-        parent::__construct($responseFactory, JSON_UNESCAPED_SLASHES);
+        parent::__construct($responseFactory, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
     #[Override]
@@ -47,7 +47,7 @@ final class ApiStrategy extends JsonStrategy
                         $payload['trace'] = explode("\n", $e->getTraceAsString());
                     }
 
-                    $this->response->getBody()->write(json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+                    $this->response->getBody()->write(json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
                     return $this->response
                         ->withHeader('content-type', 'application/json')
