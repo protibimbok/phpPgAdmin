@@ -1,20 +1,20 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
-import { listDatabases, type Database } from './api'
+import { urls } from '@/level'
+import NodeChildren from '@/layout/tree/NodeChildren'
+import TreeItem from '@/layout/tree/TreeItem'
+import { databaseNodes } from './api'
 
 /**
  * The databases as the first level of phpMyAdmin's navigation tree: a "New" item, then one
- * item per database, each with the database icon and connecting lines drawn by the theme.
+ * item per database, each opening to the containers of the objects inside it.
  */
 export default function DatabaseTree() {
   const { t } = useTranslation('databases')
-  const [databases, setDatabases] = useState<Database[]>([])
-
-  useEffect(() => {
-    listDatabases().then(setDatabases, () => setDatabases([]))
-  }, [])
+  const { data } = useRequest(() => databaseNodes(), [])
+  const databases = data ?? []
 
   return (
     <ul>
@@ -33,29 +33,21 @@ export default function DatabaseTree() {
         <div className="clearfloat" />
       </li>
 
-      {databases.map((database, index) => {
-        const last = index === databases.length - 1
-        const href = `/database/${encodeURIComponent(database.name)}`
-
-        return (
-          <li key={database.name} className={`database${last ? ' last' : ''}`}>
-            <div className="block">
-              <i />
-              {/* The line on to the next item; the last item has none. */}
-              {!last && <b />}
-            </div>
-            <div className="block second">
-              <Link to={href}>
-                <Icon name="s_db" title={t('columns.database')} />
-              </Link>
-            </div>
-            <Link className="hover_show_full" to={href} title={database.name}>
-              {database.name}
-            </Link>
-            <div className="clearfloat" />
-          </li>
-        )
-      })}
+      {databases.map((database, index) => (
+        <TreeItem
+          key={database.id}
+          path={database.label}
+          label={database.label}
+          title={database.meta.description ?? database.label}
+          href={urls.database(database.label)}
+          icon="s_db"
+          className="database"
+          expandable={database.inode}
+          last={index === databases.length - 1}
+        >
+          <NodeChildren db={database.label} ancestors={[database]} />
+        </TreeItem>
+      ))}
     </ul>
   )
 }

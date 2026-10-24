@@ -6,6 +6,7 @@ import { useLocale } from '@/i18n/useLocale'
 import logo from '@/img/logo-left.svg'
 import { useSession } from '@/session'
 import { NavigationTree } from './NavigationTree'
+import { bindTreeState } from './tree/treeState'
 
 const DEFAULT_WIDTH = 240
 const DOCS_URL = 'https://github.com/protibimbok/phpPgAdmin#readme'
@@ -18,7 +19,9 @@ const POSTGRESQL_DOCS_URL = 'https://www.postgresql.org/docs/'
  */
 export default function Navigation() {
   const { t } = useTranslation()
-  const { logout } = useSession()
+  const { user, logout } = useSession()
+  // The remembered tree belongs to one server and user, as phpMyAdmin's does.
+  bindTreeState(`${user.username}@${user.server.id ?? `${user.server.host}:${user.server.port}`}`)
   const { locale } = useLocale()
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const lastWidth = useRef(DEFAULT_WIDTH)
