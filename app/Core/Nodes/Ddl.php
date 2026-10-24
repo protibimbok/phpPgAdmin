@@ -13,12 +13,13 @@ use PhpPgAdmin\Core\Sql\SqlTemplates;
 final class Ddl
 {
     /**
-     * "-- Table: public.t\n\n-- DROP TABLE IF EXISTS public.t;" The drop statement is given
+     * "-- Table: public.t\n\n-- DROP TABLE IF EXISTS public.t;" The kind is written as pgAdmin
+     * writes it for the node ("Table", "SCHEMA", "Database"); the drop statement is given
      * rendered (from the node's delete.sql) and commented out line by line.
      */
     public static function header(string $kind, string $qualifiedName, string $dropSql = ''): string
     {
-        $header = sprintf('-- %s: %s', strtoupper($kind), $qualifiedName);
+        $header = sprintf('-- %s: %s', $kind, $qualifiedName);
 
         $drop = trim($dropSql);
         if ($drop !== '') {

@@ -38,6 +38,8 @@ final class TwigExtension extends AbstractExtension
     {
         return [
             new TwigFunction('namespace', static fn (array $values = []): TemplateNamespace => new TemplateNamespace($values)),
+            // pgAdmin passes gettext as "_" for the column titles of its statistics queries.
+            new TwigFunction('_', static fn (string $message): string => $message),
         ];
     }
 

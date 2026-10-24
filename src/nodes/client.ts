@@ -17,7 +17,7 @@ export interface NodeType {
 }
 
 /** A tree node. */
-export interface TreeNode<Meta = Record<string, unknown>> {
+export interface TreeNode<Meta = unknown> {
   id: string
   oid: number
   label: string
@@ -42,24 +42,34 @@ export interface Statistics {
 
 const encode = encodeURIComponent
 
-/** "/api/databases/app/schemas/2200/tables": the collection path from (collection, oid) pairs. */
-export function collectionUrl(db: string, ...path: (string | number)[]): string {
-  return `/api/databases/${encode(db)}/${path.map((segment) => (typeof segment === 'number' ? String(segment) : segment)).join('/')}`
+/** The root the node routes hang from: a database by name, or the server for server-level nodes. */
+function root(db: string | null): string {
+  return db === null ? '/api/server' : `/api/databases/${encode(db)}`
 }
 
-export function getNodeTypes(db: string): Promise<NodeType[]> {
-  return api.get<{ nodes: NodeType[] }>(`/api/databases/${encode(db)}/nodes`).then((r) => r.nodes)
+/**
+ * The collection path from (collection, oid) pairs: collectionUrl('app', 'schemas', 2200,
+ * 'tables') is "/api/databases/app/schemas/2200/tables"; a null database addresses the
+ * server-level collections, collectionUrl(null, 'databases') is "/api/server/databases".
+ */
+export function collectionUrl(db: string | null, ...path: (string | number)[]): string {
+  return `${root(db)}/${path.map((segment) => (typeof segment === 'number' ? String(segment) : segment)).join('/')}`
+}
+
+/** The node types this server has, inside a database or (null) at the server level. */
+export function getNodeTypes(db: string | null): Promise<NodeType[]> {
+  return api.get<{ nodes: NodeType[] }>(`${root(db)}/nodes`).then((r) => r.nodes)
 }
 
 /** The OIDs behind a name: resolve('app', 'table', { schema: 'public', name: 't' }) → { scid, tid }. */
-export function resolve(db: string, type: string, params: Record<string, string>): Promise<Record<string, number>> {
+export function resolve(db: string | null, type: string, params: Record<string, string>): Promise<Record<string, number>> {
   const query = new URLSearchParams({ type, ...params })
 
-  return api.get<{ ids: Record<string, number> }>(`/api/databases/${encode(db)}/resolve?${query}`).then((r) => r.ids)
+  return api.get<{ ids: Record<string, number> }>(`${root(db)}/resolve?${query}`).then((r) => r.ids)
 }
 
 /** The operations on one collection, given its URL (see collectionUrl). */
-export function collection<Props extends Record<string, unknown> = Record<string, unknown>, Meta = Record<string, unknown>>(url: string) {
+export function collection<Props extends object = Record<string, unknown>, Meta = Record<string, unknown>>(url: string) {
   return {
     list: () => api.get<{ rows: Props[] }>(url).then((r) => r.rows),
     nodes: () => api.get<{ nodes: TreeNode<Meta>[] }>(`${url}/nodes`).then((r) => r.nodes),

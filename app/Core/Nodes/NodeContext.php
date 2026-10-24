@@ -38,10 +38,13 @@ final class NodeContext
         return $this->conn->version();
     }
 
-    /** The OID of the database, which pgAdmin's templates read as "did". */
+    /**
+     * The OID of the database the context works in, which pgAdmin's templates read as "did".
+     * For the database node itself the route's own "did" is the one meant, and it wins.
+     */
     public function did(): int
     {
-        return $this->did ??= (int) $this->conn->scalar('SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()');
+        return $this->ids['did'] ?? ($this->did ??= (int) $this->conn->scalar('SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()'));
     }
 
     /** One of the route's OIDs, "scid"; null when the route has none of that name. */
@@ -58,13 +61,31 @@ final class NodeContext
      */
     public function render(string $file, array $vars = []): string
     {
-        return Sql::render($this->node->templateDir(), $file, [...$this->ids, 'did' => $this->did(), 'conn' => $this->conn, ...$vars], $this->version());
+        return Sql::render($this->node->templateDir(), $file, $this->scope($vars), $this->version());
     }
 
     /** Render a template of another node's folder, "columns/properties.sql". */
     public function renderFrom(string $templateDir, string $file, array $vars = []): string
     {
-        return Sql::render($templateDir, $file, [...$this->ids, 'did' => $this->did(), 'conn' => $this->conn, ...$vars], $this->version());
+        return Sql::render($templateDir, $file, $this->scope($vars), $this->version());
+    }
+
+    /**
+     * The variables every template sees: the route's OIDs, the database's OID when the node is
+     * inside one, the connection, then the caller's own. "did" is left to the caller for a
+     * server-level node, where it names a database rather than the current one.
+     *
+     * @param array<string, mixed> $vars
+     * @return array<string, mixed>
+     */
+    private function scope(array $vars): array
+    {
+        $scope = [...$this->ids, 'conn' => $this->conn];
+        if (!$this->registry->isServerLevel($this->node)) {
+            $scope['did'] = $this->did();
+        }
+
+        return [...$scope, ...$vars];
     }
 
     public function has(string $file): bool

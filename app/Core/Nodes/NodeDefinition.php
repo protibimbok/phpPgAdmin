@@ -20,7 +20,11 @@ use InvalidArgumentException;
  */
 final readonly class NodeDefinition
 {
+    /** The parent of a node directly under a database: schemas, extensions, casts… */
     public const string DATABASE = 'database';
+
+    /** The parent of a server-wide node: databases, roles, tablespaces. */
+    public const string SERVER = 'server';
 
     /** Operations every node has; the others are opted into with "supports". */
     public const array BASE_OPERATIONS = ['list', 'nodes', 'node', 'properties', 'create', 'update', 'delete'];
@@ -32,7 +36,7 @@ final readonly class NodeDefinition
      * @param string $collection The plural URL segment, "tables".
      * @param string $idParam The route parameter holding the object's OID, "tid", as pgAdmin's templates name it.
      * @param class-string<NodeController> $controller
-     * @param string|null $parent The parent node's type; null for a node directly under the database.
+     * @param string|null $parent The parent node's type, or self::DATABASE / self::SERVER for a node directly under the database or the server.
      * @param string $templateDir The folder of the node's SQL templates, "tables".
      * @param int $minVersion The lowest server version the node exists for, 130000 for 13.0.
      * @param list<string> $supports Optional operations: sql, msql, stats, depends, children, resolve.
@@ -55,6 +59,9 @@ final readonly class NodeDefinition
         if (!preg_match('/^[a-z][a-z0-9_]*$/', $type) || !preg_match('/^[a-z][a-z0-9_-]*$/', $collection) || !preg_match('/^[a-z][a-z0-9_]*$/', $idParam)) {
             throw new InvalidArgumentException(sprintf('Node [%s] needs lower-case type, collection and id parameter names.', $type));
         }
+        if ($parent === null) {
+            throw new InvalidArgumentException(sprintf('Node [%s] needs a parent: another type, NodeDefinition::DATABASE or NodeDefinition::SERVER.', $type));
+        }
         if (!is_subclass_of($controller, NodeController::class)) {
             throw new InvalidArgumentException(sprintf('Node [%s] controller %s must extend %s.', $type, $controller, NodeController::class));
         }
@@ -63,6 +70,12 @@ final readonly class NodeDefinition
                 throw new InvalidArgumentException(sprintf('Node [%s] cannot support unknown operation "%s".', $type, $operation));
             }
         }
+    }
+
+    /** Whether the node lives under the server rather than inside a database. */
+    public function isServerLevel(): bool
+    {
+        return $this->parent === self::SERVER;
     }
 
     public function supports(string $operation): bool

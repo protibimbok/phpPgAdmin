@@ -44,21 +44,29 @@ final class NodeRegistry
     }
 
     /**
-     * The node types under the given type (the database when null) that a server of the given
-     * version has, in registration order.
+     * The node types under the given type (NodeDefinition::DATABASE or ::SERVER for the roots)
+     * that a server of the given version has, in registration order.
      *
      * @return list<NodeDefinition>
      */
-    public function childrenOf(?string $type, ?int $version = null): array
+    public function childrenOf(string $type, ?int $version = null): array
     {
         return array_values(array_filter(
             $this->nodes,
-            static fn (NodeDefinition $n): bool => $n->parent === ($type ?? NodeDefinition::DATABASE) && ($version === null || $n->availableOn($version)),
+            static fn (NodeDefinition $n): bool => $n->parent === $type && ($version === null || $n->availableOn($version)),
         ));
     }
 
+    /** Whether the node and its ancestors live under the server rather than inside a database. */
+    public function isServerLevel(NodeDefinition $node): bool
+    {
+        $ancestors = $this->ancestors($node);
+
+        return ($ancestors[0] ?? $node)->isServerLevel();
+    }
+
     /**
-     * The node's ancestors, outermost first, excluding the database.
+     * The node's ancestors, outermost first, excluding the database or server root.
      *
      * @return list<NodeDefinition>
      */
@@ -68,7 +76,7 @@ final class NodeRegistry
         $parent = $node->parent;
         $seen = [$node->type => true];
 
-        while ($parent !== null && $parent !== NodeDefinition::DATABASE) {
+        while ($parent !== null && $parent !== NodeDefinition::DATABASE && $parent !== NodeDefinition::SERVER) {
             if (isset($seen[$parent])) {
                 throw new LogicException(sprintf('Node [%s] has a cyclic parent chain.', $node->type));
             }
@@ -95,18 +103,27 @@ final class NodeRegistry
         return implode('/', $segments);
     }
 
+    /** "/server" for server-level nodes, "/databases/{db}" for the ones inside a database. */
+    public function rootPath(NodeDefinition $node): string
+    {
+        return $this->isServerLevel($node) ? '/server' : '/databases/{db}';
+    }
+
     /**
-     * Register the routes of every node, within the current route group. The database is
-     * addressed by name, objects by OID; the static segments ("nodes", "msql") never clash
-     * with an OID because the OID parameters only match digits.
+     * Register the routes of every node, within the current route group. Server-level nodes
+     * are under /server, the others under the database they are in, addressed by name;
+     * objects are addressed by OID. The static segments ("nodes", "msql") never clash with an
+     * OID because the OID parameters only match digits.
      */
     public function registerRoutes(): void
     {
-        Route::get('/databases/{db}/nodes', fn (ServerRequestInterface $request, array $args) => NodeDispatcher::catalog($this, $request, $args));
-        Route::get('/databases/{db}/resolve', fn (ServerRequestInterface $request, array $args) => NodeDispatcher::resolve($this, $request, $args));
+        foreach (['/server', '/databases/{db}'] as $root) {
+            Route::get("{$root}/nodes", fn (ServerRequestInterface $request, array $args) => NodeDispatcher::catalog($this, $request, $args));
+            Route::get("{$root}/resolve", fn (ServerRequestInterface $request, array $args) => NodeDispatcher::resolve($this, $request, $args));
+        }
 
         foreach ($this->nodes as $node) {
-            $base = '/databases/{db}/' . $this->collectionPath($node);
+            $base = $this->rootPath($node) . '/' . $this->collectionPath($node);
             $item = $base . '/{' . $node->idParam . ':number}';
             $dispatch = fn (string $operation) => fn (ServerRequestInterface $request, array $args) => NodeDispatcher::handle($this, $node, $operation, $request, $args);
 

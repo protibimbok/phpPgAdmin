@@ -34,7 +34,7 @@ final class Nodes
     }
 
     /** @return list<NodeDefinition> */
-    public static function childrenOf(?string $type, ?int $version = null): array
+    public static function childrenOf(string $type, ?int $version = null): array
     {
         return self::registry()->childrenOf($type, $version);
     }

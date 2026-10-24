@@ -59,11 +59,13 @@ final class NodeDispatcher
      */
     public static function catalog(NodeRegistry $registry, ServerRequestInterface $request, array $args): array
     {
-        $version = ConnectionPool::from($request)->for(self::database($args))->version();
+        $pool = ConnectionPool::from($request);
+        $serverLevel = !isset($args['db']);
+        $version = ($serverLevel ? $pool->maintenance() : $pool->for(self::database($args)))->version();
 
         return ['nodes' => array_values(array_map(
             static fn (NodeDefinition $n): array => $n->toArray(),
-            array_filter($registry->all(), static fn (NodeDefinition $n): bool => $n->availableOn($version)),
+            array_filter($registry->all(), static fn (NodeDefinition $n): bool => $n->availableOn($version) && $registry->isServerLevel($n) === $serverLevel),
         ))];
     }
 
@@ -82,6 +84,9 @@ final class NodeDispatcher
         if (!$node->supports('resolve')) {
             throw new BadRequestException(sprintf('Objects of type "%s" cannot be looked up by name.', $type));
         }
+        if ($registry->isServerLevel($node) === isset($args['db'])) {
+            throw new BadRequestException(sprintf('Objects of type "%s" are looked up under %s.', $type, $registry->rootPath($node)));
+        }
 
         $ctx = self::context($registry, $node, $request, $args);
         $ids = (new ($node->controller)())->resolve($ctx, $params)
@@ -93,8 +98,9 @@ final class NodeDispatcher
     /** @param array<string, string> $args */
     private static function context(NodeRegistry $registry, NodeDefinition $node, ServerRequestInterface $request, array $args): NodeContext
     {
-        $database = self::database($args);
         $pool = ConnectionPool::from($request);
+        // A server-level node works on the maintenance database; the others on the one in the URL.
+        $conn = $registry->isServerLevel($node) ? $pool->maintenance() : $pool->for(self::database($args));
 
         $ids = [];
         foreach ([...$registry->ancestors($node), $node] as $level) {
@@ -103,7 +109,7 @@ final class NodeDispatcher
             }
         }
 
-        return new NodeContext($node, $registry, $pool, $pool->for($database), $database, $ids, $request);
+        return new NodeContext($node, $registry, $pool, $conn, $conn->database(), $ids, $request);
     }
 
     /** @param array<string, string> $args */
