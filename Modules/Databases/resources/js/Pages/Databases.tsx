@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { listDatabases, type Database } from '../api'
+import { Link } from 'react-router'
+import { useRequest } from '@/api/useRequest'
+import { urls } from '@/level'
+import { listDatabases } from '../api'
 
 /** Bytes as phpMyAdmin prints sizes: a unit from B to TiB with one decimal. */
 export function formatSize(bytes: number): string {
@@ -20,22 +22,17 @@ export function formatSize(bytes: number): string {
  */
 export default function Databases() {
   const { t } = useTranslation('databases')
-  const [databases, setDatabases] = useState<Database[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    listDatabases().then(setDatabases, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-  }, [])
+  const { data: databases, error } = useRequest(() => listDatabases(), [])
 
   if (error) {
     return (
       <div className="alert alert-danger" role="alert">
-        {error}
+        {error.message}
       </div>
     )
   }
 
-  if (databases === null) {
+  if (databases === undefined) {
     return null
   }
 
@@ -57,14 +54,14 @@ export default function Databases() {
           </thead>
           <tbody>
             {databases.map((database) => (
-              <tr key={database.name} className={database.allow_connections ? undefined : 'text-muted'}>
+              <tr key={database.did} className={database.datallowconn ? undefined : 'text-muted'}>
                 <th scope="row" className="fw-normal">
-                  {database.name}
+                  {database.datallowconn ? <Link to={urls.database(database.name)}>{database.name}</Link> : database.name}
                   {database.is_template && <span className="badge bg-secondary ms-2">{t('template')}</span>}
                 </th>
-                <td>{database.owner}</td>
+                <td>{database.datowner}</td>
                 <td>{database.encoding}</td>
-                <td>{database.collation}</td>
+                <td>{database.datcollate}</td>
                 <td className="text-end text-nowrap">
                   {database.size === null ? (
                     <span title={t('no_connect')}>–</span>
@@ -72,7 +69,7 @@ export default function Databases() {
                     formatSize(database.size)
                   )}
                 </td>
-                <td>{database.comment}</td>
+                <td>{database.comments}</td>
               </tr>
             ))}
           </tbody>
