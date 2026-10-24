@@ -28,10 +28,16 @@ $colors: (
   'surface-stripe': #dfdfdf,
   'surface-control': #fff,
   'surface-button': #ddd,
+  'surface-nav': #f3f3f3,
+  'surface-nav-edge': #dadcde,
+  'surface-breadcrumb': #888,
   // borders
   'border': #aaa,
   'border-strong': #333,
   'border-active': #7c7c7c,
+  'border-menu': #ccc,
+  'border-tree': #666,
+  'text-breadcrumb-comment': #d6d6d6,
   // interaction
   'highlight': #cfc,
   'marker': #fc9,
@@ -56,6 +62,8 @@ $colors: (
 $gradients: (
   'button': (#f8f8f8, #d8d8d8),
   'button-hover': (#fff, #ddd),
+  'menu': (#fff, #dcdcdc),
+  'menu-hover': (#fff, #e5e5e5),
 );
 
 @function color($name) {
@@ -163,6 +171,7 @@ $shadows: (
 $text-shadows: (
   'light': 0 1px 0 #fff,
   'soft': 1px 1px 2px #fff,
+  'dark': 0 1px 0 #000,
 );
 
 $border-widths: (
@@ -204,7 +213,9 @@ $breakpoints: (
 
 $sizes: (
   'sidebar': 240px,
+  'sidebar-resizer': 3px,
   'login': 30em,
+  'icon': 16px,
 );
 
 @function breakpoint($name) {

@@ -1,0 +1,26 @@
+// The bar naming the server above the menu: phpMyAdmin's own "breadcrumb-navbar" variant
+// of Bootstrap's breadcrumb, a dark grey band with white links.
+
+.breadcrumb-navbar {
+  margin-bottom: $breadcrumb-navbar-margin-bottom;
+  padding: $breadcrumb-navbar-padding-y $breadcrumb-navbar-padding-x;
+  background-color: $breadcrumb-navbar-bg;
+  text-shadow: text-shadow('dark');
+
+  .breadcrumb-item {
+    + .breadcrumb-comment {
+      padding-inline-start: space(2);
+    }
+
+    a {
+      color: color('text-inverse');
+    }
+  }
+
+  .breadcrumb-comment {
+    color: color('text-breadcrumb-comment');
+    font-weight: font-weight('bold');
+    font-style: italic;
+    text-shadow: none;
+  }
+}

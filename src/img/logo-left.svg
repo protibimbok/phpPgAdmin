@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="165" height="28" viewBox="0 0 165 28" role="img" aria-label="phpPgAdmin">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a86b8"/>
+      <stop offset="1" stop-color="#336791"/>
+    </linearGradient>
+  </defs>
+  <!-- the database cylinder from Modules/Auth/resources/img/logo.svg, scaled for the navigation panel -->
+  <g transform="translate(2 2) scale(0.44)">
+    <path d="M4 10v32c0 5.5 11.2 10 25 10s25-4.5 25-10V10" fill="url(#g)"/>
+    <ellipse cx="29" cy="10" rx="25" ry="10" fill="#5b9bd1"/>
+    <path d="M4 24c0 5.5 11.2 10 25 10s25-4.5 25-10" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
+    <path d="M4 36c0 5.5 11.2 10 25 10s25-4.5 25-10" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
+  </g>
+  <text x="32" y="20" font-family="Verdana, Geneva, sans-serif" font-size="17" font-weight="bold" fill="#336791">php<tspan fill="#f29111">Pg</tspan>Admin</text>
+</svg>

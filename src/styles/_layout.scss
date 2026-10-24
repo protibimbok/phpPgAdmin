@@ -1,0 +1,51 @@
+// The page frame around the navigation panel: the page is pushed past the panel by its
+// width, which the panel publishes as --pga-nav-width (0 when collapsed, unset on the
+// login page). Logical properties keep the panel on the start edge in both directions.
+
+body {
+  margin-inline-start: calc(var(--pga-nav-width, 0px) + var(--pga-nav-resizer, 0px));
+}
+
+#page_content {
+  margin: 0 space(2);
+}
+
+#topmenucontainer {
+  width: 100%;
+  padding-inline-end: space(3);
+}
+
+// The "scroll to top" icon, fixed to the top end corner, padded like the breadcrumb bar
+// it sits in.
+#page_nav_icons {
+  position: fixed;
+  top: 0;
+  inset-inline-end: 0;
+  z-index: 99;
+  padding: $breadcrumb-navbar-padding-y $breadcrumb-padding-x;
+}
+
+// Opens the current page in a new window, under a rule across the bottom of the page.
+#selflink {
+  display: block;
+  clear: both;
+  width: 98%;
+  margin: space(3) 1%;
+  border-top: 0.1em solid silver;
+  text-align: end;
+}
+
+#maincontainer {
+  ul {
+    list-style-type: disc;
+    vertical-align: middle;
+  }
+
+  li {
+    margin-bottom: 0.3em;
+  }
+}
+
+.clearfloat {
+  clear: both;
+}

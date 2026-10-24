@@ -89,6 +89,16 @@ $navbar-light-color: color('link');
 $navbar-light-hover-color: color('link');
 $navbar-light-active-color: color('link');
 
+// Breadcrumbs (the bar naming the server above the menu). The -navbar- variables are
+// phpMyAdmin's own additions to Bootstrap's set, read by _breadcrumb.scss and _layout.scss.
+$breadcrumb-margin-bottom: 0;
+$breadcrumb-divider-color: color('text-inverse');
+$breadcrumb-divider: '»';
+$breadcrumb-navbar-padding-y: 0.1rem;
+$breadcrumb-navbar-padding-x: 2.2em;
+$breadcrumb-navbar-margin-bottom: 0;
+$breadcrumb-navbar-bg: color('surface-breadcrumb');
+
 // Pagination & list groups
 $pagination-active-color: color('link');
 $pagination-border-color: color('border');

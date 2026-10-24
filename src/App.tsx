@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useEffect, useMemo, useState } from 'react'
+import { useRoutes } from 'react-router'
 import Login from '@auth/js/Pages/Login'
 import { logout, me, type User } from '@auth/js/api'
-import LocaleSelect from '@/i18n/LocaleSelect'
-import Databases from '@databases/js/Pages/Databases'
+import Layout from '@/layout/Layout'
+import { getRoutes } from '@/modular'
+import NotFound from '@/pages/NotFound'
+import { SessionContext, type Session } from '@/session'
 
 /**
  * Bootstraps the UI: asks the session who is signed in, shows the Auth module's login
- * page until someone is, then the application.
+ * page until someone is, then the layout with the pages the modules registered.
  */
 export default function App() {
-  const { t } = useTranslation()
   const [user, setUser] = useState<User | null | undefined>(undefined)
 
   useEffect(() => {
@@ -26,20 +27,14 @@ export default function App() {
   }
 
   return (
-    <main className="container-fluid py-3">
-      <h2>phpPgAdmin</h2>
-      <p>{t('signed_in_as', { username: user.username })}</p>
-      <p className="text-muted">{t('connected_to', { host: user.server.host, port: user.server.port, version: user.server.version ?? '?' })}</p>
-      <div className="d-flex align-items-center gap-3 mb-4">
-        <button type="button" className="btn btn-secondary" onClick={() => void logout().then(() => setUser(null))}>
-          {t('log_out')}
-        </button>
-        <label className="d-flex align-items-center gap-2 mb-0">
-          <span>{t('language')}</span>
-          <LocaleSelect className="w-auto" />
-        </label>
-      </div>
-      <Databases />
-    </main>
+    <SessionContext.Provider value={{ user, logout: () => logout().then(() => setUser(null)) } satisfies Session}>
+      <Pages />
+    </SessionContext.Provider>
   )
+}
+
+function Pages() {
+  const routes = useMemo(() => [{ element: <Layout />, children: [...getRoutes(), { path: '*', element: <NotFound /> }] }], [])
+
+  return useRoutes(routes)
 }

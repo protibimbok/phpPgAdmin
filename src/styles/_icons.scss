@@ -1,0 +1,60 @@
+// phpMyAdmin's 16px icons, from its pmahomme theme (src/img/icons). <Icon name="b_home" />
+// renders a span with .icon and .ic_b_home; the image is its background.
+
+$icons: (
+  'b_docs',
+  'b_engine',
+  'b_export',
+  'b_group',
+  'b_help',
+  'b_home',
+  'b_import',
+  'b_minus',
+  'b_newdb',
+  'b_plugin',
+  'b_plus',
+  'b_sql',
+  'b_sqlhelp',
+  'b_tblops',
+  's_asci',
+  's_attention',
+  's_cog',
+  's_collapseall',
+  's_db',
+  's_error',
+  's_host',
+  's_lang',
+  's_link',
+  's_loggoff',
+  's_notice',
+  's_passwd',
+  's_reload',
+  's_replication',
+  's_rights',
+  's_status',
+  's_success',
+  's_theme',
+  's_top',
+  's_unlink',
+  's_vars',
+  'window-new',
+);
+
+// phpMyAdmin's icons are <img>s: 16px square, a 0.3em start margin, middle-aligned by
+// Bootstrap's reboot. Ours are spans, so the alignment is set here.
+.icon {
+  display: inline-block;
+  width: size('icon');
+  height: size('icon');
+  margin: 0;
+  margin-inline-start: 0.3em;
+  padding: 0;
+  vertical-align: middle;
+  background-repeat: no-repeat;
+}
+
+@each $icon in $icons {
+  .ic_#{$icon} {
+    background-image: url('../img/icons/#{$icon}.png');
+  }
+}

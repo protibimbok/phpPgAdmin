@@ -10,6 +10,7 @@ use PhpPgAdmin\Core\Contracts\ProvidesMigrations;
 use PhpPgAdmin\Core\Contracts\ProvidesRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Facades\Lang;
+use PhpPgAdmin\Core\Facades\Modules;
 use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Core\Facades\Storage;
 use PhpPgAdmin\Core\I18n\Translator;
@@ -48,6 +49,7 @@ final class Kernel
 
         Route::swap($this->router);
         Lang::swap($this->translator);
+        Modules::swap($this->modules);
     }
 
     public function router(): Router

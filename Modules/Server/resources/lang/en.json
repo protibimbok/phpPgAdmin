@@ -1,0 +1,29 @@
+{
+  "home": {
+    "general_settings": "General settings",
+    "appearance_settings": "Appearance settings",
+    "language": "Language",
+    "database_server": "Database server",
+    "server": "Server:",
+    "via_tcp": "via TCP/IP",
+    "via_socket": "via UNIX socket",
+    "server_type": "Server type:",
+    "server_connection": "Server connection:",
+    "ssl_used": "SSL is being used",
+    "ssl_not_used": "SSL is not being used",
+    "server_version": "Server version:",
+    "user": "User:",
+    "server_charset": "Server charset:",
+    "web_server": "Web server",
+    "client_version": "Database client version:",
+    "php_extension": "PHP extension:",
+    "php_version": "PHP version:",
+    "version_information": "Version information:",
+    "documentation": "Documentation",
+    "official_homepage": "Official Homepage",
+    "contribute": "Contribute",
+    "get_support": "Get support",
+    "list_of_changes": "List of changes",
+    "license": "License"
+  }
+}

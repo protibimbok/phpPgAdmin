@@ -1,0 +1,29 @@
+{
+  "home": {
+    "general_settings": "الإعدادات العامة",
+    "appearance_settings": "إعدادات المظهر",
+    "language": "لغة",
+    "database_server": "خادم قاعدة البيانات",
+    "server": "الخادم:",
+    "via_tcp": "عبر TCP/IP",
+    "via_socket": "عبر مقبس UNIX",
+    "server_type": "نوع الخادم:",
+    "server_connection": "اتصال الخادم:",
+    "ssl_used": "يتم استخدام SSL",
+    "ssl_not_used": "لا يتم استخدام SSL",
+    "server_version": "إصدار الخادم:",
+    "user": "المستخدم:",
+    "server_charset": "ترميز الخادم:",
+    "web_server": "خادم الويب",
+    "client_version": "إصدار عميل قاعدة البيانات:",
+    "php_extension": "امتداد PHP:",
+    "php_version": "إصدار PHP:",
+    "version_information": "معلومات الإصدار:",
+    "documentation": "التوثيق",
+    "official_homepage": "الصفحة الرئيسية الرسمية",
+    "contribute": "ساهم",
+    "get_support": "احصل على الدعم",
+    "list_of_changes": "قائمة التغييرات",
+    "license": "الرخصة"
+  }
+}

@@ -1,0 +1,23 @@
+// List groups on the home page's cards: plain bulleted lists, no borders, the ones that
+// hold a form (language, theme) flush with the card instead.
+
+#maincontainer {
+  .list-group {
+    margin: space(3) 0;
+    padding-inline-start: 40px;
+  }
+
+  .list-group-item {
+    display: list-item;
+    padding: 0;
+    border: none;
+  }
+}
+
+#li_select_lang,
+#li_select_theme {
+  &.list-group-item {
+    display: block;
+    margin-inline-start: -20px;
+  }
+}

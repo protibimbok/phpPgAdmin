@@ -1,4 +1,6 @@
 {
+  "tab": "Databases",
+  "new": "New",
   "title": "Databases",
   "columns": {
     "database": "Database",

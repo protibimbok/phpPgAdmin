@@ -27,7 +27,10 @@ export default defineConfig({
         // except that the flipped rules are emitted next to the originals under a [dir="rtl"]
         // prefix. The direction then follows the dir attribute on <html>, which the PHP shell
         // sets and the client updates when the locale changes, with no second stylesheet.
-        postcssRTLCSS(),
+        // Prefixed rules gain specificity, so a flipped reset such as Bootstrap's `ol { padding-
+        // left }` would outrank an unprefixed `padding` on a class; safeBothPrefix gives those
+        // declarations a `[dir]` prefix of their own so the cascade stays as written.
+        postcssRTLCSS({ safeBothPrefix: true }),
       ],
     },
     preprocessorOptions: {

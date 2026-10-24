@@ -9,6 +9,7 @@ use LogicException;
 use PhpPgAdmin\Core\Contracts\Module;
 use PhpPgAdmin\Core\Contracts\Ordered;
 use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
+use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
 use PhpPgAdmin\Core\Contracts\ProvidesGlobalMiddlewares;
 use PhpPgAdmin\Core\Contracts\ProvidesMigrations;
 use PhpPgAdmin\Core\Contracts\ProvidesRoutes;
@@ -27,6 +28,7 @@ final class ModuleRegistry
         'api' => ProvidesApiRoutes::class,
         'global-middlewares' => ProvidesGlobalMiddlewares::class,
         'vite' => ProvidesViteEntries::class,
+        'frontend-scripts' => ProvidesFrontendScripts::class,
         'translations' => ProvidesTranslations::class,
         'migrations' => ProvidesMigrations::class,
     ];

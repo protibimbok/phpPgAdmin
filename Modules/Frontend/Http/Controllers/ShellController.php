@@ -5,20 +5,25 @@ declare(strict_types=1);
 namespace PhpPgAdmin\Modules\Frontend\Http\Controllers;
 
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PhpPgAdmin\App;
+use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
+use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 use PhpPgAdmin\Core\Facades\Lang;
+use PhpPgAdmin\Core\Facades\Modules;
 use PhpPgAdmin\Core\Frontend\Vite;
 use PhpPgAdmin\Core\I18n\Locale;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use RuntimeException;
 
 final class ShellController
 {
-    /** The Vite entry that bootstraps the UI. */
+    /** The Vite entry that bootstraps the UI. It runs last, after every module's frontend script. */
     private const string ENTRY = 'src/main.tsx';
 
     public function show(ServerRequestInterface $request): ResponseInterface
     {
-        $tags = (new Vite())->tags([self::ENTRY]);
+        $tags = (new Vite())->tags([...$this->moduleScripts(), self::ENTRY]);
 
         // The locale SetLocale picked and the ones to offer, for the client's i18n to start from
         // without another request. The page is laid out in the locale's direction from the start.
@@ -53,5 +58,35 @@ final class ShellController
         $response->getBody()->write($html);
 
         return $response;
+    }
+
+    /**
+     * The frontend scripts of every module, as Vite entries relative to the project root, in
+     * module order. Each registers its pages and tabs at its top level, before the entry runs.
+     *
+     * @return list<string>
+     */
+    private function moduleScripts(): array
+    {
+        $scripts = [];
+        $base = rtrim(str_replace('\\', '/', App::basePath()), '/') . '/';
+
+        foreach (Modules::providing(ProvidesFrontendScripts::class) as $module) {
+            $declared = $module instanceof ProvidesViteEntries ? $module->viteEntries() : [];
+            $path = str_replace('\\', '/', Modules::path($module, ''));
+            $relative = str_starts_with($path, $base) ? substr($path, strlen($base)) : $path;
+
+            foreach ($module->frontendScripts() as $script) {
+                if (!in_array($script, $declared, true)) {
+                    throw new RuntimeException(sprintf(
+                        'Frontend script [%s] is not declared by [%s::viteEntries()].', $script, $module::class,
+                    ));
+                }
+
+                $scripts[] = rtrim($relative, '/') . '/' . ltrim($script, '/');
+            }
+        }
+
+        return $scripts;
     }
 }

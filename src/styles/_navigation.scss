@@ -1,0 +1,239 @@
+// The navigation panel, after pmahomme's: a grey panel fixed to the start edge, with a thin
+// drag handle and a collapse tab on its inner edge, the tree drawn with connecting lines.
+
+$nav-width: var(--pga-nav-width, #{size('sidebar')});
+
+body {
+  --pga-nav-resizer: #{size('sidebar-resizer')};
+}
+
+#pma_navigation {
+  position: fixed;
+  top: 0;
+  inset-inline-start: 0;
+  width: $nav-width;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(to right, color('surface-nav'), color('surface-nav-edge'));
+  color: color('text-strong');
+  z-index: 800;
+
+  ul {
+    margin: 0;
+  }
+
+  #pmalogo,
+  #navipanellinks {
+    padding: 5px 10px 0;
+    border: 0;
+    text-align: center;
+  }
+
+  #navipanellinks .icon {
+    margin: 0;
+  }
+}
+
+#pma_navigation_content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+#pma_navigation_header {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+#pma_navigation_tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  margin: 0;
+  margin-inline-start: 5px;
+  overflow: hidden;
+  color: color('text');
+
+  a {
+    padding-inline-start: 0;
+    color: color('text-strong');
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  ul {
+    clear: both;
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+
+    ul {
+      position: relative;
+    }
+  }
+
+  li {
+    clear: both;
+    min-height: size('icon');
+    margin-bottom: 0;
+    white-space: nowrap;
+
+    &.activePointer,
+    &.selected {
+      background-color: color('surface-button');
+      color: color('text-strong');
+    }
+  }
+
+  i {
+    display: block;
+  }
+
+  // Each item starts with blocks of one icon's width: the connecting lines, then the icon.
+  div.block {
+    position: relative;
+    float: left;
+    width: 1.5em;
+    height: 1.5em;
+    min-width: size('icon');
+    min-height: size('icon');
+
+    &.double {
+      width: 2.5em;
+    }
+
+    i,
+    b {
+      position: absolute;
+      bottom: 0.7em;
+      left: 0.75em;
+      width: 1.5em;
+      height: 1.7em;
+      min-width: size('icon');
+      min-height: 8px;
+      z-index: 0;
+    }
+
+    // The top and side segments of the line to the item.
+    i {
+      position: relative;
+      display: block;
+      border-left: border-width('base') solid color('border-tree');
+      border-bottom: border-width('base') solid color('border-tree');
+      z-index: 0;
+
+      &.first {
+        border-left: 0;
+      }
+    }
+
+    // The segment on to the next item.
+    b {
+      display: block;
+      bottom: -0.5rem; // compensates for vertical-align: sub on the item's link
+      left: 0.75em;
+      height: 0.75em;
+      border-left: border-width('base') solid color('border-tree');
+    }
+
+    a,
+    u {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 10;
+    }
+
+    a + a {
+      left: 100%;
+    }
+
+    &.double {
+      a,
+      u {
+        left: 33%;
+      }
+
+      a + a {
+        left: 85%;
+      }
+    }
+
+    .icon {
+      position: relative;
+      top: -0.6em;
+      left: 0;
+      margin-left: -7px;
+    }
+  }
+
+  li > a,
+  li > i {
+    height: 1.5em;
+    padding-inline-start: 0.3em;
+    line-height: 1.5em;
+  }
+
+  .list_container {
+    margin-inline-start: 0.75em;
+    padding-inline-start: 0.75em;
+    border-left: border-width('base') solid color('border-tree');
+  }
+
+  .last > .list_container {
+    border-left: 0;
+  }
+}
+
+#pma_navigation_tree_content {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overflow-y: auto;
+
+  a.hover_show_full {
+    position: relative;
+    vertical-align: sub;
+    z-index: 100;
+  }
+}
+
+// The drag handle on the panel's inner edge.
+#pma_navigation_resizer {
+  position: fixed;
+  top: 0;
+  inset-inline-start: $nav-width;
+  width: size('sidebar-resizer');
+  height: 100%;
+  background-color: color('border');
+  cursor: col-resize;
+  z-index: 801;
+}
+
+// The tab that folds the panel away and brings it back. Open, it sits on the panel's edge
+// with the resizer drawn over its outer border; collapsed, it moves beside the resizer
+// (phpMyAdmin's navigation.js sets the same two positions).
+#pma_navigation_collapser {
+  position: fixed;
+  top: 0;
+  inset-inline-start: $nav-width;
+  width: 20px;
+  height: 22px;
+  padding: 0;
+  border: border-width('base') solid color('surface-breadcrumb');
+  background: color('surface-raised');
+  color: color('text-control');
+  font-weight: font-weight('bold');
+  line-height: 22px;
+  text-align: center;
+  text-shadow: text-shadow('light');
+  cursor: pointer;
+  z-index: 800;
+
+  &.collapsed {
+    inset-inline-start: calc(#{$nav-width} + #{size('sidebar-resizer')});
+  }
+}

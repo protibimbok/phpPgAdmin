@@ -1,7 +1,17 @@
 {
   "language": "لغة",
-  "signed_in_as": "تم تسجيل الدخول باسم {{username}}.",
   "log_out": "تسجيل خروج",
   "loading": "جار التحميل…",
-  "connected_to": "PostgreSQL {{version}} على {{host}}:{{port}}"
+  "home": "الرئيسية",
+  "documentation": "توثيق phpPgAdmin",
+  "postgresql_documentation": "توثيق PostgreSQL",
+  "collapse_navigation": "طيّ لوحة التنقل",
+  "expand_navigation": "توسيع لوحة التنقل",
+  "server": "الخادم:",
+  "toggle_navigation": "إظهار/إخفاء القائمة",
+  "current": "(الحالي)",
+  "go_to_top": "انقر على الشريط للانتقال إلى أعلى الصفحة",
+  "open_new_window": "فتح نافذة phpPgAdmin جديدة",
+  "not_found": "لا توجد صفحة في هذا العنوان.",
+  "back_home": "العودة إلى البداية"
 }

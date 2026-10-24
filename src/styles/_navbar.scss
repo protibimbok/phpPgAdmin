@@ -1,0 +1,35 @@
+// The menu bar: bold tabs on a white-to-grey gradient, the active one flat white and
+// open at the bottom, as in pmahomme.
+
+.navbar.bg-light {
+  background: gradient('menu');
+}
+
+.navbar-nav {
+  font-weight: font-weight('bold');
+
+  .icon {
+    margin-inline-end: 0.5em;
+    vertical-align: -3px;
+  }
+
+  .nav-item {
+    border-right: border-width('base') solid color('text-inverse');
+    border-left: border-width('base') solid color('border-menu');
+    border-bottom: border-width('base') solid color('border-menu');
+    background: gradient('menu');
+
+    &:first-child {
+      border-left: 0;
+    }
+
+    &:hover {
+      background: gradient('menu-hover');
+    }
+
+    &.active {
+      border-bottom: 0;
+      background: color('surface');
+    }
+  }
+}

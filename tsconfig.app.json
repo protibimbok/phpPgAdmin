@@ -31,6 +31,9 @@
       "@auth/*": [
         "./Modules/Auth/resources/*"
       ],
+      "@server/*": [
+        "./Modules/Server/resources/*"
+      ],
       "@databases/*": [
         "./Modules/Databases/resources/*"
       ]

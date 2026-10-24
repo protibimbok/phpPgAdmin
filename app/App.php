@@ -14,6 +14,8 @@ use PhpPgAdmin\Core\Storage\Storage as StorageManager;
 
 final class App
 {
+    public const string VERSION = '0.1.0-dev';
+
     public static function basePath(string $append = ''): string
     {
         $base = dirname(__DIR__);
