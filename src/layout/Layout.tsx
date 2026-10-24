@@ -6,6 +6,7 @@ import { getModules } from '@/modular'
 import MenuBar from './MenuBar'
 import Navigation from './Navigation'
 import { NavigationTree } from './NavigationTree'
+import Notifications from './Notifications'
 
 /**
  * phpMyAdmin's page frame: the navigation panel on the start edge, the breadcrumb and the
@@ -35,6 +36,7 @@ export default function Layout() {
       </span>
 
       <div id="page_content">
+        <Notifications />
         <Outlet />
       </div>
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PhpPgAdmin\Core\Http\Middleware\ParseJsonBody;
+use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\StartSession;
 use PhpPgAdmin\Modules\I18n\Http\Middleware\SetLocale;
 
@@ -14,8 +15,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | Group attributes applied to the routes every module provides. Routes
-    | from ProvidesRoutes are wrapped in the "web" group and routes from
-    | ProvidesApiRoutes in the "api" group. Middleware are PSR-15 classes.
+    | from ProvidesRoutes are wrapped in the "web" group, routes from
+    | ProvidesApiRoutes in the "api" group, and the routes built from the
+    | node types the modules declare (ProvidesNodes) in the "nodes" group,
+    | which only signed-in sessions may use. Middleware are PSR-15 classes.
     | SetLocale reads the saved locale from the session, so it follows StartSession.
     |
     */
@@ -29,6 +32,11 @@ return [
         'api' => [
             'prefix' => 'api',
             'middleware' => [StartSession::class, SetLocale::class, ParseJsonBody::class],
+        ],
+
+        'nodes' => [
+            'prefix' => 'api',
+            'middleware' => [StartSession::class, SetLocale::class, ParseJsonBody::class, Authenticate::class],
         ],
 
     ],

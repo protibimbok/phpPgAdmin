@@ -1,17 +1,23 @@
 import type { ReactNode } from 'react'
 import type { RouteObject } from 'react-router'
+import { fillPath, type Level, type LevelName } from './level'
 
 /**
- * A tab in the menu bar under the breadcrumb, as phpMyAdmin lays out a server's pages.
- * The label is an i18n key with its namespace, "databases:tab", so it is translated when
- * the bar renders and not when the module registers.
+ * A tab in the menu bar under the breadcrumb, as phpMyAdmin lays out the pages of a server, a
+ * database or a table; here also a schema. The label is an i18n key with its namespace,
+ * "databases:tab", so it is translated when the bar renders and not when the module registers.
  */
 export interface MenuItem {
   label: string
   /** The icon's name under src/img/icons, "s_db". */
   icon: string
-  /** Starts with "/". */
+  /**
+   * Starts with "/". For a tab below the server level, a template with the level's names as
+   * placeholders: "/db/:db/structure", "/db/:db/schema/:schema/table/:table/browse".
+   */
   path: string
+  /** The level whose bar the tab is in; the server's when left out. */
+  level?: LevelName
 }
 
 /** Receives the menu the modules before it built and returns the one it wants. */
@@ -79,6 +85,7 @@ export function getModules(): readonly ModuleRegistration[] {
   return orderedCache
 }
 
+/** Every tab of every level, in module order. */
 export function getMenu(): MenuItem[] {
   let menu: MenuItem[] = []
 
@@ -89,6 +96,13 @@ export function getMenu(): MenuItem[] {
   }
 
   return menu
+}
+
+/** The tabs of the level the page is at, their paths filled with the level's names. */
+export function getMenuFor(level: Level): MenuItem[] {
+  return getMenu()
+    .filter((item) => (item.level ?? 'server') === level.name)
+    .map((item) => ({ ...item, path: fillPath(item.path, level) }))
 }
 
 export function getRoutes(): RouteObject[] {

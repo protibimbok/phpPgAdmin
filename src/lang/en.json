@@ -13,5 +13,14 @@
   "go_to_top": "Click on the bar to scroll to top of page",
   "open_new_window": "Open new phpPgAdmin window",
   "not_found": "There is no page at this address.",
-  "back_home": "Back to the start"
+  "back_home": "Back to the start",
+  "database": "Database:",
+  "schema": "Schema:",
+  "table": "Table:",
+  "view": "View:",
+  "materialized_view": "Materialized view:",
+  "close": "Close",
+  "ok": "OK",
+  "preview_sql": "Preview SQL",
+  "dismiss_notification": "Click to dismiss"
 }

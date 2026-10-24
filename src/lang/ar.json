@@ -13,5 +13,14 @@
   "go_to_top": "انقر على الشريط للانتقال إلى أعلى الصفحة",
   "open_new_window": "فتح نافذة phpPgAdmin جديدة",
   "not_found": "لا توجد صفحة في هذا العنوان.",
-  "back_home": "العودة إلى البداية"
+  "back_home": "العودة إلى البداية",
+  "database": "قاعدة البيانات:",
+  "schema": "المخطط:",
+  "table": "الجدول:",
+  "view": "العرض:",
+  "materialized_view": "العرض المادي:",
+  "close": "إغلاق",
+  "ok": "موافق",
+  "preview_sql": "معاينة SQL",
+  "dismiss_notification": "انقر للإغلاق"
 }

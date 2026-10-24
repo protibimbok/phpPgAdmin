@@ -12,7 +12,9 @@ use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
 use PhpPgAdmin\Core\Contracts\ProvidesGlobalMiddlewares;
 use PhpPgAdmin\Core\Contracts\ProvidesMigrations;
+use PhpPgAdmin\Core\Contracts\ProvidesNodes;
 use PhpPgAdmin\Core\Contracts\ProvidesRoutes;
+use PhpPgAdmin\Core\Contracts\ProvidesSqlTemplates;
 use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 
@@ -31,6 +33,8 @@ final class ModuleRegistry
         'frontend-scripts' => ProvidesFrontendScripts::class,
         'translations' => ProvidesTranslations::class,
         'migrations' => ProvidesMigrations::class,
+        'sql' => ProvidesSqlTemplates::class,
+        'nodes' => ProvidesNodes::class,
     ];
 
     /** @var array<string, Module> keyed by name, in registration order */

@@ -1,0 +1,36 @@
+// The floating message at the top of the page, after pmahomme's .ajax_notification: a yellow
+// note centred below the menu, with the spinning clock on its start edge; an alert inside it
+// takes over the colours.
+
+#loading_parent {
+  position: relative;
+  width: 100%;
+}
+
+.ajax_notification {
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  z-index: 1100;
+  display: inline-block;
+  width: 350px;
+  margin: 200px auto 0;
+  padding: 5px 5px 5px 28px;
+  border: 1px solid color('notification-border');
+  border-radius: radius('lg');
+  background: color('notification-bg') url('../img/ajax_clock_small.gif') no-repeat 2% center;
+  box-shadow: shadow('notification');
+  text-align: center;
+  cursor: pointer;
+
+  &.ajax_notification_alert {
+    padding: 0;
+    border: 0;
+    background-image: none;
+    background-color: transparent;
+
+    .alert {
+      box-shadow: shadow('notification');
+    }
+  }
+}

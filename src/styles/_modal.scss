@@ -1,0 +1,18 @@
+// Bootstrap's modal with pmahomme's grey gradient header. The dialogs are rendered by React
+// without Bootstrap's script, so the open state is the .show class plus a backdrop of our own.
+
+.modal-header {
+  background-image: gradient('button');
+}
+
+.modal.show {
+  display: block;
+}
+
+.preview_sql pre {
+  margin: 0;
+  max-height: 60vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: font-size('base');
+}

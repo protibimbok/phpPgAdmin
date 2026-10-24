@@ -2,20 +2,23 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router'
 import Icon from '@/components/Icon'
-import { activeMenuPath, getMenu } from '@/modular'
+import { urls, useLevel, type Level } from '@/level'
+import { activeMenuPath, getMenu, getMenuFor } from '@/modular'
 import { useSession } from '@/session'
 
 /**
- * The bar above the page, as phpMyAdmin draws it: the breadcrumb naming the server, then
- * the tabs the modules registered, the one covering the current page lit up.
+ * The bar above the page, as phpMyAdmin draws it: the breadcrumb naming the server, the
+ * database, the schema and the table the page is at, then the tabs of that level, the one
+ * covering the current page lit up.
  */
 export default function MenuBar() {
   const { user } = useSession()
   const { pathname } = useLocation()
+  const level = useLevel()
   const [open, setOpen] = useState(false)
-  const menu = useMemo(() => getMenu(), [])
+  const menu = useMemo(() => getMenuFor(level), [level.name, level.db, level.schema, level.table, level.kind])
   // Tab labels are "namespace:key"; load every namespace they name along with the app's own.
-  const namespaces = useMemo(() => ['app', ...new Set(menu.map((item) => item.label.split(':')[0]))], [menu])
+  const namespaces = useMemo(() => ['app', ...new Set(getMenu().map((item) => item.label.split(':')[0]))], [])
   const { t } = useTranslation(namespaces)
   const active = activeMenuPath(pathname, menu)
 
@@ -29,6 +32,30 @@ export default function MenuBar() {
               {t('server')} {user.server.host}:{user.server.port}
             </Link>
           </li>
+          {level.db !== undefined && (
+            <li className="breadcrumb-item">
+              <Icon name="s_db" />{' '}
+              <Link to={urls.database(level.db)} draggable={false}>
+                {t('database')} {level.db}
+              </Link>
+            </li>
+          )}
+          {level.db !== undefined && level.schema !== undefined && (
+            <li className="breadcrumb-item">
+              <Icon name="b_props" />{' '}
+              <Link to={urls.schema(level.db, level.schema)} draggable={false}>
+                {t('schema')} {level.schema}
+              </Link>
+            </li>
+          )}
+          {level.db !== undefined && level.schema !== undefined && level.table !== undefined && (
+            <li className="breadcrumb-item">
+              <Icon name={level.kind === 'table' ? 's_tbl' : 'b_views'} />{' '}
+              <Link to={urls.relation(level.db, level.schema, level.table, level.kind)} draggable={false}>
+                {t(kindLabel(level))} {level.table}
+              </Link>
+            </li>
+          )}
         </ol>
       </nav>
 
@@ -61,4 +88,15 @@ export default function MenuBar() {
       </div>
     </>
   )
+}
+
+function kindLabel(level: Level): string {
+  switch (level.kind) {
+    case 'view':
+      return 'view'
+    case 'mview':
+      return 'materialized_view'
+    default:
+      return 'table'
+  }
 }

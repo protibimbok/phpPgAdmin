@@ -56,6 +56,8 @@ $colors: (
   'danger-border': #333,
   'warning-bg': #ffc,
   'warning-border': #fc0,
+  'notification-bg': #ffe57e,
+  'notification-border': #e2b709,
 );
 
 // Button faces are gradients; each is (top, bottom).
@@ -166,6 +168,7 @@ $shadows: (
   'float': 3px 3px 15px #bbb,
   'control-hover': 0 1px 3px #aaa,
   'panel': 2px 2px 5px #ccc,
+  'notification': 0 5px 90px #888,
 );
 
 $text-shadows: (

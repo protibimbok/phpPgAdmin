@@ -1,3 +1,5 @@
+import { request } from '@/api/request'
+
 export interface User {
   username: string
   /** The PostgreSQL server the session is connected to. */
@@ -32,31 +34,7 @@ export interface SavedServer extends Server {
 /** What the login form sends about the server: a saved one by id, or one described in full. */
 export type ServerChoice = { id: number } | Pick<Server, 'host' | 'port' | 'sslmode' | 'maintenance_db'>
 
-/** The error body the API's JSON strategy sends: an HTTP exception, or a PostgreSQL error with its fields. */
-interface ApiError {
-  status_code?: number
-  reason_phrase?: string
-  message?: string
-  sqlstate?: string
-  detail?: string
-  hint?: string
-  position?: number
-}
-
-export async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
-  })
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as ApiError
-    throw new Error(body.message || body.reason_phrase || response.statusText || `Request failed (${response.status})`)
-  }
-
-  return (await response.json()) as T
-}
+export { ApiError, request } from '@/api/request'
 
 /** The saved servers, most recently used first, and the configured default. */
 export function getServers(): Promise<{ servers: SavedServer[]; default: Server }> {

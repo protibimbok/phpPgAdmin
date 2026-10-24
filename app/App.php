@@ -10,6 +10,8 @@ use PhpPgAdmin\Core\Facades\Storage;
 use PhpPgAdmin\Core\I18n\Translator;
 use PhpPgAdmin\Core\Kernel;
 use PhpPgAdmin\Core\Module\ModuleRegistry;
+use PhpPgAdmin\Core\Sql\SqlTemplates;
+use PhpPgAdmin\Core\Sql\VersionedLoader;
 use PhpPgAdmin\Core\Storage\Storage as StorageManager;
 
 final class App
@@ -40,7 +42,11 @@ final class App
 
         $registry = (new ModuleRegistry())->register($modules);
 
-        return (new Kernel($registry, new Psr17Factory(), $moduleConfig['routes'] ?? [], $debug, Translator::fromConfig($i18n)))->boot();
+        // Compiled templates are kept beside the storage database, so they live outside the project when it does.
+        $cache = dirname((string) Config::get('storage.path', self::basePath('storage/phppgadmin.sqlite'))) . '/cache/twig';
+        $sql = new SqlTemplates(new VersionedLoader(), $cache);
+
+        return (new Kernel($registry, new Psr17Factory(), $moduleConfig['routes'] ?? [], $debug, Translator::fromConfig($i18n), $sql))->boot();
     }
 
     /**
