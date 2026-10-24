@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Databases\Http\Controllers;
 
-use League\Route\Http\Exception as HttpException;
-use PhpPgAdmin\Core\Database\ConnectionException;
-use PhpPgAdmin\Core\Database\Connector;
-use PhpPgAdmin\Core\Database\Credentials;
-use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
+use PhpPgAdmin\Core\Database\ConnectionPool;
 use Psr\Http\Message\ServerRequestInterface;
 
 final class DatabaseController
@@ -36,17 +32,8 @@ final class DatabaseController
      */
     public function index(ServerRequestInterface $request): array
     {
-        /** @var Credentials $credentials */
-        $credentials = $request->getAttribute(Authenticate::CREDENTIALS);
-
-        try {
-            $connection = Connector::fromConfig()->connect($credentials);
-        } catch (ConnectionException $e) {
-            throw new HttpException($e->httpStatus(), $e->getMessage());
-        }
-
         $databases = [];
-        foreach ($connection->query(self::LIST) as $row) {
+        foreach (ConnectionPool::from($request)->maintenance()->rows(self::LIST) as $row) {
             $databases[] = [
                 'name' => $row['name'],
                 'owner' => $row['owner'],

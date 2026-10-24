@@ -8,6 +8,7 @@ use PhpPgAdmin\Modules\Auth\Http\Controllers\PreferenceController;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 
 Route::prefix('auth')->controller(AuthController::class)->group(function (): void {
+    Route::get('/servers', 'servers')->setName('auth.servers');
     Route::post('/login', 'login')->setName('auth.login');
 
     Route::middleware(Authenticate::class)->group(function (): void {

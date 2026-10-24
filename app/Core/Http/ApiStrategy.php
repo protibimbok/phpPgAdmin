@@ -7,6 +7,8 @@ namespace PhpPgAdmin\Core\Http;
 use League\Route\Http;
 use League\Route\Strategy\JsonStrategy;
 use Override;
+use PhpPgAdmin\Core\Database\ConnectionException;
+use PhpPgAdmin\Core\Database\QueryException;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -15,8 +17,12 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Throwable;
 
 /**
- * league/route's JSON strategy, except that an unexpected exception only
- * reveals its message and trace when the application runs in debug mode.
+ * league/route's JSON strategy, except that a PostgreSQL failure is reported with the server's
+ * own message and error fields, and an unexpected exception only reveals its message and trace
+ * when the application runs in debug mode.
+ *
+ * Every error body has "status_code" and "reason_phrase"; a PostgreSQL error adds "message" and,
+ * when the server sent them, "sqlstate", "detail", "hint" and "position".
  */
 final class ApiStrategy extends JsonStrategy
 {
@@ -39,6 +45,10 @@ final class ApiStrategy extends JsonStrategy
                     return $handler->handle($request);
                 } catch (Http\Exception $e) {
                     return $e->buildJsonResponse($this->response);
+                } catch (QueryException $e) {
+                    return $this->json($e->httpStatus(), $e->toArray());
+                } catch (ConnectionException $e) {
+                    return $this->json($e->httpStatus(), ['message' => $e->getMessage()]);
                 } catch (Throwable $e) {
                     $payload = ['status_code' => 500, 'reason_phrase' => 'Internal Server Error'];
                     if ($this->debug) {
@@ -54,6 +64,29 @@ final class ApiStrategy extends JsonStrategy
                         ->withStatus(500, 'Internal Server Error');
                 }
             }
+
+            /** @param array<string, mixed> $fields */
+            private function json(int $status, array $fields): ResponseInterface
+            {
+                $reason = self::REASONS[$status] ?? 'Error';
+                $payload = ['status_code' => $status, 'reason_phrase' => $reason, ...$fields];
+
+                $this->response->getBody()->write(json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+                return $this->response
+                    ->withHeader('content-type', 'application/json')
+                    ->withStatus($status, $reason);
+            }
+
+            private const array REASONS = [
+                400 => 'Bad Request',
+                401 => 'Unauthorized',
+                403 => 'Forbidden',
+                404 => 'Not Found',
+                409 => 'Conflict',
+                500 => 'Internal Server Error',
+                503 => 'Service Unavailable',
+            ];
         };
     }
 }

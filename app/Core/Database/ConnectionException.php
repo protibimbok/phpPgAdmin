@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Core\Database;
 
-use PDOException;
 use RuntimeException;
 
 /**
  * A connection to the PostgreSQL server could not be opened. The message is the server's
- * (or libpq's) own, the way pgAdmin and phpMyAdmin show it, with the driver's prefix removed.
+ * (or libpq's) own, the way pgAdmin and phpMyAdmin show it, with the driver's framing removed.
  */
 final class ConnectionException extends RuntimeException
 {
-    private function __construct(string $message, private readonly bool $credentialsRejected, private readonly bool $databaseUnavailable, ?PDOException $previous)
+    private function __construct(string $message, private readonly bool $credentialsRejected, private readonly bool $databaseUnavailable)
     {
-        parent::__construct($message, 0, $previous);
+        parent::__construct($message);
     }
 
-    public static function fromPdo(PDOException $e): self
+    /** From the warning pg_connect() raises, which wraps libpq's message. */
+    public static function fromLibpq(string $warning): self
     {
-        $message = self::serverMessage($e->getMessage());
+        $message = self::serverMessage($warning);
 
-        return new self($message, self::isCredentialsRejected($message), self::isDatabaseUnavailable($message), $e);
+        return new self($message, self::isCredentialsRejected($message), self::isDatabaseUnavailable($message));
     }
 
     /**
@@ -46,10 +46,10 @@ final class ConnectionException extends RuntimeException
         return $this->credentialsRejected ? 401 : 503;
     }
 
-    /** Strip PDO's "SQLSTATE[08006] [7] " framing. */
+    /** Strip ext-pgsql's "pg_connect(): Unable to connect to PostgreSQL server: " framing. */
     private static function serverMessage(string $message): string
     {
-        $message = preg_replace('/^SQLSTATE\[\w+\]\s*(\[\d+\]\s*)?/', '', $message) ?? $message;
+        $message = preg_replace('/^(pg_connect\(\):\s*)?(Unable to connect to PostgreSQL server:\s*)?/i', '', $message) ?? $message;
 
         return trim($message);
     }

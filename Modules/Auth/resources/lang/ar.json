@@ -5,11 +5,21 @@
     "title": "دخول",
     "username": "اسم المستخدم:",
     "password": "كلمة المرور:",
+    "server_choice": "اختيار الخادم:",
+    "other_server": "خادم آخر…",
+    "advanced": "متقدم",
+    "host": "المضيف:",
+    "host_help": "اسم مضيف، أو عنوان IP، أو مجلد مقبس UNIX للخادم.",
+    "port": "المنفذ:",
+    "sslmode": "وضع SSL:",
+    "maintenance_db": "قاعدة بيانات الصيانة:",
+    "maintenance_db_help": "قاعدة البيانات التي يتم الاتصال بها أولاً. اتركها فارغة لتجربة postgres وtemplate1 وقاعدة بيانات الدور نفسه.",
     "submit": "دخول",
     "failed": "فشل تسجيل الدخول"
   },
   "errors": {
     "credentials_required": "اسم المستخدم مطلوب.",
-    "invalid_preferences": "يجب أن تكون التفضيلات كائنًا من المفاتيح والقيم."
+    "invalid_preferences": "يجب أن تكون التفضيلات كائنًا من المفاتيح والقيم.",
+    "unknown_server": "هذا الخادم المحفوظ لم يعد موجودًا."
   }
 }

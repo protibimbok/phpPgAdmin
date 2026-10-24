@@ -5,11 +5,21 @@
     "title": "Log in",
     "username": "Username:",
     "password": "Password:",
+    "server_choice": "Server choice:",
+    "other_server": "Other server…",
+    "advanced": "Advanced",
+    "host": "Host:",
+    "host_help": "A host name, an IP address, or the directory of the server's UNIX socket.",
+    "port": "Port:",
+    "sslmode": "SSL mode:",
+    "maintenance_db": "Maintenance database:",
+    "maintenance_db_help": "The database to connect to first. Leave empty to try postgres, template1 and the role's own database.",
     "submit": "Log in",
     "failed": "Login failed"
   },
   "errors": {
     "credentials_required": "A username is required.",
-    "invalid_preferences": "The preferences must be an object of keys and values."
+    "invalid_preferences": "The preferences must be an object of keys and values.",
+    "unknown_server": "That saved server no longer exists."
   }
 }

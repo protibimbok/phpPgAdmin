@@ -4,25 +4,48 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Auth\Http\Controllers;
 
-use League\Route\Http\Exception as HttpException;
 use League\Route\Http\Exception\BadRequestException;
+use League\Route\Http\Exception\NotFoundException;
 use PhpPgAdmin\Core\Database\ConnectionException;
 use PhpPgAdmin\Core\Database\Connector;
+use PhpPgAdmin\Core\Database\Server;
 use PhpPgAdmin\Core\Facades\Lang;
 use PhpPgAdmin\Core\I18n\LocaleResolver;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Auth\Preferences;
+use PhpPgAdmin\Modules\Auth\Servers;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Logging in means connecting to the configured PostgreSQL server as the given role,
- * like phpMyAdmin's cookie authentication does against MySQL. The credentials are kept
- * in the session so later requests can open connections for the same role.
+ * Logging in means connecting to a PostgreSQL server as the given role, like phpMyAdmin's
+ * cookie authentication does against MySQL. The server is the configured one, a saved one
+ * picked by id, or one entered under the form's "Advanced" section; a server a login succeeds
+ * against is saved (without the password) and offered next time. The credentials and the
+ * server are kept in the session so later requests can open connections for the same role.
  *
  * Actions return arrays; the JSON strategy encodes them. Return a ResponseInterface for anything else.
  */
 final class AuthController
 {
+    /**
+     * The servers the login page offers: the saved ones, most recently used first, and the
+     * configured default to pre-fill the advanced fields with.
+     *
+     * @return array{servers: list<array<string, mixed>>, default: array<string, mixed>}
+     */
+    public function servers(ServerRequestInterface $request): array
+    {
+        $servers = Servers::make();
+
+        return [
+            'servers' => array_map(
+                static fn (Server $server): array => [...$server->toArray(), 'last_username' => $server->id === null ? null : $servers->lastUsername($server->id)],
+                $servers->all(),
+            ),
+            'default' => Server::fromConfig()->toArray(),
+        ];
+    }
+
     /** @return array<string, mixed> */
     public function login(ServerRequestInterface $request): array
     {
@@ -34,22 +57,26 @@ final class AuthController
             throw new BadRequestException(__('auth::errors.credentials_required'));
         }
 
-        $connector = Connector::fromConfig();
+        $server = $this->server($input['server'] ?? null);
+        $connector = Connector::for($server);
 
         try {
             [$connection, $credentials] = $connector->login($username, $password);
         } catch (ConnectionException $e) {
-            // The server's own message, the way pgAdmin and phpMyAdmin report a failed connection.
+            // The API reports the server's own message, the way pgAdmin and phpMyAdmin do; an
+            // unreachable server is also worth a line in the log.
             if (!$e->credentialsRejected()) {
                 error_log(sprintf('phpPgAdmin: cannot connect to %s:%d: %s', $connector->host, $connector->port, $e->getMessage()));
             }
 
-            throw new HttpException($e->httpStatus(), $e->getMessage());
+            throw $e;
         }
 
-        /** @var string|false $version */
-        $version = $connection->query('SHOW server_version')->fetchColumn();
-        unset($connection);
+        $version = $connection->versionString();
+        $connection->close();
+
+        // The server let the role in: remember it for the next login, without the password.
+        $server = Servers::make()->remember($server, $username);
 
         // A fresh session id, so a session fixed before the login does not carry the credentials.
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -59,16 +86,19 @@ final class AuthController
         $_SESSION[Authenticate::USER] = [
             'username' => $username,
             'server' => [
-                'host' => $connector->host,
-                'port' => $connector->port,
-                'version' => $version === false ? null : $version,
+                'id' => $server->id,
+                'name' => $server->name,
+                'host' => $server->host,
+                'port' => $server->port,
+                'version' => $version !== '' ? $version : null,
             ],
         ];
         $_SESSION[Authenticate::CREDENTIALS] = $credentials->toArray();
+        $_SESSION[Authenticate::SERVER] = $server->toArray();
 
         // The role's saved language, as phpMyAdmin restores a user's settings from its configuration
         // storage. The session and, through SetLocale, the cookie follow it; the client switches too.
-        $saved = Preferences::for($username)->get(Preferences::LOCALE);
+        $saved = Preferences::for($server, $username)->get(Preferences::LOCALE);
         if (is_string($saved) && ($locale = Lang::find($saved)) !== null) {
             Lang::setLocale($locale);
             $_SESSION[LocaleResolver::SESSION_KEY] = $locale->code;
@@ -80,7 +110,7 @@ final class AuthController
     /** @return array<string, mixed> */
     public function logout(ServerRequestInterface $request): array
     {
-        unset($_SESSION[Authenticate::USER], $_SESSION[Authenticate::CREDENTIALS]);
+        unset($_SESSION[Authenticate::USER], $_SESSION[Authenticate::CREDENTIALS], $_SESSION[Authenticate::SERVER]);
 
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
@@ -93,5 +123,26 @@ final class AuthController
     public function me(ServerRequestInterface $request): array
     {
         return ['user' => $request->getAttribute(Authenticate::USER)];
+    }
+
+    /**
+     * The server the form asks to sign in to: a saved one by id, one described by host and
+     * port (the "Advanced" fields), or the configured default when nothing is given.
+     */
+    private function server(mixed $input): Server
+    {
+        if (!is_array($input) || $input === []) {
+            return Server::fromConfig();
+        }
+
+        if (isset($input['id']) && is_numeric($input['id'])) {
+            return Servers::make()->find((int) $input['id']) ?? throw new NotFoundException(__('auth::errors.unknown_server'));
+        }
+
+        try {
+            return Server::fromArray($input);
+        } catch (\InvalidArgumentException $e) {
+            throw new BadRequestException($e->getMessage());
+        }
     }
 }

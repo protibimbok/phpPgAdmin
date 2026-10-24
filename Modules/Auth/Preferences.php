@@ -6,7 +6,7 @@ namespace PhpPgAdmin\Modules\Auth;
 
 use PDO;
 use PhpPgAdmin\Core\Database\Credentials;
-use PhpPgAdmin\Core\Facades\Config;
+use PhpPgAdmin\Core\Database\Server;
 use PhpPgAdmin\Core\Facades\Storage;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 
@@ -29,15 +29,14 @@ final class Preferences
     public static function forSession(): ?self
     {
         $credentials = Credentials::fromArray((array) ($_SESSION[Authenticate::CREDENTIALS] ?? []));
+        $server = Authenticate::sessionServer();
 
-        return $credentials === null ? null : self::for($credentials->username);
+        return $credentials === null || $server === null ? null : self::for($server, $credentials->username);
     }
 
-    public static function for(string $username): self
+    public static function for(Server $server, string $username): self
     {
-        $server = sprintf('%s:%d', (string) Config::get('db.host', 'localhost'), (int) Config::get('db.port', 5432));
-
-        return new self(Storage::connection(), $server, $username);
+        return new self(Storage::connection(), $server->key(), $username);
     }
 
     /** @return array<string, mixed> */

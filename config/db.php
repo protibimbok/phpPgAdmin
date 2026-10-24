@@ -6,23 +6,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | PostgreSQL Server
+    | Default PostgreSQL Server
     |--------------------------------------------------------------------------
     |
-    | The server the UI administers and that logins are verified against.
-    | "host" is a hostname, an IP address, or the directory of a Unix socket;
-    | "port" is the TCP port the server listens on. Both can be overridden
-    | from the environment with PGADMIN_DB_HOST and PGADMIN_DB_PORT.
+    | The server the login page offers first; the form's "Advanced" section
+    | lets a login go to another one, and servers a login succeeded against
+    | are remembered. "host" is a hostname, an IP address, or the directory
+    | of a Unix socket; "port" is the TCP port the server listens on;
+    | "sslmode" is libpq's (disable, allow, prefer, require, verify-ca,
+    | verify-full). Each can be overridden from the environment with
+    | PGADMIN_DB_HOST, PGADMIN_DB_PORT and PGADMIN_DB_SSLMODE.
     |
-    | No database is configured: a login connects to the first of "postgres",
-    | "template1" and the role's own database that lets the role in, and the
-    | databases are listed from there.
+    | "database" is where a login connects first. When it is null, the first
+    | of "postgres", "template1" and the role's own database that lets the
+    | role in is used, and the databases are listed from there.
     |
     */
 
     'host' => getenv('PGADMIN_DB_HOST') ?: 'localhost',
 
     'port' => (int) (getenv('PGADMIN_DB_PORT') ?: 5432),
+
+    'sslmode' => getenv('PGADMIN_DB_SSLMODE') ?: 'prefer',
+
+    'database' => getenv('PGADMIN_DB_DATABASE') ?: null,
 
     /*
     |--------------------------------------------------------------------------

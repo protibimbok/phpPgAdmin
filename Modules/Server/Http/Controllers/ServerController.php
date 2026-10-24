@@ -4,13 +4,8 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Server\Http\Controllers;
 
-use League\Route\Http\Exception as HttpException;
-use PDO;
 use PhpPgAdmin\App;
-use PhpPgAdmin\Core\Database\ConnectionException;
-use PhpPgAdmin\Core\Database\Connector;
-use PhpPgAdmin\Core\Database\Credentials;
-use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
+use PhpPgAdmin\Core\Database\ConnectionPool;
 use Psr\Http\Message\ServerRequestInterface;
 
 final class ServerController
@@ -31,18 +26,12 @@ final class ServerController
      */
     public function info(ServerRequestInterface $request): array
     {
-        /** @var Credentials $credentials */
-        $credentials = $request->getAttribute(Authenticate::CREDENTIALS);
-        $connector = Connector::fromConfig();
-
-        try {
-            $connection = $connector->connect($credentials);
-        } catch (ConnectionException $e) {
-            throw new HttpException($e->httpStatus(), $e->getMessage());
-        }
+        $pool = ConnectionPool::from($request);
+        $connector = $pool->connector();
+        $connection = $pool->maintenance();
 
         /** @var array{version: string, user: string, encoding: string, ssl: bool|null} $row */
-        $row = $connection->query(self::INFO)->fetch();
+        $row = $connection->row(self::INFO);
         $serverParams = $request->getServerParams();
 
         return [
@@ -56,12 +45,12 @@ final class ServerController
                 'user' => $row['user'],
                 'encoding' => $row['encoding'],
                 'ssl' => $row['ssl'] === null ? null : (bool) $row['ssl'],
-                'database' => $credentials->database,
+                'database' => $connection->database(),
             ],
             'web' => [
                 'software' => isset($serverParams['SERVER_SOFTWARE']) ? (string) $serverParams['SERVER_SOFTWARE'] : null,
-                'client' => 'libpq ' . (string) $connection->getAttribute(PDO::ATTR_CLIENT_VERSION),
-                'extensions' => ['pdo_pgsql'],
+                'client' => 'libpq ' . $connection->clientVersion(),
+                'extensions' => ['pgsql'],
                 'php' => PHP_VERSION,
             ],
             'app' => [
