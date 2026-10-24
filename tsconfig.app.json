@@ -36,6 +36,9 @@
       ],
       "@databases/*": [
         "./Modules/Databases/resources/*"
+      ],
+      "@schemas/*": [
+        "./Modules/Schemas/resources/*"
       ]
     }
   },

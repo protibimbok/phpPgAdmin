@@ -1,0 +1,51 @@
+// Tables, after pmahomme's _tables.scss: a light gradient on the header cells with white
+// dividers, a blue gradient on the hovered row, and the lists' ".data" spacing.
+
+.table {
+  caption-side: top;
+
+  th,
+  td {
+    text-shadow: text-shadow('light');
+    vertical-align: middle;
+
+    > span:empty::before {
+      content: '\200b';
+    }
+  }
+
+  th {
+    color: color('text-strong');
+  }
+
+  thead th {
+    border-right: border-width('base') solid color('text-inverse');
+    background-image: gradient('table-head');
+  }
+
+  caption {
+    background-color: color('surface-bar');
+    font-weight: font-weight('bold');
+    text-align: center;
+  }
+}
+
+.table-hover tbody tr:hover {
+  background: gradient('row-hover');
+}
+
+.table-striped > tbody > tr:nth-of-type(#{$table-striped-order}) > th {
+  color: color('text-strong');
+}
+
+.data {
+  margin: 0 0 12px;
+}
+
+#page_content #tableslistcontainer {
+  margin-top: 1em;
+
+  table.data {
+    border-top: 0.1px solid color('surface-raised');
+  }
+}

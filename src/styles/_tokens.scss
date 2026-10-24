@@ -66,6 +66,8 @@ $gradients: (
   'button-hover': (#fff, #ddd),
   'menu': (#fff, #dcdcdc),
   'menu-hover': (#fff, #e5e5e5),
+  'table-head': (#fff, #ccc),
+  'row-hover': (#ced6df, #b6c6d7),
 );
 
 @function color($name) {

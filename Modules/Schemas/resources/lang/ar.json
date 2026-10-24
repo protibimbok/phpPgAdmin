@@ -1,0 +1,21 @@
+{
+  "tab": "البنية",
+  "title": "المخططات",
+  "columns": {
+    "schema": "المخطط",
+    "action": "إجراء",
+    "owner": "المالك",
+    "comment": "تعليق"
+  },
+  "actions": {
+    "structure": "البنية",
+    "sql": "SQL"
+  },
+  "total_one": "مخطط واحد",
+  "total_other": "{{count}} مخططات",
+  "system": "نظام",
+  "none": "لا توجد مخططات في قاعدة البيانات.",
+  "tree": {
+    "schemas": "المخططات"
+  }
+}

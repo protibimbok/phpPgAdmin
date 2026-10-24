@@ -1,0 +1,21 @@
+{
+  "tab": "Structure",
+  "title": "Schemas",
+  "columns": {
+    "schema": "Schema",
+    "action": "Action",
+    "owner": "Owner",
+    "comment": "Comment"
+  },
+  "actions": {
+    "structure": "Structure",
+    "sql": "SQL"
+  },
+  "total_one": "{{count}} schema",
+  "total_other": "{{count}} schemas",
+  "system": "System",
+  "none": "No schemas found in database.",
+  "tree": {
+    "schemas": "Schemas"
+  }
+}
