@@ -1,0 +1,78 @@
+{% macro CREATE_TYPE_SQL(conn, type_name, type_length, type_precision, is_type_array) %}
+{% if type_name starts with 'time' and type_length %}
+{#############################################################}
+{###### Need to check against separate time types - START ######}
+{#############################################################}
+{% if type_name == "timestamp without time zone" %}
+timestamp({{ type_length }}) without time zone{% elseif type_name == "timestamp with time zone" %}
+timestamp({{ type_length }}) with time zone{% elseif type_name == "time without time zone" %}
+time({{ type_length }}) without time zone{% elseif type_name == "time with time zone" %}
+time({{ type_length }}) with time zone{% endif %}{% if is_type_array %}
+[]{% endif %}
+{#############################################################}
+{###### Need to check against separate time types - END ######}
+{#############################################################}
+{% else %}
+{{ type_name }}{% if type_length %}
+({{ type_length }}{% if type_precision%}, {{ type_precision }}{% endif %}){% endif %}{% if is_type_array %}
+[]{% endif %}
+{% endif %}
+{% endmacro %}
+{######################################################}
+{##### BELOW MACRO IS USED FOR COLUMN TYPE UPDATE #####}
+{######################################################}
+{% macro UPDATE_TYPE_SQL(conn, data, o_data) %}
+{% if data.attprecision is defined and data.attprecision is null %}
+{% set old_precision = none %}
+{% elseif data.attprecision is defined and data.attprecision is not null %}
+{% set data_precision = data.attprecision %}
+{% set old_precision = o_data.attprecision %}
+{% else %}
+{% set old_precision = o_data.attprecision %}
+{% endif %}
+{% if data.attlen is defined and data.attlen is null %}
+{% set old_length = none %}
+{% set old_precision = none %}
+{% set data_precision = none %}
+{% else %}
+{% set old_length = o_data.attlen %}
+{% endif %}
+{% if data.cltype and data.cltype starts with 'time' and data.attlen %}
+{#############################################################}
+{###### Need to check against separate time types - START ######}
+{#############################################################}
+{% if data.cltype == "timestamp without time zone" %}
+timestamp({{ data.attlen }}) without time zone {% elseif data.cltype == "timestamp with time zone" %}
+timestamp({{ data.attlen }}) with time zone {% elseif data.cltype == "time without time zone" %}
+time({{ data.attlen }}) without time zone {% elseif data.cltype == "time with time zone" %}
+time({{ data.attlen }}) with time zone {% endif %}{% if data.hasSqrBracket %}[]{% endif %}
+{#############################################################}
+{# if only type changes, we need to give previous length to current type#}
+{#############################################################}
+{% elseif data.cltype and data.cltype starts with 'time' %}
+{% if data.cltype == "timestamp without time zone" %}
+timestamp{% if o_data.attlen is not null %}({{ o_data.attlen }}){% endif %} without time zone {% elseif data.cltype == "timestamp with time zone" %}
+timestamp{% if o_data.attlen is not null %}({{ o_data.attlen }}){% endif %} with time zone {% elseif data.cltype == "time without time zone" %}
+time{% if o_data.attlen is not null %}({{ o_data.attlen }}){% endif %} without time zone {% elseif data.cltype == "time with time zone" %}
+time{% if o_data.attlen is not null %}({{ o_data.attlen }}){% endif %} with time zone {% endif %}{% if data.hasSqrBracket %}[]{% endif %}
+{#############################################################}
+{# if only length changes, we need to give previous length to current type#}
+{#############################################################}
+{% elseif data.attlen and o_data.cltype starts with 'time' %}
+{% if o_data.cltype == "timestamp without time zone" %}
+timestamp({{ data.attlen }}) without time zone {% elseif o_data.cltype == "timestamp with time zone" %}
+timestamp({{ data.attlen }}) with time zone {% elseif o_data.cltype == "time without time zone" %}
+time({{ data.attlen }}) without time zone {% elseif o_data.cltype == "time with time zone" %}
+time({{ data.attlen }}) with time zone {% endif %}{% if o_data.hasSqrBracket %}[]{% endif %}
+{###### Need to check against separate time types - END ######}
+{% elseif (data.cltype and not data.cltype starts with 'time') or not o_data.cltype starts with 'time' %}
+{#############################################################}
+{########## We will create SQL for other types here ##########}
+{#############################################################}
+{% if data.cltype %}{{ data.cltype }}{% elseif o_data.typnspname != 'pg_catalog' %}{{conn|qtTypeIdent(o_data.typnspname, o_data.cltype)}}{% else %}{{conn|qtTypeIdent(o_data.cltype)}}{% endif %}{% if (data.attlen and data.attlen is not null) or (data_precision and data_precision is not null) or (old_length and old_length is not null and old_length|int >0) or (old_precision and old_precision is not null) %}
+{% if data.attlen and data.attlen is not null %}
+({{ data.attlen }}{% elseif old_length and old_length is not null %}({{ old_length }}{% endif %}{% if data_precision and data_precision is not null %}
+, {{ data_precision }}){% elseif old_precision and old_precision is not null %}, {{ old_precision }}){% else %}){% endif %}
+{% endif %}{% if data.geometry %}({{ data.geometry }}{% elseif o_data.geometry %}({{ o_data.geometry }}{% endif %}{% if data.srid %},{{ data.srid }}){% elseif o_data.srid %},{{ o_data.srid }}){% endif %}{% if o_data.hasSqrBracket %}[]{% endif %}
+{% endif %}
+{% endmacro %}

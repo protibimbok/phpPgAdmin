@@ -66,10 +66,21 @@ UNHANDLED = [
 ]
 
 
+TAG = re.compile(r"{%.*?%}|{{.*?}}|{#.*?#}", re.S)
+
+
 def convert(text: str) -> str:
-    for pattern, replacement in RULES:
-        text = pattern.sub(replacement, text)  # type: ignore[arg-type]
-    return text
+    """Apply the rules inside Jinja tags only; the SQL between them is left as it is."""
+
+    def inside(match: re.Match[str]) -> str:
+        tag = match.group(0)
+        if tag.startswith("{#"):
+            return tag
+        for pattern, replacement in RULES:
+            tag = pattern.sub(replacement, tag)  # type: ignore[arg-type]
+        return tag
+
+    return TAG.sub(inside, text)
 
 
 def report(path: Path, text: str) -> list[str]:

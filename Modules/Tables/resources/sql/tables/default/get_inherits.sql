@@ -12,6 +12,6 @@ WHERE relkind='r' AND NOT relispartition
 {{ CATALOG.VALID_CATALOGS(server_type) }}
 {% endif %}
 {% if tid %}
-AND c.oid != tid
+AND c.oid != {{ tid }}::oid
 {% endif %}
 ORDER BY relnamespace, c.relname

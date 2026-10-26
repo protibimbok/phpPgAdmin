@@ -40,6 +40,8 @@ final class TwigExtension extends AbstractExtension
             new TwigFunction('namespace', static fn (array $values = []): TemplateNamespace => new TemplateNamespace($values)),
             // pgAdmin passes gettext as "_" for the column titles of its statistics queries.
             new TwigFunction('_', static fn (string $message): string => $message),
+            // Python's range(n) counts 0..n-1; Twig's range(a, b) is inclusive. Support both forms.
+            new TwigFunction('range', static fn (int|float|string $low, int|float|string|null $high = null, int|float $step = 1): array => $high === null ? ((int) $low > 0 ? range(0, (int) $low - 1) : []) : range($low, $high, $step)),
         ];
     }
 
