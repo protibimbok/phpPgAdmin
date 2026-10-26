@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Tables\Http\Controllers;
 
+use League\Route\Http\Exception\BadRequestException;
+use PhpPgAdmin\Core\Database\Quoting;
+use PhpPgAdmin\Core\Nodes\Catalog;
+use PhpPgAdmin\Core\Nodes\Ddl;
 use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Core\Nodes\RelationController;
+use PhpPgAdmin\Modules\Tables\Ddl\ConstraintSql;
+use PhpPgAdmin\Modules\Tables\Ddl\Constraints;
 use PhpPgAdmin\Modules\Tables\Ddl\TableDdl;
+use PhpPgAdmin\Modules\Tables\Ddl\TableSql;
 
 /**
  * The table node, after pgAdmin's TableView: the tables of a schema (partitions are shown under
- * their parent), with pgAdmin's properties row per table.
+ * their parent), with pgAdmin's properties row per table, and the statements that create,
+ * alter, truncate, copy and drop one.
  */
 final class TableController extends RelationController
 {
@@ -31,6 +39,118 @@ final class TableController extends RelationController
         return TableDdl::sql($ctx, $oid, parent::properties($ctx, $oid));
     }
 
+    /** CREATE TABLE from the client's data, then its indexes; the new table's node. */
+    public function create(NodeContext $ctx, array $data): array
+    {
+        $created = TableSql::create($ctx, $data);
+        $this->execute($ctx, $created['sql']);
+        foreach ($created['indexes'] as $index) {
+            $this->execute($ctx, $index);
+        }
+
+        return $this->node($ctx, $this->oidOf($ctx, $created['name']));
+    }
+
+    /** ALTER TABLE for what the client's data changes, with its columns, constraints and indexes. */
+    public function update(NodeContext $ctx, int $oid, array $data): array
+    {
+        $old = $this->properties($ctx, $oid);
+        $this->execute($ctx, TableSql::update($ctx, $oid, $data, $old));
+
+        // A table moved to another schema is no longer under this route's schema.
+        $schema = $ctx->conn->row($ctx->renderFrom('tables', 'get_schema_oid.sql', ['tid' => $oid]));
+        if ($schema !== null && (int) $schema['scid'] !== $ctx->id('scid')) {
+            return ['id' => 'table_' . $oid, 'oid' => $oid, 'label' => (string) ($data['name'] ?? $old['name']), 'type' => 'table', 'icon' => 's_tbl', 'inode' => true, 'meta' => ['schema' => $schema['nspname'], 'scid' => (int) $schema['scid']]];
+        }
+
+        return $this->node($ctx, $oid);
+    }
+
+    /** DROP TABLE, CASCADE on request. */
+    public function delete(NodeContext $ctx, int $oid, bool $cascade): void
+    {
+        $row = parent::properties($ctx, $oid);
+        $this->execute($ctx, $ctx->render('delete.sql', ['data' => $row, 'cascade' => $cascade]));
+    }
+
+    public function modifiedSql(NodeContext $ctx, ?int $oid, array $data): string
+    {
+        if ($oid === null) {
+            $created = TableSql::create($ctx, $data);
+
+            return Ddl::assemble([$created['sql'], ...$created['indexes']]);
+        }
+
+        return TableSql::update($ctx, $oid, $data, $this->properties($ctx, $oid));
+    }
+
+    /** TRUNCATE TABLE, with RESTART IDENTITY and CASCADE on request (pgAdmin's truncate). */
+    public function truncate(NodeContext $ctx, int $oid, bool $cascade, bool $identity): string
+    {
+        $row = parent::properties($ctx, $oid);
+        $sql = $ctx->render('truncate.sql', ['data' => $row, 'cascade' => $cascade, 'identity' => $identity]);
+        $this->execute($ctx, $sql);
+
+        return $sql;
+    }
+
+    /**
+     * The statements that copy the table to another name (and schema): CREATE TABLE … (LIKE …
+     * INCLUDING ALL) for the structure, INSERT … SELECT for the data, the foreign keys when
+     * asked, DROP TABLE IF EXISTS first when asked. phpMyAdmin's "Copy table to".
+     *
+     * @param array{schema?: string, name?: string, what?: string, drop_if_exists?: bool, add_constraints?: bool} $data
+     */
+    public function copySql(NodeContext $ctx, int $oid, array $data): string
+    {
+        $source = parent::properties($ctx, $oid);
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            throw new BadRequestException('Could not find the required parameter (name).');
+        }
+        $schema = trim((string) ($data['schema'] ?? '')) ?: (string) $source['schema'];
+        $what = (string) ($data['what'] ?? 'data');
+        $from = Quoting::ident((string) $source['schema'], (string) $source['name']);
+        $to = Quoting::ident($schema, $name);
+
+        $parts = [];
+        if (!empty($data['drop_if_exists']) && $what !== 'dataonly') {
+            $parts[] = sprintf('DROP TABLE IF EXISTS %s;', $to);
+        }
+        if ($what !== 'dataonly') {
+            $parts[] = sprintf("CREATE TABLE %s\n    (LIKE %s INCLUDING ALL);", $to, $from);
+        }
+        if ($what !== 'structure') {
+            $parts[] = sprintf("INSERT INTO %s\n    SELECT * FROM %s;", $to, $from);
+        }
+        if (!empty($data['add_constraints']) && $what !== 'dataonly') {
+            foreach (Constraints::foreignKeys($ctx, $oid) as $fk) {
+                $parts[] = ConstraintSql::createSql($ctx, 'foreign_key', $schema, $name, [...$fk, 'name' => null, 'comment' => null, 'autoindex' => false]);
+            }
+        }
+
+        return Ddl::assemble($parts);
+    }
+
+    /**
+     * What the create and alter forms offer: the types, collations, roles, tablespaces, schemas
+     * and table access methods, and the index access methods.
+     *
+     * @return array<string, mixed>
+     */
+    public function options(NodeContext $ctx): array
+    {
+        return [
+            'types' => array_map(static fn (array $r): array => ['name' => $r['typname'], 'schema' => $r['nspname'], 'kind' => $r['typtype']], $ctx->conn->rows($ctx->renderFrom('columns', 'get_types.sql'))),
+            'collations' => Catalog::collations($ctx->conn),
+            'roles' => Catalog::roles($ctx->conn),
+            'tablespaces' => Catalog::tablespaces($ctx->conn),
+            'schemas' => Catalog::schemas($ctx->conn),
+            'access_methods' => array_column($ctx->conn->rows($ctx->render('get_access_methods.sql')), 'amname'),
+            'index_methods' => array_column($ctx->conn->rows($ctx->renderFrom('indexes', 'get_am.sql')), 'amname'),
+        ];
+    }
+
     /** The exact row count, which the structure page asks for on demand (pgAdmin's count_rows). */
     public function countRows(NodeContext $ctx, int $oid): int
     {
@@ -38,6 +158,11 @@ final class TableController extends RelationController
         $schema = (string) $ctx->conn->scalar('SELECT nspname FROM pg_catalog.pg_namespace WHERE oid = $1', [$ctx->id('scid')]);
 
         return (int) $ctx->conn->scalar($ctx->render('get_table_row_count.sql', ['data' => ['schema' => $schema, 'name' => $row['name']]]));
+    }
+
+    private function oidOf(NodeContext $ctx, string $name): int
+    {
+        return (int) ($ctx->conn->scalar($ctx->render('get_oid.sql', ['data' => ['name' => $name]])) ?? throw $this->gone($ctx));
     }
 
     protected function icon(NodeContext $ctx, array $row): string

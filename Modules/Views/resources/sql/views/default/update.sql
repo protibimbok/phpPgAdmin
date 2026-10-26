@@ -2,8 +2,8 @@
 {% import 'macros/schemas/security.macros' as SECLABEL %}
 {% import 'macros/schemas/privilege.macros' as PRIVILEGE %}
 {% if data %}
-{% set view_name = data.name if data.name else o_data.name %}
-{% set view_schema = data.schema if data.schema else o_data.schema %}
+{% set view_name = (data.name ? data.name : o_data.name) %}
+{% set view_schema = (data.schema ? data.schema : o_data.schema) %}
 {% set def = data.definition|trim(';', 'right') if data.definition %}
 {% if data.name and data.name != o_data.name %}
 ALTER VIEW IF EXISTS {{ conn|qtIdent(o_data.schema, o_data.name) }}
@@ -20,7 +20,7 @@ DROP VIEW {{ conn|qtIdent(view_schema, view_name) }};
 {% endif %}
 CREATE OR REPLACE VIEW {{ conn|qtIdent(view_schema, view_name) }}
 {% if ((data.check_option and data.check_option|lower != 'no') or (o_data.check_option and o_data.check_option|lower != 'no') or data.security_barrier or o_data.security_barrier) %}
-    WITH ({% if (data.check_option or o_data.check_option) %}check_option={{ data.check_option if data.check_option else o_data.check_option }}{{', ' }}{% endif %}security_barrier={{ data.security_barrier|lower if data.security_barrier is defined else o_data.security_barrier|default('false', 'true')|lower }})
+    WITH ({% if (data.check_option or o_data.check_option) %}check_option={{ (data.check_option ? data.check_option : o_data.check_option) }}{{', ' }}{% endif %}security_barrier={{ data.security_barrier|(data.security_barrier is defined ? lower : o_data.security_barrier)|default('false', 'true')|lower }})
 {% endif %}
     AS
     {{ def }};

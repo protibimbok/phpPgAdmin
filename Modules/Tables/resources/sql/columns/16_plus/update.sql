@@ -41,12 +41,12 @@ ALTER SEQUENCE {{data.serial_seq_create.name}}
 
 {###  Move the new sequence past any values the column already holds, or the next insert omitting the column would reuse one of them; a column that is empty, or holds nothing at or past START, leaves the sequence at its START (setval() below START would also go backwards, or out of bounds below MINVALUE) ###}
 {% set serial_desc = data.serial_seq_create.increment is not null and data.serial_seq_create.increment|int < 0 %}
-{% set serial_last = ('MIN(' if serial_desc else 'MAX(') ~ conn|qtIdent(data.name or o_data.name) ~ ')' %}
+{% set serial_last = (serial_desc ? 'MIN(' : 'MAX(') ~ conn|qtIdent(data.name ?: o_data.name) ~ ')' %}
 SELECT setval({{data.serial_seq_create.name|qtLiteral(conn)}}, {{serial_last}})
     FROM {{conn|qtIdent(data.schema, data.table)}}
     HAVING {{serial_last}} IS NOT NULL{% if data.serial_seq_create.start is not null %}
 
-        AND {{serial_last}} {{ '<=' if serial_desc else '>=' }} {{data.serial_seq_create.start|int}}{% endif %};
+        AND {{serial_last}} {{ (serial_desc ? '<=' : '>=') }} {{data.serial_seq_create.start|int}}{% endif %};
 
 {% endif %}
 {###  Alter column default value ###}
@@ -109,8 +109,8 @@ ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.table)}}
 {% if seqcycle_changed %}{% if data.seqcycle %} SET CYCLE{% else %} SET NO CYCLE{% endif %}{% endif %}
 {% if seqincrement_changed %} SET INCREMENT {{data.seqincrement|int}}{% endif %}
 {###  A new START only RESTARTs the sequence when it is still at its old START with nothing generated since, or when its position would fall outside the new MINVALUE/MAXVALUE; otherwise RESTART would rewind it below rows already generated. seqlastvalue is the pending value when seqiscalled is false (#10550) ###}
-{% set new_seqmin = data.seqmin if seqmin_changed else o_data.seqmin %}
-{% set new_seqmax = data.seqmax if seqmax_changed else o_data.seqmax %}
+{% set new_seqmin = (seqmin_changed ? data.seqmin : o_data.seqmin) %}
+{% set new_seqmax = (seqmax_changed ? data.seqmax : o_data.seqmax) %}
 {% set seqlastvalue_out_of_range = o_data.seqlastvalue is not null and ((new_seqmin is not null and o_data.seqlastvalue|int < new_seqmin|int) or (new_seqmax is not null and o_data.seqlastvalue|int > new_seqmax|int)) %}
 {% set seq_at_start = o_data.seqiscalled is same as(false) and o_data.seqlastvalue is not null and o_data.seqlastvalue|int == o_data.seqstart|int %}
 {% if seqstart_changed %} {% if seq_at_start or seqlastvalue_out_of_range %}RESTART {% endif %}SET START {{data.seqstart|int}}{% endif %}

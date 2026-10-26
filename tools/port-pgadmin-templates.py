@@ -32,6 +32,8 @@ RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?<![\w.'\"])True(?![\w'\"])"), "true"),
     (re.compile(r"(?<![\w.'\"])False(?![\w'\"])"), "false"),
     (re.compile(r"(?<![\w.'\"])None(?![\w'\"])"), "null"),
+    # A if C else B  →  (C ? A : B)   (Jinja's conditional expression; Twig has the ternary)
+    (re.compile(r"""('[^']*'|[\w.]+)\s+if\s+([\w.' ]+?)\s+else\s+('[^']*'|[\w.]+)"""), r"(\2 ? \1 : \3)"),
     # 'key' in data  →  data.key is defined   (dict membership; Twig's "in" tests values)
     (re.compile(r"'([A-Za-z_][A-Za-z0-9_]*)'\s+in\s+([A-Za-z_][A-Za-z0-9_.]*)(?=\s*(?:%}|and|or|\)))"), r"\2.\1 is defined"),
     (re.compile(r"'([A-Za-z_][A-Za-z0-9_]*)'\s+not\s+in\s+([A-Za-z_][A-Za-z0-9_.]*)(?=\s*(?:%}|and|or|\)))"), r"\2.\1 is not defined"),
@@ -41,6 +43,8 @@ RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\.strip\(\)"), "|trim"),
     (re.compile(r"\.lower\(\)"), "|lower"),
     (re.compile(r"\.upper\(\)"), "|upper"),
+    # Twig's "not" binds tighter than "starts with", Python's looser: keep the test together.
+    (re.compile(r"\bnot\s+([A-Za-z_][A-Za-z0-9_.]*)\.startswith\(([^)]*)\)"), r"not (\1 starts with \2)"),
     (re.compile(r"([A-Za-z_][A-Za-z0-9_.]*)\.startswith\(([^)]*)\)"), r"\1 starts with \2"),
     (re.compile(r"([A-Za-z_][A-Za-z0-9_.]*)\.endswith\(([^)]*)\)"), r"\1 ends with \2"),
     (re.compile(r"\.items\(\)"), ""),

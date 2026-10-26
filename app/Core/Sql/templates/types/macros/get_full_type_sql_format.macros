@@ -65,7 +65,7 @@ timestamp({{ data.attlen }}) with time zone {% elseif o_data.cltype == "time wit
 time({{ data.attlen }}) without time zone {% elseif o_data.cltype == "time with time zone" %}
 time({{ data.attlen }}) with time zone {% endif %}{% if o_data.hasSqrBracket %}[]{% endif %}
 {###### Need to check against separate time types - END ######}
-{% elseif (data.cltype and not data.cltype starts with 'time') or not o_data.cltype starts with 'time' %}
+{% elseif (data.cltype and not (data.cltype starts with 'time')) or not (o_data.cltype starts with 'time') %}
 {#############################################################}
 {########## We will create SQL for other types here ##########}
 {#############################################################}

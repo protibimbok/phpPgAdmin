@@ -2,8 +2,8 @@
 {% import 'macros/schemas/security.macros' as SECLABEL %}
 {% import 'macros/schemas/privilege.macros' as PRIVILEGE %}
 {%- if data -%}
-{% set view_name = data.name if data.name else o_data.name %}
-{% set view_schema = data.schema if data.schema else o_data.schema %}
+{% set view_name = (data.name ? data.name : o_data.name) %}
+{% set view_schema = (data.schema ? data.schema : o_data.schema) %}
 {% set def = data.definition|trim(';', 'right') if data.definition %}
 {# ===== Rename mat view ===== #}
 {% if data.name and data.name != o_data.name %}
@@ -53,9 +53,9 @@ WITH(
  AS
 {{ def }}
 {% if data.with_data is defined %}
- WITH {{ 'DATA' if data.with_data else 'NO DATA' }};
+ WITH {{ (data.with_data ? 'DATA' : 'NO DATA') }};
 {% elseif o_data.with_data is defined %}
- WITH {{ 'DATA' if o_data.with_data else 'NO DATA' }};
+ WITH {{ (o_data.with_data ? 'DATA' : 'NO DATA') }};
 
 {% endif %}
 {% if o_data.owner and not data.owner %}
@@ -224,7 +224,7 @@ COMMENT ON MATERIALIZED VIEW {{ conn|qtIdent(view_schema, view_name) }}
 {% endif %}
 {% endif %}
 {% set old_exts = (o_data.dependsonextensions or []) | list %}
-{% set new_exts = data.dependsonextensions if 'dependsonextensions' in data else null %}
+{% set new_exts = ('dependsonextensions' in data ? data.dependsonextensions : null) %}
 {% if new_exts is not null and old_exts != new_exts %}
 {% for ext in (old_exts + new_exts) | unique %}
 

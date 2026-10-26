@@ -94,8 +94,8 @@ ALTER INDEX IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
 
 {% endfor %}
 {% endif %}
-{% set old_exts = (o_data.dependsonextensions or []) | list %}
-{% set new_exts = data.dependsonextensions if 'dependsonextensions' in data else null %}
+{% set old_exts = (o_data.dependsonextensions ?: []) | list %}
+{% set new_exts = (data.dependsonextensions is defined ? data.dependsonextensions : null) %}
 {% if new_exts is not null and old_exts != new_exts %}
 {% for ext in (old_exts + new_exts) | unique %}
 

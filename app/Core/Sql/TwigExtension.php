@@ -6,6 +6,7 @@ namespace PhpPgAdmin\Core\Sql;
 
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\Quoting;
+use PhpPgAdmin\Core\Nodes\Options;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
@@ -31,6 +32,9 @@ final class TwigExtension extends AbstractExtension
             new TwigFilter('int', static fn (mixed $value): int => is_numeric($value) ? (int) $value : 0),
             new TwigFilter('rstrip', static fn (?string $value, string $chars = " \t\n\r"): string => rtrim((string) $value, $chars)),
             new TwigFilter('tojson', static fn (mixed $value): string => json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
+            // Python's list() and Jinja's unique: a PostgreSQL array string becomes a list too.
+            new TwigFilter('list', static fn (mixed $value): array => is_array($value) ? array_values($value) : Options::list($value)),
+            new TwigFilter('unique', static fn (mixed $value): array => array_values(array_unique(is_array($value) ? $value : Options::list($value)))),
         ];
     }
 

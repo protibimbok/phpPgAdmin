@@ -44,8 +44,8 @@ final class IndexDdl
         }
         $data['dependsonextensions'] = $data['dependsonextensions'] === null ? [] : \PhpPgAdmin\Core\Nodes\Options::list($data['dependsonextensions']);
 
-        self::columns($ctx, $idx, $data);
-        $data['include'] = array_column($ctx->conn->rows($ctx->renderFrom('indexes', 'include_details.sql', ['idx' => $idx])), 'colname');
+        $data['columns'] = self::columns($ctx, $idx, (string) ($data['amname'] ?? ''));
+        $data['include'] = self::include($ctx, $idx);
 
         $sql = Ddl::assemble([
             $ctx->renderFrom('indexes', 'create.sql', ['data' => $data, 'mode' => null, 'add_not_exists_clause' => $ifNotExists]),
@@ -61,13 +61,19 @@ final class IndexDdl
         return Ddl::assemble([$header, $sql]);
     }
 
+    /** The INCLUDE columns of an index, by name. @return list<string> */
+    public static function include(NodeContext $ctx, int $idx): array
+    {
+        return array_column($ctx->conn->rows($ctx->renderFrom('indexes', 'include_details.sql', ['idx' => $idx])), 'colname');
+    }
+
     /**
      * The index's key columns as create.sql renders them in its non-create mode: the definition
      * the server prints, plus collation, operator class, order and nulls placement for btree.
      *
-     * @param array<string, mixed> $data
+     * @return list<array<string, mixed>>
      */
-    private static function columns(NodeContext $ctx, int $idx, array &$data): void
+    public static function columns(NodeContext $ctx, int $idx, string $amname): array
     {
         $rows = $ctx->conn->rows($ctx->renderFrom('indexes', 'column_details.sql', ['idx' => $idx]));
         $columns = [];
@@ -89,13 +95,13 @@ final class IndexDdl
                 'is_exp' => (bool) $row['is_exp'],
                 'statistics' => $row['statistics'],
             ];
-            if (($data['amname'] ?? '') === 'btree') {
+            if ($amname === 'btree') {
                 $column['sort_order'] = ($options[0] ?? 'ASC') === 'DESC';
                 $column['nulls'] = str_ends_with($options[1] ?? 'NULLS LAST', 'FIRST');
             }
             $columns[] = $column;
         }
 
-        $data['columns'] = $columns;
+        return $columns;
     }
 }
