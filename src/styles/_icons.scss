@@ -47,6 +47,10 @@ $icons: (
   'b_unique',
   'b_view_add',
   'b_views',
+  'bd_browse',
+  'bd_empty',
+  'bd_select',
+  'db_drop',
   'pause',
   's_asc',
   's_asci',
@@ -79,6 +83,7 @@ $icons: (
   's_unlink',
   's_vars',
   's_views',
+  'select_all_arrow',
   'user',
   'window-new',
 );
@@ -106,4 +111,10 @@ $icons: (
 // every side instead of all falling on the end and bottom.
 .ic_s_collapseall {
   background-position: center;
+}
+
+// The curved "with selected" arrow is wider than the others.
+.ic_select_all_arrow {
+  width: 38px;
+  height: 22px;
 }

@@ -109,5 +109,29 @@
   "ddl": {
     "tab": "عرض الإنشاء",
     "title": "عبارات CREATE لـ {{table}}"
+  },
+  "create": {
+    "title": "إنشاء جدول جديد",
+    "table_name": "اسم الجدول",
+    "number_of_columns": "عدد الأعمدة",
+    "create": "إنشاء"
+  },
+  "structure_bar": {
+    "browse": "استعراض",
+    "change": "تغيير",
+    "drop": "حذف",
+    "primary": "أساسي",
+    "unique": "فريد",
+    "index": "فهرس",
+    "distinct": "القيم المميزة",
+    "add": "إضافة",
+    "columns": "عمود/أعمدة",
+    "after": "بعد {{column}}",
+    "at_end": "في نهاية الجدول",
+    "at_start": "في بداية الجدول",
+    "create_index": "إنشاء فهرس على",
+    "columns_word": "أعمدة",
+    "relation_view": "عرض العلاقات",
+    "table_structure": "بنية الجدول"
   }
 }

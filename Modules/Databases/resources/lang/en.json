@@ -8,15 +8,15 @@
     "encoding": "Encoding",
     "collation": "Collation",
     "size": "Size",
-    "comment": "Comment"
+    "comment": "Comment",
+    "action": "Action"
   },
-  "total_one": "Total: {{count}} database",
-  "total_other": "Total: {{count}} databases",
+  "total_one": "Total: {{count}}",
+  "total_other": "Total: {{count}}",
   "no_connect": "The current role may not connect to this database",
   "template": "Template",
   "operations": {
     "tab": "Operations",
-    "title": "Database operations",
     "properties": "Database properties",
     "fields": {
       "owner": "Owner",
@@ -26,12 +26,8 @@
       "tablespace": "Tablespace",
       "connection_limit": "Connection limit",
       "template": "Template database",
-      "allow_connections": "Allows connections",
-      "size": "Size",
-      "comment": "Comment",
-      "privileges": "Privileges"
+      "allow_connections": "Allows connections"
     },
-    "unlimited": "Unlimited",
     "comment": "Database comment",
     "create_table": "Create new table",
     "table_name": "Table name",
@@ -44,10 +40,14 @@
     "drop": "Drop the database (DROP)",
     "copy": "Copy database to",
     "copy_name": "Database name",
-    "coming": "Available once database changes land (phase 3)."
+    "switch_to_new": "Switch to copied database"
   },
   "ddl": {
     "tab": "Show create",
     "title": "CREATE statements for {{database}}"
+  },
+  "actions": {
+    "sql": "SQL",
+    "drop": "Drop"
   }
 }

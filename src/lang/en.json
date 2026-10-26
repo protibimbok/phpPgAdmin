@@ -40,5 +40,14 @@
   "user_menu": {
     "open": "Open user account menu"
   },
+  "check_all": "Check all",
+  "with_selected": "With selected:",
+  "search": "Search",
+  "print": "Print",
+  "filters": "Filters",
+  "containing_the_word": "Containing the word:",
+  "go": "Go",
+  "more": "More",
+  "show_create": "Show create",
   "not_available_yet": "Not available yet."
 }

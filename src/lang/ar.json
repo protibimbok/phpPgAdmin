@@ -40,5 +40,14 @@
   "user_menu": {
     "open": "فتح قائمة الحساب"
   },
+  "check_all": "تحديد الكل",
+  "with_selected": "مع المحدد:",
+  "search": "بحث",
+  "print": "طباعة",
+  "filters": "عوامل التصفية",
+  "containing_the_word": "يحتوي على الكلمة:",
+  "go": "تنفيذ",
+  "more": "المزيد",
+  "show_create": "عرض الإنشاء",
   "not_available_yet": "غير متاح بعد."
 }

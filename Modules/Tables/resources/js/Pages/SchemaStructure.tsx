@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
+import { notAvailable } from '@/unbuilt'
 import { formatSize } from '@/format'
 import { urls, type RelationKind } from '@/level'
 import { countRows, materializedViews, resolveSchema, tables, views, type Table, type View } from '../api'
@@ -44,6 +45,7 @@ function fromView(view: View, kind: 'view' | 'mview'): Row {
  */
 export default function SchemaStructure() {
   const { t } = useTranslation('tables')
+  const { t: tApp } = useTranslation()
   const { db = '', schema = '' } = useParams()
   const { data, error } = useRequest(async () => {
     const scid = await resolveSchema(db, schema)
@@ -57,6 +59,14 @@ export default function SchemaStructure() {
     }
   }, [db, schema])
   const [exact, setExact] = useState<Record<number, number>>({})
+  const [filter, setFilter] = useState('')
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const allRows = data?.rows ?? []
+  const filtered = useMemo(() => {
+    const needle = filter.trim().toLowerCase()
+
+    return needle === '' ? allRows : allRows.filter((row) => row.name.toLowerCase().includes(needle))
+  }, [allRows, filter])
 
   if (error) {
     return (
@@ -70,30 +80,67 @@ export default function SchemaStructure() {
     return null
   }
 
-  const { scid, rows } = data
+  const { scid } = data
+  const rows = filtered
 
-  if (rows.length === 0) {
+  if (allRows.length === 0) {
     return (
-      <div className="alert alert-primary" role="alert">
-        {t('none')}
-      </div>
+      <>
+        <div className="alert alert-primary" role="alert">
+          {t('none')}
+        </div>
+        <CreateTableCard />
+      </>
     )
   }
 
   const sumRows = rows.reduce((sum, row) => sum + (exact[row.oid] ?? row.rows ?? 0), 0)
   const sumSize = rows.reduce((sum, row) => sum + row.size, 0)
+  const keyOf = (row: Row) => `${row.kind}_${row.oid}`
+  const allChecked = rows.length > 0 && rows.every((row) => checked.has(keyOf(row)))
 
   function count(row: Row) {
     void countRows(db, scid, row.oid).then((n) => setExact((current) => ({ ...current, [row.oid]: n })))
   }
 
+  function toggle(key: string, value: boolean) {
+    setChecked((current) => {
+      const next = new Set(current)
+      if (value) next.add(key)
+      else next.delete(key)
+
+      return next
+    })
+  }
+
   return (
+    <>
+      {/* phpMyAdmin's Filters card: narrows the list as you type. */}
+      <div className="card">
+        <div className="card-header">{tApp('filters')}</div>
+        <div className="card-body">
+          <div className="row row-cols-lg-auto g-3 align-items-center">
+            <div className="col-12">
+              <label className="col-form-label" htmlFor="filter_field">
+                {tApp('containing_the_word')}
+              </label>
+            </div>
+            <div className="col-12">
+              <input type="text" className="form-control" id="filter_field" value={filter} onChange={(e) => setFilter(e.target.value)} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <form name="tablesForm" id="tablesForm" onSubmit={(e) => e.preventDefault()}>
     <div id="tableslistcontainer">
       <div className="table-responsive">
         <table className="table table-striped table-hover table-sm w-auto data">
           <thead>
             <tr>
-              <th className="d-print-none" />
+              <th className="d-print-none">
+                <input type="checkbox" className="checkall_box" checked={allChecked} onChange={(e) => setChecked(e.target.checked ? new Set(rows.map(keyOf)) : new Set())} aria-label={tApp('check_all')} />
+              </th>
               <th>{t('columns.table')}</th>
               <th colSpan={6} className="d-print-none">
                 {t('columns.action')}
@@ -110,11 +157,13 @@ export default function SchemaStructure() {
             {rows.map((row) => {
               const href = urls.relation(db, schema, row.name, row.kind)
               const isTable = row.kind === 'table'
+              // phpMyAdmin greys the Browse, Search and Empty icons of a table known to be empty.
+              const mayHaveRows = row.rows !== 0
 
               return (
                 <tr key={`${row.kind}_${row.oid}`} className={isTable ? undefined : 'is_view'}>
                   <td className="text-center d-print-none">
-                    <input type="checkbox" name="selected_tbl[]" value={row.name} />
+                    <input type="checkbox" name="selected_tbl[]" className="checkall" value={row.name} checked={checked.has(keyOf(row))} onChange={(e) => toggle(keyOf(row), e.target.checked)} />
                   </td>
                   <th>
                     <Link to={`${href}/browse`}>{row.name}</Link>
@@ -122,7 +171,7 @@ export default function SchemaStructure() {
                   </th>
                   <td className="text-center d-print-none">
                     <Link to={`${href}/browse`}>
-                      <Icon name="b_browse" title={t('actions.browse')} /> {t('actions.browse')}
+                      <Icon name={mayHaveRows ? 'b_browse' : 'bd_browse'} title={t('actions.browse')} /> {t('actions.browse')}
                     </Link>
                   </td>
                   <td className="text-center d-print-none">
@@ -132,7 +181,7 @@ export default function SchemaStructure() {
                   </td>
                   <td className="text-center d-print-none">
                     <Link to={`${href}/search`}>
-                      <Icon name="b_select" title={t('actions.search')} /> {t('actions.search')}
+                      <Icon name={mayHaveRows ? 'b_select' : 'bd_select'} title={t('actions.search')} /> {t('actions.search')}
                     </Link>
                   </td>
                   <td className="text-center d-print-none">
@@ -145,7 +194,7 @@ export default function SchemaStructure() {
                   <td className="text-center d-print-none">
                     {isTable && (
                       <Link to={`${href}/operations#truncate`}>
-                        <Icon name="b_empty" title={t('actions.empty')} /> {t('actions.empty')}
+                        <Icon name={mayHaveRows ? 'b_empty' : 'bd_empty'} title={t('actions.empty')} /> {t('actions.empty')}
                       </Link>
                     )}
                   </td>
@@ -192,5 +241,56 @@ export default function SchemaStructure() {
         </table>
       </div>
     </div>
+
+    {/* phpMyAdmin's check_all_tables.twig: the curved arrow, "Check all", "With selected:". */}
+    <div className="clearfloat d-print-none">
+      <Icon name="select_all_arrow" title={tApp('with_selected')} />
+      <input type="checkbox" id="tablesForm_checkall" className="checkall_box" checked={allChecked} onChange={(e) => setChecked(e.target.checked ? new Set(rows.map(keyOf)) : new Set())} />{' '}
+      <label htmlFor="tablesForm_checkall">{tApp('check_all')}</label>
+      <select name="submit_mult" className="my-0" style={{ marginInline: '3em' }} aria-label={tApp('with_selected')} onChange={notAvailable}>
+        <option>{tApp('with_selected')}</option>
+      </select>
+    </div>
+    </form>
+
+    <hr />
+    <p className="d-print-none">
+      <a href="#print" onClick={(e) => { e.preventDefault(); window.print() }}>
+        <Icon name="b_print" /> {tApp('print')}
+      </a>
+    </p>
+
+    <CreateTableCard />
+    </>
+  )
+}
+
+/** phpMyAdmin's "Create new table" card (database/create_table.twig); live-looking, the form lands with phase 3. */
+function CreateTableCard() {
+  const { t } = useTranslation('tables')
+
+  return (
+    <form id="createTableMinimalForm" className="card d-print-none" onSubmit={notAvailable}>
+      <div className="card-header">
+        <Icon name="b_table_add" /> {t('create.title')}
+      </div>
+      <div className="card-body row row-cols-lg-auto g-3">
+        <div className="col-12">
+          <label htmlFor="createTableNameInput" className="form-label">
+            {t('create.table_name')}
+          </label>
+          <input autoComplete="off" type="text" className="form-control" id="createTableNameInput" maxLength={63} required />
+        </div>
+        <div className="col-12">
+          <label htmlFor="createTableNumFieldsInput" className="form-label">
+            {t('create.number_of_columns')}
+          </label>
+          <input type="number" className="form-control" id="createTableNumFieldsInput" min={1} defaultValue={4} required />
+        </div>
+        <div className="col-12 align-self-lg-end">
+          <input className="btn btn-primary" type="submit" value={t('create.create')} />
+        </div>
+      </div>
+    </form>
   )
 }

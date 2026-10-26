@@ -109,5 +109,29 @@
   "ddl": {
     "tab": "Show create",
     "title": "CREATE statements for {{table}}"
+  },
+  "create": {
+    "title": "Create new table",
+    "table_name": "Table name",
+    "number_of_columns": "Number of columns",
+    "create": "Create"
+  },
+  "structure_bar": {
+    "browse": "Browse",
+    "change": "Change",
+    "drop": "Drop",
+    "primary": "Primary",
+    "unique": "Unique",
+    "index": "Index",
+    "distinct": "Distinct values",
+    "add": "Add",
+    "columns": "column(s)",
+    "after": "after {{column}}",
+    "at_end": "At end of table",
+    "at_start": "At beginning of table",
+    "create_index": "Create an index on",
+    "columns_word": "columns",
+    "relation_view": "Relation view",
+    "table_structure": "Table structure"
   }
 }
