@@ -48,6 +48,9 @@
       ],
       "@sequences/*": [
         "./Modules/Sequences/resources/*"
+      ],
+      "@sql/*": [
+        "./Modules/Sql/resources/*"
       ]
     }
   },

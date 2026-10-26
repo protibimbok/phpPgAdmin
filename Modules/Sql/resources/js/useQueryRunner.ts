@@ -1,0 +1,72 @@
+import { useCallback, useRef, useState } from 'react'
+import { cancelQuery, runQuery, type QueryRequest, type QueryResponse } from './api'
+
+export interface QueryRunner {
+  response: QueryResponse | null
+  error: Error | null
+  running: boolean
+  /** The request as it was last run, to run it again with another page or order. */
+  last: QueryRequest | null
+  run: (request: QueryRequest) => Promise<QueryResponse | null>
+  /** Ask the server to cancel the request in flight. */
+  cancel: () => void
+  clear: () => void
+}
+
+/** An id for a run; randomUUID() only exists in secure contexts, and plain http is not one. */
+function requestId(): string {
+  return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
+/**
+ * Runs queries against one database and keeps the latest answer. Every run gets an id of its
+ * own, so a cancel reaches the right backend and an answer that arrives after a newer run
+ * started is dropped.
+ */
+export function useQueryRunner(db: string | null): QueryRunner {
+  const [response, setResponse] = useState<QueryResponse | null>(null)
+  const [error, setError] = useState<Error | null>(null)
+  const [running, setRunning] = useState(false)
+  const [last, setLast] = useState<QueryRequest | null>(null)
+  const current = useRef<string | null>(null)
+
+  const run = useCallback(
+    async (request: QueryRequest) => {
+      const id = requestId()
+      current.current = id
+      setRunning(true)
+      setError(null)
+      setLast(request)
+
+      try {
+        const result = await runQuery(db, { ...request, request_id: id })
+        if (current.current !== id) return null
+        setResponse(result)
+
+        return result
+      } catch (e) {
+        if (current.current !== id) return null
+        setResponse(null)
+        setError(e instanceof Error ? e : new Error(String(e)))
+
+        return null
+      } finally {
+        if (current.current === id) setRunning(false)
+      }
+    },
+    [db],
+  )
+
+  const cancel = useCallback(() => {
+    if (current.current) void cancelQuery(current.current).catch(() => undefined)
+  }, [])
+
+  const clear = useCallback(() => {
+    current.current = null
+    setResponse(null)
+    setError(null)
+    setRunning(false)
+  }, [])
+
+  return { response, error, running, last, run, cancel, clear }
+}

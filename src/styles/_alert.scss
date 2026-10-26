@@ -25,3 +25,12 @@
     color: color('text-strong');
   }
 }
+
+// The alert at the top of a result's message box sits flush on the query box below it.
+.result_query .alert {
+  margin-bottom: 0;
+  border-bottom: none !important;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-bottom: 5px;
+}

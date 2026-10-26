@@ -52,6 +52,8 @@ select {
 }
 
 textarea {
+  overflow: visible;
+  margin: 6px;
   font-family: font-family('mono');
   font-size: 1.2em;
 }

@@ -1,0 +1,284 @@
+// The console fixed to the bottom of the page, after pmahomme's _common.scss: the grey toolbar
+// that folds to a tab, the white message list with its ">" prompts, the cards that slide in
+// from the end edge, and the bookmark labels.
+
+// The page leaves room for the folded toolbar.
+body {
+  margin-bottom: 1.6em;
+}
+
+#pma_console_container {
+  width: 100%;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+}
+
+#pma_console {
+  position: relative;
+  margin-inline-start: var(--pga-nav-width, 0px);
+
+  .toolbar {
+    position: relative;
+    background: #ccc;
+    border-top: solid 1px #aaa;
+    cursor: n-resize;
+
+    span {
+      vertical-align: middle;
+    }
+
+    &.collapsed {
+      cursor: default;
+
+      &:not(:hover) {
+        display: inline-block;
+        border-top-right-radius: 3px;
+        border-right: solid 1px #aaa;
+      }
+
+      > .button {
+        display: none;
+      }
+    }
+
+    .button,
+    .text {
+      padding: 0 3px;
+      display: inline-block;
+      margin-right: 0.4em;
+      float: right;
+    }
+
+    .text {
+      font-weight: bold;
+    }
+
+    .button.active {
+      background: #ddd;
+    }
+  }
+
+  .switch_button {
+    padding: 0 3px;
+    display: inline-block;
+  }
+
+  .message span {
+    &.text,
+    &.action {
+      padding: 0 3px;
+      display: inline-block;
+    }
+  }
+
+  .message span.action,
+  .toolbar .button,
+  .switch_button {
+    cursor: pointer;
+  }
+
+  .message span.action:hover,
+  .toolbar .button:hover,
+  .switch_button:hover {
+    background: #ddd;
+  }
+
+  .content {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: 92px;
+    border-top: solid 1px #aaa;
+    background: #fff;
+    padding-top: 0.4em;
+  }
+
+  .message,
+  .query_input {
+    position: relative;
+    font-family: Monaco, Consolas, monospace;
+    cursor: text;
+    margin: 0 10px 0.2em 1.4em;
+  }
+
+  .message {
+    border-bottom: solid 1px #ccc;
+    padding-bottom: 0.2em;
+
+    &::before {
+      left: -0.7em;
+      position: absolute;
+      content: '>';
+    }
+
+    &:hover::before {
+      color: #7cf;
+      font-weight: bold;
+    }
+
+    &.expanded::before {
+      content: ']';
+    }
+
+    &.welcome::before {
+      display: none;
+    }
+
+    &.failed {
+      &::before,
+      &.expanded::before,
+      &:hover::before {
+        content: '=';
+        color: #944;
+      }
+    }
+
+    &.collapsed > .query {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      display: block;
+    }
+
+    &.expanded > .query {
+      display: block;
+      white-space: pre;
+      word-wrap: break-word;
+    }
+
+    &.expanded > .action_content {
+      position: relative;
+    }
+
+    .action_content {
+      position: absolute;
+      bottom: 100%;
+      background: #ccc;
+      border: solid 1px #aaa;
+      border-top-left-radius: 3px;
+      color: #000;
+    }
+
+    &.collapsed {
+      > .action_content {
+        display: none;
+      }
+
+      &:hover > .action_content {
+        display: block;
+      }
+    }
+
+    &.collapsed .action.collapse,
+    &.expanded .action.expand {
+      display: none;
+    }
+
+    .text {
+      background: #fff;
+    }
+
+    .text.query_time,
+    &.bookmark .text.targetdb {
+      margin: 0;
+      display: inline-block;
+    }
+
+    &.failed .text.query_time {
+      display: none;
+    }
+
+    .bookmark_label {
+      padding: 0 4px;
+      top: 0;
+      background: #369;
+      color: #fff;
+      border-radius: 3px;
+
+      &.shared {
+        background: #396;
+      }
+    }
+
+    &.expanded .bookmark_label {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+  }
+
+  .query_input::before {
+    left: -0.7em;
+    position: absolute;
+    content: '>';
+    top: -2px;
+  }
+
+  // The console's query box is a few lines tall and has no gutter.
+  .sql-editor.console-editor .cm-editor {
+    height: 4em;
+    background: transparent;
+  }
+
+  .mid_layer {
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    background: #666;
+    display: none;
+    opacity: 0.5;
+    cursor: pointer;
+    z-index: 200;
+
+    &.show {
+      display: block;
+    }
+  }
+
+  // The Options and Bookmarks cards slide in over the messages from the end edge.
+  .card {
+    position: absolute;
+    width: 94%;
+    height: 100%;
+    min-height: 48px;
+    left: 100%;
+    top: 0;
+    border-left: solid 1px #999;
+    border-radius: 0;
+    z-index: 300;
+    transition: left 0.2s;
+    background: #fff;
+    padding: 0;
+
+    &.show {
+      left: 6%;
+      box-shadow: -2px 1px 4px -1px #999;
+    }
+
+    .toolbar {
+      border-top: 0;
+    }
+
+    .content {
+      height: calc(100% - 1.6em);
+      border-top: solid 1px #aaa;
+    }
+  }
+}
+
+#pma_bookmarks .content.add_bookmark,
+#pma_console_options .content {
+  padding: 4px 6px;
+}
+
+#pma_bookmarks .content.add_bookmark .options {
+  margin-left: 1.4em;
+  padding-bottom: 0.4em;
+  margin-bottom: 0.4em;
+  border-bottom: solid 1px #ccc;
+
+  button {
+    margin: 0 7px;
+  }
+}

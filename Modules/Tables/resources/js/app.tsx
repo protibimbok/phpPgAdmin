@@ -5,11 +5,12 @@ import SchemaStructure from './Pages/SchemaStructure'
 import TableDdl from './Pages/TableDdl'
 import TableStructure from './Pages/TableStructure'
 
-// A table in the tree opens the table's pages; the ancestors tell which schema it is in.
+// A table in the tree opens its Browse page, as phpMyAdmin's tree does; the ancestors tell
+// which schema it is in.
 registerNodeLink('table', (node, { db, ancestors }) => {
   const schema = ancestors.find((a) => a.type === 'schema')
 
-  return db === null || !schema ? '#' : urls.relation(db, schema.label, node.label, 'table')
+  return db === null || !schema ? '#' : `${urls.relation(db, schema.label, node.label, 'table')}/browse`
 })
 
 // The schema's "Structure" tab, first in the schema's bar, where /db/:db/schema/:schema lands;

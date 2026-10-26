@@ -11,13 +11,22 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-sql": "^6.10.0",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/highlight": "^1.2.5",
     "bootstrap": "^5.3.8",
+    "codemirror": "^6.0.2",
     "i18next": "^26.5.4",
     "i18next-resources-to-backend": "^1.2.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-i18next": "^17.1.0",
-    "react-router": "^7.18.4"
+    "react-router": "^7.18.4",
+    "sql-formatter": "^15.9.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -1,0 +1,557 @@
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import i18next from 'i18next'
+import { Trans, useTranslation } from 'react-i18next'
+import { Link, useLocation, useSearchParams } from 'react-router'
+import { useRequest } from '@/api/useRequest'
+import Icon from '@/components/Icon'
+import { notify, dismiss, type Notification } from '@/notify'
+import { useSession } from '@/session'
+import { urls, useLevel } from '@/level'
+import { format } from 'sql-formatter'
+import type { SQLNamespace } from '@codemirror/lang-sql'
+import { errorMessage } from '@/api/request'
+import { notifyError, notifySuccess } from '@/notify'
+import { createBookmark, deleteBookmark, fetchCatalog, listBookmarks, relationColumns, type Bookmark, type RelationColumn } from '../api'
+import SqlEditor, { type SqlEditorHandle } from '../editor/SqlEditor'
+import QueryResults from '../results/QueryResults'
+import { DEFAULT_MAX_ROWS, type GridNav } from '../results/ResultsGrid'
+import { useGridActions } from '../results/useGridActions'
+import { qualifiedName, quoteIdent, quoteLiteral } from '../sql'
+import { useQueryRunner } from '../useQueryRunner'
+
+/** Where phpMyAdmin keeps the query it saves as you type, for "Get auto-saved query". */
+const AUTO_SAVE_KEY = 'autoSavedSql'
+
+/** phpMyAdmin's TextareaRows: how tall the column list is. */
+const TEXTAREA_ROWS = 15
+
+/**
+ * The SQL page (sql/query.twig) at every level: the query box with its quick buttons and
+ * column list when a table is open, the options in the card's footer, then the results of the
+ * last run below. Ctrl+Enter runs the query, as it does in phpMyAdmin.
+ */
+export default function SqlPage() {
+  const { pathname } = useLocation()
+
+  return <SqlPageAt key={pathname} />
+}
+
+function SqlPageAt() {
+  const { t } = useTranslation('sql')
+  const { t: tApp } = useTranslation()
+  const { user } = useSession()
+  const level = useLevel()
+  const db = level.db ?? null
+  const [search, setSearch] = useSearchParams()
+  const editor = useRef<SqlEditorHandle>(null)
+
+  const [query, setQuery] = useState(() => search.get('sql') ?? defaultQuery(level))
+  const [ran, setRan] = useState<string | null>(null)
+  const [nav, setNav] = useState<GridNav>({ pos: 0, maxRows: DEFAULT_MAX_ROWS, order: [] })
+  const [delimiter, setDelimiter] = useState(';')
+  const [showAgain, setShowAgain] = useState(false)
+  const [retain, setRetain] = useState(false)
+  const [rollback, setRollback] = useState(false)
+  const [transaction, setTransaction] = useState(false)
+  const [bind, setBind] = useState(false)
+  const [parameters, setParameters] = useState<Record<string, string>>({})
+  const [boxShown, setBoxShown] = useState(true)
+  const [bookmarkLabel, setBookmarkLabel] = useState('')
+  const [bookmarkShared, setBookmarkShared] = useState(false)
+  const [bookmarkReplace, setBookmarkReplace] = useState(false)
+  const [chosenBookmark, setChosenBookmark] = useState('')
+  const [bookmarkAction, setBookmarkAction] = useState<'0' | '1' | '2'>('0')
+  const runner = useQueryRunner(db)
+  const { data: bookmarks, reload: reloadBookmarks } = useRequest(() => (db === null ? Promise.resolve([] as Bookmark[]) : listBookmarks(db)), [db])
+  // The catalog feeds the editor's completions; "schema.table" keys plus the public schema's tables by bare name.
+  const { data: catalog } = useRequest(() => (db === null ? Promise.resolve(null) : fetchCatalog(db)), [db])
+  const completions = useMemo<SQLNamespace | undefined>(() => {
+    if (!catalog) return undefined
+    const names: Record<string, string[]> = {}
+    for (const schema of catalog.schemas) {
+      for (const relation of schema.relations) {
+        names[`${schema.name}.${relation.name}`] = relation.columns
+        if (schema.name === 'public') names[relation.name] = relation.columns
+      }
+    }
+
+    return names
+  }, [catalog])
+  const loading = useRef<Notification | null>(null)
+
+  const relation = level.name === 'table' && level.db && level.schema && level.table ? { db: level.db, schema: level.schema, name: level.table } : null
+  const firstResult = runner.response?.results[0]
+  const source = runner.response?.source ?? null
+  const actions = useGridActions({
+    db: db ?? '',
+    source,
+    result: firstResult?.kind === 'rows' && runner.response?.results.length === 1 ? firstResult : null,
+    reload: () => ran !== null && navigate(nav),
+    changeUrl: db !== null && source ? `${urls.relation(db, source.schema, source.table, 'table')}/change` : null,
+  })
+  const { data: columns } = useRequest(async () => (relation ? (await relationColumns(relation.db, relation.schema, relation.name)).columns : null), [relation?.db, relation?.schema, relation?.name])
+  const parameterNames = useMemo(() => (bind ? findParameters(query) : []), [bind, query])
+
+  // The query is saved as it is typed, as phpMyAdmin saves it to localStorage.
+  useEffect(() => {
+    try {
+      if (query !== '') localStorage.setItem(AUTO_SAVE_KEY, query)
+    } catch {
+      // Storage may be unavailable; the button then has nothing to restore.
+    }
+  }, [query])
+
+  useEffect(() => {
+    if (runner.running) {
+      loading.current = notify(tApp('loading'), 'notice', null)
+    } else if (loading.current) {
+      dismiss(loading.current)
+      loading.current = null
+    }
+  }, [runner.running, tApp])
+
+  function execute(sql: string, next: GridNav = { pos: 0, maxRows: nav.maxRows, order: [] }) {
+    const text = bind ? bindParameters(sql, parameters) : sql
+    setRan(text)
+    setNav(next)
+    void runner.run({ sql: text, delimiter, limit: next.maxRows, offset: next.pos, order: next.order, rollback, transaction })
+    if (!showAgain) setQuery('')
+    if (!retain) setBoxShown(false)
+  }
+
+  function submit(e?: FormEvent) {
+    e?.preventDefault()
+    if (query.trim() === '') return
+    if (bookmarkLabel.trim() !== '' && db !== null) {
+      createBookmark({ database: db, label: bookmarkLabel.trim(), sql: query, shared: bookmarkShared, replace: bookmarkReplace }).then(
+        () => {
+          notifySuccess(t('bookmark.created'))
+          setBookmarkLabel('')
+          reloadBookmarks()
+        },
+        (err: unknown) => notifyError(errorMessage(err)),
+      )
+    }
+    execute(query)
+  }
+
+  /** The "Bookmarked SQL query" card's Go: run the chosen bookmark, show it, or delete it. */
+  function useBookmark(e: FormEvent) {
+    e.preventDefault()
+    const bookmark = bookmarks?.find((b) => String(b.id) === chosenBookmark)
+    if (!bookmark) return
+    if (bookmarkAction === '2') {
+      deleteBookmark(bookmark.id).then(
+        () => {
+          notifySuccess(t('bookmark.deleted'))
+          setChosenBookmark('')
+          reloadBookmarks()
+        },
+        (err: unknown) => notifyError(errorMessage(err)),
+      )
+
+      return
+    }
+    setQuery(bookmark.sql)
+    if (bookmarkAction === '0') execute(bookmark.sql)
+  }
+
+  function formatQuery() {
+    try {
+      setQuery(format(query, { language: 'postgresql', keywordCase: 'upper' }))
+    } catch (err) {
+      notifyError(errorMessage(err))
+    }
+  }
+
+  // A link that carries a query (Edit from the Browse page, the console) puts it in the box,
+  // and runs it when it says so (Explain SQL, a console run).
+  const urlSql = search.get('sql')
+  const autorun = search.get('run') === '1'
+  useEffect(() => {
+    if (urlSql === null) return
+    setQuery(urlSql)
+    if (autorun && urlSql.trim() !== '') execute(urlSql)
+    setSearch((params) => {
+      params.delete('sql')
+      params.delete('run')
+
+      return params
+    }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSql, autorun])
+
+  function navigate(next: GridNav) {
+    if (ran === null) return
+    setNav(next)
+    void runner.run({ sql: ran, delimiter, limit: next.maxRows, offset: next.pos, order: next.order, rollback, transaction })
+  }
+
+  function quick(kind: 'select_all' | 'select' | 'insert' | 'update' | 'delete') {
+    if (!relation) return
+    const name = qualifiedName(relation.schema, relation.name)
+    const names = (columns ?? []).map((c) => quoteIdent(c.name))
+    const values = (columns ?? []).map((_, i) => quoteLiteral(`[value-${i + 1}]`))
+    const text = {
+      select_all: `SELECT * FROM ${name} WHERE true`,
+      select: `SELECT ${names.join(', ')} FROM ${name} WHERE true`,
+      insert: `INSERT INTO ${name}(${names.join(', ')}) VALUES (${values.join(', ')})`,
+      update: `UPDATE ${name} SET ${names.map((n, i) => `${n} = ${values[i]}`).join(', ')} WHERE true`,
+      delete: `DELETE FROM ${name} WHERE false`,
+    }[kind]
+    setQuery(text)
+    editor.current?.focus()
+  }
+
+  function insertColumns(select: HTMLSelectElement | null) {
+    if (!select) return
+    const chosen = [...select.selectedOptions].map((option) => option.value)
+    if (chosen.length > 0) editor.current?.insert(chosen.join(', '))
+  }
+
+  const legend = legendFor(level, user.server.host, user.server.port)
+
+  return (
+    <>
+      {!boxShown && (
+        <a id="togglequerybox" href="#querybox" onClick={(e) => { e.preventDefault(); setBoxShown(true) }}>
+          {t('show_query_box')}
+        </a>
+      )}
+
+      {boxShown && (
+        <form className="ajax lock-page" id="sqlqueryform" name="sqlform" onSubmit={submit}>
+          <a id="querybox" />
+          <div className="card mb-3">
+            <div className="card-header">{legend}</div>
+            <div className="card-body">
+              <div id="queryfieldscontainer">
+                <div className="row">
+                  <div className="col">
+                    <div className="mb-3">
+                      <SqlEditor ref={editor} id="sqlquery" value={query} onChange={setQuery} onSubmit={submit} ariaLabel={t('query')} autoFocus schema={completions} defaultSchema={level.schema ?? 'public'} />
+                    </div>
+                    <div id="querymessage">
+                      {runner.running && (
+                        <>
+                          {t('running')}{' '}
+                          <a href="#cancel" onClick={(e) => { e.preventDefault(); runner.cancel() }}>
+                            {t('message.cancel')}
+                          </a>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="btn-toolbar" role="toolbar">
+                      {relation && (
+                        <div className="btn-group me-2" role="group">
+                          <input type="button" value="SELECT *" id="selectall" className="btn btn-secondary button sqlbutton" onClick={() => quick('select_all')} />
+                          <input type="button" value="SELECT" id="select" className="btn btn-secondary button sqlbutton" onClick={() => quick('select')} />
+                          <input type="button" value="INSERT" id="insert" className="btn btn-secondary button sqlbutton" onClick={() => quick('insert')} />
+                          <input type="button" value="UPDATE" id="update" className="btn btn-secondary button sqlbutton" onClick={() => quick('update')} />
+                          <input type="button" value="DELETE" id="delete" className="btn btn-secondary button sqlbutton" onClick={() => quick('delete')} />
+                        </div>
+                      )}
+                      <div className="btn-group me-2" role="group">
+                        <input type="button" value={t('buttons.clear')} id="clear" className="btn btn-secondary button sqlbutton" onClick={() => setQuery('')} />
+                        <input type="button" value={t('buttons.format')} id="format" className="btn btn-secondary button sqlbutton" onClick={formatQuery} />
+                      </div>
+                      <input
+                        type="button"
+                        value={t('buttons.auto_saved')}
+                        id="saved"
+                        className="btn btn-secondary button sqlbutton"
+                        onClick={() => {
+                          try {
+                            const saved = localStorage.getItem(AUTO_SAVE_KEY)
+                            if (saved) setQuery(saved)
+                          } catch {
+                            // Nothing to restore.
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <div className="my-3">
+                      <div className="form-check">
+                        <input className="form-check-input" type="checkbox" name="parameterized" id="parameterized" checked={bind} onChange={(e) => setBind(e.target.checked)} />
+                        <label className="form-check-label" htmlFor="parameterized">
+                          {t('buttons.bind_parameters')}
+                        </label>
+                      </div>
+                    </div>
+                    <div className="mb-3" id="parametersDiv">
+                      {parameterNames.map((name) => (
+                        <div key={name} className="row row-cols-lg-auto g-3 align-items-center mb-2">
+                          <div className="col-12">
+                            <label className="form-label mb-0" htmlFor={`parameter_${name}`}>
+                              :{name}
+                            </label>
+                          </div>
+                          <div className="col-12">
+                            <input
+                              type="text"
+                              className="form-control parameter"
+                              id={`parameter_${name}`}
+                              value={parameters[name] ?? ''}
+                              onChange={(e) => setParameters((p) => ({ ...p, [name]: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {relation && columns && columns.length > 0 && (
+                    <div className="col-xl-2 col-lg-3">
+                      <div className="mb-3">
+                        <label className="visually-hidden" htmlFor="fieldsSelect">
+                          {t('columns')}
+                        </label>
+                        <select className="form-select resize-vertical" id="fieldsSelect" name="dummy" size={TEXTAREA_ROWS} multiple>
+                          {columns.map((column: RelationColumn) => (
+                            <option key={column.attnum} value={quoteIdent(column.name)} title={column.comment ?? undefined}>
+                              {column.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <input
+                        type="button"
+                        className="btn btn-secondary button"
+                        id="insertBtn"
+                        name="insert"
+                        value="<<"
+                        title={t('insert')}
+                        onClick={() => insertColumns(document.getElementById('fieldsSelect') as HTMLSelectElement | null)}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {db !== null && (
+                <div className="row row-cols-lg-auto g-3 align-items-center">
+                  <div className="col-6">
+                    <label className="form-label" htmlFor="bkm_label">
+                      {t('bookmark.this_query')}
+                    </label>
+                  </div>
+                  <div className="col-6">
+                    <input className="form-control" type="text" name="bkm_label" id="bkm_label" value={bookmarkLabel} onChange={(e) => setBookmarkLabel(e.target.value)} />
+                  </div>
+                  {bookmarkLabel.length > 0 && (
+                    <>
+                      <div className="col-12">
+                        <div className="form-check form-check-inline">
+                          <input className="form-check-input" type="checkbox" name="bkm_all_users" id="id_bkm_all_users" value="true" checked={bookmarkShared} onChange={(e) => setBookmarkShared(e.target.checked)} />
+                          <label className="form-check-label" htmlFor="id_bkm_all_users">
+                            {t('bookmark.all_users')}
+                          </label>
+                        </div>
+                      </div>
+                      <div className="col-12">
+                        <div className="form-check form-check-inline">
+                          <input className="form-check-input" type="checkbox" name="bkm_replace" id="id_bkm_replace" value="true" checked={bookmarkReplace} onChange={(e) => setBookmarkReplace(e.target.checked)} />
+                          <label className="form-check-label" htmlFor="id_bkm_replace">
+                            {t('bookmark.replace')}
+                          </label>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="card-footer">
+              <div className="row row-cols-lg-auto g-3 align-items-center">
+                <div className="col-12">
+                  <div className="input-group me-2">
+                    <span className="input-group-text">{t('options.delimiter')}</span>
+                    <label className="visually-hidden" htmlFor="id_sql_delimiter">
+                      {t('options.delimiter')}
+                    </label>
+                    <input className="form-control" type="text" name="sql_delimiter" size={3} value={delimiter} id="id_sql_delimiter" onChange={(e) => setDelimiter(e.target.value)} />
+                  </div>
+                </div>
+                <div className="col-12">
+                  <div className="form-check form-check-inline">
+                    <input className="form-check-input" type="checkbox" name="show_query" value="1" id="checkbox_show_query" checked={showAgain} onChange={(e) => setShowAgain(e.target.checked)} />
+                    <label className="form-check-label" htmlFor="checkbox_show_query">
+                      {t('options.show_again')}
+                    </label>
+                  </div>
+                </div>
+                <div className="col-12">
+                  <div className="form-check form-check-inline">
+                    <input className="form-check-input" type="checkbox" name="retain_query_box" value="1" id="retain_query_box" checked={retain} onChange={(e) => setRetain(e.target.checked)} />
+                    <label className="form-check-label" htmlFor="retain_query_box">
+                      {t('options.retain')}
+                    </label>
+                  </div>
+                </div>
+                <div className="col-12">
+                  <div className="form-check form-check-inline">
+                    <input className="form-check-input" type="checkbox" name="rollback_query" value="1" id="rollback_query" checked={rollback} onChange={(e) => setRollback(e.target.checked)} />
+                    <label className="form-check-label" htmlFor="rollback_query">
+                      {t('options.rollback')}
+                    </label>
+                  </div>
+                </div>
+                <div className="col-12">
+                  <div className="form-check">
+                    <input className="form-check-input" type="checkbox" name="transaction" id="transaction" checked={transaction} onChange={(e) => setTransaction(e.target.checked)} />
+                    <label className="form-check-label" htmlFor="transaction">
+                      {t('options.transaction')}
+                    </label>
+                  </div>
+                </div>
+                <div className="col-12">
+                  <input className="btn btn-primary ms-1" type="submit" id="button_submit_query" name="SQL" value={tApp('go')} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {boxShown && bookmarks && bookmarks.length > 0 && (
+        <form className="card mb-3" onSubmit={useBookmark}>
+          <div className="card-header">{t('bookmark.bookmarked')}</div>
+          <div className="card-body">
+            <div className="row row-cols-lg-auto g-3 align-items-center">
+              <div className="col-6">
+                <label className="form-label" htmlFor="id_bookmark">
+                  {t('bookmark.bookmark')}
+                </label>
+              </div>
+              <div className="col-6">
+                <select className="form-select" name="id_bookmark" id="id_bookmark" value={chosenBookmark} onChange={(e) => setChosenBookmark(e.target.value)}>
+                  <option value="">&nbsp;</option>
+                  {bookmarks.map((bookmark) => (
+                    <option key={bookmark.id} value={bookmark.id}>
+                      {bookmark.label}
+                      {bookmark.shared ? ` (${t('bookmark.shared')})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {(['0', '1', '2'] as const).map((value) => (
+                <div key={value} className="form-check form-check-inline col-12">
+                  <input className="form-check-input" type="radio" name="action_bookmark" value={value} id={`radio_bookmark_${value}`} checked={bookmarkAction === value} onChange={() => setBookmarkAction(value)} />
+                  <label className="form-check-label" htmlFor={`radio_bookmark_${value}`}>
+                    {t(value === '0' ? 'bookmark.submit' : value === '1' ? 'bookmark.view_only' : 'bookmark.delete')}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card-footer text-end">
+            <input className="btn btn-secondary" type="submit" name="SQL" id="button_submit_bookmark" value={tApp('go')} />
+          </div>
+        </form>
+      )}
+
+      {runner.error && (
+        <div className="alert alert-danger" role="alert">
+          {runner.error.message}
+        </div>
+      )}
+
+      {runner.response && (
+        <QueryResults
+          response={runner.response}
+          nav={nav}
+          onNavigate={navigate}
+          edit={(sql) => () => {
+            setQuery(sql)
+            setBoxShown(true)
+            editor.current?.focus()
+            window.scrollTo({ top: 0 })
+          }}
+          onExplain={(sql) => {
+            setQuery(sql)
+            execute(sql)
+          }}
+          onRefresh={() => ran !== null && navigate(nav)}
+          onRun={(sql) => {
+            setQuery(sql)
+            execute(sql)
+          }}
+          grid={{ rowActions: actions.rowActions, bulkActions: actions.bulkActions, cellEditor: actions.cellEditor }}
+          bookmarkDatabase={db ?? undefined}
+        />
+      )}
+      {actions.modal}
+    </>
+  )
+}
+
+/**
+ * The card's heading, as phpMyAdmin's legend: "Run SQL query/queries on table db.table:" with
+ * the object linked (here schema.table) and the documentation icon after the colon.
+ */
+function legendFor(level: ReturnType<typeof useLevel>, host: string, port: number) {
+  const docs = (
+    <a href="https://www.postgresql.org/docs/current/sql-select.html" target="_blank" rel="noopener noreferrer">
+      <Icon name="b_help" title={i18next.t('postgresql_documentation')} />
+    </a>
+  )
+
+  switch (level.name) {
+    case 'database':
+      return (
+        <>
+          <Trans ns="sql" i18nKey="legend.database" values={{ database: level.db }} components={{ db: <Link to={urls.database(level.db!)} /> }} /> {docs}
+        </>
+      )
+    case 'schema':
+      return (
+        <>
+          <Trans ns="sql" i18nKey="legend.schema" values={{ schema: level.schema }} components={{ sch: <Link to={urls.schema(level.db!, level.schema!)} /> }} /> {docs}
+        </>
+      )
+    case 'table':
+      return (
+        <>
+          <Trans
+            ns="sql"
+            i18nKey="legend.table"
+            values={{ table: `${level.schema}.${level.table}` }}
+            components={{ tbl: <Link to={urls.relation(level.db!, level.schema!, level.table!, level.kind)} /> }}
+          />{' '}
+          {docs}
+        </>
+      )
+    default:
+      return (
+        <>
+          <Trans ns="sql" i18nKey="legend.server" values={{ server: `${host}:${port}` }} /> {docs}
+        </>
+      )
+  }
+}
+
+/** What the box holds before anything is typed: phpMyAdmin's DefaultQueryTable, "SELECT * FROM %t WHERE 1". */
+function defaultQuery(level: ReturnType<typeof useLevel>): string {
+  return level.name === 'table' && level.schema && level.table ? `SELECT * FROM ${qualifiedName(level.schema, level.table)} WHERE true` : ''
+}
+
+/** The :name parameters of a query, in order of appearance; "::type" casts and quoted text do not count. */
+export function findParameters(sql: string): string[] {
+  const names: string[] = []
+  const pattern = /'(?:[^']|'')*'|"(?:[^"]|"")*"|--[^\n]*|\/\*[\s\S]*?\*\/|(?<![:\w]):([A-Za-z_]\w*)/g
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(sql)) !== null) {
+    if (match[1] && !names.includes(match[1])) names.push(match[1])
+  }
+
+  return names
+}
+
+/** The query with each :name replaced by its value as a quoted literal. */
+export function bindParameters(sql: string, values: Record<string, string>): string {
+  return sql.replace(/'(?:[^']|'')*'|"(?:[^"]|"")*"|--[^\n]*|\/\*[\s\S]*?\*\/|(?<![:\w]):([A-Za-z_]\w*)/g, (whole, name?: string) =>
+    name && name in values ? quoteLiteral(values[name]) : whole,
+  )
+}
