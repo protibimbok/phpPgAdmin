@@ -33,6 +33,14 @@ $flag = static fn (array $input, string $key): bool => !empty($input[$key]) && $
 Route::middleware(Authenticate::class)->group(function () use ($context, $flag): void {
     Route::get('/databases/{db}/schemas/{scid:number}/tables/options', fn (ServerRequestInterface $request, array $args): array => (new TableController())->options($context($request, $args)))->setName('tables.options');
 
+    // ?am=gist&types[]=integer&types[]=tstzrange: the operator classes of the method and the operators per type.
+    Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/exclusion-options', function (ServerRequestInterface $request, array $args) use ($context): array {
+        $ctx = $context($request, $args);
+        $params = $ctx->queryParams();
+
+        return (new TableController())->exclusionOptions($ctx, trim((string) ($params['am'] ?? '')), array_map(strval(...), (array) ($params['types'] ?? [])));
+    })->setName('tables.exclusion_options');
+
     Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/count', fn (ServerRequestInterface $request, array $args): array => [
         'count' => (new TableController())->countRows($context($request, $args), (int) $args['tid']),
     ])->setName('tables.count');

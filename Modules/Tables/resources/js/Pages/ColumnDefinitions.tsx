@@ -54,6 +54,7 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
   const [comment, setComment] = useState('')
   const [owner, setOwner] = useState('')
   const [tablespace, setTablespace] = useState('')
+  const [inherits, setInherits] = useState<string[]>([])
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -91,7 +92,7 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
     const keys = indexesOf(filled)
 
     if (mode === 'create') {
-      const created: NewTable = { name, columns: filled.map(toColumnData), description: comment || undefined, relowner: owner || undefined, spcname: tablespace || undefined }
+      const created: NewTable = { name, columns: filled.map(toColumnData), description: comment || undefined, relowner: owner || undefined, spcname: tablespace || undefined, coll_inherits: inherits.length > 0 ? inherits : undefined }
       if (keys.primary) created.primary_key = [keys.primary]
       if (keys.unique.length > 0) created.unique_constraint = keys.unique
       if (keys.indexes.length > 0) created.indexes = keys.indexes
@@ -239,6 +240,8 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
                 <th>{t('definitions.owner')}</th>
                 <td width={25}>&nbsp;</td>
                 <th>{t('definitions.tablespace')}</th>
+                <td width={25}>&nbsp;</td>
+                <th>{t('definitions.inherits')}</th>
               </tr>
               <tr>
                 <td>
@@ -262,6 +265,17 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
                     {options.tablespaces.map((space) => (
                       <option key={space} value={space}>
                         {space}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td width={25}>&nbsp;</td>
+                <td>
+                  {/* INHERITS (parent, …): the parents' columns are added to the table by PostgreSQL. */}
+                  <select name="coll_inherits" multiple size={3} value={inherits} onChange={(e) => setInherits(Array.from(e.target.selectedOptions, (o) => o.value))} aria-label={t('definitions.inherits')}>
+                    {options.inherits.map((parent) => (
+                      <option key={parent.oid} value={parent.inherits}>
+                        {parent.schema}.{parent.name}
                       </option>
                     ))}
                   </select>

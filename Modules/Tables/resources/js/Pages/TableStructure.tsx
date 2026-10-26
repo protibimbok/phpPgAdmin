@@ -538,7 +538,7 @@ export default function TableStructure() {
             <form onSubmit={(e) => { e.preventDefault(); loadOptions(); setConstraintDialog({ constraint: null, newType: newConstraintType }) }}>
               {t('structure.add_constraint')}
               <select className="mx-2" value={newConstraintType} onChange={(e) => setNewConstraintType(e.target.value as ConstraintType)} aria-label={t('structure.constraint_columns.type')}>
-                {(['check_constraint', 'unique_constraint', 'primary_key'] as const).filter((type) => type !== 'primary_key' || !primaryKey).map((type) => (
+                {(['check_constraint', 'unique_constraint', 'primary_key', 'exclusion_constraint'] as const).filter((type) => type !== 'primary_key' || !primaryKey).map((type) => (
                   <option key={type} value={type}>
                     {t(`structure.constraint_types.${type}`)}
                   </option>
@@ -575,6 +575,7 @@ export default function TableStructure() {
         scid={scid}
         tid={tid}
         columns={data.columns}
+        options={options}
         constraint={constraintDialog?.constraint ?? null}
         newType={constraintDialog?.newType ?? 'check_constraint'}
         onClose={() => setConstraintDialog(null)}

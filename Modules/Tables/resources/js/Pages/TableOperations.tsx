@@ -47,6 +47,7 @@ export default function TableOperations() {
   const [comment, setComment] = useState('')
   const [owner, setOwner] = useState('')
   const [tablespace, setTablespace] = useState('')
+  const [inherits, setInherits] = useState<string[]>([])
   const [copy, setCopy] = useState<CopyTableOptions & { switch_to_new: boolean }>({ schema, name: table, what: 'data', drop_if_exists: false, add_constraints: true, switch_to_new: false })
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function TableOperations() {
     setComment(data.properties.description ?? '')
     setOwner(data.properties.relowner)
     setTablespace(data.properties.spcname ?? '')
+    setInherits(data.properties.coll_inherits ?? [])
     setCopy((c) => ({ ...c, schema, name: table }))
   }, [data, schema, table])
 
@@ -111,6 +113,21 @@ export default function TableOperations() {
     if (tablespace !== (properties.spcname ?? '') && tablespace !== '') changes.spcname = tablespace
 
     return changes
+  }
+
+  /** The parents as the INHERITS clause names them; the update INHERITs the new ones and NO INHERITs the dropped. */
+  function inheritChanges(): TableChanges {
+    const was = properties.coll_inherits ?? []
+    const same = was.length === inherits.length && was.every((parent) => inherits.includes(parent))
+
+    return same ? {} : { coll_inherits: inherits }
+  }
+
+  function submitInherits(e: FormEvent) {
+    e.preventDefault()
+    const changes = inheritChanges()
+    if (Object.keys(changes).length === 0) return notify(tApp('nothing_to_change'))
+    void alter(changes, tApp('query_executed'))
   }
 
   function submitMove(e: FormEvent) {
@@ -284,6 +301,34 @@ export default function TableOperations() {
           </div>
           <div className="card-footer text-end">
             {previewButton(optionChanges)}
+            <input className="btn btn-primary" type="submit" value={tApp('go')} />
+          </div>
+        </div>
+      </form>
+
+      {/* pgAdmin's "Inherited from table(s)"; phpMyAdmin has no counterpart, so the card follows the options card's layout. */}
+      <form id="tableInheritsForm" onSubmit={submitInherits}>
+        <div className="card mb-2">
+          <div className="card-header">{t('operations.inherits')}</div>
+          <div className="card-body">
+            <div className="mb-3 row row-cols-lg-auto g-3 align-items-center">
+              <div className="col-6">
+                <label htmlFor="tableInheritsSelect">{t('operations.inherits_from')}</label>
+              </div>
+              <div className="col-6">
+                <select className="form-select" id="tableInheritsSelect" name="coll_inherits" multiple size={Math.min(6, Math.max(3, options.inherits.length))} value={inherits} onChange={(e) => setInherits(Array.from(e.target.selectedOptions, (o) => o.value))}>
+                  {[...new Set([...(properties.coll_inherits ?? []), ...options.inherits.filter((parent) => parent.oid !== tid).map((parent) => parent.inherits)])].map((parent) => (
+                    <option key={parent} value={parent}>
+                      {options.inherits.find((candidate) => candidate.inherits === parent)?.schema ?? schema}.{options.inherits.find((candidate) => candidate.inherits === parent)?.name ?? parent}
+                    </option>
+                  ))}
+                </select>
+                <div className="form-text">{t('operations.inherits_hint')}</div>
+              </div>
+            </div>
+          </div>
+          <div className="card-footer text-end">
+            {previewButton(inheritChanges)}
             <input className="btn btn-primary" type="submit" value={tApp('go')} />
           </div>
         </div>

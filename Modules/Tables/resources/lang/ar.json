@@ -195,7 +195,8 @@
       "UUID": "UUID"
     },
     "add_title": "إضافة أعمدة",
-    "change_title": "تغيير الأعمدة"
+    "change_title": "تغيير الأعمدة",
+    "inherits": "يرث من"
   },
   "index_dialog": {
     "add_title": "إضافة فهرس",
@@ -220,7 +221,26 @@
     "name": "اسم القيد:",
     "expression": "التعبير:",
     "columns": "الأعمدة:",
-    "comment": "تعليق:"
+    "comment": "تعليق:",
+    "definition": "التعريف:",
+    "access_method": "طريقة الوصول:",
+    "advanced": "خيارات متقدمة",
+    "include": "أعمدة مضمّنة:",
+    "fillfactor": "عامل الملء:",
+    "tablespace": "مساحة الجداول:",
+    "where": "الشرط (WHERE):",
+    "deferrable": "قابل للتأجيل",
+    "deferred": "مؤجل مبدئياً",
+    "column": "العمود",
+    "oper_class": "فئة المُعامِل",
+    "default_class": "الافتراضية",
+    "order": "الترتيب",
+    "nulls": "القيم الفارغة",
+    "operator": "المُعامِل",
+    "ignore": "تجاهل",
+    "add_columns": "إضافة {{count}} عمود/أعمدة",
+    "no_columns": "يحتاج قيد الاستثناء إلى عمود واحد على الأقل.",
+    "no_operator": "يحتاج كل عمود في قيد الاستثناء إلى مُعامِل."
   },
   "relation": {
     "title": "قيود المفاتيح الخارجية",
@@ -278,7 +298,10 @@
     "moved": "تم نقل الجدول {{table}} إلى {{target}}.",
     "copied": "تم نسخ الجدول {{table}} إلى {{target}}.",
     "emptied": "تم إفراغ الجدول {{table}}.",
-    "dropped": "تم حذف الجدول {{table}}."
+    "dropped": "تم حذف الجدول {{table}}.",
+    "inherits": "الوراثة",
+    "inherits_from": "موروث من الجدول/الجداول",
+    "inherits_hint": "يجب أن تكون أعمدة الجدول الأب موجودة في هذا الجدول بنفس الأنواع؛ CREATE TABLE يضيفها أما ALTER TABLE فلا."
   },
   "schema_structure": {
     "with_selected": {

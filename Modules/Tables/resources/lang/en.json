@@ -195,7 +195,8 @@
       "UUID": "UUID"
     },
     "add_title": "Add columns",
-    "change_title": "Change columns"
+    "change_title": "Change columns",
+    "inherits": "Inherits from"
   },
   "index_dialog": {
     "add_title": "Add index",
@@ -220,7 +221,26 @@
     "name": "Constraint name:",
     "expression": "Expression:",
     "columns": "Columns:",
-    "comment": "Comment:"
+    "comment": "Comment:",
+    "definition": "Definition:",
+    "access_method": "Access method:",
+    "advanced": "Advanced options",
+    "include": "Include columns:",
+    "fillfactor": "Fillfactor:",
+    "tablespace": "Tablespace:",
+    "where": "Condition (WHERE):",
+    "deferrable": "Deferrable",
+    "deferred": "Initially deferred",
+    "column": "Column",
+    "oper_class": "Operator class",
+    "default_class": "Default",
+    "order": "Order",
+    "nulls": "NULLs",
+    "operator": "Operator",
+    "ignore": "Ignore",
+    "add_columns": "Add {{count}} column(s)",
+    "no_columns": "An exclusion constraint needs at least one column.",
+    "no_operator": "Each column of an exclusion constraint needs an operator."
   },
   "relation": {
     "title": "Foreign key constraints",
@@ -278,7 +298,10 @@
     "moved": "Table {{table}} has been moved to {{target}}.",
     "copied": "Table {{table}} has been copied to {{target}}.",
     "emptied": "Table {{table}} has been emptied.",
-    "dropped": "Table {{table}} has been dropped."
+    "dropped": "Table {{table}} has been dropped.",
+    "inherits": "Inheritance",
+    "inherits_from": "Inherited from table(s)",
+    "inherits_hint": "A parent's columns must already exist in this table with the same types; CREATE TABLE adds them, ALTER TABLE does not."
   },
   "schema_structure": {
     "with_selected": {

@@ -17,6 +17,8 @@ export interface Table {
   spcname: string | null
   is_sys_table: boolean
   size: number
+  /** The parents the table inherits from, as the INHERITS clause names them (properties only). */
+  coll_inherits?: string[]
 }
 
 /** A view or materialized view, as their properties.sql describe them. */
@@ -142,10 +144,27 @@ export interface TableOptions {
   schemas: string[]
   access_methods: string[]
   index_methods: string[]
+  /** The index methods that can back an exclusion constraint. */
+  exclusion_methods: string[]
+  /** The tables one may inherit from; "inherits" is the name as the INHERITS clause takes it. */
+  inherits: { oid: number; schema: string; name: string; inherits: string }[]
 }
 
 export function tableOptions(db: string, scid: number): Promise<TableOptions> {
   return api.get<TableOptions>(`${collectionUrl(db, 'schemas', scid, 'tables')}/options`)
+}
+
+/** What the exclusion constraint form offers: the method's operator classes and the operators per column type. */
+export interface ExclusionOptions {
+  oper_classes: string[]
+  operators: Record<string, string[]>
+}
+
+export function exclusionOptions(db: string, scid: number, tid: number, am: string, types: string[]): Promise<ExclusionOptions> {
+  const params = new URLSearchParams({ am })
+  for (const type of types) params.append('types[]', type)
+
+  return api.get<ExclusionOptions>(`${collectionUrl(db, 'schemas', scid, 'tables')}/${tid}/exclusion-options?${params}`)
 }
 
 /**

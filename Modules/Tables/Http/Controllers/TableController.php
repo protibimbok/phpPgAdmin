@@ -179,7 +179,40 @@ final class TableController extends RelationController
             'tablespaces' => Catalog::tablespaces($ctx->conn),
             'schemas' => Catalog::schemas($ctx->conn),
             'access_methods' => array_column($ctx->conn->rows($ctx->render('get_access_methods.sql')), 'amname'),
-            'index_methods' => array_column($ctx->conn->rows($ctx->renderFrom('indexes', 'get_am.sql')), 'amname'),
+            // pgAdmin's get_am.sql lists every access method, table ones included; the dialogs want the index ones,
+            // and the exclusion form only those that can back an exclusion constraint (gin and brin cannot).
+            'index_methods' => array_column($ctx->conn->rows("SELECT amname FROM pg_catalog.pg_am WHERE amtype = 'i' ORDER BY amname"), 'amname'),
+            'exclusion_methods' => array_column($ctx->conn->rows("SELECT amname FROM pg_catalog.pg_am WHERE amtype = 'i' AND pg_catalog.pg_indexam_has_property(oid, 'can_exclude') ORDER BY amname"), 'amname'),
+            // The tables a table may inherit from, as the INHERITS clause names them (schema-qualified
+            // outside the search path's catalogs), with their OIDs so a table leaves itself out.
+            'inherits' => array_map(
+                static fn (array $r): array => ['oid' => (int) $r['oid'], 'schema' => $r['nspname'], 'name' => $r['relname'], 'inherits' => $r['inherits']],
+                $ctx->conn->rows($ctx->render('get_inherits.sql', ['show_system_objects' => false, 'server_type' => 'pg'])),
+            ),
+        ];
+    }
+
+    /**
+     * What the exclusion constraint form offers for an access method and the types of the
+     * columns picked: the method's non-default operator classes and, per type, the operators
+     * that have a commutator (pgAdmin's get_oper_class and get_operator).
+     *
+     * @param list<string> $types
+     * @return array{oper_classes: list<string>, operators: array<string, list<string>>}
+     */
+    public function exclusionOptions(NodeContext $ctx, string $am, array $types): array
+    {
+        $operators = [];
+        foreach (array_unique(array_filter($types, static fn (string $t): bool => $t !== '')) as $type) {
+            // The type's own operators first, then those of the polymorphic pseudo-type it fits (&& for a range is anyrange's).
+            $own = array_column($ctx->conn->rows($ctx->renderFrom('exclusion_constraint', 'get_operator.sql', ['type' => $type, 'show_sysobj' => false])), 'oprname');
+            $any = array_column($ctx->conn->rows($ctx->renderFrom('exclusion_constraint', 'get_operator_any.sql', ['type' => $type])), 'oprname');
+            $operators[$type] = array_values(array_unique([...$own, ...$any]));
+        }
+
+        return [
+            'oper_classes' => $am === '' ? [] : array_column($ctx->conn->rows($ctx->renderFrom('exclusion_constraint', 'get_oper_class.sql', ['indextype' => $am])), 'opcname'),
+            'operators' => $operators,
         ];
     }
 
