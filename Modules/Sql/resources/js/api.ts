@@ -15,6 +15,21 @@ export interface ResultColumn {
   is_generated: boolean
   /** Whether a value in this column may be changed in place. */
   editable: boolean
+  /** The type with its modifiers, "timestamp(3) without time zone", when the column is a table's own. */
+  type: string | null
+  /** The column's default expression, when it is a table's own column and has one. */
+  default: string | null
+  /** The labels of an enum type, in their declared order. */
+  enum_values: string[] | null
+  /** The column a foreign key on this column points at. */
+  foreign_key: ForeignKey | null
+}
+
+/** The column a foreign key points at. */
+export interface ForeignKey {
+  schema: string
+  table: string
+  column: string
 }
 
 /** The one table a row-returning statement reads from, when it reads from exactly one. */
@@ -127,11 +142,19 @@ export interface RelationColumn {
   type_name: string
   nullable: boolean
   has_default: boolean
+  /** An identity column: the server numbers it, as it does a serial. */
+  is_identity: boolean
   is_generated: boolean
   pk: boolean
   comment: string | null
   /** The column's collation, "default" or a named one; null for a type that has none. */
   collation: string | null
+  /** The default expression as pg_get_expr prints it: "'ok'::mood", "now()", "nextval(...)". */
+  default: string | null
+  /** The labels of an enum type, in their declared order. */
+  enum_values: string[] | null
+  /** The column a foreign key on this column points at. */
+  foreign_key: ForeignKey | null
 }
 
 export function relationColumns(db: string, schema: string, name: string): Promise<RelationInfo> {
@@ -146,26 +169,66 @@ export function relationColumns(db: string, schema: string, name: string): Promi
  */
 export type CellValue = string | null | { default: true } | { func: string; value?: string | null }
 
-/** The functions the form may wrap a value in, as the server knows them; the ones ending in "()" take no value. */
+/**
+ * The functions the form may wrap a value in, as phpMyAdmin's Function column lists them (every
+ * one, sorted); the server's RowEditor::FUNCTIONS maps each name to its SQL.
+ */
 export const ROW_FUNCTIONS = [
-  'now()',
-  'clock_timestamp()',
-  'current_date',
-  'current_time',
-  'current_timestamp',
-  'localtimestamp',
-  'gen_random_uuid()',
-  'random()',
-  'upper',
-  'lower',
-  'initcap',
-  'trim',
-  'reverse',
-  'length',
-  'md5',
-  'sha256',
-  'abs',
-  'round',
+  'ABS',
+  'ACOS',
+  'ASCII',
+  'ASIN',
+  'ATAN',
+  'BIT_LENGTH',
+  'CEIL',
+  'CHAR_LENGTH',
+  'CLOCK_TIMESTAMP',
+  'COS',
+  'CURRENT_DATABASE',
+  'CURRENT_DATE',
+  'CURRENT_SCHEMA',
+  'CURRENT_TIME',
+  'CURRENT_TIMESTAMP',
+  'CURRENT_USER',
+  'DATE',
+  'DEGREES',
+  'EXP',
+  'FLOOR',
+  'GEN_RANDOM_UUID',
+  'INITCAP',
+  'LENGTH',
+  'LN',
+  'LOCALTIME',
+  'LOCALTIMESTAMP',
+  'LOG',
+  'LOWER',
+  'LTRIM',
+  'MD5',
+  'NOW',
+  'OCTET_LENGTH',
+  'PI',
+  'QUOTE_LITERAL',
+  'RADIANS',
+  'RANDOM',
+  'REVERSE',
+  'ROUND',
+  'RTRIM',
+  'SESSION_USER',
+  'SHA256',
+  'SHA512',
+  'SIGN',
+  'SIN',
+  'SQRT',
+  'STATEMENT_TIMESTAMP',
+  'TAN',
+  'TIME',
+  'TO_HEX',
+  'TO_TIMESTAMP',
+  'TRANSACTION_TIMESTAMP',
+  'TRIM',
+  'TRUNC',
+  'UPPER',
+  'VERSION',
 ] as const
 
 export type RowKeys = Record<string, string | null>
@@ -199,6 +262,27 @@ export interface RelationInfo {
   relkind: string
   primary_keys: string[]
   columns: RelationColumn[]
+  /** The largest file the server accepts into a bytea column. */
+  max_upload_bytes: number
+}
+
+/** The values a foreign key column may take, for the dropdown in place of a text field. */
+export interface ForeignValues {
+  column: string
+  /** The first text column of the referenced table, shown next to each key; null when it has none. */
+  display_column: string | null
+  values: { key: string | null; display: string | null }[]
+  /** More values exist than the limit; the form then shows a text field instead. */
+  truncated: boolean
+}
+
+/** phpMyAdmin's ForeignKeyMaxLimit: more values than this and the dropdown gives way to a text field. */
+export const FOREIGN_KEY_MAX_LIMIT = 100
+
+export function foreignValues(db: string, key: ForeignKey): Promise<ForeignValues> {
+  const query = new URLSearchParams({ schema: key.schema, name: key.table, column: key.column, limit: String(FOREIGN_KEY_MAX_LIMIT) })
+
+  return api.get(`/api/databases/${encode(db)}/query/foreign-values?${query}`)
 }
 
 /** One row of a table by primary key, as text, with the table's columns: what the edit form starts from. */

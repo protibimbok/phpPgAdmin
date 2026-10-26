@@ -92,7 +92,81 @@ final class QueryController
     {
         $relation = $this->relation($request, $args, $request->getQueryParams());
 
-        return ['relkind' => $relation->relkind, 'primary_keys' => $relation->primaryKeys(), 'columns' => $relation->columns()];
+        return [
+            'relkind' => $relation->relkind,
+            'primary_keys' => $relation->primaryKeys(),
+            'columns' => $relation->columns(),
+            'max_upload_bytes' => self::maxUploadBytes(),
+        ];
+    }
+
+    /**
+     * The values a foreign key column may take, for the dropdown phpMyAdmin's insert form and
+     * search page show in place of a text field: the referenced column's values with the first
+     * text column of the referenced table as their description, up to "limit" of them
+     * (phpMyAdmin's ForeignKeyMaxLimit, 100). "truncated" says there are more, in which case the
+     * form shows a text field instead.
+     *
+     * @param array{db: string} $args
+     * @return array{column: string, display_column: string|null, values: list<array{key: string|null, display: string|null}>, truncated: bool}
+     */
+    public function foreignValues(ServerRequestInterface $request, array $args): array
+    {
+        $query = $request->getQueryParams();
+        $relation = $this->relation($request, $args, $query);
+        $key = (string) ($query['column'] ?? '');
+        $limit = max(1, min(1000, (int) ($query['limit'] ?? 100)));
+        if ($relation->column($key) === null) {
+            throw new BadRequestException(sprintf('There is no column "%s" in %s.%s.', $key, $relation->schema, $relation->name));
+        }
+
+        $display = null;
+        foreach ($relation->columns() as $column) {
+            if ($column['name'] !== $key && in_array($column['type_name'], ['varchar', 'bpchar', 'text', 'name', 'citext'], true)) {
+                $display = (string) $column['name'];
+                break;
+            }
+        }
+
+        $conn = $this->connection(ConnectionPool::from($request), $args);
+        $sql = sprintf(
+            'SELECT %1$s::text, %2$s FROM %3$s ORDER BY %1$s LIMIT %4$d',
+            $conn->escapeIdentifier($key),
+            $display === null ? 'NULL::text' : $conn->escapeIdentifier($display) . '::text',
+            $relation->quotedName(),
+            $limit + 1,
+        );
+        $rows = $conn->query($sql)->textRows();
+        $truncated = count($rows) > $limit;
+
+        return [
+            'column' => $key,
+            'display_column' => $display,
+            'values' => array_map(static fn (array $row): array => ['key' => $row[0], 'display' => $row[1]], array_slice($rows, 0, $limit)),
+            'truncated' => $truncated,
+        ];
+    }
+
+    /** The largest request body PHP accepts, which bounds a file uploaded into a bytea column. */
+    private static function maxUploadBytes(): int
+    {
+        $bytes = static function (string $setting): int {
+            $value = trim((string) ini_get($setting));
+            if ($value === '' || $value === '-1' || $value === '0') {
+                return PHP_INT_MAX;
+            }
+            $unit = strtolower(substr($value, -1));
+            $number = (int) $value;
+
+            return match ($unit) {
+                'g' => $number * 1024 ** 3,
+                'm' => $number * 1024 ** 2,
+                'k' => $number * 1024,
+                default => $number,
+            };
+        };
+
+        return min($bytes('post_max_size'), $bytes('memory_limit'));
     }
 
     /**
@@ -100,7 +174,7 @@ final class QueryController
      * starts from. "keys" is a JSON object of key column => value.
      *
      * @param array{db: string} $args
-     * @return array{columns: list<array<string, mixed>>, primary_keys: list<string>, row: array<string, string|null>}
+     * @return array{columns: list<array<string, mixed>>, primary_keys: list<string>, row: array<string, string|null>, max_upload_bytes: int}
      */
     public function row(ServerRequestInterface $request, array $args): array
     {
@@ -136,7 +210,7 @@ final class QueryController
             $row[$column->name] = $rows[0][$i];
         }
 
-        return ['columns' => $relation->columns(), 'primary_keys' => $relation->primaryKeys(), 'row' => $row];
+        return ['columns' => $relation->columns(), 'primary_keys' => $relation->primaryKeys(), 'row' => $row, 'max_upload_bytes' => self::maxUploadBytes()];
     }
 
     /**

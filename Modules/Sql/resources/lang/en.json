@@ -173,5 +173,65 @@
     "always_expand": "Always expand query messages",
     "start_history": "Show query history at start",
     "enter_executes": "Execute queries on Enter and insert new line with Shift+Enter."
+  },
+  "fields": {
+    "binary_do_not_edit": "Binary - do not edit",
+    "max_upload": "(Max: {{size}})",
+    "browse_foreign": "Browse foreign values",
+    "ignore": "Ignore",
+    "valid_number": "Please enter a valid number",
+    "valid_length": "Please enter no more than {{count}} characters",
+    "valid_min": "Please enter a value greater than or equal to {{value}}",
+    "valid_max": "Please enter a value less than or equal to {{value}}",
+    "valid_date_time": "Please enter a valid date or time",
+    "tip_date": "PostgreSQL accepts additional values not selectable by the datepicker; key in those values directly if desired",
+    "tip_time": "PostgreSQL accepts additional values not selectable by the slider; key in those values directly if desired",
+    "cell_edit_hint": "Press escape to cancel editing.",
+    "cell_edit_hint_newline": "- Shift+Enter for a newline."
+  },
+  "calendar": {
+    "prev": "Prev",
+    "next": "Next",
+    "select_year": "Select year",
+    "choose_time": "Choose Time",
+    "time": "Time",
+    "hour": "Hour",
+    "minute": "Minute",
+    "second": "Second",
+    "millisecond": "Millisecond",
+    "microsecond": "Microsecond",
+    "time_zone": "Time Zone",
+    "months": [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ],
+    "days": [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday"
+    ],
+    "days_min": [
+      "Su",
+      "Mo",
+      "Tu",
+      "We",
+      "Th",
+      "Fr",
+      "Sa"
+    ]
   }
 }

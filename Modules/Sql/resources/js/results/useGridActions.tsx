@@ -6,6 +6,7 @@ import PreviewSql from '@/components/PreviewSql'
 import { notifyError, notifySuccess } from '@/notify'
 import { notAvailable } from '@/unbuilt'
 import { previewRows, saveRows, type ResultColumn, type RowKeys, type RowsResult, type Source } from '../api'
+import { fieldKind } from '../fields/kinds'
 import { quoteIdent, quoteLiteral } from '../sql'
 import type { CellEditor, ResultsGridProps } from './ResultsGrid'
 
@@ -71,7 +72,9 @@ export function useGridActions({ db, source, result, reload, changeUrl }: GridAc
   }
 
   const cellEditor: CellEditor = {
-    canEdit: (column: ResultColumn) => column.editable,
+    db,
+    // A binary column is protected from editing in place, as phpMyAdmin's ProtectBinary keeps blobs.
+    canEdit: (column: ResultColumn) => column.editable && fieldKind(column) !== 'binary',
     save: async (rowIndex, column, value) => {
       try {
         await saveRows(db, source!.schema, source!.table, { updated: [{ keys: keysOf(rowIndex), values: { [column.name]: value } }] })

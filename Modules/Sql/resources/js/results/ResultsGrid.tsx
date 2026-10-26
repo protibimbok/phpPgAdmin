@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next'
 import Icon from '@/components/Icon'
 import { notAvailable } from '@/unbuilt'
 import type { Order, ResultColumn, RowsResult } from '../api'
+import DateTimeInput from '../fields/DateTimeInput'
+import { useForeignValues, foreignOptions } from '../fields/ForeignSelect'
+import { dateFieldClass, dateKind, fieldKind, fractionDigits, hasTimeZone, padFraction } from '../fields/kinds'
 import { isBinaryType, isNumericType } from '../sql'
+import { notAvailable as browseForeign } from '@/unbuilt'
 
 /** Where in the result set the grid is and how it is ordered; the page decides what to do about a change. */
 export interface GridNav {
@@ -35,6 +39,8 @@ export interface RowAction {
 
 /** In-place editing of cells: which columns allow it, and what saves a new value. */
 export interface CellEditor {
+  /** The database the rows come from, for a foreign key's value list. */
+  db: string
   canEdit: (column: ResultColumn) => boolean
   /** Rejects when the save failed; the cell then stays open. */
   save: (rowIndex: number, column: ResultColumn, value: string | null) => Promise<void>
@@ -109,14 +115,20 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
 
   function sort(column: string) {
     const current = nav.order.find((o) => o.name === column)
-    // Ascending first, then descending; a column already sorted descending is sorted ascending again.
-    go({ order: [{ name: column, desc: current ? !current.desc : false }], pos: 0 })
+    // phpMyAdmin's SMART order: a date or time column starts descending (newest first), the
+    // rest ascending; a second click turns the order round.
+    const meta = result.columns.find((c) => c.name === column)
+    const first = meta !== undefined && dateKind(meta) !== null
+    go({ order: [{ name: column, desc: current ? !current.desc : first }], pos: 0 })
   }
 
   function startEditing(row: number, col: number) {
     if (!cellEditor || !cellEditor.canEdit(result.columns[col]) || editing?.saving) return
     const value = result.rows[row][col]
-    setEditing({ row, col, value: value ?? '', isNull: value === null, saving: false })
+    const column = result.columns[col]
+    // A time's fraction is padded to the column's digits before editing, as makegrid does; a JSON document is laid out.
+    const text = value === null ? '' : fieldKind(column) === 'json' ? prettyJson(value) : padFraction(value, fractionDigits(column))
+    setEditing({ row, col, value: text, isNull: value === null, saving: false })
   }
 
   async function commitEditing() {
@@ -420,8 +432,9 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                   ))}
                   {row.map((value, i) =>
                     editing && editing.row === index && editing.col === i ? (
-                      <td key={i} data-type={result.columns[i].type_name} className="edited">
+                      <td key={i} data-type={result.columns[i].type_name} data-decimals={fractionDigits(result.columns[i])} className={`edited ${cellClasses(result.columns[i], numeric[i], fullTexts)}`}>
                         <CellEditorBox
+                          db={cellEditor?.db ?? ''}
                           editing={editing}
                           column={result.columns[i]}
                           onChange={(patch) => setEditing((e) => (e ? { ...e, ...patch } : e))}
@@ -434,7 +447,7 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                       <Cell
                         key={i}
                         value={value}
-                        typeName={result.columns[i].type_name}
+                        column={result.columns[i]}
                         numeric={numeric[i]}
                         fullTexts={fullTexts}
                         showBinary={showBinary}
@@ -485,33 +498,55 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
 
 interface CellProps {
   value: string | null
-  typeName: string
+  column: ResultColumn
   numeric: boolean
   fullTexts: boolean
   showBinary: boolean
   onDoubleClick?: () => void
 }
 
+/**
+ * The classes phpMyAdmin's Results.php gives a cell for its type: datefield / timefield /
+ * datetimefield (never wrapped), enum, relation for a foreign key, hex for a binary, text with
+ * pre_wrap for the rest of the strings and text-nowrap for numbers.
+ */
+function cellClasses(column: ResultColumn, numeric: boolean, fullTexts: boolean): string {
+  const kind = fieldKind(column)
+  const classes: string[] = []
+  const date = dateFieldClass(column)
+  if (date) classes.push(date, 'text-nowrap')
+  else if (kind === 'enum') classes.push('text', 'pre_wrap', 'enum')
+  else if (kind === 'binary') classes.push('text', 'hex')
+  else if (numeric) classes.push('text-nowrap')
+  else classes.push(fullTexts ? 'pre_wrap' : 'text-nowrap')
+  if (column.foreign_key) classes.push('relation')
+
+  return classes.join(' ')
+}
+
 /** One value: NULL in italics, numbers at the end, long texts cut unless "Full texts" is on. */
-function Cell({ value, typeName, numeric, fullTexts, showBinary, onDoubleClick }: CellProps) {
+function Cell({ value, column, numeric, fullTexts, showBinary, onDoubleClick }: CellProps) {
   const { t } = useTranslation('sql')
+  const typeName = column.type_name
   const editable = onDoubleClick ? ' grid_edit' : ''
+  const classes = cellClasses(column, numeric, fullTexts)
+  const decimals = fractionDigits(column)
 
   if (value === null) {
     return (
-      <td data-type={typeName} className={`${numeric ? 'text-end ' : ''}null${editable}`} onDoubleClick={onDoubleClick}>
+      <td data-type={typeName} data-decimals={decimals} className={`${numeric ? 'text-end ' : ''}null ${classes}${editable}`} onDoubleClick={onDoubleClick}>
         <em>{t('grid.null')}</em>
       </td>
     )
   }
 
   if (value === '') {
-    return <td data-type={typeName} className={`${numeric ? 'text-end' : ''}${editable}`} onDoubleClick={onDoubleClick} />
+    return <td data-type={typeName} data-decimals={decimals} className={`${numeric ? 'text-end ' : ''}${classes}${editable}`} onDoubleClick={onDoubleClick} />
   }
 
   if (isBinaryType(typeName) && !showBinary) {
     return (
-      <td data-type={typeName} className="text-nowrap">
+      <td data-type={typeName} className="text-start hex text-nowrap">
         [BLOB - {formatBytes(value)}]
       </td>
     )
@@ -523,8 +558,9 @@ function Cell({ value, typeName, numeric, fullTexts, showBinary, onDoubleClick }
   return (
     <td
       data-type={typeName}
+      data-decimals={decimals}
       data-originallength={value.length}
-      className={`${numeric ? 'text-end' : 'text-start'}${truncated ? ' truncated' : ''}${fullTexts ? ' pre_wrap' : ' text-nowrap'}${editable}`}
+      className={`${numeric ? 'text-end' : 'text-start'}${truncated ? ' truncated' : ''} ${classes}${editable}`}
       onDoubleClick={onDoubleClick}
     >
       {shown}
@@ -532,9 +568,17 @@ function Cell({ value, typeName, numeric, fullTexts, showBinary, onDoubleClick }
   )
 }
 
-const TEXT_TYPES = new Set(['text', 'json', 'jsonb', 'xml'])
+/** A JSON document laid out over lines for editing, as makegrid shows one; left alone when it does not parse. */
+function prettyJson(value: string): string {
+  try {
+    return JSON.stringify(JSON.parse(value), null, 4)
+  } catch {
+    return value
+  }
+}
 
 interface CellEditorBoxProps {
+  db: string
   editing: Editing
   column: ResultColumn
   onChange: (patch: Partial<Editing>) => void
@@ -545,11 +589,17 @@ interface CellEditorBoxProps {
 
 /**
  * phpMyAdmin's cell editor (makegrid's .cEdit): the value in a box, a NULL checkbox for a
- * nullable column; Enter saves, Escape gives up, leaving the cell saves what changed.
+ * nullable column, and under it what the column's type calls for: an enum's select, a foreign
+ * key's dropdown, the date or time picker opened at once. Enter saves, Escape gives up, leaving
+ * the cell saves what changed.
  */
-function CellEditorBox({ editing, column, onChange, onCommit, onCancel, nullLabel }: CellEditorBoxProps) {
+function CellEditorBox({ db, editing, column, onChange, onCommit, onCancel, nullLabel }: CellEditorBoxProps) {
+  const { t } = useTranslation('sql')
   const box = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
-  const multiline = TEXT_TYPES.has(column.type_name) || editing.value.includes('\n')
+  const kind = fieldKind(column)
+  const picker = dateKind(column)
+  const foreign = useForeignValues(db, column.foreign_key)
+  const multiline = kind === 'text' || kind === 'json' || editing.value.includes('\n')
 
   useEffect(() => {
     box.current?.focus()
@@ -566,32 +616,95 @@ function CellEditorBox({ editing, column, onChange, onCommit, onCancel, nullLabe
     }
   }
 
+  const onBlur = (e: { relatedTarget: EventTarget | null }) => {
+    // Leaving for the NULL box, a select or the picker is not leaving the editor.
+    if (!(e.relatedTarget instanceof HTMLElement && e.relatedTarget.closest('.cEdit'))) onCommit()
+  }
   const common = {
     ref: box,
     className: `edit_box${editing.saving ? ' edit_box_posting' : ''}`,
     value: editing.value,
     onChange: (e: { target: { value: string } }) => onChange({ value: e.target.value, isNull: false }),
     onKeyDown,
-    onBlur: (e: { relatedTarget: EventTarget | null }) => {
-      // Leaving for the NULL box is not leaving the editor.
-      if (!(e.relatedTarget instanceof HTMLElement && e.relatedTarget.closest('.cEdit'))) onCommit()
-    },
+    onBlur,
     'aria-label': column.name,
+  }
+  const setValue = (value: string) => onChange({ value, isNull: false })
+
+  const nullBox = column.nullable && (
+    <div className="null_div">
+      <label>
+        {nullLabel}:
+        <input type="checkbox" checked={editing.isNull} onChange={(e) => onChange({ isNull: e.target.checked, value: e.target.checked ? '' : editing.value })} onKeyDown={onKeyDown} />
+      </label>
+    </div>
+  )
+  const hint = (
+    <div className="cell_edit_hint">
+      {t('fields.cell_edit_hint')}
+      <br />
+      {t('fields.cell_edit_hint_newline')}
+    </div>
+  )
+
+  let area: ReactNode
+  if (column.foreign_key) {
+    area = (
+      <>
+        {foreign?.truncated ? (
+          <a className="ajax browse_foreign" href="#browse-foreign" onClick={browseForeign}>
+            <Icon name="b_browse" title={t('fields.browse_foreign')} />
+          </a>
+        ) : (
+          <select value={editing.value} onChange={(e) => setValue(e.target.value)} onKeyDown={onKeyDown} aria-label={column.name}>
+            {foreignOptions(foreign)}
+          </select>
+        )}
+        {nullBox}
+        {hint}
+      </>
+    )
+  } else if (kind === 'enum') {
+    area = (
+      <>
+        <select value={editing.value} onChange={(e) => setValue(e.target.value)} onKeyDown={onKeyDown} aria-label={column.name}>
+          {(column.enum_values ?? []).map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+        {nullBox}
+        {hint}
+      </>
+    )
+  } else {
+    area = nullBox ? (
+      <>
+        {nullBox}
+        {picker === null && hint}
+      </>
+    ) : null
   }
 
   return (
-    <div className="cEdit">
-      <div className="edit_area">
-        {multiline ? <textarea {...common} rows={4} /> : <input type="text" {...common} />}
-        {column.nullable && (
-          <div className="null_div">
-            <label>
-              {nullLabel}:
-              <input type="checkbox" checked={editing.isNull} onChange={(e) => onChange({ isNull: e.target.checked, value: e.target.checked ? '' : editing.value })} onKeyDown={onKeyDown} />
-            </label>
-          </div>
-        )}
-      </div>
+    <div
+      className="cEdit"
+      onMouseDown={(e) => {
+        // A click on the editor's chrome keeps the focus (and so the editor) where it is.
+        if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement)) e.preventDefault()
+      }}
+    >
+      {picker !== null ? (
+        <DateTimeInput kind={picker} decimals={fractionDigits(column)} withTimeZone={hasTimeZone(column)} inline inputRef={box} className={common.className} value={editing.value} onValueChange={setValue} onKeyDown={onKeyDown} onBlur={onBlur} aria-label={column.name}>
+          {area && <div className="edit_area">{area}</div>}
+        </DateTimeInput>
+      ) : (
+        <>
+          {multiline ? <textarea {...common} rows={4} /> : <input type="text" {...common} />}
+          {area && <div className="edit_area">{area}</div>}
+        </>
+      )}
     </div>
   )
 }

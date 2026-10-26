@@ -30,10 +30,27 @@ final class ColumnMetadata
     private const string ATTRIBUTES_SQL = <<<'SQL'
         SELECT a.attname, a.attnum, a.atttypid, a.attnotnull, a.atthasdef,
                a.attidentity <> '' AS is_identity, a.attgenerated <> '' AS is_generated,
-               COALESCE(a.attnum = ANY ((SELECT i.indkey FROM pg_catalog.pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary)::int2[]), false) AS pk
+               COALESCE(a.attnum = ANY ((SELECT i.indkey FROM pg_catalog.pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary)::int2[]), false) AS pk,
+               pg_catalog.format_type(a.atttypid, a.atttypmod) AS type,
+               pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS "default",
+               (SELECT pg_catalog.json_build_object('schema', fn.nspname, 'table', fc.relname, 'column', fa.attname)::text
+                  FROM pg_catalog.pg_constraint con
+                  JOIN pg_catalog.pg_class fc ON fc.oid = con.confrelid
+                  JOIN pg_catalog.pg_namespace fn ON fn.oid = fc.relnamespace
+                  JOIN pg_catalog.pg_attribute fa ON fa.attrelid = con.confrelid AND fa.attnum = con.confkey[pg_catalog.array_position(con.conkey, a.attnum)]
+                 WHERE con.conrelid = a.attrelid AND con.contype = 'f' AND a.attnum = ANY (con.conkey)
+                 ORDER BY con.oid LIMIT 1) AS foreign_key
         FROM pg_catalog.pg_attribute a
+        LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
         WHERE a.attrelid = $1 AND a.attnum > 0 AND NOT a.attisdropped
         ORDER BY a.attnum
+        SQL;
+
+    /** The labels of the enum types among a result's columns, so the grid can offer them in a select. */
+    private const string ENUMS_SQL = <<<'SQL'
+        SELECT t.oid, (SELECT pg_catalog.json_agg(e.enumlabel ORDER BY e.enumsortorder) FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid)::text AS enum_values
+        FROM pg_catalog.pg_type t
+        WHERE t.oid = ANY ($1::oid[]) AND t.typtype = 'e'
         SQL;
 
     /**
@@ -50,7 +67,17 @@ final class ColumnMetadata
             'has_default' => false,
             'is_generated' => false,
             'editable' => false,
+            'type' => null,
+            'default' => null,
+            'foreign_key' => null,
+            'enum_values' => null,
         ], $columns);
+
+        $enums = self::enumValues($conn, array_values(array_unique(array_map(static fn (Column $c): int => $c->typeOid, $columns))));
+        foreach ($described as &$column) {
+            $column['enum_values'] = $enums[$column['type_oid']] ?? null;
+        }
+        unset($column);
 
         $tables = array_values(array_unique(array_filter(array_map(static fn (Column $c): ?int => $c->tableOid, $columns))));
         if (count($tables) !== 1) {
@@ -83,6 +110,9 @@ final class ColumnMetadata
             $column['nullable'] = !$attribute['attnotnull'];
             $column['has_default'] = (bool) $attribute['atthasdef'] || (bool) $attribute['is_identity'];
             $column['is_generated'] = (bool) $attribute['is_generated'];
+            $column['type'] = (string) $attribute['type'];
+            $column['default'] = $attribute['default'] === null ? null : (string) $attribute['default'];
+            $column['foreign_key'] = is_string($attribute['foreign_key']) ? json_decode($attribute['foreign_key'], true) : null;
             $column['editable'] = !$column['is_generated'];
             $seen[$column['attnum']][] = $i;
         }
@@ -120,5 +150,23 @@ final class ColumnMetadata
                 'editable' => $editable,
             ],
         ];
+    }
+
+    /**
+     * @param list<int> $typeOids
+     * @return array<int, list<string>> enum labels by type OID
+     */
+    private static function enumValues(Connection $conn, array $typeOids): array
+    {
+        if ($typeOids === []) {
+            return [];
+        }
+
+        $values = [];
+        foreach ($conn->rows(self::ENUMS_SQL, ['{' . implode(',', $typeOids) . '}']) as $row) {
+            $values[(int) $row['oid']] = is_string($row['enum_values']) ? json_decode($row['enum_values'], true) : [];
+        }
+
+        return $values;
     }
 }
