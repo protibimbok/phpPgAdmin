@@ -317,7 +317,9 @@ function ColumnRow({ index, row, groups, options, onChange }: { index: number; r
             </option>
           ))}
         </select>
-        <input type="text" name={`field_default_value[${index}]`} size={12} value={row.defaultValue} className="textfield default_value" onChange={(e) => onChange({ defaultValue: e.target.value, defaultType: 'USER_DEFINED' })} />
+        {row.defaultType === 'USER_DEFINED' && (
+          <input type="text" name={`field_default_value[${index}]`} size={12} value={row.defaultValue} className="textfield default_value" onChange={(e) => onChange({ defaultValue: e.target.value })} />
+        )}
       </td>
       <td className="text-center">
         <select lang="en" dir="ltr" name={`field_collation[${index}]`} id={id(5)} value={row.collation} onChange={(e) => onChange({ collation: e.target.value })}>

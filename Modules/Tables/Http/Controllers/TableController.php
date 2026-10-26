@@ -123,6 +123,18 @@ final class TableController extends RelationController
         if ($what !== 'structure') {
             $parts[] = sprintf("INSERT INTO %s\n    SELECT * FROM %s;", $to, $from);
         }
+        // LIKE copies a SERIAL column's default as it is, pointing at the source table's sequence;
+        // the copy gets sequences of its own, moved past the rows it received.
+        if ($what !== 'dataonly') {
+            foreach ($this->serialColumns($ctx, $oid) as $column) {
+                $sequence = Quoting::ident($schema, sprintf('%s_%s_seq', $name, $column['attname']));
+                $parts[] = sprintf("CREATE SEQUENCE %s AS %s OWNED BY %s.%s;", $sequence, $column['typname'], $to, Quoting::ident($column['attname']));
+                $parts[] = sprintf("ALTER TABLE %s\n    ALTER COLUMN %s SET DEFAULT nextval('%s'::regclass);", $to, Quoting::ident($column['attname']), str_replace("'", "''", $sequence));
+                if ($what !== 'structure') {
+                    $parts[] = sprintf("SELECT setval('%s', max(%s)) FROM %s HAVING max(%s) IS NOT NULL;", str_replace("'", "''", $sequence), Quoting::ident($column['attname']), $to, Quoting::ident($column['attname']));
+                }
+            }
+        }
         if (!empty($data['add_constraints']) && $what !== 'dataonly') {
             foreach (Constraints::foreignKeys($ctx, $oid) as $fk) {
                 $parts[] = ConstraintSql::createSql($ctx, 'foreign_key', $schema, $name, [...$fk, 'name' => null, 'comment' => null, 'autoindex' => false]);
@@ -130,6 +142,26 @@ final class TableController extends RelationController
         }
 
         return Ddl::assemble($parts);
+    }
+
+    /**
+     * The columns whose default draws on a sequence the table owns: SERIAL columns.
+     *
+     * @return list<array{attname: string, typname: string}>
+     */
+    private function serialColumns(NodeContext $ctx, int $oid): array
+    {
+        return $ctx->conn->rows(
+            'SELECT a.attname, pg_catalog.format_type(a.atttypid, NULL) AS typname
+             FROM pg_catalog.pg_attribute a
+             JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+             JOIN pg_catalog.pg_depend dep ON dep.classid = \'pg_class\'::regclass AND dep.refobjid = a.attrelid AND dep.refobjsubid = a.attnum AND dep.deptype = \'a\'
+             JOIN pg_catalog.pg_class s ON s.oid = dep.objid AND s.relkind = \'S\'
+             WHERE a.attrelid = $1 AND a.attnum > 0 AND NOT a.attisdropped AND a.attidentity = \'\'
+               AND pg_catalog.pg_get_expr(d.adbin, d.adrelid) LIKE \'nextval(%\'
+             ORDER BY a.attnum',
+            [$oid],
+        );
     }
 
     /**

@@ -239,5 +239,63 @@
     "dropped": "Foreign key constraint {{name}} has been dropped",
     "saved": "Foreign key constraints have been saved.",
     "nothing": "Nothing to change."
+  },
+  "operations": {
+    "tab": "Operations",
+    "move": "Move table to (schema.table)",
+    "schema": "Schema",
+    "table": "Table",
+    "options": "Table options",
+    "rename": "Rename table to",
+    "comments": "Table comments",
+    "owner": "Owner",
+    "tablespace": "Tablespace",
+    "copy": "Copy table to (schema.table)",
+    "what": {
+      "structure": "Structure only",
+      "data": "Structure and data",
+      "dataonly": "Data only"
+    },
+    "add_drop_table": "Add DROP TABLE",
+    "add_constraints": "Add constraints",
+    "switch_to_new": "Switch to copied table",
+    "maintenance": "Table maintenance",
+    "analyze": "Analyze table",
+    "vacuum": "Vacuum table",
+    "vacuum_analyze": "Vacuum and analyze table",
+    "reindex": "Reindex table",
+    "cluster": "Cluster the table on {{index}}",
+    "delete": "Delete data or table",
+    "truncate": "Empty the table (TRUNCATE)",
+    "delete_from": "Empty the table (DELETE FROM)",
+    "drop": "Delete the table (DROP)",
+    "referential": "Check referential integrity",
+    "truncate_warning": "You are about to TRUNCATE a complete table!",
+    "delete_warning": "You are about to DELETE all the rows of the table!",
+    "drop_warning": "You are about to DESTROY a complete table!",
+    "restart_identity": "Restart the identity sequences (RESTART IDENTITY)",
+    "cascade": "Also the tables that reference it (CASCADE)",
+    "moved": "Table {{table}} has been moved to {{target}}.",
+    "copied": "Table {{table}} has been copied to {{target}}.",
+    "emptied": "Table {{table}} has been emptied.",
+    "dropped": "Table {{table}} has been dropped."
+  },
+  "schema_structure": {
+    "with_selected": {
+      "show_create": "Show create",
+      "export": "Export",
+      "print": "Print",
+      "empty": "Empty",
+      "drop": "Drop",
+      "analyze": "Analyze table",
+      "vacuum": "Vacuum table"
+    },
+    "view_dropped": "View {{name}} has been dropped.",
+    "dropped_one": "{{count}} table has been dropped.",
+    "dropped_other": "{{count}} tables have been dropped.",
+    "emptied_one": "{{count}} table has been emptied.",
+    "emptied_other": "{{count}} tables have been emptied.",
+    "none_selected": "No table selected.",
+    "show_create_title": "CREATE statements"
   }
 }

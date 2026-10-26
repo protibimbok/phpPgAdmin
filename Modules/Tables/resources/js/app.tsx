@@ -3,6 +3,7 @@ import { registerModule } from '@/modular'
 import { registerNodeLink } from '@/nodes/links'
 import ColumnDefinitions from './Pages/ColumnDefinitions'
 import RelationView from './Pages/RelationView'
+import TableOperations from './Pages/TableOperations'
 import SchemaStructure from './Pages/SchemaStructure'
 import TableDdl from './Pages/TableDdl'
 import TableStructure from './Pages/TableStructure'
@@ -23,6 +24,7 @@ registerModule({
     ...menu,
     { label: 'tables:tab', icon: 'b_props', path: '/db/:db/schema/:schema', level: 'schema' },
     { label: 'tables:structure.tab', icon: 'b_props', path: '/db/:db/schema/:schema/table/:table', level: 'table' },
+    { label: 'tables:operations.tab', icon: 'b_tblops', path: '/db/:db/schema/:schema/table/:table/operations', level: 'table' },
     { label: 'tables:ddl.tab', icon: 'b_sql', path: '/db/:db/schema/:schema/table/:table/ddl', level: 'table' },
   ],
   routes: [
@@ -33,5 +35,6 @@ registerModule({
     { path: 'db/:db/schema/:schema/table/:table/add-columns', element: <ColumnDefinitions mode="add" /> },
     { path: 'db/:db/schema/:schema/table/:table/columns/change', element: <ColumnDefinitions mode="change" /> },
     { path: 'db/:db/schema/:schema/table/:table/relation', element: <RelationView /> },
+    { path: 'db/:db/schema/:schema/table/:table/operations', element: <TableOperations /> },
   ],
 })

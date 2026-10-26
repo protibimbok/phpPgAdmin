@@ -1,12 +1,19 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
+import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
+import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
+import Modal from '@/components/Modal'
+import SqlView from '@/components/SqlView'
+import { treeState } from '@/layout/tree/treeState'
+import { notify, notifyError, notifySuccess } from '@/notify'
 import { notAvailable } from '@/unbuilt'
 import { formatSize } from '@/format'
 import { urls, type RelationKind } from '@/level'
-import { countRows, materializedViews, resolveSchema, tables, views, type Table, type View } from '../api'
+import { qualifiedName } from '@sql/js/sql'
+import { countRows, dropTable, materializedViews, resolveSchema, tables, truncateTable, views, type Table, type View } from '../api'
 
 interface Row {
   oid: number
@@ -47,7 +54,8 @@ export default function SchemaStructure() {
   const { t } = useTranslation('tables')
   const { t: tApp } = useTranslation()
   const { db = '', schema = '' } = useParams()
-  const { data, error } = useRequest(async () => {
+  const navigate = useNavigate()
+  const { data, error, reload } = useRequest(async () => {
     const scid = await resolveSchema(db, schema)
     const [tableRows, viewRows, mviewRows] = await Promise.all([tables(db, scid).list(), views(db, scid).list(), materializedViews(db, scid).list()])
 
@@ -61,6 +69,8 @@ export default function SchemaStructure() {
   const [exact, setExact] = useState<Record<number, number>>({})
   const [filter, setFilter] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [confirm, setConfirm] = useState<{ sql: string[]; warning: string; run: () => Promise<void> } | null>(null)
+  const [showCreate, setShowCreate] = useState<string | null>(null)
   const allRows = data?.rows ?? []
   const filtered = useMemo(() => {
     const needle = filter.trim().toLowerCase()
@@ -101,6 +111,96 @@ export default function SchemaStructure() {
 
   function count(row: Row) {
     void countRows(db, scid, row.oid).then((n) => setExact((current) => ({ ...current, [row.oid]: n })))
+  }
+
+  const changed = () => {
+    setChecked(new Set())
+    treeState.refresh()
+    reload()
+  }
+
+  /** TRUNCATE the tables among the rows, after phpMyAdmin's warning. */
+  function askEmpty(selected: Row[]) {
+    const targets = selected.filter((row) => row.kind === 'table')
+    if (targets.length === 0) return notify(t('schema_structure.none_selected'), 'error')
+    setConfirm({
+      warning: t('operations.truncate_warning'),
+      sql: targets.map((row) => `TRUNCATE TABLE ${qualifiedName(schema, row.name)};`),
+      run: async () => {
+        let done = 0
+        try {
+          for (const row of targets) {
+            await truncateTable(db, scid, row.oid)
+            done++
+          }
+          notifySuccess(targets.length === 1 ? t('operations.emptied', { table: targets[0].name }) : t('schema_structure.emptied', { count: done }))
+        } catch (e) {
+          notifyError(errorMessage(e))
+        } finally {
+          changed()
+        }
+      },
+    })
+  }
+
+  /** DROP the tables and views among the rows, after phpMyAdmin's warning. */
+  function askDrop(selected: Row[]) {
+    if (selected.length === 0) return notify(t('schema_structure.none_selected'), 'error')
+    const statement = (row: Row) => `DROP ${row.kind === 'table' ? 'TABLE' : row.kind === 'view' ? 'VIEW' : 'MATERIALIZED VIEW'} ${qualifiedName(schema, row.name)};`
+    setConfirm({
+      warning: t('operations.drop_warning'),
+      sql: selected.map(statement),
+      run: async () => {
+        let done = 0
+        try {
+          for (const row of selected) {
+            if (row.kind === 'table') await dropTable(db, scid, row.oid)
+            else if (row.kind === 'view') await views(db, scid).remove(row.oid)
+            else await materializedViews(db, scid).remove(row.oid)
+            done++
+          }
+          notifySuccess(selected.length === 1 ? (selected[0].kind === 'table' ? t('operations.dropped', { table: selected[0].name }) : t('schema_structure.view_dropped', { name: selected[0].name })) : t('schema_structure.dropped', { count: done }))
+        } catch (e) {
+          notifyError(errorMessage(e))
+        } finally {
+          changed()
+        }
+      },
+    })
+  }
+
+  /** phpMyAdmin's "Show create" of the selected tables: their CREATE statements in a modal. */
+  function showCreateOf(selected: Row[]) {
+    if (selected.length === 0) return notify(t('schema_structure.none_selected'), 'error')
+    setShowCreate('')
+    Promise.all(selected.map((row) => (row.kind === 'table' ? tables(db, scid).sql(row.oid) : row.kind === 'view' ? views(db, scid).sql(row.oid) : materializedViews(db, scid).sql(row.oid)))).then(
+      (parts) => setShowCreate(parts.join('\n\n')),
+      (e: unknown) => {
+        setShowCreate(null)
+        notifyError(errorMessage(e))
+      },
+    )
+  }
+
+  function withSelected(action: string) {
+    const selected = rows.filter((row) => checked.has(keyOf(row)))
+    const names = selected.filter((row) => row.kind === 'table').map((row) => qualifiedName(schema, row.name))
+    switch (action) {
+      case 'show_create':
+        return showCreateOf(selected)
+      case 'print':
+        return window.print()
+      case 'empty_tbl':
+        return askEmpty(selected)
+      case 'drop_tbl':
+        return askDrop(selected)
+      case 'analyze_tbl':
+        return names.length === 0 ? notify(t('schema_structure.none_selected'), 'error') : navigate(`${urls.schema(db, schema)}/sql?${new URLSearchParams({ sql: `ANALYZE ${names.join(', ')}`, run: '1' })}`)
+      case 'vacuum_tbl':
+        return names.length === 0 ? notify(t('schema_structure.none_selected'), 'error') : navigate(`${urls.schema(db, schema)}/sql?${new URLSearchParams({ sql: `VACUUM ${names.join(', ')}`, run: '1' })}`)
+      default:
+        return notAvailable()
+    }
   }
 
   function toggle(key: string, value: boolean) {
@@ -193,15 +293,15 @@ export default function SchemaStructure() {
                   </td>
                   <td className="text-center d-print-none">
                     {isTable && (
-                      <Link to={`${href}/operations#truncate`}>
+                      <a href="#empty" className="truncate_table_anchor" onClick={(e) => { e.preventDefault(); askEmpty([row]) }}>
                         <Icon name={mayHaveRows ? 'b_empty' : 'bd_empty'} title={t('actions.empty')} /> {t('actions.empty')}
-                      </Link>
+                      </a>
                     )}
                   </td>
                   <td className="text-center d-print-none">
-                    <Link to={`${href}/operations#drop`}>
+                    <a href="#drop" className="drop_table_anchor" onClick={(e) => { e.preventDefault(); askDrop([row]) }}>
                       <Icon name="b_drop" title={t('actions.drop')} /> {t('actions.drop')}
-                    </Link>
+                    </a>
                   </td>
                   <td className="value tbl_rows font-monospace text-end">
                     {exact[row.oid] !== undefined ? (
@@ -247,8 +347,15 @@ export default function SchemaStructure() {
       <Icon name="select_all_arrow" title={tApp('with_selected')} />
       <input type="checkbox" id="tablesForm_checkall" className="checkall_box" checked={allChecked} onChange={(e) => setChecked(e.target.checked ? new Set(rows.map(keyOf)) : new Set())} />{' '}
       <label htmlFor="tablesForm_checkall">{tApp('check_all')}</label>
-      <select name="submit_mult" className="my-0" style={{ marginInline: '3em' }} aria-label={tApp('with_selected')} onChange={notAvailable}>
-        <option>{tApp('with_selected')}</option>
+      <select name="submit_mult" className="my-0" style={{ marginInline: '3em' }} aria-label={tApp('with_selected')} value="" onChange={(e) => withSelected(e.target.value)}>
+        <option value="">{tApp('with_selected')}</option>
+        <option value="show_create">{t('schema_structure.with_selected.show_create')}</option>
+        <option value="export">{t('schema_structure.with_selected.export')}</option>
+        <option value="print">{t('schema_structure.with_selected.print')}</option>
+        <option value="empty_tbl">{t('schema_structure.with_selected.empty')}</option>
+        <option value="drop_tbl">{t('schema_structure.with_selected.drop')}</option>
+        <option value="analyze_tbl">{t('schema_structure.with_selected.analyze')}</option>
+        <option value="vacuum_tbl">{t('schema_structure.with_selected.vacuum')}</option>
       </select>
     </div>
     </form>
@@ -261,6 +368,11 @@ export default function SchemaStructure() {
     </p>
 
     <CreateTableCard />
+
+    <ConfirmQuery show={confirm !== null} sql={confirm?.sql ?? ''} warning={confirm?.warning} onClose={() => setConfirm(null)} onConfirm={() => { const pending = confirm; setConfirm(null); if (pending) void pending.run() }} />
+    <Modal show={showCreate !== null} title={t('schema_structure.show_create_title')} size="lg" onClose={() => setShowCreate(null)}>
+      {showCreate === '' ? tApp('loading') : <SqlView sql={showCreate ?? ''} />}
+    </Modal>
     </>
   )
 }

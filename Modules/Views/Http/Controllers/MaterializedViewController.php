@@ -15,6 +15,13 @@ final class MaterializedViewController extends RelationController
         return ['m'];
     }
 
+    /** DROP MATERIALIZED VIEW, CASCADE on request. */
+    public function delete(NodeContext $ctx, int $oid, bool $cascade): void
+    {
+        $row = $this->properties($ctx, $oid);
+        $this->execute($ctx, $ctx->render('delete.sql', ['vid' => null, 'name' => $row['name'], 'nspname' => $row['schema'], 'cascade' => $cascade]));
+    }
+
     protected function icon(NodeContext $ctx, array $row): string
     {
         return 'b_views';

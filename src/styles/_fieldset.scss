@@ -4,7 +4,7 @@
 
 .pma-fieldset {
   margin-top: 1em;
-  border-radius: radius('lg') radius('lg') 0 0;
+  border-radius: radius('base') radius('base') 0 0;
   border: border-width('base') solid color('border');
   padding: 0.5em;
   background: color('surface-raised');
@@ -41,14 +41,15 @@
     white-space: normal;
   }
 
+  // The served theme renders the footer's buttons at the start, whatever its source says.
   &.tblFooters {
     margin-top: 0;
     margin-bottom: 0.5em;
     border-top: 0;
-    text-align: right;
+    text-align: left;
     float: none;
     clear: both;
-    border-radius: 0 0 radius('lg') radius('lg');
+    border-radius: 0 0 radius('base') radius('base');
   }
 
   &.confirmation legend {
