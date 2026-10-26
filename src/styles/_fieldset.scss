@@ -145,3 +145,25 @@ table#index_columns {
     float: left;
   }
 }
+
+// The index dialog's drag handle (pmahomme's span.drag_icon) and the relation view's table.
+span.drag_icon {
+  display: inline-block;
+  background-image: url('../img/icons/s_sortable.png');
+  background-position: center center;
+  background-repeat: no-repeat;
+  width: 1em;
+  height: 3em;
+  cursor: move;
+}
+
+.relationalTable {
+  td {
+    vertical-align: top;
+  }
+
+  select {
+    width: 125px;
+    margin-right: 5px;
+  }
+}

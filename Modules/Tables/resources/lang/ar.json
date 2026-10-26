@@ -74,7 +74,8 @@
       "name": "الاسم",
       "type": "النوع",
       "definition": "التعريف",
-      "comment": "تعليق"
+      "comment": "تعليق",
+      "action": "إجراء"
     },
     "constraint_types": {
       "primary_key": "مفتاح أساسي",
@@ -112,9 +113,17 @@
       "unique_added": "تمت إضافة قيد فريد على {{columns}}.",
       "index_added": "تمت إضافة فهرس على {{columns}}.",
       "none_selected": "لم يتم تحديد أي عمود.",
-      "added_at_end": "يضيف PostgreSQL الأعمدة الجديدة في نهاية الجدول."
+      "added_at_end": "يضيف PostgreSQL الأعمدة الجديدة في نهاية الجدول.",
+      "index_dropped": "تم حذف الفهرس {{name}}.",
+      "constraint_dropped": "تم حذف القيد {{name}}.",
+      "primary_dropped": "تم حذف المفتاح الأساسي."
     },
-    "drop_warning": "أنت على وشك تدمير عمود كامل!"
+    "drop_warning": "أنت على وشك تدمير عمود كامل!",
+    "add_constraint": "إضافة قيد من نوع",
+    "index_actions": {
+      "edit": "تعديل",
+      "drop": "حذف"
+    }
   },
   "ddl": {
     "tab": "عرض الإنشاء",
@@ -187,5 +196,48 @@
     },
     "add_title": "إضافة أعمدة",
     "change_title": "تغيير الأعمدة"
+  },
+  "index_dialog": {
+    "add_title": "إضافة فهرس",
+    "edit_title": "تعديل الفهرس",
+    "name": "اسم الفهرس:",
+    "choice": "نوع الفهرس:",
+    "advanced": "خيارات متقدمة",
+    "type": "طريقة الفهرسة:",
+    "fillfactor": "عامل الملء:",
+    "where": "الشرط (WHERE):",
+    "comment": "تعليق:",
+    "column": "العمود",
+    "order": "الترتيب",
+    "drag": "اسحب لإعادة الترتيب",
+    "ignore": "تجاهل",
+    "add_columns": "إضافة {{count}} عمود/أعمدة إلى الفهرس",
+    "no_columns": "يحتاج الفهرس إلى عمود واحد على الأقل."
+  },
+  "constraint_dialog": {
+    "add_title": "إضافة قيد {{type}}",
+    "edit_title": "تعديل القيد {{name}}",
+    "name": "اسم القيد:",
+    "expression": "التعبير:",
+    "columns": "الأعمدة:",
+    "comment": "تعليق:"
+  },
+  "relation": {
+    "title": "قيود المفاتيح الخارجية",
+    "actions": "إجراءات",
+    "properties": "خصائص القيد",
+    "column": "العمود",
+    "column_hint": "أعمدة هذا الجدول التي يتكون منها المفتاح.",
+    "foreign_key": "قيد المفتاح الخارجي",
+    "schema": "المخطط",
+    "table": "الجدول",
+    "constraint_name": "اسم القيد",
+    "on_delete": "ON DELETE",
+    "on_update": "ON UPDATE",
+    "add_column": "+ إضافة عمود",
+    "add_constraint": "+ إضافة قيد",
+    "dropped": "تم حذف قيد المفتاح الخارجي {{name}}",
+    "saved": "تم حفظ قيود المفاتيح الخارجية.",
+    "nothing": "لا شيء لتغييره."
   }
 }

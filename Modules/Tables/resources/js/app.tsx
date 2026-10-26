@@ -2,6 +2,7 @@ import { urls } from '@/level'
 import { registerModule } from '@/modular'
 import { registerNodeLink } from '@/nodes/links'
 import ColumnDefinitions from './Pages/ColumnDefinitions'
+import RelationView from './Pages/RelationView'
 import SchemaStructure from './Pages/SchemaStructure'
 import TableDdl from './Pages/TableDdl'
 import TableStructure from './Pages/TableStructure'
@@ -31,5 +32,6 @@ registerModule({
     { path: 'db/:db/schema/:schema/create-table', element: <ColumnDefinitions mode="create" /> },
     { path: 'db/:db/schema/:schema/table/:table/add-columns', element: <ColumnDefinitions mode="add" /> },
     { path: 'db/:db/schema/:schema/table/:table/columns/change', element: <ColumnDefinitions mode="change" /> },
+    { path: 'db/:db/schema/:schema/table/:table/relation', element: <RelationView /> },
   ],
 })

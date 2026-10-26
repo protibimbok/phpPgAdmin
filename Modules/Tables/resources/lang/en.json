@@ -74,7 +74,8 @@
       "name": "Name",
       "type": "Type",
       "definition": "Definition",
-      "comment": "Comment"
+      "comment": "Comment",
+      "action": "Action"
     },
     "constraint_types": {
       "primary_key": "Primary key",
@@ -112,9 +113,17 @@
       "unique_added": "A unique constraint has been added on {{columns}}.",
       "index_added": "An index has been added on {{columns}}.",
       "none_selected": "No column selected.",
-      "added_at_end": "PostgreSQL adds new columns at the end of the table."
+      "added_at_end": "PostgreSQL adds new columns at the end of the table.",
+      "index_dropped": "Index {{name}} has been dropped.",
+      "constraint_dropped": "Constraint {{name}} has been dropped.",
+      "primary_dropped": "The primary key has been dropped."
     },
-    "drop_warning": "You are about to DESTROY a complete column!"
+    "drop_warning": "You are about to DESTROY a complete column!",
+    "add_constraint": "Add a constraint of type",
+    "index_actions": {
+      "edit": "Edit",
+      "drop": "Drop"
+    }
   },
   "ddl": {
     "tab": "Show create",
@@ -187,5 +196,48 @@
     },
     "add_title": "Add columns",
     "change_title": "Change columns"
+  },
+  "index_dialog": {
+    "add_title": "Add index",
+    "edit_title": "Edit index",
+    "name": "Index name:",
+    "choice": "Index choice:",
+    "advanced": "Advanced options",
+    "type": "Index type:",
+    "fillfactor": "Fillfactor:",
+    "where": "Condition (WHERE):",
+    "comment": "Comment:",
+    "column": "Column",
+    "order": "Order",
+    "drag": "Drag to reorder",
+    "ignore": "Ignore",
+    "add_columns": "Add {{count}} column(s) to index",
+    "no_columns": "An index needs at least one column."
+  },
+  "constraint_dialog": {
+    "add_title": "Add {{type}} constraint",
+    "edit_title": "Edit constraint {{name}}",
+    "name": "Constraint name:",
+    "expression": "Expression:",
+    "columns": "Columns:",
+    "comment": "Comment:"
+  },
+  "relation": {
+    "title": "Foreign key constraints",
+    "actions": "Actions",
+    "properties": "Constraint properties",
+    "column": "Column",
+    "column_hint": "The columns of this table the key is made of.",
+    "foreign_key": "Foreign key constraint",
+    "schema": "Schema",
+    "table": "Table",
+    "constraint_name": "Constraint name",
+    "on_delete": "ON DELETE",
+    "on_update": "ON UPDATE",
+    "add_column": "+ Add column",
+    "add_constraint": "+ Add constraint",
+    "dropped": "Foreign key constraint {{name}} has been dropped",
+    "saved": "Foreign key constraints have been saved.",
+    "nothing": "Nothing to change."
   }
 }

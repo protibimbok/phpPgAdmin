@@ -166,12 +166,16 @@ final class IndexSql
     private static function redefined(array $data, array $old): bool
     {
         if (isset($data['columns'])) {
+            // The collation and operator class are compared only when the client names them: the
+            // server reports the default collation on a column the dialog never asked about.
+            $withCollation = array_filter($data['columns'], static fn (array $c): bool => !empty($c['collspcname'])) !== [];
+            $withOpClass = array_filter($data['columns'], static fn (array $c): bool => !empty($c['op_class'])) !== [];
             $shape = static fn (array $c): string => implode('|', [
                 (string) ($c['colname'] ?? ''),
                 !empty($c['sort_order']) ? 'DESC' : 'ASC',
                 !empty($c['nulls']) ? 'FIRST' : 'LAST',
-                (string) ($c['collspcname'] ?? ''),
-                (string) ($c['op_class'] ?? ''),
+                $withCollation ? (string) ($c['collspcname'] ?? '') : '',
+                $withOpClass ? (string) ($c['op_class'] ?? '') : '',
             ]);
             if (array_map($shape, $data['columns']) !== array_map($shape, $old['columns'])) {
                 return true;

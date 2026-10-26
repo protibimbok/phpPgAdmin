@@ -7,12 +7,13 @@ import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
-import { notAvailable } from '@/unbuilt'
 import { formatSize } from '@/format'
 import { urls } from '@/level'
 import type { Statistics } from '@/nodes/client'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
-import { columns, constraints, indexes, resolveTable, tables, updateTable, type Column, type Constraint, type ConstraintType, type Index, type Table, type TableChanges } from '../api'
+import { columns, constraints, indexes, resolveTable, tableOptions, tables, updateTable, type Column, type Constraint, type ConstraintType, type Index, type IndexProperties, type Table, type TableChanges, type TableOptions } from '../api'
+import ConstraintDialog from '../indexes/ConstraintDialog'
+import IndexDialog from '../indexes/IndexDialog'
 
 const CONSTRAINT_TYPES: ConstraintType[] = ['primary_key', 'unique_constraint', 'foreign_key', 'check_constraint', 'exclusion_constraint']
 
@@ -61,6 +62,11 @@ export default function TableStructure() {
   const [confirm, setConfirm] = useState<{ sql: string[]; warning?: string; run: () => Promise<void> } | null>(null)
   const [addCount, setAddCount] = useState(1)
   const [addAfter, setAddAfter] = useState('end')
+  const [indexDialog, setIndexDialog] = useState<{ index: IndexProperties | null; count: number } | null>(null)
+  const [indexCount, setIndexCount] = useState(1)
+  const [constraintDialog, setConstraintDialog] = useState<{ constraint: { type: ConstraintType; row: Constraint } | null; newType: ConstraintType } | null>(null)
+  const [newConstraintType, setNewConstraintType] = useState<ConstraintType>('check_constraint')
+  const [options, setOptions] = useState<TableOptions | null>(null)
 
   if (error) {
     return (
@@ -171,6 +177,55 @@ export default function TableStructure() {
     navigate(`${href}/add-columns?count=${addCount}`)
   }
 
+  /** The form options (access methods…) are loaded the first time a dialog opens. */
+  function loadOptions() {
+    if (!options) void tableOptions(db, scid).then(setOptions)
+  }
+
+  function openIndex(index: Index | null, count = 1) {
+    loadOptions()
+    if (!index) {
+      setIndexDialog({ index: null, count })
+
+      return
+    }
+    void indexes(db, scid, tid)
+      .properties(index.oid)
+      .then((properties) => setIndexDialog({ index: properties as IndexProperties, count }))
+      .catch((e: unknown) => notifyError(errorMessage(e)))
+  }
+
+  function dropIndex(index: Index) {
+    setConfirm({
+      sql: [`DROP INDEX ${quoteIdent(schema)}.${quoteIdent(index.name)};`],
+      run: async () => {
+        try {
+          await indexes(db, scid, tid).remove(index.oid)
+          notifySuccess(t('structure.messages.index_dropped', { name: index.name }))
+          reload()
+        } catch (e) {
+          notifyError(errorMessage(e))
+        }
+      },
+    })
+  }
+
+  function dropConstraint(type: ConstraintType, row: Constraint) {
+    setConfirm({
+      sql: [`ALTER TABLE ${relation} DROP CONSTRAINT ${quoteIdent(row.name)};`],
+      run: async () => {
+        try {
+          await constraints(db, scid, tid, type).remove(row.oid)
+          notifySuccess(type === 'primary_key' ? t('structure.messages.primary_dropped') : t('structure.messages.constraint_dropped', { name: row.name }))
+          treeState.refresh()
+          reload()
+        } catch (e) {
+          notifyError(errorMessage(e))
+        }
+      },
+    })
+  }
+
   const withSelected = (action: string) => {
     const cols = requireSelection()
     if (!cols) return
@@ -199,9 +254,9 @@ export default function TableStructure() {
           </Link>
         </li>
         <li className="nav-item">
-          <a href="#constraints" id="table_relation_id" className="nav-link">
+          <Link to={`${href}/relation`} id="table_relation_id" className="nav-link">
             <Icon name="b_relations" /> {t('structure_bar.relation_view')}
-          </a>
+          </Link>
         </li>
       </ul>
 
@@ -396,14 +451,14 @@ export default function TableStructure() {
                     {data.indexes.map((index) => (
                       <tr key={index.oid} className="noclick">
                         <td className="edit_index d-print-none">
-                          <Link to={`${href}/indexes/${index.oid}/edit`}>
-                            <Icon name="b_edit" /> {t('structure.actions.change')}
-                          </Link>
+                          <a href="#edit-index" onClick={(e) => { e.preventDefault(); openIndex(index) }}>
+                            <Icon name="b_edit" /> {t('structure.index_actions.edit')}
+                          </a>
                         </td>
                         <td className="d-print-none">
-                          <Link to={`${href}/indexes/${index.oid}/drop`}>
-                            <Icon name="b_drop" /> {t('structure.actions.drop')}
-                          </Link>
+                          <a href="#drop-index" className="drop_primary_key_index_anchor" onClick={(e) => { e.preventDefault(); dropIndex(index) }}>
+                            <Icon name="b_drop" /> {t('structure.index_actions.drop')}
+                          </a>
                         </td>
                         <th>{index.name}</th>
                         <td>{index.amname.toUpperCase()}</td>
@@ -420,9 +475,9 @@ export default function TableStructure() {
             )}
           </div>
           <div className="card-footer d-print-none">
-            <form onSubmit={notAvailable}>
+            <form onSubmit={(e) => { e.preventDefault(); openIndex(null, indexCount) }}>
               {t('structure_bar.create_index')}
-              <input className="mx-2" type="number" min={1} max={16} defaultValue={1} aria-label={t('structure_bar.columns_word')} />
+              <input className="mx-2" type="number" min={1} max={16} value={indexCount} onChange={(e) => setIndexCount(Math.max(1, Number(e.target.value) || 1))} aria-label={t('structure_bar.columns_word')} />
               {t('structure_bar.columns_word')} <input className="btn btn-primary add_index" type="submit" value={tApp('go')} />
             </form>
           </div>
@@ -438,6 +493,9 @@ export default function TableStructure() {
                 <table className="table table-striped table-hover table-sm w-auto align-middle">
                   <thead>
                     <tr>
+                      <th colSpan={2} className="d-print-none">
+                        {t('structure.constraint_columns.action')}
+                      </th>
                       <th>{t('structure.constraint_columns.name')}</th>
                       <th>{t('structure.constraint_columns.type')}</th>
                       <th>{t('structure.constraint_columns.definition')}</th>
@@ -447,6 +505,22 @@ export default function TableStructure() {
                   <tbody>
                     {allConstraints.map(({ type, row }) => (
                       <tr key={`${type}_${row.oid}`}>
+                        <td className="d-print-none">
+                          {type === 'foreign_key' ? (
+                            <Link to={`${href}/relation`}>
+                              <Icon name="b_edit" /> {t('structure.index_actions.edit')}
+                            </Link>
+                          ) : (
+                            <a href="#edit-constraint" onClick={(e) => { e.preventDefault(); loadOptions(); setConstraintDialog({ constraint: { type, row }, newType: type }) }}>
+                              <Icon name="b_edit" /> {t('structure.index_actions.edit')}
+                            </a>
+                          )}
+                        </td>
+                        <td className="d-print-none">
+                          <a href="#drop-constraint" onClick={(e) => { e.preventDefault(); dropConstraint(type, row) }}>
+                            <Icon name="b_drop" /> {t('structure.index_actions.drop')}
+                          </a>
+                        </td>
                         <th>{row.name}</th>
                         <td className="text-nowrap">{t(`structure.constraint_types.${type}`)}</td>
                         <td>
@@ -460,10 +534,56 @@ export default function TableStructure() {
               </div>
             )}
           </div>
+          <div className="card-footer d-print-none">
+            <form onSubmit={(e) => { e.preventDefault(); loadOptions(); setConstraintDialog({ constraint: null, newType: newConstraintType }) }}>
+              {t('structure.add_constraint')}
+              <select className="mx-2" value={newConstraintType} onChange={(e) => setNewConstraintType(e.target.value as ConstraintType)} aria-label={t('structure.constraint_columns.type')}>
+                {(['check_constraint', 'unique_constraint', 'primary_key'] as const).filter((type) => type !== 'primary_key' || !primaryKey).map((type) => (
+                  <option key={type} value={type}>
+                    {t(`structure.constraint_types.${type}`)}
+                  </option>
+                ))}
+              </select>
+              <input className="btn btn-primary" type="submit" value={tApp('go')} />
+            </form>
+          </div>
         </div>
 
         <Information table={data.table} statistics={data.statistics} />
       </div>
+
+      <IndexDialog
+        show={indexDialog !== null}
+        db={db}
+        scid={scid}
+        tid={tid}
+        columns={data.columns}
+        options={options}
+        index={indexDialog?.index ?? null}
+        initialColumns={indexDialog?.count ?? 1}
+        hasPrimary={primaryKey !== null}
+        onClose={() => setIndexDialog(null)}
+        onSaved={() => {
+          setIndexDialog(null)
+          treeState.refresh()
+          reload()
+        }}
+      />
+      <ConstraintDialog
+        show={constraintDialog !== null}
+        db={db}
+        scid={scid}
+        tid={tid}
+        columns={data.columns}
+        constraint={constraintDialog?.constraint ?? null}
+        newType={constraintDialog?.newType ?? 'check_constraint'}
+        onClose={() => setConstraintDialog(null)}
+        onSaved={() => {
+          setConstraintDialog(null)
+          treeState.refresh()
+          reload()
+        }}
+      />
 
       <ConfirmQuery show={confirm !== null} sql={confirm?.sql ?? ''} warning={confirm?.warning} onClose={() => setConfirm(null)} onConfirm={() => { const pending = confirm; setConfirm(null); if (pending) void pending.run() }} />
     </>

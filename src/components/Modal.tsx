@@ -1,6 +1,8 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+
+const openModals: symbol[] = []
 
 export interface ModalProps {
   show: boolean
@@ -20,18 +22,23 @@ export interface ModalProps {
  */
 export default function Modal({ show, title, onClose, children, footer, size, id }: ModalProps) {
   const { t } = useTranslation()
+  const token = useRef<symbol>(Symbol('modal'))
 
+  // Modals stack (a preview over a dialog); Escape closes only the one on top.
   useEffect(() => {
     if (!show) return
+    const mine = token.current
+    openModals.push(mine)
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && openModals[openModals.length - 1] === mine) onClose()
     }
     document.addEventListener('keydown', onKey)
     document.body.classList.add('modal-open')
 
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.classList.remove('modal-open')
+      openModals.splice(openModals.indexOf(mine), 1)
+      if (openModals.length === 0) document.body.classList.remove('modal-open')
     }
   }, [show, onClose])
 
