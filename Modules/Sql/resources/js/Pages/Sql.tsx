@@ -11,8 +11,10 @@ import { format } from 'sql-formatter'
 import type { SQLNamespace } from '@codemirror/lang-sql'
 import { errorMessage } from '@/api/request'
 import { notifyError, notifySuccess } from '@/notify'
-import { createBookmark, deleteBookmark, fetchCatalog, listBookmarks, relationColumns, type Bookmark, type RelationColumn } from '../api'
+import { createBookmark, createMacro, deleteBookmark, fetchCatalog, listBookmarks, listMacros, relationColumns, type Bookmark, type Macro, type RelationColumn } from '../api'
 import SqlEditor, { type SqlEditorHandle } from '../editor/SqlEditor'
+import MacrosDialog, { nextMacroName } from '../macros/MacrosDialog'
+import MacrosMenu, { macroKeyOf } from '../macros/MacrosMenu'
 import QueryResults from '../results/QueryResults'
 import { DEFAULT_MAX_ROWS, type GridNav } from '../results/ResultsGrid'
 import { useGridActions } from '../results/useGridActions'
@@ -28,7 +30,8 @@ const TEXTAREA_ROWS = 15
 /**
  * The SQL page (sql/query.twig) at every level: the query box with its quick buttons and
  * column list when a table is open, the options in the card's footer, then the results of the
- * last run below. Ctrl+Enter runs the query, as it does in phpMyAdmin.
+ * last run below. Ctrl+Enter runs the query, as it does in phpMyAdmin; a macro's key (Ctrl+0…9,
+ * Alt+F1…F12, pgAdmin's set) runs that macro.
  */
 export default function SqlPage() {
   const { pathname } = useLocation()
@@ -61,7 +64,10 @@ function SqlPageAt() {
   const [bookmarkReplace, setBookmarkReplace] = useState(false)
   const [chosenBookmark, setChosenBookmark] = useState('')
   const [bookmarkAction, setBookmarkAction] = useState<'0' | '1' | '2'>('0')
+  const [manageMacros, setManageMacros] = useState(false)
   const runner = useQueryRunner(db)
+  const { data: macroData, reload: reloadMacros } = useRequest(() => listMacros(), [])
+  const macros = macroData?.macros ?? []
   const { data: bookmarks, reload: reloadBookmarks } = useRequest(() => (db === null ? Promise.resolve([] as Bookmark[]) : listBookmarks(db)), [db])
   // The catalog feeds the editor's completions; "schema.table" keys plus the public schema's tables by bare name.
   const { data: catalog } = useRequest(() => (db === null ? Promise.resolve(null) : fetchCatalog(db)), [db])
@@ -110,13 +116,53 @@ function SqlPageAt() {
     }
   }, [runner.running, tApp])
 
-  function execute(sql: string, next: GridNav = { pos: 0, maxRows: nav.maxRows, order: [] }) {
+  /** Run a statement and show its results, leaving the query box as it is. */
+  function run(sql: string, next: GridNav = { pos: 0, maxRows: nav.maxRows, order: [] }) {
     const text = bind ? bindParameters(sql, parameters) : sql
     setRan(text)
     setNav(next)
     void runner.run({ sql: text, delimiter, limit: next.maxRows, offset: next.pos, order: next.order, rollback, transaction })
+  }
+
+  /** Run the box's query the way phpMyAdmin's Go does: the box is cleared and folded unless the options keep it. */
+  function execute(sql: string, next?: GridNav) {
+    run(sql, next)
     if (!showAgain) setQuery('')
     if (!retain) setBoxShown(false)
+  }
+
+  /** pgAdmin runs a macro's SQL as it stands, without touching the editor. */
+  const runMacro = (macro: Macro) => run(macro.sql)
+
+  // The macro keys work anywhere on the page, when the browser lets them through.
+  const macrosRef = useRef(macros)
+  macrosRef.current = macros
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const key = macroKeyOf(e)
+      if (key === null) return
+      const macro = macrosRef.current.find((m) => m.key === key)
+      if (!macro) return
+      e.preventDefault()
+      runMacro(macro)
+    }
+    document.addEventListener('keydown', onKey)
+
+    return () => document.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delimiter, rollback, transaction, bind, parameters, nav.maxRows])
+
+  /** pgAdmin's "Add to macros": the box's query saved under the next free "Macro N" name. */
+  function addToMacros() {
+    if (query.trim() === '') return notifyError(t('macros.empty'))
+    const name = nextMacroName(macros.map((m) => m.name), t)
+    createMacro({ name, sql: query }).then(
+      () => {
+        notifySuccess(t('macros.added', { name }))
+        reloadMacros()
+      },
+      (err: unknown) => notifyError(errorMessage(err)),
+    )
   }
 
   function submit(e?: FormEvent) {
@@ -256,6 +302,7 @@ function SqlPageAt() {
                         <input type="button" value={t('buttons.clear')} id="clear" className="btn btn-secondary button sqlbutton" onClick={() => setQuery('')} />
                         <input type="button" value={t('buttons.format')} id="format" className="btn btn-secondary button sqlbutton" onClick={formatQuery} />
                       </div>
+                      <MacrosMenu macros={macros} onManage={() => setManageMacros(true)} onAdd={addToMacros} onRun={runMacro} />
                       <input
                         type="button"
                         value={t('buttons.auto_saved')}
@@ -483,6 +530,17 @@ function SqlPageAt() {
         />
       )}
       {actions.modal}
+      <MacrosDialog
+        show={manageMacros}
+        macros={macros}
+        keys={macroData?.keys ?? []}
+        currentSql={query}
+        onClose={() => setManageMacros(false)}
+        onSaved={() => {
+          setManageMacros(false)
+          reloadMacros()
+        }}
+      />
     </>
   )
 }

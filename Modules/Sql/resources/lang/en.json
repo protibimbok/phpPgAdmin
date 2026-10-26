@@ -233,5 +233,26 @@
       "Fr",
       "Sa"
     ]
+  },
+  "macros": {
+    "title": "Macros",
+    "manage": "Manage macros",
+    "add": "Add to macros",
+    "none": "No macros yet.",
+    "key": "Key",
+    "name": "Name",
+    "sql": "SQL",
+    "delete": "Delete",
+    "add_row": "Add macro",
+    "save": "Save",
+    "no_key": "(no key)",
+    "default_name": "Macro {{number}}",
+    "name_required": "Each macro needs a name and a statement.",
+    "unique_name": "Macro names must be unique.",
+    "unique_key": "A key can be bound to one macro only.",
+    "saved": "The macros have been saved.",
+    "added": "The query has been added to the macros as “{{name}}”.",
+    "empty": "The query box is empty.",
+    "key_hint": "A macro runs from this menu or its key. Keys the browser keeps for itself (Ctrl+1…9 switch tabs in most browsers) do not reach the page."
   }
 }

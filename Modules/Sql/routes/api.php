@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Sql\Http\Controllers\BookmarkController;
+use PhpPgAdmin\Modules\Sql\Http\Controllers\MacroController;
 use PhpPgAdmin\Modules\Sql\Http\Controllers\QueryController;
 
 // Queries run against a named database, or (without one) against the database the session
@@ -27,4 +28,12 @@ Route::middleware(Authenticate::class)->prefix('query')->controller(BookmarkCont
     Route::delete('/bookmarks/{id:number}', 'destroy')->setName('sql.bookmarks.destroy');
     Route::get('/history', 'history')->setName('sql.history');
     Route::delete('/history', 'clearHistory')->setName('sql.history.clear');
+});
+
+// Query macros: the role's named statements with their shortcut keys, per server.
+Route::middleware(Authenticate::class)->prefix('query')->controller(MacroController::class)->group(function (): void {
+    Route::get('/macros', 'index')->setName('sql.macros');
+    Route::post('/macros', 'store')->setName('sql.macros.store');
+    Route::put('/macros/{id:number}', 'update')->setName('sql.macros.update');
+    Route::delete('/macros/{id:number}', 'destroy')->setName('sql.macros.destroy');
 });

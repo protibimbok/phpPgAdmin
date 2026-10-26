@@ -315,6 +315,38 @@ export function deleteBookmark(id: number): Promise<void> {
   return api.delete<{ ok: true }>(`/api/query/bookmarks/${id}`).then(() => undefined)
 }
 
+/** A query macro (pgAdmin's user macro): a named statement, bound to a shortcut key or not. */
+export interface Macro {
+  id: number
+  /** "Ctrl+1" … "Ctrl+0", "Alt+F1" … "Alt+F12", or null. */
+  key: string | null
+  name: string
+  sql: string
+}
+
+export interface MacroInput {
+  name: string
+  sql: string
+  key?: string | null
+}
+
+/** The role's macros on this server and the keys a macro may be bound to. */
+export function listMacros(): Promise<{ macros: Macro[]; keys: string[] }> {
+  return api.get<{ macros: Macro[]; keys: string[] }>('/api/query/macros')
+}
+
+export function createMacro(input: MacroInput): Promise<Macro> {
+  return api.post<{ macro: Macro }>('/api/query/macros', input).then((r) => r.macro)
+}
+
+export function updateMacro(id: number, input: Partial<MacroInput>): Promise<Macro> {
+  return api.put<{ macro: Macro }>(`/api/query/macros/${id}`, input).then((r) => r.macro)
+}
+
+export function deleteMacro(id: number): Promise<void> {
+  return api.delete<{ ok: true }>(`/api/query/macros/${id}`).then(() => undefined)
+}
+
 /** One statement the role ran, with its outcome. */
 export interface HistoryEntry {
   id: number
