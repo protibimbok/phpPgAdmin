@@ -42,6 +42,12 @@
       ],
       "@tables/*": [
         "./Modules/Tables/resources/*"
+      ],
+      "@views/*": [
+        "./Modules/Views/resources/*"
+      ],
+      "@sequences/*": [
+        "./Modules/Sequences/resources/*"
       ]
     }
   },
