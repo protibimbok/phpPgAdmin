@@ -38,6 +38,8 @@ SELECT DISTINCT ON (cls.relname)
       WHERE d.objid = cls.oid
   ) AS dependsonextensions,
   pg_catalog.pg_get_expr(idx.indpred, idx.indrelid, true) AS indconstraint,
+  {### phpPgAdmin: for the structure page ###}
+  pg_catalog.pg_get_indexdef(cls.oid, 0, true) AS definition,
   con.contype,
   con.condeferrable,
   con.condeferred,

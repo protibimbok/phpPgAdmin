@@ -1,20 +1,32 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
+import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
+import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
+import { treeState } from '@/layout/tree/treeState'
+import { notify, notifyError, notifySuccess } from '@/notify'
 import { notAvailable } from '@/unbuilt'
 import { formatSize } from '@/format'
 import { urls } from '@/level'
 import type { Statistics } from '@/nodes/client'
-import { columns, constraints, indexes, resolveTable, tables, type Column, type Constraint, type ConstraintType, type Index, type Table } from '../api'
+import { qualifiedName, quoteIdent } from '@sql/js/sql'
+import { columns, constraints, indexes, resolveTable, tables, updateTable, type Column, type Constraint, type ConstraintType, type Index, type Table, type TableChanges } from '../api'
 
 const CONSTRAINT_TYPES: ConstraintType[] = ['primary_key', 'unique_constraint', 'foreign_key', 'check_constraint', 'exclusion_constraint']
+
+/** The table's primary key as its properties carry it. */
+interface PrimaryKey {
+  oid: number
+  name: string
+  columns: { column: string }[]
+}
 
 interface Loaded {
   scid: number
   tid: number
-  table: Table
+  table: Table & { primary_key?: PrimaryKey[] }
   columns: Column[]
   indexes: Index[]
   constraints: { type: ConstraintType; rows: Constraint[] }[]
@@ -32,10 +44,11 @@ export default function TableStructure() {
   const { t } = useTranslation('tables')
   const { t: tApp } = useTranslation()
   const { db = '', schema = '', table = '' } = useParams()
-  const { data, error } = useRequest(async (): Promise<Loaded> => {
+  const navigate = useNavigate()
+  const { data, error, reload } = useRequest(async (): Promise<Loaded> => {
     const { scid, tid } = await resolveTable(db, schema, table)
     const [properties, cols, idx, cons, statistics] = await Promise.all([
-      tables(db, scid).properties(tid),
+      tables(db, scid).properties(tid) as Promise<Loaded['table']>,
       columns(db, scid, tid).list(),
       indexes(db, scid, tid).list(),
       Promise.all(CONSTRAINT_TYPES.map((type) => constraints(db, scid, tid, type).list().then((rows) => ({ type, rows })))),
@@ -45,6 +58,9 @@ export default function TableStructure() {
     return { scid, tid, table: properties, columns: cols, indexes: idx, constraints: cons, statistics }
   }, [db, schema, table])
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [confirm, setConfirm] = useState<{ sql: string[]; warning?: string; run: () => Promise<void> } | null>(null)
+  const [addCount, setAddCount] = useState(1)
+  const [addAfter, setAddAfter] = useState('end')
 
   if (error) {
     return (
@@ -57,6 +73,9 @@ export default function TableStructure() {
   if (!data) return null
 
   const href = urls.relation(db, schema, table, 'table')
+  const { scid, tid } = data
+  const relation = qualifiedName(schema, table)
+  const primaryKey = data.table.primary_key?.[0] ?? null
   const primaryColumns = new Set((data.columns[0]?.indkey ?? '').split(' ').filter(Boolean).map(Number))
   const allConstraints = data.constraints.flatMap(({ type, rows }) => rows.map((row) => ({ type, row })))
   const allChecked = data.columns.length > 0 && data.columns.every((column) => checked.has(column.attnum))
@@ -70,6 +89,105 @@ export default function TableStructure() {
 
       return next
     })
+  }
+
+  const selected = () => data!.columns.filter((c) => checked.has(c.attnum))
+
+  /** Run a change of the table and reload the page and the tree. */
+  async function alter(changes: TableChanges, message: string) {
+    try {
+      await updateTable(db, scid, tid, changes)
+      notifySuccess(message)
+      setChecked(new Set())
+      treeState.refresh()
+      reload()
+    } catch (e) {
+      notifyError(errorMessage(e))
+    }
+  }
+
+  function requireSelection(): Column[] | null {
+    const cols = selected()
+    if (cols.length === 0) {
+      notify(t('structure.messages.none_selected'), 'error')
+
+      return null
+    }
+
+    return cols
+  }
+
+  /** Drop asks first, as phpMyAdmin's drop_column_anchor does. */
+  function dropColumns(cols: Column[]) {
+    const names = cols.map((c) => c.name)
+    setConfirm({
+      sql: [`ALTER TABLE ${relation} ${names.map((n) => `DROP COLUMN ${quoteIdent(n)}`).join(', ')};`],
+      run: () => alter({ columns: { deleted: cols.map((c) => ({ name: c.name })) } }, names.length === 1 ? t('structure.messages.column_dropped', { column: names[0] }) : t('structure.messages.columns_dropped', { columns: names.join(', ') })),
+    })
+  }
+
+  /** A primary key on the columns: the existing one is dropped and remade with them added, as phpMyAdmin's primary.twig does. */
+  function addPrimary(cols: Column[]) {
+    const names = cols.filter((c) => !primaryColumns.has(c.attnum)).map((c) => c.name)
+    if (names.length === 0) return
+    const all = [...(primaryKey?.columns.map((c) => c.column) ?? []), ...names]
+    const sql = primaryKey
+      ? `ALTER TABLE ${relation} DROP CONSTRAINT ${quoteIdent(primaryKey.name)}, ADD PRIMARY KEY (${all.map(quoteIdent).join(', ')});`
+      : `ALTER TABLE ${relation} ADD PRIMARY KEY (${all.map(quoteIdent).join(', ')});`
+    setConfirm({
+      sql: [sql],
+      run: () =>
+        alter(
+          { primary_key: primaryKey ? { deleted: [{ name: primaryKey.name, oid: primaryKey.oid }], added: [{ columns: all.map((column) => ({ column })) }] } : { added: [{ columns: all.map((column) => ({ column })) }] } },
+          t('structure.messages.primary_added', { columns: all.join(', ') }),
+        ),
+    })
+  }
+
+  function addUnique(cols: Column[]) {
+    const names = cols.map((c) => c.name)
+    void alter({ unique_constraint: { added: [{ columns: names.map((column) => ({ column })) }] } }, t('structure.messages.unique_added', { columns: names.join(', ') }))
+  }
+
+  function addIndex(cols: Column[]) {
+    const names = cols.map((c) => c.name)
+    void alter({ indexes: { added: [{ columns: names.map((colname) => ({ colname })) }] } }, t('structure.messages.index_added', { columns: names.join(', ') }))
+  }
+
+  /** phpMyAdmin's "Browse" of selected columns: a SELECT of them on the SQL page. */
+  function browseColumns(cols: Column[]) {
+    const sql = `SELECT ${cols.map((c) => quoteIdent(c.name)).join(', ')} FROM ${relation}`
+    navigate(`${href}/sql?${new URLSearchParams({ sql, run: '1' })}`)
+  }
+
+  function changeColumns(cols: Column[]) {
+    navigate(`${href}/columns/change?attnums=${cols.map((c) => c.attnum).join(',')}`)
+  }
+
+  function submitAddColumns(e: FormEvent) {
+    e.preventDefault()
+    // PostgreSQL adds a column at the end of the table only.
+    if (addAfter !== 'end') notify(t('structure.messages.added_at_end'))
+    navigate(`${href}/add-columns?count=${addCount}`)
+  }
+
+  const withSelected = (action: string) => {
+    const cols = requireSelection()
+    if (!cols) return
+    switch (action) {
+      case 'browse':
+        return browseColumns(cols)
+      case 'change':
+        return changeColumns(cols)
+      case 'drop':
+        return dropColumns(cols)
+      case 'primary':
+        return addPrimary(cols)
+      case 'unique':
+        return addUnique(cols)
+      default:
+        return addIndex(cols)
+    }
   }
 
   return (
@@ -166,14 +284,14 @@ export default function TableStructure() {
                         {column.colconstype === 'g' && t('structure.generated')}
                       </td>
                       <td className="edit text-center d-print-none">
-                        <Link to={`${href}/columns/${column.attnum}/change`} className="change_column_anchor">
+                        <Link to={`${href}/columns/change?attnums=${column.attnum}`} className="change_column_anchor">
                           <Icon name="b_edit" title={t('structure.actions.change')} /> {t('structure.actions.change')}
                         </Link>
                       </td>
                       <td className="drop text-center d-print-none">
-                        <Link to={`${href}/columns/${column.attnum}/drop`} className="drop_column_anchor">
+                        <a href="#drop" className="drop_column_anchor" onClick={(e) => { e.preventDefault(); dropColumns([column]) }}>
                           <Icon name="b_drop" title={t('structure.actions.drop')} /> {t('structure.actions.drop')}
-                        </Link>
+                        </a>
                       </td>
                       <td className="d-print-none">
                         <More label={tApp('more')}>
@@ -183,20 +301,20 @@ export default function TableStructure() {
                                 <Icon name="b_primary" /> {t('structure.actions.primary')}
                               </span>
                             ) : (
-                              <Link className="dropdown-item" to={`${href}/constraints/add?type=primary_key&columns=${encodeURIComponent(column.name)}`}>
+                              <a className="dropdown-item" href="#primary" onClick={(e) => { e.preventDefault(); addPrimary([column]) }}>
                                 <Icon name="b_primary" /> {t('structure.actions.primary')}
-                              </Link>
+                              </a>
                             )}
                           </li>
                           <li className="add_unique unique text-nowrap">
-                            <Link className="dropdown-item" to={`${href}/constraints/add?type=unique_constraint&columns=${encodeURIComponent(column.name)}`}>
+                            <a className="dropdown-item" href="#unique" onClick={(e) => { e.preventDefault(); addUnique([column]) }}>
                               <Icon name="b_unique" /> {t('structure.actions.unique')}
-                            </Link>
+                            </a>
                           </li>
                           <li className="add_index text-nowrap">
-                            <Link className="dropdown-item" to={`${href}/indexes/add?columns=${encodeURIComponent(column.name)}`}>
+                            <a className="dropdown-item" href="#index" onClick={(e) => { e.preventDefault(); addIndex([column]) }}>
                               <Icon name="b_index" /> {t('structure.actions.index')}
-                            </Link>
+                            </a>
                           </li>
                           <li className="browse text-nowrap">
                             <Link className="dropdown-item" to={`${href}/browse?distinct=${encodeURIComponent(column.name)}`}>
@@ -219,7 +337,7 @@ export default function TableStructure() {
             <label htmlFor="fieldsForm_checkall">{tApp('check_all')}</label>
             <em className="with-selected">{tApp('with_selected')}</em>{' '}
             {(['browse', 'change', 'drop', 'primary', 'unique', 'index'] as const).map((action) => (
-              <button key={action} className="btn btn-link mult_submit" type="button" title={checked.size === 0 ? tApp('check_all') : undefined}>
+              <button key={action} className="btn btn-link mult_submit" type="button" title={checked.size === 0 ? tApp('check_all') : undefined} onClick={() => withSelected(action)}>
                 <Icon name={{ browse: 'b_browse', change: 'b_edit', drop: 'b_drop', primary: 'b_primary', unique: 'b_unique', index: 'b_index' }[action]} /> {t(`structure_bar.${action}`)}
               </button>
             ))}
@@ -237,16 +355,17 @@ export default function TableStructure() {
         </div>
 
         {/* "Add N column(s) after X" (display_structure.twig #addColumns): an inline form of bare
-            controls. The form lands with phase 3. */}
-        <form className="d-print-none" id="addColumns" name="addColumns" onSubmit={notAvailable}>
+            controls that opens the add-columns page. PostgreSQL appends columns, so only the
+            end position is honoured. */}
+        <form className="d-print-none" id="addColumns" name="addColumns" onSubmit={submitAddColumns}>
           <Icon name="b_insrow" title={t('structure_bar.add')} />
           &nbsp;{t('structure_bar.add')}{' '}
-          <input type="number" name="num_fields" min={1} defaultValue={1} required aria-label={t('structure_bar.columns')} /> {t('structure_bar.columns')}
+          <input type="number" name="num_fields" min={1} value={addCount} onChange={(e) => setAddCount(Math.max(1, Number(e.target.value) || 1))} onFocus={(e) => e.target.select()} required aria-label={t('structure_bar.columns')} /> {t('structure_bar.columns')}
           &nbsp;
-          <select name="after_field" aria-label={t('structure_bar.after', { column: '' })}>
-            <option>{t('structure_bar.at_start')}</option>
-            {last && <option>{t('structure_bar.after', { column: last.name })}</option>}
-            <option>{t('structure_bar.at_end')}</option>
+          <select name="after_field" aria-label={t('structure_bar.after', { column: '' })} value={addAfter} onChange={(e) => setAddAfter(e.target.value)}>
+            <option value="first">{t('structure_bar.at_start')}</option>
+            {last && <option value={last.name}>{t('structure_bar.after', { column: last.name })}</option>}
+            <option value="end">{t('structure_bar.at_end')}</option>
           </select>{' '}
           <input className="btn btn-primary" type="submit" value={tApp('go')} />
         </form>
@@ -345,6 +464,8 @@ export default function TableStructure() {
 
         <Information table={data.table} statistics={data.statistics} />
       </div>
+
+      <ConfirmQuery show={confirm !== null} sql={confirm?.sql ?? ''} warning={confirm?.warning} onClose={() => setConfirm(null)} onConfirm={() => { const pending = confirm; setConfirm(null); if (pending) void pending.run() }} />
     </>
   )
 }

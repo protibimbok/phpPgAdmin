@@ -1,0 +1,147 @@
+// Fieldsets and the table headers/footers of the forms that still use them, after pmahomme's
+// _common.scss: the grey rounded box with an inset shadow, its white raised legend, and the
+// footer variant that hangs under a table (the Save/Preview row of the column forms).
+
+.pma-fieldset {
+  margin-top: 1em;
+  border-radius: radius('lg') radius('lg') 0 0;
+  border: border-width('base') solid color('border');
+  padding: 0.5em;
+  background: color('surface-raised');
+  text-shadow: shadow('inset-light');
+  box-shadow: shadow('inset-light');
+
+  .pma-fieldset {
+    margin: 0.8em;
+    border: border-width('base') solid color('border');
+    background: color('surface-disabled');
+  }
+
+  legend {
+    float: none;
+    font-weight: font-weight('bold');
+    color: color('text');
+    padding: 5px 10px;
+    border-radius: radius('sm');
+    border: border-width('base') solid color('border');
+    background-color: color('surface');
+    max-width: 100%;
+    box-shadow: shadow('float');
+    width: initial;
+    font-size: 1em;
+  }
+
+  .formelement {
+    float: left;
+    margin-right: 0.5em;
+    white-space: nowrap;
+  }
+
+  div[class='formelement'] {
+    white-space: normal;
+  }
+
+  &.tblFooters {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+    border-top: 0;
+    text-align: right;
+    float: none;
+    clear: both;
+    border-radius: 0 0 radius('lg') radius('lg');
+  }
+
+  &.confirmation legend {
+    font-weight: font-weight('bold');
+  }
+}
+
+.tblHeaders {
+  font-weight: font-weight('bold');
+  color: color('text-strong');
+  background: color('surface-bar');
+}
+
+// The column definition forms (columns_definitions/*.twig): the name row, the structure table
+// with ten-em text fields, and the hint under a type that takes values.
+#table_name_col_no_outer {
+  margin-top: 45px;
+}
+
+#table_name_col_no {
+  position: fixed;
+  top: 55px;
+  width: 100%;
+  background: color('surface');
+  z-index: 10;
+}
+
+#table_columns {
+  display: block;
+  overflow: auto;
+
+  input {
+    &[type='text'],
+    &[type='password'],
+    &[type='number'] {
+      width: 10em;
+      box-sizing: border-box;
+    }
+  }
+
+  select {
+    width: 10em;
+    box-sizing: border-box;
+  }
+
+  textarea {
+    width: 10em;
+    vertical-align: middle;
+  }
+}
+
+// The index dialog (table/index_form.twig): labels in a left column, full-width controls.
+#index_frm {
+  .index_info {
+    input[type='text'],
+    select {
+      width: 100%;
+      margin: 0;
+      box-sizing: border-box;
+    }
+
+    div {
+      padding: 0.2em 0;
+    }
+
+    .label {
+      float: left;
+      min-width: 12em;
+    }
+  }
+
+  .add_fields {
+    float: left;
+
+    input {
+      margin-left: 1em;
+    }
+  }
+
+  input {
+    margin: 0;
+  }
+
+  td {
+    vertical-align: middle;
+  }
+}
+
+table#index_columns {
+  width: 100%;
+
+  select {
+    width: 85%;
+    float: left;
+  }
+}

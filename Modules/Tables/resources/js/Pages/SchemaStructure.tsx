@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import { notAvailable } from '@/unbuilt'
@@ -265,12 +265,21 @@ export default function SchemaStructure() {
   )
 }
 
-/** phpMyAdmin's "Create new table" card (database/create_table.twig); live-looking, the form lands with phase 3. */
+/** phpMyAdmin's "Create new table" card (database/create_table.twig): the name and the number of columns open the create page. */
 function CreateTableCard() {
   const { t } = useTranslation('tables')
+  const { db = '', schema = '' } = useParams()
+  const navigate = useNavigate()
+  const [name, setName] = useState('')
+  const [count, setCount] = useState(4)
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    navigate(`${urls.schema(db, schema)}/create-table?${new URLSearchParams({ name, columns: String(count) })}`)
+  }
 
   return (
-    <form id="createTableMinimalForm" className="card d-print-none" onSubmit={notAvailable}>
+    <form id="createTableMinimalForm" className="card d-print-none" onSubmit={submit}>
       <div className="card-header">
         <Icon name="b_table_add" /> {t('create.title')}
       </div>
@@ -279,13 +288,13 @@ function CreateTableCard() {
           <label htmlFor="createTableNameInput" className="form-label">
             {t('create.table_name')}
           </label>
-          <input autoComplete="off" type="text" className="form-control" id="createTableNameInput" maxLength={63} required />
+          <input autoComplete="off" type="text" className="form-control" id="createTableNameInput" maxLength={63} value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="col-12">
           <label htmlFor="createTableNumFieldsInput" className="form-label">
             {t('create.number_of_columns')}
           </label>
-          <input type="number" className="form-control" id="createTableNumFieldsInput" min={1} defaultValue={4} required />
+          <input type="number" className="form-control" id="createTableNumFieldsInput" min={1} value={count} onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))} required />
         </div>
         <div className="col-12 align-self-lg-end">
           <input className="btn btn-primary" type="submit" value={t('create.create')} />
