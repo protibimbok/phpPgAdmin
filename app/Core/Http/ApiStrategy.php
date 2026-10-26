@@ -22,7 +22,8 @@ use Throwable;
  * when the application runs in debug mode.
  *
  * Every error body has "status_code" and "reason_phrase"; a PostgreSQL error adds "message" and,
- * when the server sent them, "sqlstate", "detail", "hint" and "position".
+ * when the server sent them, "sqlstate", "detail", "hint" and "position"; an ApiException adds
+ * "message" and its own fields.
  */
 final class ApiStrategy extends JsonStrategy
 {
@@ -45,7 +46,7 @@ final class ApiStrategy extends JsonStrategy
                     return $handler->handle($request);
                 } catch (Http\Exception $e) {
                     return $e->buildJsonResponse($this->response);
-                } catch (QueryException $e) {
+                } catch (QueryException | ApiException $e) {
                     return $this->json($e->httpStatus(), $e->toArray());
                 } catch (ConnectionException $e) {
                     return $this->json($e->httpStatus(), ['message' => $e->getMessage()]);

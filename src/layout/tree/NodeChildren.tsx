@@ -107,7 +107,8 @@ function Nodes({ db, type, path, ancestors, level, linked }: { db: string; type:
   const parentPath = [db, ...path].join('/')
   const { t } = useTranslation()
   const url = collectionUrl(db, ...path)
-  const { data: nodes, error } = useRequest(() => collection(url).nodes(), [url])
+  const state = useTreeState()
+  const { data: nodes, error } = useRequest(() => collection(url).nodes(), [url, state.version()])
 
   if (error) {
     return (

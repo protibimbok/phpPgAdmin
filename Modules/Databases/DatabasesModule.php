@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPgAdmin\Modules\Databases;
 
 use PhpPgAdmin\Core\Contracts\Module;
+use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
 use PhpPgAdmin\Core\Contracts\ProvidesNodes;
 use PhpPgAdmin\Core\Contracts\ProvidesSqlTemplates;
@@ -17,7 +18,7 @@ use PhpPgAdmin\Modules\Databases\Http\Controllers\DatabaseController;
  * The databases of the server a session is signed in to: pgAdmin's database node, served at
  * /api/server/databases, and the page that lists them like phpMyAdmin's "Databases" tab.
  */
-final class DatabasesModule implements Module, ProvidesNodes, ProvidesSqlTemplates, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
+final class DatabasesModule implements Module, ProvidesNodes, ProvidesApiRoutes, ProvidesSqlTemplates, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
 {
     public function name(): string
     {
@@ -41,9 +42,14 @@ final class DatabasesModule implements Module, ProvidesNodes, ProvidesSqlTemplat
                 templateDir: 'databases',
                 label: 'Databases',
                 icon: 's_db',
-                supports: ['sql', 'stats', 'depends', 'children', 'resolve'],
+                supports: ['sql', 'msql', 'stats', 'depends', 'children', 'resolve'],
             ),
         ];
+    }
+
+    public function apiRoutes(): void
+    {
+        require __DIR__ . '/routes/api.php';
     }
 
     /** pgAdmin's databases/sql templates, ported to Twig. */

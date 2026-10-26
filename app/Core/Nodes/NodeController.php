@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Core\Nodes;
 
+use League\Route\Http\Exception\BadRequestException;
 use League\Route\Http\Exception\GoneException;
 use League\Route\Http\Exception\MethodNotAllowedException;
 use League\Route\Http\Exception\NotFoundException;
@@ -173,6 +174,45 @@ abstract class NodeController
     protected function icon(NodeContext $ctx, array $row): string
     {
         return $ctx->node->icon;
+    }
+
+    /**
+     * Run the statements a template rendered. Nothing runs for blank or comment-only SQL, which
+     * is what the templates render when there is nothing to change; a batch runs as one
+     * implicit transaction, so a failing statement undoes the ones before it.
+     */
+    protected function execute(NodeContext $ctx, string $sql): void
+    {
+        if (self::hasStatements($sql)) {
+            $ctx->conn->queryMulti($sql);
+        }
+    }
+
+    /** Whether the SQL holds anything besides whitespace and "--" comments. */
+    public static function hasStatements(string $sql): bool
+    {
+        return trim((string) preg_replace('/--[^\n]*/', '', $sql)) !== '';
+    }
+
+    /**
+     * The client's data must name the object: pgAdmin's "Could not find the required parameter".
+     *
+     * @param array<string, mixed> $data
+     */
+    protected function requireName(array $data, string $key = 'name'): string
+    {
+        $name = trim((string) ($data[$key] ?? ''));
+        if ($name === '') {
+            throw new BadRequestException(sprintf('Could not find the required parameter (%s).', $key));
+        }
+
+        return $name;
+    }
+
+    /** The client's data holds too little for a statement: pgAdmin's "-- definition incomplete". */
+    protected function incomplete(string $what = 'definition'): BadRequestException
+    {
+        return new BadRequestException(sprintf('The %s is incomplete.', $what));
     }
 
     /** The object was deleted under the client: pgAdmin's "It may have been removed by another user." */

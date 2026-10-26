@@ -10,6 +10,17 @@ export interface ApiErrorBody {
   detail?: string
   hint?: string
   position?: number
+  remedy?: ApiRemedy
+}
+
+/**
+ * Something the client may offer to do about a failure: a statement to run on the server
+ * before trying again, named by its action. The other fields depend on the action.
+ */
+export interface ApiRemedy {
+  action: string
+  sql: string
+  [field: string]: unknown
 }
 
 /** A failed API call, with what the server said about it. */
@@ -20,6 +31,8 @@ export class ApiError extends Error {
   readonly hint: string | undefined
   /** 1-based character offset into the statement the server rejected, when it reported one. */
   readonly position: number | undefined
+  /** What the server suggests doing about it, when it suggests anything. */
+  readonly remedy: ApiRemedy | undefined
 
   constructor(status: number, body: ApiErrorBody, fallback: string) {
     super(body.message || body.reason_phrase || fallback)
@@ -29,6 +42,7 @@ export class ApiError extends Error {
     this.detail = body.detail
     this.hint = body.hint
     this.position = body.position
+    this.remedy = body.remedy
   }
 
   /** The session is gone: the caller should show the login page again. */

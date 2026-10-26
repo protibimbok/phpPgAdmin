@@ -40,7 +40,13 @@
     "drop": "Drop the database (DROP)",
     "copy": "Copy database to",
     "copy_name": "Database name",
-    "switch_to_new": "Switch to copied database"
+    "switch_to_new": "Switch to copied database",
+    "schema": "Schema",
+    "renamed": "Database {{name}} has been renamed to {{newName}}.",
+    "copied": "Database {{name}} has been copied to {{newName}}.",
+    "dropped": "Database {{name}} has been dropped.",
+    "saved": "Database properties have been saved.",
+    "preview_sql": "Preview SQL"
   },
   "ddl": {
     "tab": "Show create",
@@ -49,5 +55,23 @@
   "actions": {
     "sql": "SQL",
     "drop": "Drop"
+  },
+  "create": {
+    "title": "Create database",
+    "name": "Database name",
+    "owner": "Owner",
+    "template": "Template",
+    "encoding": "Encoding",
+    "create": "Create",
+    "created": "Database {{name}} has been created.",
+    "collation_mismatch": "Template database {{template}} was created with collation version {{recorded}}, but the operating system now provides version {{actual}}. PostgreSQL will not use it until its recorded version is refreshed.",
+    "refresh_and_create": "Refresh and create"
+  },
+  "drop": {
+    "warning": "You are about to DESTROY a complete database!",
+    "force": "Force (terminate the connections to it)",
+    "dropped_one": "{{count}} database has been dropped successfully.",
+    "dropped_other": "{{count}} databases have been dropped successfully.",
+    "none_selected": "No databases selected."
   }
 }

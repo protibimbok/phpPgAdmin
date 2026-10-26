@@ -49,5 +49,15 @@
   "go": "تنفيذ",
   "more": "المزيد",
   "show_create": "عرض الإنشاء",
-  "not_available_yet": "غير متاح بعد."
+  "not_available_yet": "غير متاح بعد.",
+  "confirm": "تأكيد",
+  "cancel": "إلغاء",
+  "yes": "نعم",
+  "no": "لا",
+  "save": "حفظ",
+  "drop": "حذف",
+  "do_you_really": "هل تريد حقًا تنفيذ \"{{sql}}\"؟",
+  "processing_request": "جارٍ معالجة الطلب",
+  "query_executed": "تم تنفيذ استعلام SQL بنجاح.",
+  "nothing_to_change": "لا شيء لتغييره."
 }

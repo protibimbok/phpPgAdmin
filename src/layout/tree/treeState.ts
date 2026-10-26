@@ -54,6 +54,7 @@ function write(key: string, value: unknown): void {
 
 let open: Set<string> | null = null
 let linked: boolean | null = null
+let version = 0
 
 function paths(): Set<string> {
   if (!open) {
@@ -109,6 +110,12 @@ export const treeState = {
   setLinked(value: boolean): void {
     linked = value
     write(LINKED_KEY, value)
+    emit()
+  },
+  /** Bumped when objects were created, renamed or dropped, so the lists load again. */
+  version: (): number => version,
+  refresh(): void {
+    version++
     emit()
   },
   subscribe(listener: Listener): () => void {

@@ -19,7 +19,7 @@ export default function DatabaseTree() {
   const { t } = useTranslation('databases')
   const level = useLevel()
   const state = useTreeState()
-  const { data } = useRequest(() => databaseNodes(), [])
+  const { data } = useRequest(() => databaseNodes(), [state.version()])
   const databases = data ?? []
 
   return (

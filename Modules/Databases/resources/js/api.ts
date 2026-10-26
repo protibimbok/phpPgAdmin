@@ -1,3 +1,4 @@
+import { api, ApiError } from '@/api/request'
 import { collection, collectionUrl, resolve, type TreeNode } from '@/nodes/client'
 
 /**
@@ -76,4 +77,82 @@ export function databaseProperties(did: number): Promise<DatabaseProperties> {
 
 export function databaseSql(did: number): Promise<string> {
   return databases.sql(did)
+}
+
+/** The lists the create and alter forms offer. */
+export interface DatabaseOptions {
+  roles: string[]
+  tablespaces: string[]
+  encodings: string[]
+  templates: string[]
+}
+
+export function databaseOptions(): Promise<DatabaseOptions> {
+  return api.get<DatabaseOptions>('/api/server/databases/options')
+}
+
+/** What CREATE DATABASE takes, by pgAdmin's field names (create.sql). */
+export interface NewDatabase {
+  name: string
+  datowner?: string
+  template?: string
+  encoding?: string
+  spcname?: string
+  datconnlimit?: number | string
+  is_template?: boolean
+  comments?: string
+  /** Run ALTER DATABASE ... REFRESH COLLATION VERSION on the template first (see CollationRemedy). */
+  refresh_collation?: boolean
+}
+
+/**
+ * Why a create was turned down since PostgreSQL 15: the template database records a collation
+ * version (datcollversion) other than the one the operating system now provides, as after a
+ * libc or ICU upgrade. The server asks for ALTER DATABASE ... REFRESH COLLATION VERSION on the
+ * template; sending the create again with refresh_collation runs it first.
+ */
+export interface CollationRemedy {
+  template: string
+  recorded: string
+  actual: string
+  sql: string
+  /** The server's own description of the mismatch. */
+  detail?: string
+}
+
+/** The collation remedy a failed create carries, if that is what failed it. */
+export function collationRemedy(error: unknown): CollationRemedy | null {
+  if (!(error instanceof ApiError) || error.remedy?.action !== 'refresh_collation') return null
+  const { template, recorded, actual, sql } = error.remedy
+
+  return { template: String(template), recorded: String(recorded), actual: String(actual), sql, detail: error.detail }
+}
+
+/** What ALTER DATABASE may change; only the fields given are changed. */
+export interface DatabaseChanges {
+  name?: string
+  datowner?: string
+  comments?: string
+  datconnlimit?: number | string
+  spcname?: string
+  is_template?: boolean
+  datallowconn?: boolean
+}
+
+export function createDatabase(data: NewDatabase): Promise<TreeNode<DatabaseMeta>> {
+  return databases.create(data)
+}
+
+export function updateDatabase(did: number, data: DatabaseChanges): Promise<TreeNode<DatabaseMeta>> {
+  return databases.update(did, data)
+}
+
+/** DROP DATABASE; with force, the sessions connected to it are terminated first. */
+export function dropDatabase(did: number, force = false): Promise<void> {
+  return databases.remove(did, force).then(() => undefined)
+}
+
+/** The statements a create (did undefined) or an alter would run. */
+export function databaseModifiedSql(data: NewDatabase | DatabaseChanges, did?: number): Promise<string> {
+  return databases.modifiedSql(data, did)
 }

@@ -49,5 +49,15 @@
   "go": "Go",
   "more": "More",
   "show_create": "Show create",
-  "not_available_yet": "Not available yet."
+  "not_available_yet": "Not available yet.",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "yes": "Yes",
+  "no": "No",
+  "save": "Save",
+  "drop": "Drop",
+  "do_you_really": "Do you really want to execute \"{{sql}}\"?",
+  "processing_request": "Processing request",
+  "query_executed": "Your SQL query has been executed successfully.",
+  "nothing_to_change": "Nothing to change."
 }

@@ -36,7 +36,7 @@ final class Ddl
      */
     public static function assemble(array $parts): string
     {
-        $parts = array_filter(array_map(static fn (?string $p): string => trim((string) $p, "\n"), $parts), static fn (string $p): bool => trim($p) !== '');
+        $parts = array_filter(array_map(static fn (?string $p): string => rtrim(ltrim((string) $p), "\n"), $parts), static fn (string $p): bool => trim($p) !== '');
 
         return SqlTemplates::tidy(implode("\n\n", $parts));
     }
