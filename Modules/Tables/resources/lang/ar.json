@@ -27,5 +27,83 @@
   "total_other": "{{count}} جداول",
   "sum": "المجموع",
   "none": "لا توجد جداول في المخطط.",
-  "system": "نظام"
+  "system": "نظام",
+  "structure": {
+    "tab": "البنية",
+    "columns": {
+      "number": "#",
+      "name": "الاسم",
+      "type": "النوع",
+      "collation": "الترتيب",
+      "attributes": "الخصائص",
+      "null": "فارغ",
+      "default": "الافتراضي",
+      "comments": "التعليقات",
+      "extra": "إضافي",
+      "action": "إجراء"
+    },
+    "yes": "نعم",
+    "no": "لا",
+    "none": "لا شيء",
+    "null_value": "NULL",
+    "identity": "هوية",
+    "generated": "مُولَّد",
+    "inherited_from": "موروث من {{table}}",
+    "actions": {
+      "change": "تغيير",
+      "drop": "حذف",
+      "primary": "أساسي",
+      "unique": "فريد",
+      "index": "فهرس",
+      "browse": "استعراض القيم المميزة"
+    },
+    "indexes": "الفهارس",
+    "no_indexes": "لا يوجد فهرس!",
+    "index_columns": {
+      "action": "إجراء",
+      "keyname": "اسم المفتاح",
+      "type": "النوع",
+      "unique": "فريد",
+      "column": "العمود",
+      "definition": "التعريف",
+      "comment": "تعليق"
+    },
+    "constraints": "القيود",
+    "no_constraints": "لا يوجد قيد!",
+    "constraint_columns": {
+      "name": "الاسم",
+      "type": "النوع",
+      "definition": "التعريف",
+      "comment": "تعليق"
+    },
+    "constraint_types": {
+      "primary_key": "مفتاح أساسي",
+      "unique_constraint": "فريد",
+      "foreign_key": "مفتاح خارجي",
+      "check_constraint": "تحقق",
+      "exclusion_constraint": "استثناء"
+    },
+    "information": "معلومات",
+    "table_comments": "تعليقات الجدول:",
+    "space_usage": "استخدام المساحة",
+    "space": {
+      "data": "البيانات",
+      "index": "الفهارس",
+      "toast": "TOAST",
+      "total": "المجموع"
+    },
+    "row_statistics": "إحصاءات الصفوف",
+    "stats": {
+      "rows": "الصفوف (تقديري)",
+      "owner": "المالك",
+      "tablespace": "مساحة الجداول",
+      "type": "النوع",
+      "partitioned": "جدول مقسّم",
+      "table": "جدول",
+      "unlogged": "غير مسجّل",
+      "inherits": "يرث",
+      "access_method": "طريقة الوصول"
+    },
+    "statistics": "إحصاءات"
+  }
 }

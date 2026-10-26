@@ -69,8 +69,8 @@ export default function Structure() {
                     </Link>
                   </td>
                   <td className="text-center d-print-none">
-                    <Link to={`${href}/sql`}>
-                      <Icon name="b_sql" title={t('actions.sql')} /> {t('actions.sql')}
+                    <Link to={href}>
+                      <Icon name="b_browse" title={t('actions.browse')} /> {t('actions.browse')}
                     </Link>
                   </td>
                   <td>{schema.namespaceowner}</td>

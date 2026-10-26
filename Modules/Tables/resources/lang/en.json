@@ -27,5 +27,83 @@
   "total_other": "{{count}} tables",
   "sum": "Sum",
   "none": "No tables found in schema.",
-  "system": "System"
+  "system": "System",
+  "structure": {
+    "tab": "Structure",
+    "columns": {
+      "number": "#",
+      "name": "Name",
+      "type": "Type",
+      "collation": "Collation",
+      "attributes": "Attributes",
+      "null": "Null",
+      "default": "Default",
+      "comments": "Comments",
+      "extra": "Extra",
+      "action": "Action"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "none": "None",
+    "null_value": "NULL",
+    "identity": "Identity",
+    "generated": "Generated",
+    "inherited_from": "inherited from {{table}}",
+    "actions": {
+      "change": "Change",
+      "drop": "Drop",
+      "primary": "Primary",
+      "unique": "Unique",
+      "index": "Index",
+      "browse": "Browse distinct values"
+    },
+    "indexes": "Indexes",
+    "no_indexes": "No index defined!",
+    "index_columns": {
+      "action": "Action",
+      "keyname": "Keyname",
+      "type": "Type",
+      "unique": "Unique",
+      "column": "Column",
+      "definition": "Definition",
+      "comment": "Comment"
+    },
+    "constraints": "Constraints",
+    "no_constraints": "No constraint defined!",
+    "constraint_columns": {
+      "name": "Name",
+      "type": "Type",
+      "definition": "Definition",
+      "comment": "Comment"
+    },
+    "constraint_types": {
+      "primary_key": "Primary key",
+      "unique_constraint": "Unique",
+      "foreign_key": "Foreign key",
+      "check_constraint": "Check",
+      "exclusion_constraint": "Exclusion"
+    },
+    "information": "Information",
+    "table_comments": "Table comments:",
+    "space_usage": "Space usage",
+    "space": {
+      "data": "Data",
+      "index": "Indexes",
+      "toast": "TOAST",
+      "total": "Total"
+    },
+    "row_statistics": "Row statistics",
+    "stats": {
+      "rows": "Rows (estimated)",
+      "owner": "Owner",
+      "tablespace": "Tablespace",
+      "type": "Type",
+      "partitioned": "Partitioned table",
+      "table": "Table",
+      "unlogged": "Unlogged",
+      "inherits": "Inherits",
+      "access_method": "Access method"
+    },
+    "statistics": "Statistics"
+  }
 }

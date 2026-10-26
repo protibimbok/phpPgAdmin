@@ -9,7 +9,7 @@
   },
   "actions": {
     "structure": "البنية",
-    "sql": "SQL"
+    "browse": "استعراض"
   },
   "total_one": "مخطط واحد",
   "total_other": "{{count}} مخططات",

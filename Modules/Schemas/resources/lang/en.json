@@ -9,7 +9,7 @@
   },
   "actions": {
     "structure": "Structure",
-    "sql": "SQL"
+    "browse": "Browse"
   },
   "total_one": "{{count}} schema",
   "total_other": "{{count}} schemas",

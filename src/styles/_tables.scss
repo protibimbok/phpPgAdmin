@@ -42,6 +42,28 @@
   margin: 0 0 12px;
 }
 
+// Value cells (pmahomme's _common.scss): monospace, right-aligned inside a table.
+.value {
+  font-family: $font-family-monospace;
+}
+
+table {
+  .valueHeader,
+  .value {
+    text-align: right;
+    white-space: normal;
+  }
+}
+
+// The Information card's statistics tables sit next to each other at one minimum width.
+div#tablestatistics table {
+  float: left;
+  margin-bottom: 0.5em;
+  margin-right: 1.5em;
+  margin-top: 0.5em;
+  min-width: 16em;
+}
+
 #page_content #tableslistcontainer {
   margin-top: 1em;
 
