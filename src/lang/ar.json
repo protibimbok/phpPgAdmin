@@ -22,5 +22,7 @@
   "close": "إغلاق",
   "ok": "موافق",
   "preview_sql": "معاينة SQL",
-  "dismiss_notification": "انقر للإغلاق"
+  "dismiss_notification": "انقر للإغلاق",
+  "copy_to_clipboard": "نسخ إلى الحافظة",
+  "copied": "تم النسخ"
 }

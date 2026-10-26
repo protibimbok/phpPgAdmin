@@ -105,5 +105,9 @@
       "access_method": "طريقة الوصول"
     },
     "statistics": "إحصاءات"
+  },
+  "ddl": {
+    "tab": "عرض الإنشاء",
+    "title": "عبارات CREATE لـ {{table}}"
   }
 }

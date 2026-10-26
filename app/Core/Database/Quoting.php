@@ -70,6 +70,16 @@ final class Quoting
         return str_contains($string, '\\') ? 'E' . str_replace('\\', '\\\\', $quoted) : $quoted;
     }
 
+    /** The bare name behind a quoted identifier, "\"My Col\"" → My Col; an unquoted one is returned as it is. */
+    public static function unquoteIdent(string $identifier): string
+    {
+        if (strlen($identifier) >= 2 && str_starts_with($identifier, '"') && str_ends_with($identifier, '"')) {
+            return str_replace('""', '"', substr($identifier, 1, -1));
+        }
+
+        return $identifier;
+    }
+
     /** Whether an identifier must be double-quoted to survive as written. */
     public static function needsQuoting(string $value, bool $forTypes): bool
     {

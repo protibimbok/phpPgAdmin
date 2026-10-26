@@ -2,6 +2,7 @@ import { urls } from '@/level'
 import { registerModule } from '@/modular'
 import { registerNodeLink } from '@/nodes/links'
 import SchemaStructure from './Pages/SchemaStructure'
+import TableDdl from './Pages/TableDdl'
 import TableStructure from './Pages/TableStructure'
 
 // A table in the tree opens the table's pages; the ancestors tell which schema it is in.
@@ -19,9 +20,11 @@ registerModule({
     ...menu,
     { label: 'tables:tab', icon: 'b_props', path: '/db/:db/schema/:schema', level: 'schema' },
     { label: 'tables:structure.tab', icon: 'b_props', path: '/db/:db/schema/:schema/table/:table', level: 'table' },
+    { label: 'tables:ddl.tab', icon: 'b_sql', path: '/db/:db/schema/:schema/table/:table/ddl', level: 'table' },
   ],
   routes: [
     { path: 'db/:db/schema/:schema', element: <SchemaStructure /> },
     { path: 'db/:db/schema/:schema/table/:table', element: <TableStructure /> },
+    { path: 'db/:db/schema/:schema/table/:table/ddl', element: <TableDdl /> },
   ],
 })

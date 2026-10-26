@@ -22,5 +22,7 @@
   "close": "Close",
   "ok": "OK",
   "preview_sql": "Preview SQL",
-  "dismiss_notification": "Click to dismiss"
+  "dismiss_notification": "Click to dismiss",
+  "copy_to_clipboard": "Copy to clipboard",
+  "copied": "Copied"
 }

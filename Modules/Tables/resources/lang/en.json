@@ -105,5 +105,9 @@
       "access_method": "Access method"
     },
     "statistics": "Statistics"
+  },
+  "ddl": {
+    "tab": "Show create",
+    "title": "CREATE statements for {{table}}"
   }
 }
