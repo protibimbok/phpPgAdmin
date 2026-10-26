@@ -1,4 +1,4 @@
-import { collection, collectionUrl, type TreeNode } from '@/nodes/client'
+import { collection, collectionUrl, resolve, type TreeNode } from '@/nodes/client'
 
 /**
  * A database as pgAdmin's properties.sql describes it (plus the size), for the list page.
@@ -46,4 +46,34 @@ export function listDatabases(): Promise<Database[]> {
 
 export function databaseNodes(): Promise<TreeNode<DatabaseMeta>[]> {
   return databases.nodes()
+}
+
+/** The privileges on a database as the properties carry them. */
+export interface DatabaseAcl {
+  grantor: string | null
+  grantee: string
+  privileges: { privilege_type: string; privilege: boolean; with_grant: boolean }[]
+}
+
+/** The properties pgAdmin's database dialog reads, on top of the list's columns. */
+export interface DatabaseProperties extends Omit<Database, 'can_drop'> {
+  datacl: DatabaseAcl[]
+  deftblacl: DatabaseAcl[]
+  defseqacl: DatabaseAcl[]
+  deffuncacl: DatabaseAcl[]
+  deftypeacl: DatabaseAcl[]
+  variables: { name: string; value: unknown; role?: string | null; database?: string | null }[]
+  seclabels: { provider: string; label: string }[]
+}
+
+export function resolveDatabase(name: string): Promise<number> {
+  return resolve(null, 'database', { name }).then((ids) => ids.did)
+}
+
+export function databaseProperties(did: number): Promise<DatabaseProperties> {
+  return collection<DatabaseProperties>(collectionUrl(null, 'databases')).properties(did)
+}
+
+export function databaseSql(did: number): Promise<string> {
+  return databases.sql(did)
 }
