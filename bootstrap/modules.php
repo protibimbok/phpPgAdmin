@@ -8,6 +8,7 @@ use PhpPgAdmin\Modules\Frontend\FrontendModule;
 use PhpPgAdmin\Modules\I18n\I18nModule;
 use PhpPgAdmin\Modules\Schemas\SchemasModule;
 use PhpPgAdmin\Modules\Server\ServerModule;
+use PhpPgAdmin\Modules\Tables\TablesModule;
 
 /**
  * Every module the application loads. The order of the list is the order the modules are wired in.
@@ -18,5 +19,6 @@ return [
     ServerModule::class,
     DatabasesModule::class,
     SchemasModule::class,
+    TablesModule::class,
     FrontendModule::class,
 ];

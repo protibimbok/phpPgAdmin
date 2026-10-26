@@ -39,6 +39,9 @@
       ],
       "@schemas/*": [
         "./Modules/Schemas/resources/*"
+      ],
+      "@tables/*": [
+        "./Modules/Tables/resources/*"
       ]
     }
   },
