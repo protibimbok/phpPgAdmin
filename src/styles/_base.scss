@@ -9,10 +9,15 @@ h1 {
 }
 
 h2 {
-  padding: space(2) 0 space(2) space(1);
+  padding: 10px 0 10px 3px;
   color: color('text-muted');
   font-weight: font-weight('normal');
   text-shadow: text-shadow('light');
+
+  // pmahomme hides the icons in page titles.
+  .icon {
+    display: none;
+  }
 }
 
 h3 {
@@ -23,6 +28,18 @@ a img {
   border: 0;
 }
 
+// phpMyAdmin's forms are inline elements; a form that needs a block gets a class.
+form {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+
+img,
+button {
+  vertical-align: middle;
+}
+
 hr {
   height: border-width('base');
   border: 0;
@@ -31,7 +48,6 @@ hr {
 
 input,
 select {
-  font-size: 1em;
   outline: none;
 }
 

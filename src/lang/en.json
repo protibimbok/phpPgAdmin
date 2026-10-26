@@ -36,5 +36,9 @@
     "collapse_all": "Collapse all",
     "link": "Link with main panel",
     "unlink": "Unlink from main panel"
-  }
+  },
+  "user_menu": {
+    "open": "Open user account menu"
+  },
+  "not_available_yet": "Not available yet."
 }

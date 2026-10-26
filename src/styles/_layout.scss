@@ -1,28 +1,29 @@
 // The page frame around the navigation panel: the page is pushed past the panel by its
 // width, which the panel publishes as --pga-nav-width (0 when collapsed, unset on the
-// login page). Logical properties keep the panel on the start edge in both directions.
+// login page). As in phpMyAdmin the drag handle sits on the page's first pixels, not beside
+// the panel. Logical properties keep the panel on the start edge in both directions.
 
 body {
-  margin-inline-start: calc(var(--pga-nav-width, 0px) + var(--pga-nav-resizer, 0px));
+  margin-inline-start: var(--pga-nav-width, 0px);
 }
 
 #page_content {
-  margin: 0 space(2);
+  margin: 0 0.5em;
 }
 
 #topmenucontainer {
   width: 100%;
-  padding-inline-end: space(3);
+  padding-inline-end: 1em;
 }
 
-// The "scroll to top" icon, fixed to the top end corner, padded like the breadcrumb bar
-// it sits in.
+// The user menu and the "scroll to top" icon, fixed to the top end corner, padded like
+// the breadcrumb bar they sit in.
 #page_nav_icons {
   position: fixed;
   top: 0;
   inset-inline-end: 0;
-  z-index: 99;
   padding: $breadcrumb-navbar-padding-y $breadcrumb-padding-x;
+  z-index: 99;
 }
 
 // Opens the current page in a new window, under a rule across the bottom of the page.
@@ -30,7 +31,8 @@ body {
   display: block;
   clear: both;
   width: 98%;
-  margin: space(3) 1%;
+  margin-block: 1em;
+  margin-inline-start: 1%;
   border-top: 0.1em solid silver;
   text-align: end;
 }

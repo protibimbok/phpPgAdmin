@@ -1,114 +1,118 @@
-// Maps the design tokens onto Bootstrap's variables. Loaded before Bootstrap, so these
-// override its defaults. No literal values belong here: add a token instead.
+// Maps the design tokens onto Bootstrap's variables, mirroring pmahomme's _variables.scss
+// variable for variable. Loaded before Bootstrap, so these override its defaults. A value
+// that pmahomme writes as a literal (0.75rem, 0.4rem, 0.5em) stays a literal here, so the two
+// files can be diffed; everything else comes from a token. Variables pmahomme leaves at
+// Bootstrap's default (inputs, selects, checkboxes, border colour and radii) are left alone
+// here too, because that default is what phpMyAdmin renders.
 
 // Body & links
 $body-color: color('text');
-$body-bg: color('surface');
 $link-color: color('link');
 $link-decoration: none;
 $link-hover-color: color('link');
 $link-hover-decoration: underline;
 
+// Components
+$border-radius: radius('base');
+
 // Typography
 $font-family-base: font-family('sans');
 $font-family-monospace: font-family('mono');
 $font-size-base: font-size('base');
-$font-size-sm: font-size('sm');
-$font-size-lg: font-size('lg');
-$font-weight-normal: font-weight('normal');
-$font-weight-bold: font-weight('bold');
-$line-height-base: line-height('base');
 $h1-font-size: font-size('h1');
 $h2-font-size: font-size('h2');
 $h3-font-size: font-size('h3');
 
-// Spacing, shape & breakpoints
+// Spacing & breakpoints (Bootstrap's own scale, published as tokens)
 $spacer: space(3);
 $spacers: $spacing;
 $grid-breakpoints: $breakpoints;
-$border-width: border-width('base');
-$border-color: color('border');
-$border-radius: radius('base');
-$border-radius-sm: radius('sm');
-$border-radius-lg: radius('lg');
 
-// Features
+// Tables
+$table-cell-padding-y: 0.1em;
+$table-cell-padding-x: 0.3em;
+$table-cell-padding-y-sm: $table-cell-padding-y;
+$table-cell-padding-x-sm: $table-cell-padding-x;
+$table-bg: color('surface');
+$table-striped-order: even;
+$table-striped-bg: color('surface-stripe');
+$table-hover-color: color('text-strong');
+$table-border-color: color('text-inverse');
+$table-border-width: 0;
+$table-caption-color: color('text-strong');
+
+// Buttons
 $enable-gradients: true;
 $enable-shadows: true;
 $enable-transitions: false;
-$enable-caret: false;
-
-// Buttons (light grey, bordered, pill-shaped)
 $primary: color('surface-button');
 $secondary: color('surface-button');
 $btn-border-radius: radius('pill');
 $btn-line-height: line-height('tight');
 
+// Dropdowns
+$dropdown-padding-y: 0.5rem;
+$dropdown-padding-x: 0.5rem;
+$dropdown-item-padding-y: 0;
+$dropdown-item-padding-x: 0;
+
 // Forms
-$label-margin-bottom: 0;
-$input-bg: color('surface-control');
-$input-border-color: color('border');
-$input-padding-y: space(1);
-$input-padding-x: space(1);
-$input-color: color('text-control');
-$input-border-radius: radius('sm');
-$input-focus-bg: color('surface-control');
-$input-focus-border-color: color('border-active');
-$focus-ring-color: color('focus-ring');
-$form-select-border-radius: radius('sm');
-// Bootstrap reserves three times the horizontal padding for the select's caret, which is fine
-// at its default 0.75rem but not at our 0.25rem: the 16px caret would sit under the text. Give
-// it its own width plus the padding on both sides. The RTL build then flips the select whole,
-// caret on the left and text after it, as phpMyAdmin's does, with no special rule.
-$form-select-indicator-padding: space(1) * 2 + 1rem;
 $form-check-input-checked-bg-color: color('focus');
+$label-margin-bottom: 0;
+
+// Navs
+$nav-tabs-border-color: color('border');
+$nav-tabs-link-active-border-color: color('border') color('border') color('surface');
+$nav-tabs-link-hover-border-color: color('surface-row-alt') color('surface-row-alt') color('border');
+$nav-tabs-link-active-color: color('text-strong');
+
+// Navbar
+$enable-caret: false;
+$navbar-padding-y: 0;
+$navbar-padding-x: 0;
+$navbar-light-color: color('link');
+$navbar-light-hover-color: color('link');
+$navbar-light-active-color: color('link');
+$navbar-light-disabled-color: color('link');
+
+// Pagination
+$pagination-active-color: color('link');
+$pagination-border-color: color('border');
+$pagination-hover-border-color: color('border');
+$pagination-active-border-color: color('border');
+$pagination-disabled-border-color: color('border');
 
 // Cards
 $card-border-color: color('border');
 $card-bg: color('surface-raised');
 $card-cap-bg: color('surface');
 
-// Tables
-$table-cell-padding-y: 0.1em;
-$table-cell-padding-x: 0.3em;
-$table-striped-order: even;
-$table-striped-bg: color('surface-stripe');
-$table-border-width: 0;
-
-// Alerts
-$alert-margin-bottom: space(2);
-$alert-border-radius: radius('lg');
-
-// Navs
-$nav-tabs-border-color: color('border');
-$nav-tabs-link-active-border-color: color('border') color('border') color('surface');
-$nav-tabs-link-active-color: color('text-strong');
-$navbar-padding-y: 0;
-$navbar-padding-x: 0;
-$navbar-light-color: color('link');
-$navbar-light-hover-color: color('link');
-$navbar-light-active-color: color('link');
+// Accordion
+$accordion-button-padding-y: 0.375rem;
+$accordion-button-padding-x: 0.75rem;
+$accordion-button-active-color: color('link');
+$accordion-button-active-bg: color('surface-nav');
 
 // Breadcrumbs (the bar naming the server above the menu). The -navbar- variables are
-// phpMyAdmin's own additions to Bootstrap's set, read by _breadcrumb.scss and _layout.scss.
-$breadcrumb-margin-bottom: 0;
-$breadcrumb-divider-color: color('text-inverse');
-$breadcrumb-divider: '»';
+// pmahomme's own additions to Bootstrap's set, read by _breadcrumb.scss and _layout.scss.
 $breadcrumb-navbar-padding-y: 0.1rem;
 $breadcrumb-navbar-padding-x: 2.2em;
 $breadcrumb-navbar-margin-bottom: 0;
 $breadcrumb-navbar-bg: color('surface-breadcrumb');
-
-// Pagination & list groups
-$pagination-active-color: color('link');
-$pagination-border-color: color('border');
-$pagination-hover-border-color: color('border');
-$pagination-active-border-color: color('border');
-$pagination-disabled-border-color: color('border');
-$list-group-bg: inherit;
-$list-group-item-padding-x: space(2);
-$list-group-item-padding-y: space(1);
+$breadcrumb-margin-bottom: 0;
+$breadcrumb-divider-color: color('text-inverse');
+$breadcrumb-divider: '»';
 
 // Modals
-$modal-inner-padding: space(2);
-$modal-header-padding-y: space(1);
+$modal-inner-padding: 0.75rem;
+$modal-footer-margin-between: 0.1rem;
+$modal-header-padding-y: 0.4rem;
+
+// Alerts
+$alert-margin-bottom: 0.5em;
+$alert-border-radius: radius('lg');
+
+// List groups
+$list-group-bg: inherit;
+$list-group-item-padding-x: 0.75rem;
+$list-group-item-padding-y: 0.375rem;

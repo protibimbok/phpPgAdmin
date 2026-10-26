@@ -1,0 +1,62 @@
+// Secondary navigation: pmahomme's rounded grey pills, white when active.
+
+.nav-pills {
+  .nav-link {
+    margin-inline: 0 6px;
+    padding: 4px 10px;
+    border: border-width('base') solid color('border-pill');
+    border-radius: 20px;
+    background: color('surface-pill');
+    color: color('link');
+    font-weight: font-weight('bold');
+
+    &:hover {
+      border-radius: 0.3em;
+      background-color: color('surface-row');
+    }
+
+    .icon {
+      margin-inline-end: 0.5em;
+      vertical-align: -3px;
+    }
+  }
+
+  .nav-link.active,
+  .show > .nav-link {
+    border-radius: 0.3em;
+    background-color: color('surface');
+    color: color('link');
+  }
+}
+
+// Tabs: bold grey tabs, the active one white and open at the bottom.
+.nav-tabs {
+  font-weight: font-weight('bold');
+
+  .nav-link {
+    margin-inline-end: 0.4em;
+    padding: 7px 10px;
+    border-color: color('surface-row-alt') color('surface-row-alt') color('border');
+    background-color: color('surface-pill');
+    color: color('text-control');
+
+    &:hover,
+    &:focus {
+      background-color: color('surface-row');
+    }
+  }
+
+  .nav-link.active,
+  .nav-item.show .nav-link {
+    &:hover,
+    &:focus {
+      background-color: $nav-tabs-link-active-bg;
+    }
+  }
+}
+
+// The "With selected:" bar under a list: the curved arrow, the check-all box, the label.
+.with-selected {
+  margin-inline-start: 0.5em;
+  font-style: italic;
+}

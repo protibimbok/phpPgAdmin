@@ -15,9 +15,9 @@
   position: relative;
   top: -#{space(3)};
   width: max-content;
-  max-width: calc(100% - #{space(2)});
-  margin: 0 space(1);
-  padding: space(1) space(2);
+  max-width: 100%;
+  margin: 0 5px;
+  padding: 5px 10px;
   border: border-width('base') solid color('border');
   font-size: 1em;
   font-weight: font-weight('bold');
@@ -30,9 +30,41 @@
 }
 
 .card-footer {
-  padding: space(2);
+  padding: 0.5em;
   background: color('surface-bar');
   color: color('text-strong');
   text-shadow: text-shadow('soft');
   box-shadow: shadow('inset-light');
+}
+
+// The home page (#maincontainer) draws its cards the other way round: a grey bar across the
+// top with large white text, on a panel the colour of the navigation panel.
+#maincontainer {
+  .card {
+    border: $card-border-width solid color('border-card-strong');
+    background-color: color('surface-nav');
+    box-shadow: shadow('panel');
+
+    > .card-header + .card-body {
+      padding-top: $card-spacer-x;
+    }
+  }
+
+  .card-header {
+    position: static;
+    width: auto;
+    margin: 0;
+    padding: 0.1em $card-spacer-x;
+    border: none;
+    background-color: color('surface-card-cap');
+    color: color('text-inverse');
+    font-size: 1.6em;
+    font-weight: font-weight('normal');
+    text-shadow: text-shadow('card-cap');
+    box-shadow: shadow('card-cap');
+
+    &:first-child {
+      border-radius: $card-inner-border-radius $card-inner-border-radius 0 0;
+    }
+  }
 }

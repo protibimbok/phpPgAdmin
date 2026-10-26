@@ -57,6 +57,16 @@ $colors: (
   'warning-bg': #ffc,
   'warning-border': #fc0,
   'danger-text': #800,
+  'border-card-strong': #999,
+  'surface-card-cap': #bbb,
+  'surface-pill': #f2f2f2,
+  'border-pill': #ddd,
+  'surface-row': #e5e5e5,
+  'surface-row-alt': #d5d5d5,
+  'surface-disabled': #e8e8e8,
+  'border-select': #bbb,
+  'text-select': #333,
+  'danger-value': #fcc,
   'notification-bg': #ffe57e,
   'notification-border': #e2b709,
 );
@@ -69,6 +79,7 @@ $gradients: (
   'menu-hover': (#fff, #e5e5e5),
   'table-head': (#fff, #ccc),
   'row-hover': (#ced6df, #b6c6d7),
+  'select-multiple': (#fff, #f2f2f2),
 );
 
 @function color($name) {
@@ -172,12 +183,14 @@ $shadows: (
   'control-hover': 0 1px 3px #aaa,
   'panel': 2px 2px 5px #ccc,
   'notification': 0 5px 90px #888,
+  'card-cap': 1px 1px 15px #999 inset,
 );
 
 $text-shadows: (
   'light': 0 1px 0 #fff,
   'soft': 1px 1px 2px #fff,
   'dark': 0 1px 0 #000,
+  'card-cap': 0 1px 0 #777,
 );
 
 $border-widths: (

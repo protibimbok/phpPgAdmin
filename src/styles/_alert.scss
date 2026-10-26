@@ -1,9 +1,10 @@
 // Alerts: flat pastel boxes with black text.
 
 .alert {
-  padding: space(2);
+  padding: 10px;
   text-align: left;
   box-shadow: shadow('inset-thin');
+  background-position: 10px 50%;
 
   a {
     text-decoration: underline;

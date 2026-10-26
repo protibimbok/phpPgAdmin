@@ -1,40 +1,95 @@
-// Text inputs: flat, square-ish, grey-bordered; the border darkens on focus. Bootstrap's
-// .form-control takes that look from _variables.scss; bare inputs outside its classes get
-// it here. Bootstrap has no hover state for inputs, so the hover darkening and shadow are
-// written for both.
-
-input:not(.form-control):not(.form-check-input) {
-  &[type='text'],
-  &[type='password'],
-  &[type='number'],
-  &[type='date'] {
-    margin: space(1);
-    padding: space(1);
-    border: border-width('base') solid color('border');
-    border-radius: radius('sm');
-    background: color('surface-control');
-    color: color('text-control');
-
-    &:focus {
-      border-color: color('border-active');
-    }
-  }
-}
+// Form controls, after pmahomme's _common.scss. phpMyAdmin leaves Bootstrap's .form-control,
+// .form-select and .form-check-input at their defaults and then restyles every text-like
+// input by element selector, which outranks .form-control: flat, 2px corners, grey border,
+// 4px padding, the border darkening with a small shadow on hover. Bare inputs and selects
+// outside Bootstrap's classes also get a 6px margin, and bare selects their own look.
 
 input {
   &[type='text'],
   &[type='password'],
   &[type='number'],
   &[type='date'] {
+    padding: 4px;
+    border: border-width('base') solid color('border');
+    border-radius: radius('sm');
+    background: color('surface-control');
+    color: color('text-control');
     transition: all 0.2s;
 
+    &:hover,
+    &:focus {
+      border: border-width('base') solid color('border-active');
+      background: color('surface-control');
+    }
+
     &:hover {
-      border-color: color('border-active');
       box-shadow: shadow('control-hover');
     }
+
+    &[disabled],
+    &[disabled]:hover {
+      background: color('surface-disabled');
+      box-shadow: none;
+    }
+
+    &.invalid_value {
+      background: color('danger-value');
+    }
+  }
+
+  &:not(.form-control)[type='text'],
+  &:not(.form-control)[type='password'],
+  &:not(.form-control)[type='number'],
+  &[type='date'],
+  &:not(.form-check-input)[type='checkbox'] {
+    margin: 6px;
+  }
+
+  &:not(.form-check-input)[type='checkbox'],
+  &[type='radio'] {
+    vertical-align: -11%;
   }
 }
 
-select:not(.form-select) {
-  margin: space(1);
+select {
+  padding: 3px;
+  border: border-width('base') solid color('border-select');
+  border-radius: radius('sm');
+  background: color('surface-control');
+  color: color('text-select');
+  transition: all 0.2s;
+
+  &:not(.form-select) {
+    margin: 6px;
+  }
+
+  &[multiple] {
+    background: gradient('select-multiple');
+  }
+
+  &[disabled],
+  &[disabled]:hover {
+    background: color('surface-disabled');
+    box-shadow: none;
+  }
+}
+
+// The "Check all" label next to a check-all box, and the "With selected" buttons, read as links.
+button.mult_submit {
+  border: none;
+  background-color: transparent;
+}
+
+button.mult_submit,
+.checkall_box + label {
+  color: color('link');
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+
+  &:hover,
+  &:focus {
+    color: color('link');
+    text-decoration: underline;
+  }
 }

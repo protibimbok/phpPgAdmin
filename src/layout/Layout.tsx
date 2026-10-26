@@ -7,6 +7,7 @@ import MenuBar from './MenuBar'
 import Navigation from './Navigation'
 import { NavigationTree } from './NavigationTree'
 import Notifications from './Notifications'
+import UserMenu from './UserMenu'
 
 /**
  * phpMyAdmin's page frame: the navigation panel on the start edge, the breadcrumb and the
@@ -21,19 +22,22 @@ export default function Layout() {
       <Navigation />
       <MenuBar />
 
-      <span id="page_nav_icons" className="d-print-none">
+      {/* phpMyAdmin's top end corner (#page_nav_icons): the user menu and the "scroll to top"
+          link, inline inside the breadcrumb bar's height. */}
+      <div id="page_nav_icons" className="d-print-none">
+        <UserMenu />{' '}
         <a
-          id="goto_pagetop"
-          href="#top"
-          title={t('go_to_top')}
-          onClick={(e) => {
-            e.preventDefault()
-            window.scrollTo({ top: 0 })
-          }}
-        >
+            id="goto_pagetop"
+            href="#top"
+            title={t('go_to_top')}
+            onClick={(e) => {
+              e.preventDefault()
+              window.scrollTo({ top: 0 })
+            }}
+          >
           <Icon name="s_top" title={t('go_to_top')} />
         </a>
-      </span>
+      </div>
 
       <div id="page_content">
         <Notifications />
