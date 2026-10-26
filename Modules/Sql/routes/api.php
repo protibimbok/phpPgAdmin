@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+use PhpPgAdmin\Core\Facades\Route;
+use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
+use PhpPgAdmin\Modules\Sql\Http\Controllers\BookmarkController;
+use PhpPgAdmin\Modules\Sql\Http\Controllers\QueryController;
+
+// Queries run against a named database, or (without one) against the database the session
+// landed in, which is what the server-level SQL page uses.
+Route::middleware(Authenticate::class)->controller(QueryController::class)->group(function (): void {
+    Route::post('/query', 'run')->setName('sql.query.server');
+    Route::post('/query/cancel', 'cancel')->setName('sql.cancel');
+    Route::post('/databases/{db}/query', 'run')->setName('sql.query');
+    Route::get('/databases/{db}/query/columns', 'columns')->setName('sql.columns');
+    Route::get('/databases/{db}/query/row', 'row')->setName('sql.row');
+    Route::post('/databases/{db}/query/save', 'save')->setName('sql.save');
+    Route::get('/databases/{db}/query/catalog', 'catalog')->setName('sql.catalog');
+});
+
+// Saved queries and the query history are the role's, per server, not per database.
+Route::middleware(Authenticate::class)->prefix('query')->controller(BookmarkController::class)->group(function (): void {
+    Route::get('/bookmarks', 'index')->setName('sql.bookmarks');
+    Route::post('/bookmarks', 'store')->setName('sql.bookmarks.store');
+    Route::delete('/bookmarks/{id:number}', 'destroy')->setName('sql.bookmarks.destroy');
+    Route::get('/history', 'history')->setName('sql.history');
+    Route::delete('/history', 'clearHistory')->setName('sql.history.clear');
+});

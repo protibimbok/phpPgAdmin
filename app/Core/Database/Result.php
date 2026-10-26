@@ -90,6 +90,20 @@ final class Result
         return array_map(array_values(...), $this->rows());
     }
 
+    /**
+     * Every row as a list of the server's text values, in column order, with NULL as null:
+     * what a grid shows, and what keeps a bigint or a numeric exact on its way to the client.
+     *
+     * @return list<list<string|null>>
+     */
+    public function textRows(): array
+    {
+        /** @var list<list<string|null>> $rows */
+        $rows = pg_fetch_all($this->result, PGSQL_NUM);
+
+        return $rows;
+    }
+
     /** @return array<string, mixed>|null */
     public function row(): ?array
     {
