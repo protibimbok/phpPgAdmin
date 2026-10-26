@@ -1,0 +1,31 @@
+{
+  "tab": "Structure",
+  "columns": {
+    "table": "Table",
+    "action": "Action",
+    "rows": "Rows",
+    "rows_hint": "May be approximate. Click on the number to get the exact count.",
+    "type": "Type",
+    "size": "Size",
+    "comment": "Comment"
+  },
+  "actions": {
+    "browse": "Browse",
+    "structure": "Structure",
+    "search": "Search",
+    "insert": "Insert",
+    "empty": "Empty",
+    "drop": "Drop"
+  },
+  "types": {
+    "table": "Table",
+    "partitioned": "Partitioned table",
+    "view": "View",
+    "mview": "Materialized view"
+  },
+  "total_one": "{{count}} table",
+  "total_other": "{{count}} tables",
+  "sum": "Sum",
+  "none": "No tables found in schema.",
+  "system": "System"
+}

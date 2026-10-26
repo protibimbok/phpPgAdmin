@@ -6,16 +6,19 @@ namespace PhpPgAdmin\Modules\Tables;
 
 use PhpPgAdmin\Core\Contracts\Module;
 use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
+use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
 use PhpPgAdmin\Core\Contracts\ProvidesNodes;
 use PhpPgAdmin\Core\Contracts\ProvidesSqlTemplates;
+use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
+use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 use PhpPgAdmin\Core\Nodes\NodeDefinition;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TableController;
 
 /**
  * Tables: pgAdmin's table node and what hangs under it, and the pages phpMyAdmin gives a table
- * (browse, structure, operations…).
+ * (browse, structure, operations…). Also the schema's "Structure" page, which lists its relations.
  */
-final class TablesModule implements Module, ProvidesNodes, ProvidesApiRoutes, ProvidesSqlTemplates
+final class TablesModule implements Module, ProvidesNodes, ProvidesApiRoutes, ProvidesSqlTemplates, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
 {
     public function name(): string
     {
@@ -52,5 +55,20 @@ final class TablesModule implements Module, ProvidesNodes, ProvidesApiRoutes, Pr
     public function sqlTemplatesPath(): string
     {
         return 'resources/sql';
+    }
+
+    public function translationsPath(): string
+    {
+        return 'resources/lang';
+    }
+
+    public function viteEntries(): array
+    {
+        return ['resources/js/app.tsx'];
+    }
+
+    public function frontendScripts(): array
+    {
+        return ['resources/js/app.tsx'];
     }
 }

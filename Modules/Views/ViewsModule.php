@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace PhpPgAdmin\Modules\Views;
 
 use PhpPgAdmin\Core\Contracts\Module;
+use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
 use PhpPgAdmin\Core\Contracts\ProvidesNodes;
 use PhpPgAdmin\Core\Contracts\ProvidesSqlTemplates;
+use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 use PhpPgAdmin\Core\Nodes\NodeDefinition;
 use PhpPgAdmin\Modules\Views\Http\Controllers\MaterializedViewController;
 use PhpPgAdmin\Modules\Views\Http\Controllers\ViewController;
 
 /** Views and materialized views: pgAdmin's view and mview nodes. */
-final class ViewsModule implements Module, ProvidesNodes, ProvidesSqlTemplates
+final class ViewsModule implements Module, ProvidesNodes, ProvidesSqlTemplates, ProvidesViteEntries, ProvidesFrontendScripts
 {
     public function name(): string
     {
@@ -55,5 +57,15 @@ final class ViewsModule implements Module, ProvidesNodes, ProvidesSqlTemplates
     public function sqlTemplatesPath(): string
     {
         return 'resources/sql';
+    }
+
+    public function viteEntries(): array
+    {
+        return ['resources/js/app.tsx'];
+    }
+
+    public function frontendScripts(): array
+    {
+        return ['resources/js/app.tsx'];
     }
 }
