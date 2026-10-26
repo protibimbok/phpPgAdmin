@@ -3,17 +3,12 @@
 
 $nav-width: var(--pga-nav-width, #{size('sidebar')});
 
-body {
-  --pga-nav-resizer: #{size('sidebar-resizer')};
-}
-
 #pma_navigation {
   position: fixed;
   top: 0;
   inset-inline-start: 0;
   width: $nav-width;
   height: 100vh;
-  overflow: hidden;
   background: linear-gradient(to right, color('surface-nav'), color('surface-nav-edge'));
   color: color('text-strong');
   z-index: 800;
@@ -47,7 +42,9 @@ body {
 }
 
 #pma_navigation_tree {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
   position: relative;
   margin: 0;
@@ -90,6 +87,20 @@ body {
 
   i {
     display: block;
+  }
+
+  .icon {
+    margin: 0;
+  }
+
+  // The collapse-all and link icons above the tree, on the end edge; taller than a tree row.
+  #navigation_controls_outer {
+    min-height: 21px;
+    list-style: none;
+
+    &.activePointer {
+      background-color: transparent;
+    }
   }
 
   // Each item starts with blocks of one icon's width: the connecting lines, then the icon.
@@ -186,6 +197,48 @@ body {
   .last > .list_container {
     border-left: 0;
   }
+
+  // The fast filter above a long list, and the page selector below it.
+  li.fast_filter {
+    margin-inline-start: 0.75em;
+    padding-inline-start: 0.75em;
+    padding-inline-end: 35px;
+    border-left: border-width('base') solid color('border-tree');
+    list-style: none;
+
+    input {
+      font-size: font-size('xs');
+    }
+
+    .searchClauseClear {
+      border: 0;
+      color: color('danger-text');
+      font-weight: font-weight('bold');
+      font-size: font-size('xs');
+
+      &:hover {
+        background-color: transparent;
+        border-color: transparent;
+      }
+    }
+
+    &.db_fast_filter {
+      margin-inline-start: 0;
+      border: 0;
+    }
+  }
+
+  div.pageselector {
+    margin: 0 0 0 0.75em;
+    border-left: border-width('base') solid color('border-tree');
+    text-align: center;
+  }
+
+}
+
+#navigation_controls {
+  float: inline-end;
+  padding-inline-end: 23px;
 }
 
 #pma_navigation_tree_content {

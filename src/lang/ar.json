@@ -24,5 +24,17 @@
   "preview_sql": "معاينة SQL",
   "dismiss_notification": "انقر للإغلاق",
   "copy_to_clipboard": "نسخ إلى الحافظة",
-  "copied": "تم النسخ"
+  "copied": "تم النسخ",
+  "tree": {
+    "filter": "اكتب للتصفية",
+    "clear_filter": "مسح التصفية",
+    "page": "صفحة",
+    "first_page": "البداية",
+    "previous_page": "السابق",
+    "next_page": "التالي",
+    "last_page": "النهاية",
+    "collapse_all": "طيّ الكل",
+    "link": "ربط باللوحة الرئيسية",
+    "unlink": "فصل عن اللوحة الرئيسية"
+  }
 }

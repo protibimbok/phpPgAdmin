@@ -100,3 +100,9 @@ $icons: (
     background-image: url('../img/icons/#{$icon}.png');
   }
 }
+
+// The image is 23x20; phpMyAdmin keeps the 16px box and centres it, so the trim is even on
+// every side instead of all falling on the end and bottom.
+.ic_s_collapseall {
+  background-position: center;
+}

@@ -6,6 +6,7 @@ import { useLocale } from '@/i18n/useLocale'
 import logo from '@/img/logo-left.svg'
 import { useSession } from '@/session'
 import { NavigationTree } from './NavigationTree'
+import TreeControls from './tree/TreeControls'
 import { bindTreeState } from './tree/treeState'
 
 const DEFAULT_WIDTH = 240
@@ -110,6 +111,10 @@ export default function Navigation() {
         </div>
 
         <div id="pma_navigation_tree" className="list_container">
+          {/* The tree's controls sit above it, on the end edge, as phpMyAdmin's state.twig puts them. */}
+          <ul>
+            <TreeControls />
+          </ul>
           <NavigationTree.Outlet id="pma_navigation_tree_content" />
         </div>
       </div>

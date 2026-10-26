@@ -24,5 +24,17 @@
   "preview_sql": "Preview SQL",
   "dismiss_notification": "Click to dismiss",
   "copy_to_clipboard": "Copy to clipboard",
-  "copied": "Copied"
+  "copied": "Copied",
+  "tree": {
+    "filter": "Type to filter these",
+    "clear_filter": "Clear fast filter",
+    "page": "Page",
+    "first_page": "Begin",
+    "previous_page": "Previous",
+    "next_page": "Next",
+    "last_page": "End",
+    "collapse_all": "Collapse all",
+    "link": "Link with main panel",
+    "unlink": "Unlink from main panel"
+  }
 }
