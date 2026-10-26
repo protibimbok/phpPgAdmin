@@ -9,7 +9,9 @@
   },
   "actions": {
     "structure": "Structure",
-    "browse": "Browse"
+    "browse": "Browse",
+    "operations": "Operations",
+    "drop": "Drop"
   },
   "total_one": "{{count}} schema",
   "total_other": "{{count}} schemas",
@@ -17,5 +19,33 @@
   "none": "No schemas found in database.",
   "tree": {
     "schemas": "Schemas"
+  },
+  "create": {
+    "title": "Create new schema",
+    "name": "Schema name",
+    "owner": "Owner",
+    "create": "Create",
+    "created": "Schema {{name}} has been created."
+  },
+  "drop": {
+    "cascade": "Also drop the objects in it (CASCADE)",
+    "dropped": "Schema {{name}} has been dropped.",
+    "dropped_count_one": "{{count}} schema has been dropped successfully.",
+    "dropped_count_other": "{{count}} schemas have been dropped successfully.",
+    "none_selected": "No schemas selected."
+  },
+  "operations": {
+    "tab": "Operations",
+    "comment": "Schema comment",
+    "rename": "Rename schema to",
+    "new_name": "New schema name",
+    "remove": "Remove schema",
+    "drop": "Drop the schema (DROP)",
+    "drop_cascade": "Drop the schema and everything in it (DROP … CASCADE)",
+    "properties": "Schema properties",
+    "owner": "Owner",
+    "go": "Go",
+    "renamed": "Schema {{name}} has been renamed to {{newName}}.",
+    "saved": "Schema properties have been saved."
   }
 }

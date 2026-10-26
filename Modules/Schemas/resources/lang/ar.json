@@ -9,7 +9,9 @@
   },
   "actions": {
     "structure": "البنية",
-    "browse": "استعراض"
+    "browse": "استعراض",
+    "operations": "عمليات",
+    "drop": "حذف"
   },
   "total_one": "مخطط واحد",
   "total_other": "{{count}} مخططات",
@@ -17,5 +19,37 @@
   "none": "لا توجد مخططات في قاعدة البيانات.",
   "tree": {
     "schemas": "المخططات"
+  },
+  "create": {
+    "title": "إنشاء مخطط جديد",
+    "name": "اسم المخطط",
+    "owner": "المالك",
+    "create": "إنشاء",
+    "created": "تم إنشاء المخطط {{name}}."
+  },
+  "drop": {
+    "cascade": "حذف الكائنات التي بداخله أيضًا (CASCADE)",
+    "dropped": "تم حذف المخطط {{name}}.",
+    "dropped_count_zero": "لم يُحذف أي مخطط.",
+    "dropped_count_one": "تم حذف مخطط واحد بنجاح.",
+    "dropped_count_two": "تم حذف مخططين بنجاح.",
+    "dropped_count_few": "تم حذف {{count}} مخططات بنجاح.",
+    "dropped_count_many": "تم حذف {{count}} مخططًا بنجاح.",
+    "dropped_count_other": "تم حذف {{count}} مخطط بنجاح.",
+    "none_selected": "لم يتم تحديد مخططات."
+  },
+  "operations": {
+    "tab": "عمليات",
+    "comment": "تعليق المخطط",
+    "rename": "إعادة تسمية المخطط إلى",
+    "new_name": "اسم المخطط الجديد",
+    "remove": "إزالة المخطط",
+    "drop": "حذف المخطط (DROP)",
+    "drop_cascade": "حذف المخطط وكل ما بداخله (DROP … CASCADE)",
+    "properties": "خصائص المخطط",
+    "owner": "المالك",
+    "go": "تنفيذ",
+    "renamed": "تمت إعادة تسمية المخطط {{name}} إلى {{newName}}.",
+    "saved": "تم حفظ خصائص المخطط."
   }
 }

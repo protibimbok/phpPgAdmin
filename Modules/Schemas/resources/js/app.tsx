@@ -1,6 +1,7 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
 import { registerNodeLink } from '@/nodes/links'
+import Operations from './Pages/Operations'
 import Structure from './Pages/Structure'
 
 // A schema in the tree opens the schema's own page.
@@ -11,4 +12,13 @@ registerModule({
   id: 'schemas',
   menuFilter: (menu) => [...menu, { label: 'schemas:tab', icon: 'b_props', path: '/db/:db', level: 'database' }],
   routes: [{ path: 'db/:db', element: <Structure /> }],
+})
+
+// The schema's "Operations" tab comes after the Structure and SQL tabs the other modules give
+// the schema level, so it is registered to sort after them.
+registerModule({
+  id: 'schemas-operations',
+  order: 20,
+  menuFilter: (menu) => [...menu, { label: 'schemas:operations.tab', icon: 'b_tblops', path: '/db/:db/schema/:schema/operations', level: 'schema' }],
+  routes: [{ path: 'db/:db/schema/:schema/operations', element: <Operations /> }],
 })

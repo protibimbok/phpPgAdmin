@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPgAdmin\Modules\Schemas\Http\Controllers;
 
 use PhpPgAdmin\Core\Nodes\Acl;
+use PhpPgAdmin\Core\Nodes\Catalog;
 use PhpPgAdmin\Core\Nodes\Ddl;
 use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Core\Nodes\NodeController;
@@ -65,6 +66,64 @@ final class SchemaController extends NodeController
         return Ddl::assemble([$header, $ctx->render('create.sql', ['data' => $data, 'add_not_exists_clause' => true])]);
     }
 
+    /** CREATE SCHEMA from the client's data (name, namespaceowner, description, privileges): pgAdmin's create. */
+    public function create(NodeContext $ctx, array $data): array
+    {
+        $name = $this->requireName($data);
+        $this->execute($ctx, $ctx->render('create.sql', ['data' => $this->toTemplateData($ctx, $data)]));
+
+        return $this->node($ctx, $this->oidOf($ctx, $name));
+    }
+
+    /** ALTER SCHEMA for what differs from the schema as it stands: the name, owner, comment, privileges. */
+    public function update(NodeContext $ctx, int $oid, array $data): array
+    {
+        $this->execute($ctx, $this->updateSql($ctx, $oid, $data));
+
+        return $this->node($ctx, $oid);
+    }
+
+    /** DROP SCHEMA, CASCADE on request. */
+    public function delete(NodeContext $ctx, int $oid, bool $cascade): void
+    {
+        $name = $ctx->conn->scalar($ctx->render('get_name.sql', ['scid' => $oid])) ?? throw $this->gone($ctx);
+        $this->execute($ctx, $ctx->render('delete.sql', ['name' => $name, 'cascade' => $cascade]));
+    }
+
+    public function modifiedSql(NodeContext $ctx, ?int $oid, array $data): string
+    {
+        if ($oid === null) {
+            $this->requireName($data);
+
+            return $ctx->render('create.sql', ['data' => $this->toTemplateData($ctx, $data)]);
+        }
+
+        return $this->updateSql($ctx, $oid, $data);
+    }
+
+    /** The roles a schema may be owned by, for the forms. */
+    public function options(NodeContext $ctx): array
+    {
+        return ['roles' => Catalog::roles($ctx->conn)];
+    }
+
+    /** update.sql with the client's data against the schema's current properties: pgAdmin's get_sql. */
+    private function updateSql(NodeContext $ctx, int $oid, array $data): string
+    {
+        $row = $ctx->row('properties.sql', ['scid' => $oid, 'show_sysobj' => true]) ?? throw $this->gone($ctx);
+        $old = $this->format($ctx, $row, $oid);
+        if (!isset($data['name']) || trim((string) $data['name']) === '') {
+            $data['name'] = $old['name'];
+        }
+
+        return $ctx->render('update.sql', ['data' => $this->toTemplateData($ctx, $data, modified: true), 'o_data' => $old]);
+    }
+
+    private function oidOf(NodeContext $ctx, string $name): int
+    {
+        return (int) ($ctx->conn->scalar($ctx->render('oid.sql', ['schema' => $name])) ?? throw $this->gone($ctx));
+    }
+
     /** A schema by name: resolve('schema', {name}) → {scid}. */
     public function resolve(NodeContext $ctx, array $params): ?array
     {
@@ -109,14 +168,24 @@ final class SchemaController extends NodeController
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function toTemplateData(NodeContext $ctx, array $data): array
+    private function toTemplateData(NodeContext $ctx, array $data, bool $modified = false): array
     {
         /** @var array<string, array{type: string, acl: list<string>}> $allowed */
         $allowed = json_decode($ctx->render('allowed_privs.json'), true, flags: JSON_THROW_ON_ERROR);
 
         foreach ($allowed as $column => $spec) {
-            if (isset($data[$column]) && is_array($data[$column])) {
+            if (!isset($data[$column]) || !is_array($data[$column])) {
+                continue;
+            }
+            if (!$modified) {
                 $data[$column] = Acl::toDb($data[$column], $spec['acl']);
+                continue;
+            }
+            // An update carries the changes as added/changed/deleted lists.
+            foreach (['added', 'changed', 'deleted'] as $mode) {
+                if (isset($data[$column][$mode]) && is_array($data[$column][$mode])) {
+                    $data[$column][$mode] = Acl::toDb($data[$column][$mode], $spec['acl']);
+                }
             }
         }
 
