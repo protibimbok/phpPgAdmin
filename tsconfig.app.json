@@ -49,6 +49,9 @@
       "@sequences/*": [
         "./Modules/Sequences/resources/*"
       ],
+      "@routines/*": [
+        "./Modules/Routines/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]

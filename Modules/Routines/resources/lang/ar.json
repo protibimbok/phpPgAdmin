@@ -1,0 +1,63 @@
+{
+  "tab": "الإجراءات",
+  "title": "الإجراءات",
+  "none": "لا توجد إجراءات لعرضها.",
+  "none_selected": "لم يتم تحديد أي إجراء.",
+  "create_new": "إنشاء إجراء جديد",
+  "columns": {
+    "name": "الاسم",
+    "type": "النوع",
+    "returns": "يُرجع"
+  },
+  "actions": {
+    "edit": "تعديل",
+    "execute": "تنفيذ",
+    "export": "تصدير",
+    "drop": "حذف"
+  },
+  "export_title": "جملة CREATE للإجراء {{name}}",
+  "export_title_many": "جمل CREATE",
+  "dropped": "تم حذف الإجراء {{name}}.",
+  "dropped_many": "تم حذف {{count}} إجراءات.",
+  "execute": {
+    "title": "معاملات الإجراء",
+    "name": "الاسم",
+    "type": "النوع",
+    "value": "القيمة"
+  },
+  "editor": {
+    "create_title": "إنشاء إجراء",
+    "edit_title": "تعديل الإجراء {{name}}",
+    "details": "التفاصيل",
+    "name": "اسم الإجراء",
+    "type": "النوع",
+    "parameters": "المعاملات",
+    "direction": "الاتجاه",
+    "param_name": "الاسم",
+    "param_type": "النوع",
+    "default": "الافتراضي",
+    "remove": "إزالة",
+    "add_parameter": "إضافة معامل",
+    "no_add_hint": "لا يمكن في PostgreSQL إضافة معامل لإجراء موجود أو إزالته؛ أنشئ إجراءً جديدًا بدلًا من ذلك.",
+    "return_type": "نوع الإرجاع",
+    "returns_set": "يُرجع مجموعة (SETOF)",
+    "definition": "التعريف",
+    "language": "اللغة",
+    "volatility": "التقلب",
+    "strict": "صارم (يُرجع NULL عند إدخال NULL)",
+    "security_type": "نوع الأمان",
+    "parallel": "التوازي",
+    "cost": "التكلفة المقدّرة",
+    "rows": "الصفوف المقدّرة",
+    "leakproof": "مانع للتسريب",
+    "owner": "المالك",
+    "current_role": "(الدور الحالي)",
+    "comment": "تعليق",
+    "variables": "متغيرات الإعداد",
+    "variable_name": "الاسم",
+    "variable_value": "القيمة",
+    "add_variable": "إضافة متغير",
+    "created": "تم إنشاء الإجراء {{name}}.",
+    "altered": "تم تعديل الإجراء {{name}}."
+  }
+}

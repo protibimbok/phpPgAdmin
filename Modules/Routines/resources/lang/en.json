@@ -1,0 +1,63 @@
+{
+  "tab": "Routines",
+  "title": "Routines",
+  "none": "There are no routines to display.",
+  "none_selected": "No routine selected.",
+  "create_new": "Create new routine",
+  "columns": {
+    "name": "Name",
+    "type": "Type",
+    "returns": "Returns"
+  },
+  "actions": {
+    "edit": "Edit",
+    "execute": "Execute",
+    "export": "Export",
+    "drop": "Drop"
+  },
+  "export_title": "CREATE statement for {{name}}",
+  "export_title_many": "CREATE statements",
+  "dropped": "Routine {{name}} has been dropped.",
+  "dropped_many": "{{count}} routines have been dropped.",
+  "execute": {
+    "title": "Routine parameters",
+    "name": "Name",
+    "type": "Type",
+    "value": "Value"
+  },
+  "editor": {
+    "create_title": "Create routine",
+    "edit_title": "Edit routine {{name}}",
+    "details": "Details",
+    "name": "Routine name",
+    "type": "Type",
+    "parameters": "Parameters",
+    "direction": "Direction",
+    "param_name": "Name",
+    "param_type": "Type",
+    "default": "Default",
+    "remove": "Remove",
+    "add_parameter": "Add parameter",
+    "no_add_hint": "PostgreSQL cannot add or remove a parameter of an existing routine; create a new one instead.",
+    "return_type": "Return type",
+    "returns_set": "Returns a set (SETOF)",
+    "definition": "Definition",
+    "language": "Language",
+    "volatility": "Volatility",
+    "strict": "Strict (returns NULL on NULL input)",
+    "security_type": "Security type",
+    "parallel": "Parallel",
+    "cost": "Estimated cost",
+    "rows": "Estimated rows",
+    "leakproof": "Leak proof",
+    "owner": "Owner",
+    "current_role": "(current role)",
+    "comment": "Comment",
+    "variables": "Configuration variables",
+    "variable_name": "Name",
+    "variable_value": "Value",
+    "add_variable": "Add variable",
+    "created": "Routine {{name}} has been created.",
+    "altered": "Routine {{name}} has been altered."
+  }
+}

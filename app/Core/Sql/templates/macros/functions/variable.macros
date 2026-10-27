@@ -8,7 +8,7 @@ ALTER {{object_type}} {{ conn|qtIdent(schema, object_name) }}{% if func_args is 
 {% else %}
 
 {% endif %}
-    SET {{ conn|qtIdent(opt.name) }}={{ opt.value }};
+    SET {{ conn|qtIdent(opt.name) }}={% if opt.name in ['search_path'] %}{{ opt.value }}{% else %}{{ opt.value|qtLiteral(conn) }}{% endif %};{# phpPgAdmin: quoted as create.sql quotes them; '64MB' is no bare token #}
 
 {% endfor %}
 {%- endmacro %}
