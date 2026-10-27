@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Icon from '@/components/Icon'
 import { notAvailable } from '@/unbuilt'
+import CreateViewModal from '@views/js/CreateViewModal'
 import type { QueryResponse, RowsResult } from '../api'
 import BookmarkForm from './BookmarkForm'
 import ResultMessage from './ResultMessage'
@@ -28,6 +30,7 @@ export interface QueryResultsProps {
 export default function QueryResults({ response, nav, onNavigate, edit, onExplain, onRefresh, onRun, grid, bookmarkDatabase }: QueryResultsProps) {
   const { t } = useTranslation('sql')
   const { t: tApp } = useTranslation()
+  const [createView, setCreateView] = useState<string | null>(null)
 
   return (
     <div id="sqlqueryresultsouter">
@@ -64,7 +67,7 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
                       <Icon name="b_chart" /> {t('operations.display_chart')}
                     </a>
                     <span>
-                      <a href="#create-view" className="btn create_view ajax" onClick={notAvailable}>
+                      <a href="#create-view" className="btn create_view ajax" onClick={(e) => { e.preventDefault(); if (bookmarkDatabase) setCreateView(result.sql); else notAvailable() }}>
                         <Icon name="b_view_add" /> {t('operations.create_view')}
                       </a>
                     </span>
@@ -76,6 +79,7 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
           {bookmarkDatabase && result.kind === 'rows' && <BookmarkForm database={bookmarkDatabase} sql={result.sql} />}
         </div>
       ))}
+      {bookmarkDatabase && <CreateViewModal show={createView !== null} db={bookmarkDatabase} sql={createView ?? ''} onClose={() => setCreateView(null)} />}
     </div>
   )
 }

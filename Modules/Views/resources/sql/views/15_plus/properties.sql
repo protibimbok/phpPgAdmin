@@ -13,6 +13,8 @@ SELECT
     pg_catalog.pg_get_userbyid(c.relowner) AS owner,
     pg_catalog.array_to_string(c.relacl::text[], ', ') AS acl,
     pg_catalog.pg_get_viewdef(c.oid, true) AS definition,
+    {### phpPgAdmin: for the schema's structure page ###}
+    pg_catalog.pg_total_relation_size(c.oid) AS size,
     {# ===== Checks if it is system view ===== #}
     {% if vid and datlastsysoid %}
     CASE WHEN {{vid}} <= {{datlastsysoid}} THEN true ELSE false END AS system_view,

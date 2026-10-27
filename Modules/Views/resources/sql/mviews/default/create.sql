@@ -6,7 +6,7 @@
 
 {% endif %}
 {% if data.name and data.schema and data.definition %}
-CREATE MATERIALIZED VIEW{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{ conn|qtIdent(data.schema, data.name) }}
+CREATE MATERIALIZED VIEW{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{ conn|qtIdent(data.schema, data.name) }}{# phpPgAdmin: the column names phpMyAdmin's form takes #}{{ data.column_names ? ' (' ~ data.column_names ~ ')' : '' }}
 {% if data.default_amname and data.default_amname != data.amname %}
 USING {{data.amname}}
 {% elseif not data.default_amname and data.amname %}

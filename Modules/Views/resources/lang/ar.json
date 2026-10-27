@@ -1,0 +1,48 @@
+{
+  "form": {
+    "create_title": "إنشاء عرض",
+    "edit_title": "تعديل العرض",
+    "details": "التفاصيل",
+    "create_heading": "إنشاء عرض في المخطط {{schema}}",
+    "edit_heading": "تعديل العرض {{name}}",
+    "schema": "المخطط",
+    "materialized": "مادي",
+    "name": "اسم العرض",
+    "column_names": "أسماء الأعمدة",
+    "column_names_hint": "مفصولة بفواصل؛ تُستخدم أسماء الاستعلام عند تركها فارغة",
+    "format": "تنسيق",
+    "security_barrier": "حاجز أمني",
+    "tablespace": "مساحة الجداول",
+    "default_tablespace": "(الافتراضية)",
+    "created": "تم إنشاء العرض {{name}}.",
+    "altered": "تم تعديل العرض {{name}}."
+  },
+  "structure": {
+    "edit_view": "تعديل العرض",
+    "comment": "تعليق العرض:",
+    "definition": "التعريف",
+    "options": "الخيارات",
+    "populated": "مُحمّل بالبيانات"
+  },
+  "ddl": {
+    "title": "جملة CREATE للعرض {{view}}"
+  },
+  "operations": {
+    "title": "العمليات",
+    "move": "نقل العرض إلى (المخطط.العرض)",
+    "view": "العرض",
+    "rename": "إعادة تسمية العرض إلى",
+    "comment": "تعليق العرض",
+    "fillfactor": "عامل الامتلاء",
+    "refresh": "تحديث العرض المادي",
+    "concurrently": "بالتوازي (CONCURRENTLY، يحتاج فهرسًا فريدًا)",
+    "with_data": "تحميل البيانات (WITH DATA)",
+    "refreshed": "تم تحديث العرض المادي.",
+    "drop": "حذف العرض (DROP)",
+    "drop_mview": "حذف العرض المادي (DROP)",
+    "drop_warning": "أنت على وشك تدمير عرض كامل!",
+    "cascade": "وكذلك الكائنات التي تعتمد عليه (CASCADE)",
+    "moved": "تم نقل العرض {{view}} إلى {{target}}.",
+    "dropped": "تم حذف العرض {{view}}."
+  }
+}

@@ -31,6 +31,9 @@ final class TwigExtension extends AbstractExtension
             new TwigFilter('string', static fn (mixed $value): string => self::string($value)),
             new TwigFilter('int', static fn (mixed $value): int => is_numeric($value) ? (int) $value : 0),
             new TwigFilter('rstrip', static fn (?string $value, string $chars = " \t\n\r"): string => rtrim((string) $value, $chars)),
+            // Jinja's |lower on a boolean is Python's str(): 'true' / 'false'. pgAdmin's templates rely on it
+            // for the reloptions they print ("security_barrier={{ data.security_barrier|lower }}").
+            new TwigFilter('lower', static fn (mixed $value): string => match (true) { $value === null => '', is_bool($value) => $value ? 'true' : 'false', default => mb_strtolower(self::string($value)) }),
             new TwigFilter('tojson', static fn (mixed $value): string => json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
             // Python's list() and Jinja's unique: a PostgreSQL array string becomes a list too.
             new TwigFilter('list', static fn (mixed $value): array => is_array($value) ? array_values($value) : Options::list($value)),

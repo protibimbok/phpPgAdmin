@@ -24,12 +24,6 @@ final class TableDdl
     /** The privilege codes a table accepts. */
     public const array ACL = ['a', 'r', 'w', 'd', 'D', 'x', 't', 'm'];
 
-    private const array AUTOVACUUM_OPTIONS = [
-        'autovacuum_vacuum_threshold', 'autovacuum_vacuum_scale_factor', 'autovacuum_analyze_threshold',
-        'autovacuum_analyze_scale_factor', 'autovacuum_vacuum_cost_delay', 'autovacuum_vacuum_cost_limit',
-        'autovacuum_freeze_min_age', 'autovacuum_freeze_max_age', 'autovacuum_freeze_table_age',
-    ];
-
     /**
      * The table's properties row as pgAdmin's properties action returns it: with the autovacuum
      * flags, the privileges and the formatted columns and constraints.
@@ -39,7 +33,7 @@ final class TableDdl
      */
     public static function properties(NodeContext $ctx, int $tid, array $row): array
     {
-        self::autovacuumFlags($row);
+        VacuumSettings::flags($row);
 
         $row['relacl'] = [];
         foreach ($ctx->conn->rows($ctx->renderFrom('tables', 'acl.sql', ['tid' => $tid, 'scid' => $ctx->id('scid')])) as $acl) {
@@ -121,27 +115,5 @@ final class TableDdl
         $data['exclude_constraint'] = Constraints::exclusions($ctx, $tid);
 
         return $data;
-    }
-
-    /**
-     * pgAdmin's update_autovacuum_properties: autovacuum_enabled as 'x' (not set), 't' or 'f',
-     * and whether any custom setting is in force, for the table and its TOAST table.
-     *
-     * @param array<string, mixed> $row
-     */
-    private static function autovacuumFlags(array &$row): void
-    {
-        foreach (['' => 'autovacuum_custom', 'toast_' => 'toast_autovacuum'] as $prefix => $flag) {
-            $enabled = $row[$prefix . 'autovacuum_enabled'] ?? null;
-            $row[$prefix . 'autovacuum_enabled'] = $enabled === null ? 'x' : ($enabled ? 't' : 'f');
-
-            $custom = $row[$prefix . 'autovacuum_enabled'] !== 'x';
-            foreach (self::AUTOVACUUM_OPTIONS as $option) {
-                if (!empty($row[$prefix . $option])) {
-                    $custom = true;
-                }
-            }
-            $row[$flag] = $custom;
-        }
     }
 }

@@ -4,7 +4,7 @@
 {% if data %}
 {% set view_name = (data.name ? data.name : o_data.name) %}
 {% set view_schema = (data.schema ? data.schema : o_data.schema) %}
-{% set def = data.definition|trim(';', 'right') if data.definition %}
+{% set def = data.definition ? data.definition|trim(';', 'right') : null %}
 {% if data.name and data.name != o_data.name %}
 ALTER VIEW IF EXISTS {{ conn|qtIdent(o_data.schema, o_data.name) }}
     RENAME TO {{ conn|qtIdent(data.name) }};
@@ -20,7 +20,8 @@ DROP VIEW {{ conn|qtIdent(view_schema, view_name) }};
 {% endif %}
 CREATE OR REPLACE VIEW {{ conn|qtIdent(view_schema, view_name) }}
 {% if ((data.check_option and data.check_option|lower != 'no') or (o_data.check_option and o_data.check_option|lower != 'no') or data.security_barrier or o_data.security_barrier) %}
-    WITH ({% if (data.check_option or o_data.check_option) %}check_option={{ (data.check_option ? data.check_option : o_data.check_option) }}{{', ' }}{% endif %}security_barrier={{ data.security_barrier|(data.security_barrier is defined ? lower : o_data.security_barrier)|default('false', 'true')|lower }})
+{% set eff_check_option = data.check_option ? data.check_option : o_data.check_option %}
+    WITH ({% if eff_check_option and eff_check_option|lower != 'no' %}check_option={{ eff_check_option }}{{', ' }}{% endif %}security_barrier={{ data.security_barrier is defined ? data.security_barrier|lower : o_data.security_barrier|default('false')|lower }})
 {% endif %}
     AS
     {{ def }};

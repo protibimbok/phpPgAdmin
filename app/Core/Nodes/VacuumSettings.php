@@ -42,6 +42,35 @@ final class VacuumSettings
         return self::$defaults[$key][$type] = $rows;
     }
 
+    /** The settings a table or materialized view may set per relation, besides autovacuum_enabled. */
+    public const array OPTIONS = [
+        'autovacuum_vacuum_threshold', 'autovacuum_vacuum_scale_factor', 'autovacuum_analyze_threshold',
+        'autovacuum_analyze_scale_factor', 'autovacuum_vacuum_cost_delay', 'autovacuum_vacuum_cost_limit',
+        'autovacuum_freeze_min_age', 'autovacuum_freeze_max_age', 'autovacuum_freeze_table_age',
+    ];
+
+    /**
+     * pgAdmin's update_autovacuum_properties: autovacuum_enabled as 'x' (not set), 't' or 'f',
+     * and whether any custom setting is in force, for the relation and its TOAST table.
+     *
+     * @param array<string, mixed> $row the relation's properties row
+     */
+    public static function flags(array &$row): void
+    {
+        foreach (['' => 'autovacuum_custom', 'toast_' => 'toast_autovacuum'] as $prefix => $flag) {
+            $enabled = $row[$prefix . 'autovacuum_enabled'] ?? null;
+            $row[$prefix . 'autovacuum_enabled'] = $enabled === null ? 'x' : ($enabled ? 't' : 'f');
+
+            $custom = $row[$prefix . 'autovacuum_enabled'] !== 'x';
+            foreach (self::OPTIONS as $option) {
+                if (!empty($row[$prefix . $option])) {
+                    $custom = true;
+                }
+            }
+            $row[$flag] = $custom;
+        }
+    }
+
     /**
      * The settings with the values the object sets ("value"), from its properties row; settings
      * it leaves to the default have no "value". Toast settings are read from the toast_* columns.

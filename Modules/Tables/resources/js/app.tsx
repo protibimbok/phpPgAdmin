@@ -17,15 +17,17 @@ registerNodeLink('table', (node, { db, ancestors }) => {
 })
 
 // The schema's "Structure" tab, first in the schema's bar, where /db/:db/schema/:schema lands;
-// the table's "Structure" tab, where a table's own URL lands.
+// the relation's "Structure", "Operations" and "Show create" tabs, where a table's own URL lands.
+// phpMyAdmin gives a view the same bar as a table, so the tabs name the kind in their path and
+// the Views module supplies the pages behind them for views and materialized views.
 registerModule({
   id: 'tables',
   menuFilter: (menu) => [
     ...menu,
     { label: 'tables:tab', icon: 'b_props', path: '/db/:db/schema/:schema', level: 'schema' },
-    { label: 'tables:structure.tab', icon: 'b_props', path: '/db/:db/schema/:schema/table/:table', level: 'table' },
-    { label: 'tables:operations.tab', icon: 'b_tblops', path: '/db/:db/schema/:schema/table/:table/operations', level: 'table' },
-    { label: 'tables:ddl.tab', icon: 'b_sql', path: '/db/:db/schema/:schema/table/:table/ddl', level: 'table' },
+    { label: 'tables:structure.tab', icon: 'b_props', path: '/db/:db/schema/:schema/:kind/:table', level: 'table' },
+    { label: 'tables:operations.tab', icon: 'b_tblops', path: '/db/:db/schema/:schema/:kind/:table/operations', level: 'table' },
+    { label: 'tables:ddl.tab', icon: 'b_sql', path: '/db/:db/schema/:schema/:kind/:table/ddl', level: 'table' },
   ],
   routes: [
     { path: 'db/:db/schema/:schema', element: <SchemaStructure /> },

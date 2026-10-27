@@ -4,7 +4,7 @@
 {%- if data -%}
 {% set view_name = (data.name ? data.name : o_data.name) %}
 {% set view_schema = (data.schema ? data.schema : o_data.schema) %}
-{% set def = data.definition|trim(';', 'right') if data.definition %}
+{% set def = data.definition ? data.definition|trim(';', 'right') : null %}
 {# ===== Rename mat view ===== #}
 {% if data.name and data.name != o_data.name %}
 ALTER MATERIALIZED VIEW IF EXISTS {{ conn|qtIdent(o_data.schema, o_data.name) }}
@@ -104,7 +104,7 @@ RESET(
 {% endif %}
 {# ===== Check for with_data property ===== #}
 {% if data.with_data is defined and o_data.with_data|lower != data.with_data|lower  %}
-REFRESH MATERIALIZED VIEW {{ conn|qtIdent(view_schema, view_name) }} WITH{{ ' NO' if data.with_data|lower == 'false' else '' }} DATA;
+REFRESH MATERIALIZED VIEW {{ conn|qtIdent(view_schema, view_name) }} WITH{{ data.with_data|lower == 'false' ? ' NO' : '' }} DATA;
 
 {% endif %}
 {# ===== Check for Autovacuum options ===== #}
@@ -224,9 +224,9 @@ COMMENT ON MATERIALIZED VIEW {{ conn|qtIdent(view_schema, view_name) }}
 {% endif %}
 {% endif %}
 {% set old_exts = (o_data.dependsonextensions or []) | list %}
-{% set new_exts = ('dependsonextensions' in data ? data.dependsonextensions : null) %}
+{% set new_exts = data.dependsonextensions is defined ? data.dependsonextensions|list : null %}
 {% if new_exts is not null and old_exts != new_exts %}
-{% for ext in (old_exts + new_exts) | unique %}
+{% for ext in old_exts|merge(new_exts)|unique %}
 
 {% if ext in new_exts and ext not in old_exts %}
 ALTER MATERIALIZED VIEW {{ conn|qtIdent(view_schema, view_name) }}

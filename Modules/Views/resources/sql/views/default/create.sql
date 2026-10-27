@@ -6,17 +6,17 @@
 
 {% endif %}
 {% if data.name and data.schema and data.definition %}
-CREATE{% if add_replace_clause %} OR REPLACE{% endif %} VIEW {{ conn|qtIdent(data.schema, data.name) }}
+CREATE{% if add_replace_clause %} OR REPLACE{% endif %} VIEW {{ conn|qtIdent(data.schema, data.name) }}{# phpPgAdmin: the column names phpMyAdmin's form takes #}{{ data.column_names ? ' (' ~ data.column_names ~ ')' : '' }}
 {% if ((data.check_option and data.check_option|lower != 'no') or data.security_barrier) %}
 WITH ({% if data.check_option and data.check_option|lower != 'no' %}
 
-  check_option={{ data.check_option }}{% endif %}{{ ',' if data.security_barrier }}
+  check_option={{ data.check_option }}{% endif %}{{ data.security_barrier ? ',' : '' }}
 {% if data.security_barrier %}
   security_barrier={{ data.security_barrier|lower }}
 {% endif %}
 ){% endif %} AS
 {{ data.definition|trim(';', 'right') }};
-{% if data.owner and data.m_view is undefined %}
+{% if data.owner and data.m_view is not defined %}
 
 ALTER TABLE {{ conn|qtIdent(data.schema, data.name) }}
     OWNER TO {{ conn|qtIdent(data.owner) }};

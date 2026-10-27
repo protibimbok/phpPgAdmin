@@ -1,0 +1,48 @@
+{
+  "form": {
+    "create_title": "Create view",
+    "edit_title": "Edit view",
+    "details": "Details",
+    "create_heading": "Create view in schema {{schema}}",
+    "edit_heading": "Edit view {{name}}",
+    "schema": "Schema",
+    "materialized": "Materialized",
+    "name": "VIEW name",
+    "column_names": "Column names",
+    "column_names_hint": "Comma-separated; the query's own names when left empty",
+    "format": "Format",
+    "security_barrier": "Security barrier",
+    "tablespace": "Tablespace",
+    "default_tablespace": "(default)",
+    "created": "View {{name}} has been created.",
+    "altered": "View {{name}} has been altered."
+  },
+  "structure": {
+    "edit_view": "Edit view",
+    "comment": "View comment:",
+    "definition": "Definition",
+    "options": "Options",
+    "populated": "Populated"
+  },
+  "ddl": {
+    "title": "CREATE statement for {{view}}"
+  },
+  "operations": {
+    "title": "Operations",
+    "move": "Move view to (schema.view)",
+    "view": "View",
+    "rename": "Rename view to",
+    "comment": "View comment",
+    "fillfactor": "Fillfactor",
+    "refresh": "Refresh materialized view",
+    "concurrently": "Concurrently (CONCURRENTLY, needs a unique index)",
+    "with_data": "Load the data (WITH DATA)",
+    "refreshed": "The materialized view has been refreshed.",
+    "drop": "Delete the view (DROP)",
+    "drop_mview": "Delete the materialized view (DROP)",
+    "drop_warning": "You are about to DESTROY a complete view!",
+    "cascade": "Also the objects that depend on it (CASCADE)",
+    "moved": "View {{view}} has been moved to {{target}}.",
+    "dropped": "View {{view}} has been dropped."
+  }
+}

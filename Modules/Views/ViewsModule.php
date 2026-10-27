@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace PhpPgAdmin\Modules\Views;
 
 use PhpPgAdmin\Core\Contracts\Module;
+use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
 use PhpPgAdmin\Core\Contracts\ProvidesNodes;
 use PhpPgAdmin\Core\Contracts\ProvidesSqlTemplates;
+use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 use PhpPgAdmin\Core\Nodes\NodeDefinition;
 use PhpPgAdmin\Modules\Views\Http\Controllers\MaterializedViewController;
 use PhpPgAdmin\Modules\Views\Http\Controllers\ViewController;
 
-/** Views and materialized views: pgAdmin's view and mview nodes. */
-final class ViewsModule implements Module, ProvidesNodes, ProvidesSqlTemplates, ProvidesViteEntries, ProvidesFrontendScripts
+/**
+ * Views and materialized views: pgAdmin's view and mview nodes, and the pages phpMyAdmin gives
+ * a view (structure, operations, the create-view form).
+ */
+final class ViewsModule implements Module, ProvidesNodes, ProvidesApiRoutes, ProvidesSqlTemplates, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
 {
     public function name(): string
     {
@@ -54,9 +59,19 @@ final class ViewsModule implements Module, ProvidesNodes, ProvidesSqlTemplates, 
         ];
     }
 
+    public function apiRoutes(): void
+    {
+        require __DIR__ . '/routes/api.php';
+    }
+
     public function sqlTemplatesPath(): string
     {
         return 'resources/sql';
+    }
+
+    public function translationsPath(): string
+    {
+        return 'resources/lang';
     }
 
     public function viteEntries(): array
