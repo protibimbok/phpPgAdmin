@@ -1,0 +1,52 @@
+{
+  "tab": "Sequences",
+  "title": "Sequences",
+  "none": "There are no sequences to display.",
+  "none_selected": "No sequence selected.",
+  "create_new": "Create new sequence",
+  "cascade": "Also the objects that depend on it (CASCADE)",
+  "columns": {
+    "name": "Name",
+    "current_value": "Current value",
+    "increment": "Increment",
+    "minimum": "Minimum",
+    "maximum": "Maximum",
+    "cache": "Cache",
+    "cycled": "Cycled",
+    "owned_by": "Owned by",
+    "comment": "Comment"
+  },
+  "actions": {
+    "edit": "Edit",
+    "export": "Export",
+    "drop": "Drop"
+  },
+  "export_title": "CREATE statement for {{name}}",
+  "export_title_many": "CREATE statements",
+  "dropped": "Sequence {{name}} has been dropped.",
+  "dropped_many": "{{count}} sequences have been dropped.",
+  "editor": {
+    "create_title": "Create sequence",
+    "edit_title": "Edit sequence {{name}}",
+    "details": "Details",
+    "name": "Sequence name",
+    "owner": "Owner",
+    "current_role": "(current role)",
+    "comment": "Comment",
+    "current_value": "Current value",
+    "increment": "Increment",
+    "start": "Start",
+    "minimum": "Minimum",
+    "maximum": "Maximum",
+    "cache": "Cache",
+    "cycled": "Cycled",
+    "unlogged": "Unlogged",
+    "owned_by": "Owned by",
+    "owned_table": "Table",
+    "owned_column": "Column",
+    "none": "(none)",
+    "owned_by_hint": "A sequence owned by a column is dropped with it; the table must be in this schema.",
+    "created": "Sequence {{name}} has been created.",
+    "altered": "Sequence {{name}} has been altered."
+  }
+}

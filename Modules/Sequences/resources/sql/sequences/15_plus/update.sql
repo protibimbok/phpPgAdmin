@@ -11,7 +11,8 @@ ALTER SEQUENCE IF EXISTS {{ conn|qtIdent(o_data.schema, data.name) }}
     OWNER TO {{ conn|qtIdent(data.seqowner) }};
 
 {% endif %}
-{% if (data.owned_table == null and data.owned_column == null) or (data.owned_table == '' and data.owned_column == '')%}
+{# phpPgAdmin: OWNED BY NONE only when the client cleared an owner the sequence had (Twig reads a missing field as null) #}
+{% if data.owned_table is defined and ((data.owned_table == null and data.owned_column == null) or (data.owned_table == '' and data.owned_column == '')) and (o_data.owned_table or o_data.owned_column) %}
 ALTER SEQUENCE IF EXISTS {{ conn|qtIdent(o_data.schema, data.name) }}
     OWNED BY NONE;
 {% elseif (data.owned_table is defined or data.owned_column is defined) and (data.owned_table != o_data.owned_table or data.owned_column != o_data.owned_column) %}
@@ -30,27 +31,27 @@ ALTER SEQUENCE IF EXISTS {{ conn|qtIdent(o_data.schema, data.name) }}
 {% endif %}
 {% set defquery = '' %}
 {% if data.increment is defined %}
-{% set defquery = defquery+'\n    INCREMENT '+data.increment|string %}
+{% set defquery = defquery ~ '\n    INCREMENT ' ~ data.increment|string %}
 {% endif %}
 {% if data.start is defined %}
-{% set defquery = defquery+'\n    START '+data.start|string %}
+{% set defquery = defquery ~ '\n    START ' ~ data.start|string %}
 {% endif %}
 {% if data.minimum is defined %}
-{% set defquery = defquery+'\n    MINVALUE '+data.minimum|string %}
+{% set defquery = defquery ~ '\n    MINVALUE ' ~ data.minimum|string %}
 {% endif %}
 {% if data.maximum is defined %}
-{% set defquery = defquery+'\n    MAXVALUE '+data.maximum|string %}
+{% set defquery = defquery ~ '\n    MAXVALUE ' ~ data.maximum|string %}
 {% endif %}
 {% if data.restart is defined %}
-{% set defquery = defquery+'\n    RESTART '+data.restart|string %}
+{% set defquery = defquery ~ '\n    RESTART ' ~ data.restart|string %}
 {% endif %}
 {% if data.cache is defined %}
-{% set defquery = defquery+'\n    CACHE '+data.cache|string %}
+{% set defquery = defquery ~ '\n    CACHE ' ~ data.cache|string %}
 {% endif %}
 {% if data.cycled is same as(true) %}
-{% set defquery = defquery+'\n    CYCLE' %}
+{% set defquery = defquery ~ '\n    CYCLE' %}
 {% elseif data.cycled is same as(false) %}
-{% set defquery = defquery+'\n    NO CYCLE' %}
+{% set defquery = defquery ~ '\n    NO CYCLE' %}
 {% endif %}
 {% if defquery and defquery != '' %}
 ALTER SEQUENCE IF EXISTS {{ conn|qtIdent(o_data.schema, data.name) }}{{ defquery }};

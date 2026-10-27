@@ -29,7 +29,8 @@ final class TwigExtension extends AbstractExtension
             new TwigFilter('qtTypeIdent', static fn (mixed $conn, string|int|null ...$parts): string => Quoting::typeIdent(...$parts)),
             new TwigFilter('qtLiteral', self::literal(...)),
             new TwigFilter('string', static fn (mixed $value): string => self::string($value)),
-            new TwigFilter('int', static fn (mixed $value): int => is_numeric($value) ? (int) $value : 0),
+            // Jinja's int(value, default=0): the default when the value is not a number (templates pass none too).
+            new TwigFilter('int', static fn (mixed $value, mixed $default = 0): mixed => is_numeric($value) ? (int) $value : $default),
             new TwigFilter('rstrip', static fn (?string $value, string $chars = " \t\n\r"): string => rtrim((string) $value, $chars)),
             // Jinja's |lower on a boolean is Python's str(): 'true' / 'false'. pgAdmin's templates rely on it
             // for the reloptions they print ("security_barrier={{ data.security_barrier|lower }}").

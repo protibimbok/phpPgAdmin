@@ -1,0 +1,52 @@
+{
+  "tab": "المتتاليات",
+  "title": "المتتاليات",
+  "none": "لا توجد متتاليات لعرضها.",
+  "none_selected": "لم يتم تحديد أي متتالية.",
+  "create_new": "إنشاء متتالية جديدة",
+  "cascade": "وكذلك الكائنات التي تعتمد عليها (CASCADE)",
+  "columns": {
+    "name": "الاسم",
+    "current_value": "القيمة الحالية",
+    "increment": "الزيادة",
+    "minimum": "الحد الأدنى",
+    "maximum": "الحد الأقصى",
+    "cache": "الذاكرة المؤقتة",
+    "cycled": "دورية",
+    "owned_by": "مملوكة لـ",
+    "comment": "تعليق"
+  },
+  "actions": {
+    "edit": "تعديل",
+    "export": "تصدير",
+    "drop": "حذف"
+  },
+  "export_title": "جملة CREATE للمتتالية {{name}}",
+  "export_title_many": "جمل CREATE",
+  "dropped": "تم حذف المتتالية {{name}}.",
+  "dropped_many": "تم حذف {{count}} متتاليات.",
+  "editor": {
+    "create_title": "إنشاء متتالية",
+    "edit_title": "تعديل المتتالية {{name}}",
+    "details": "التفاصيل",
+    "name": "اسم المتتالية",
+    "owner": "المالك",
+    "current_role": "(الدور الحالي)",
+    "comment": "تعليق",
+    "current_value": "القيمة الحالية",
+    "increment": "الزيادة",
+    "start": "البداية",
+    "minimum": "الحد الأدنى",
+    "maximum": "الحد الأقصى",
+    "cache": "الذاكرة المؤقتة",
+    "cycled": "دورية",
+    "unlogged": "غير مسجّلة",
+    "owned_by": "مملوكة لـ",
+    "owned_table": "الجدول",
+    "owned_column": "العمود",
+    "none": "(لا شيء)",
+    "owned_by_hint": "المتتالية المملوكة لعمود تُحذف معه؛ يجب أن يكون الجدول في هذا المخطط.",
+    "created": "تم إنشاء المتتالية {{name}}.",
+    "altered": "تم تعديل المتتالية {{name}}."
+  }
+}
