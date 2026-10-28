@@ -188,6 +188,9 @@ export default function SchemaStructure() {
     switch (action) {
       case 'show_create':
         return showCreateOf(selected)
+      case 'export':
+        // phpMyAdmin's With selected → Export opens the Export page with those tables ticked.
+        return selected.length === 0 ? notify(t('schema_structure.none_selected'), 'error') : navigate(`${urls.schema(db, schema)}/export?${new URLSearchParams(selected.map((row) => ['table', row.name]))}`)
       case 'print':
         return window.print()
       case 'empty_tbl':

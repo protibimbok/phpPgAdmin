@@ -57,6 +57,17 @@ final class ConnectionPool
         return $this->connections[$database] ??= $this->connector->connect($this->credentials, $database);
     }
 
+    /**
+     * The environment a client program connects with as the session's role, to the given
+     * database or the session's maintenance database.
+     *
+     * @return array<string, string>
+     */
+    public function environment(?string $database = null): array
+    {
+        return $this->connector->environment($this->credentials, $database);
+    }
+
     /** The connection to the database the login landed in, for server-wide catalog queries. */
     public function maintenance(): Connection
     {

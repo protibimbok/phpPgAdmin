@@ -1,0 +1,237 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PhpPgAdmin\Modules\Export\Http\Controllers;
+
+use League\Route\Http\Exception\BadRequestException;
+use League\Route\Http\Exception\NotFoundException;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use PhpPgAdmin\Core\Database\Connection;
+use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Core\Http\ApiException;
+use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
+use PhpPgAdmin\Modules\Export\Dump\ClientTools;
+use PhpPgAdmin\Modules\Export\Dump\DumpCommand;
+use PhpPgAdmin\Modules\Export\Dump\DumpStream;
+use PhpPgAdmin\Modules\Export\Dump\ExportRequest;
+use PhpPgAdmin\Modules\Export\Dump\FileName;
+use PhpPgAdmin\Modules\Export\Storage\ExportTemplates;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+/**
+ * The Export pages' backend: what a scope offers to export (GET /api/export/options), and the
+ * export itself (POST /api/export), pg_dump or pg_dumpall streamed to the response as an
+ * attachment, or as text for "View output as text".
+ */
+final class ExportController
+{
+    /** @return array<string, mixed> */
+    public function options(ServerRequestInterface $request): array
+    {
+        $query = $request->getQueryParams();
+        $pool = ConnectionPool::from($request);
+        $database = self::name($query, 'database');
+        $schema = self::name($query, 'schema');
+        $table = self::name($query, 'table');
+        $scope = $database === null ? 'server' : ($schema === null ? 'database' : ($table === null ? 'schema' : 'table'));
+        $conn = $database === null ? $pool->maintenance() : $pool->for($database);
+        $tools = ClientTools::locate();
+        $serverMajor = intdiv($pool->version(), 10000);
+
+        $objects = match ($scope) {
+            'server' => array_map(static fn (string $name): array => ['name' => $name], array_keys($this->databases($conn))),
+            'database' => array_map(static fn (string $name): array => ['name' => $name], array_keys($this->schemas($conn))),
+            'schema' => array_map(static fn (string $name, string $kind): array => ['name' => $name, 'kind' => $kind], array_keys($rel = $this->relations($conn, (string) $schema)), $rel),
+            'table' => [],
+        };
+        if ($scope === 'table' && $this->relationKind($conn, (string) $schema, (string) $table) === null) {
+            throw new NotFoundException(sprintf('There is no relation "%s"."%s".', $schema, $table));
+        }
+
+        return [
+            'scope' => $scope,
+            'objects' => $objects,
+            'encodings' => array_column($conn->rows("SELECT pg_encoding_to_char(i) AS name FROM generate_series(0, 63) AS i WHERE pg_encoding_to_char(i) <> '' ORDER BY 1"), 'name'),
+            'encoding' => (string) $conn->scalar('SELECT pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database()'),
+            'filename_template' => FileName::DEFAULTS[$scope],
+            'server_major' => $serverMajor,
+            'tools' => $tools === null ? null : [
+                'directory' => $tools->directory,
+                'version' => $tools->versionString(),
+                'usable' => $tools->major() >= $serverMajor,
+                'statistics' => $tools->version >= 180000,
+                'policies' => $tools->version >= 180000,
+            ],
+            'templates' => ExportTemplates::for(self::serverKey(), $pool->username())->all($scope),
+        ];
+    }
+
+    public function export(ServerRequestInterface $request): ResponseInterface
+    {
+        $body = (array) ($request->getParsedBody() ?? []);
+        // The page posts a form into a hidden frame, the options as one JSON field, so that the
+        // browser saves the response; "View output as text" sends them as a JSON body.
+        if (isset($body['options']) && is_string($body['options'])) {
+            $decoded = json_decode($body['options'], true);
+            if (!is_array($decoded)) {
+                throw new BadRequestException('The export options are not valid JSON.');
+            }
+            $body = $decoded;
+        }
+        $export = ExportRequest::fromArray($body);
+        $pool = ConnectionPool::from($request);
+
+        $tools = ClientTools::locate() ?? throw new ApiException(503, 'pg_dump was not found. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the directory of the PostgreSQL client programs.');
+        $serverMajor = intdiv($pool->version(), 10000);
+        if ($tools->major() < $serverMajor) {
+            throw new ApiException(422, sprintf('pg_dump %s cannot dump a PostgreSQL %d server; point PGADMIN_PG_BIN_DIR at the client programs of version %d or newer.', $tools->versionString(), $serverMajor, $serverMajor));
+        }
+
+        $conn = $export->database === null ? $pool->maintenance() : $pool->for($export->database);
+        $tableKind = 'r';
+        $objects = match ($export->scope) {
+            'server' => $this->databases($conn),
+            'database' => $this->schemas($conn),
+            'schema' => $this->relations($conn, (string) $export->schema),
+            'table' => [],
+        };
+        if ($export->scope === 'table') {
+            $tableKind = $this->relationKind($conn, (string) $export->schema, (string) $export->table)
+                ?? throw new NotFoundException(sprintf('There is no relation "%s"."%s".', $export->schema, $export->table));
+        }
+        $oversized = $export->maxSize !== null && $export->scope !== 'server' ? $this->oversized($conn, $export) : [];
+
+        $command = new DumpCommand($export, $tools, $objects, $oversized, $tableKind);
+        $environment = $pool->environment($export->database ?? $conn->database());
+        $plain = $export->format === 'plain';
+        $gzip = !$export->asText && $export->compression === 'gzip' && $export->format !== 'custom';
+        $prefix = $plain && trim($export->headerComment) !== ''
+            ? implode('', array_map(static fn (string $line): string => '-- ' . $line . "\n", explode('\n', str_replace(["\r\n", "\n"], '\n', $export->headerComment)))) . "\n"
+            : '';
+
+        // The dump can take long and needs nothing more from the session; let the session's other
+        // requests through while it runs.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        set_time_limit(0);
+
+        $stream = DumpStream::start($command->program(), $command->arguments(), $environment, $gzip, $plain, $prefix);
+        $response = (new Psr17Factory())->createResponse()
+            ->withHeader('Cache-Control', 'no-store')
+            ->withHeader('X-Accel-Buffering', 'no')
+            ->withBody($stream);
+
+        if ($export->asText) {
+            return $response->withHeader('Content-Type', 'text/plain; charset=utf-8');
+        }
+
+        $server = Authenticate::sessionServer();
+        $name = FileName::expand(
+            $export->filenameTemplate !== '' ? $export->filenameTemplate : FileName::DEFAULTS[$export->scope],
+            ['server' => $server?->name ?? $server?->host ?? 'localhost', 'database' => $export->database, 'schema' => $export->schema, 'table' => $export->table],
+            FileName::extension($export->format, $export->compression),
+        );
+        $ascii = (string) preg_replace('/[^\x20-\x7e]/', '_', $name);
+
+        return $response
+            ->withHeader('Content-Type', match (true) {
+                $gzip => 'application/gzip',
+                $export->format === 'tar' => 'application/x-tar',
+                $export->format === 'custom' => 'application/octet-stream',
+                default => 'application/sql',
+            })
+            ->withHeader('Content-Disposition', sprintf('attachment; filename="%s"; filename*=UTF-8\'\'%s', addcslashes($ascii, '"\\'), rawurlencode($name)));
+    }
+
+    /** @return array<string, string> the databases pg_dumpall dumps, by name */
+    private function databases(Connection $conn): array
+    {
+        $names = array_column($conn->rows("SELECT datname FROM pg_database WHERE datallowconn AND datname <> 'template0' ORDER BY datname"), 'datname');
+
+        return array_fill_keys(array_map('strval', $names), '');
+    }
+
+    /** @return array<string, string> the database's own schemas, by name */
+    private function schemas(Connection $conn): array
+    {
+        $names = array_column($conn->rows("SELECT nspname FROM pg_namespace WHERE nspname !~ '^pg_' AND nspname <> 'information_schema' ORDER BY nspname"), 'nspname');
+
+        return array_fill_keys(array_map('strval', $names), '');
+    }
+
+    /**
+     * The schema's tables, views, materialized views, foreign tables and sequences, with their
+     * relkind. Partitions come with their partitioned table and a sequence owned by a column
+     * with its table, so neither is listed.
+     *
+     * @return array<string, string>
+     */
+    private function relations(Connection $conn, string $schema): array
+    {
+        if ($conn->scalar('SELECT 1 FROM pg_namespace WHERE nspname = $1', [$schema]) === null) {
+            throw new NotFoundException(sprintf('There is no schema "%s".', $schema));
+        }
+        $rows = $conn->rows(<<<'SQL'
+            SELECT c.relname, c.relkind::text AS relkind
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = $1
+              AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
+              AND NOT c.relispartition
+              AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid AND d.deptype IN ('a', 'i') AND c.relkind = 'S')
+            ORDER BY c.relname
+            SQL, [$schema]);
+
+        $relations = [];
+        foreach ($rows as $row) {
+            $relations[(string) $row['relname']] = (string) $row['relkind'];
+        }
+
+        return $relations;
+    }
+
+    private function relationKind(Connection $conn, string $schema, string $name): ?string
+    {
+        $kind = $conn->scalar('SELECT c.relkind::text FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2', [$schema, $name]);
+
+        return $kind === null ? null : (string) $kind;
+    }
+
+    /**
+     * The tables in the export's scope whose data is over its size limit, with their indexes and
+     * TOAST, as phpMyAdmin measures "Skip tables larger than".
+     *
+     * @return list<array{0: string, 1: string, 2: string}>
+     */
+    private function oversized(Connection $conn, ExportRequest $export): array
+    {
+        $rows = $conn->rows(<<<'SQL'
+            SELECT n.nspname, c.relname, c.relkind::text AS relkind
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind IN ('r', 'm')
+              AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'
+              AND ($1::text IS NULL OR n.nspname = $1)
+              AND ($2::text IS NULL OR c.relname = $2)
+              AND pg_total_relation_size(c.oid) > $3::float8 * 1048576
+            ORDER BY 1, 2
+            SQL, [$export->schema, $export->table, $export->maxSize]);
+
+        return array_map(static fn (array $row): array => [(string) $row['nspname'], (string) $row['relname'], (string) $row['relkind']], $rows);
+    }
+
+    private static function name(array $query, string $key): ?string
+    {
+        $value = $query[$key] ?? null;
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    public static function serverKey(): string
+    {
+        return Authenticate::sessionServer()?->key() ?? '';
+    }
+}

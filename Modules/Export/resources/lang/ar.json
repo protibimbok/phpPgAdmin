@@ -1,0 +1,133 @@
+{
+  "tab": "تصدير",
+  "export": "تصدير",
+  "title": {
+    "server": "تصدير قواعد البيانات من الخادم الحالي",
+    "database": "تصدير المخططات من قاعدة البيانات \"{{name}}\"",
+    "schema": "تصدير الجداول من المخطط \"{{name}}\"",
+    "table": "تصدير الصفوف من الجدول \"{{name}}\""
+  },
+  "tools": {
+    "missing": "لم يُعثر على pg_dump في خادم الويب. اضبط PGADMIN_PG_BIN_DIR (config/tools.php) على مجلد برامج عميل PostgreSQL.",
+    "too_old": "لا يستطيع pg_dump {{version}} التصدير من خادم PostgreSQL {{server}}. اضبط PGADMIN_PG_BIN_DIR (config/tools.php) على برامج العميل من الإصدار {{server}} أو أحدث."
+  },
+  "templates": {
+    "title": "قوالب التصدير:",
+    "new": "قالب جديد:",
+    "name": "اسم القالب",
+    "create": "إنشاء",
+    "existing": "القوالب الموجودة:",
+    "template": "القالب:",
+    "select": "اختر قالبًا",
+    "update": "تحديث",
+    "delete": "حذف",
+    "created": "أُنشئ القالب.",
+    "updated": "حُدِّث القالب.",
+    "deleted": "حُذف القالب.",
+    "none_selected": "اختر قالبًا أولًا."
+  },
+  "method": {
+    "title": "طريقة التصدير:",
+    "quick": "سريع - اعرض الخيارات الأساسية فقط",
+    "custom": "مخصص - اعرض كل الخيارات الممكنة"
+  },
+  "format": {
+    "title": "الصيغة:",
+    "aria": "صيغة الملف المراد تصديره",
+    "plain": "SQL",
+    "custom": "أرشيف PostgreSQL المخصص (pg_restore)",
+    "tar": "أرشيف PostgreSQL بصيغة tar (pg_restore)"
+  },
+  "selection": {
+    "databases": "قواعد البيانات",
+    "schemas": "المخططات:",
+    "tables": "الجداول:",
+    "schemas_column": "المخططات",
+    "tables_column": "الجداول",
+    "structure": "البنية",
+    "data": "البيانات",
+    "select_all": "تحديد الكل",
+    "unselect_all": "إلغاء تحديد الكل",
+    "structure_all": "صدِّر بنية كل الكائنات.",
+    "data_all": "صدِّر بيانات كل الكائنات.",
+    "structure_of": "صدِّر بنية {{name}}.",
+    "data_of": "صدِّر بيانات {{name}}."
+  },
+  "output": {
+    "title": "المخرجات:",
+    "as_text": "اعرض المخرجات نصًّا",
+    "as_file": "احفظ المخرجات في ملف",
+    "filename": "قالب اسم الملف:",
+    "filename_hint": {
+      "server": "تُفسَّر هذه القيمة بالدالة strftime، فيمكنك استخدام رموز تنسيق الوقت. وإضافة إلى ذلك يصير @SERVER@ اسم الخادم. ويبقى باقي النص كما هو.",
+      "database": "تُفسَّر هذه القيمة بالدالة strftime، فيمكنك استخدام رموز تنسيق الوقت. وإضافة إلى ذلك يصير @SERVER@ اسم الخادم و@DATABASE@ اسم قاعدة البيانات. ويبقى باقي النص كما هو.",
+      "schema": "تُفسَّر هذه القيمة بالدالة strftime، فيمكنك استخدام رموز تنسيق الوقت. وإضافة إلى ذلك يصير @SERVER@ اسم الخادم و@DATABASE@ اسم قاعدة البيانات و@SCHEMA@ اسم المخطط. ويبقى باقي النص كما هو.",
+      "table": "تُفسَّر هذه القيمة بالدالة strftime، فيمكنك استخدام رموز تنسيق الوقت. وإضافة إلى ذلك يصير @SERVER@ اسم الخادم و@DATABASE@ اسم قاعدة البيانات و@SCHEMA@ اسم المخطط و@TABLE@ اسم الجدول. ويبقى باقي النص كما هو."
+    },
+    "remember": "استخدم هذا في عمليات التصدير القادمة",
+    "charset": "ترميز الملف:",
+    "compression": "الضغط:",
+    "none": "بلا",
+    "gzip": "مضغوط بـ gzip",
+    "max_size": "تخطَّ بيانات الجداول الأكبر من:",
+    "max_size_help": "الحجم بالميبيبايت، مع الفهارس وTOAST.",
+    "text_title": "المخرجات:"
+  },
+  "options": {
+    "title": "خيارات الصيغة:",
+    "header_comment": "تعليق ترويسة إضافي (\\n يفصل الأسطر):",
+    "globals": {
+      "title": "التفريغ:",
+      "all": "الأدوار ومساحات الجداول وقواعد البيانات",
+      "globals": "الأدوار ومساحات الجداول فقط",
+      "roles": "الأدوار فقط",
+      "tablespaces": "مساحات الجداول فقط"
+    },
+    "contents": {
+      "title_databases": "تفريغ قواعد البيانات:",
+      "title_table": "تفريغ الجدول:",
+      "structure": "البنية",
+      "data": "البيانات",
+      "both": "البنية والبيانات"
+    },
+    "serializable_deferrable": "انتظر لقطة <code>SERIALIZABLE, READ ONLY, DEFERRABLE</code> <i>(لا يتعارض التفريغ مع المعاملات المتزامنة)</i>",
+    "quote_all_identifiers": "ضع كل المعرِّفات بين علامتَي تنصيص مزدوجتين <i>(يحمي الأسماء التي صارت كلمات محجوزة في خادم أحدث)</i>",
+    "disable_dollar_quoting": "اقتبس أجسام الدوال سلاسلَ قياسية بدل اقتباس الدولار",
+    "structure_title": "خيارات إنشاء الكائنات",
+    "add_statements": "أضف الجمل:",
+    "create": "أضف جملة <code>CREATE DATABASE</code> / <code>\\connect</code>",
+    "clean": "أضف جمل <code>DROP</code> قبل إنشاء الكائنات",
+    "if_exists": "<code>IF EXISTS</code>",
+    "owner": "أضف جمل <code>ALTER … OWNER TO</code>",
+    "set_session_authorization": "استخدم <code>SET SESSION AUTHORIZATION</code> بدلًا منها",
+    "privileges": "أضف جمل <code>GRANT</code> / <code>REVOKE</code>",
+    "comments": "أضف جمل <code>COMMENT ON</code>",
+    "tablespaces": "أضف إسنادات مساحات الجداول",
+    "security_labels": "أضف جمل <code>SECURITY LABEL</code>",
+    "policies": "أضف جمل <code>CREATE POLICY</code>",
+    "publications": "أضف جمل <code>CREATE PUBLICATION</code>",
+    "subscriptions": "أضف جمل <code>CREATE SUBSCRIPTION</code>",
+    "role_passwords": "أضف كلمات مرور الأدوار",
+    "statistics": "أضف إحصاءات المخطِّط",
+    "data_title": "خيارات إنشاء البيانات",
+    "disable_triggers": "عطِّل القوادح أثناء تحميل البيانات <i>(تحتاج الاستعادة إلى مستخدم خارق)</i>",
+    "unlogged_data": "فرِّغ بيانات الجداول غير المسجَّلة",
+    "large_objects": "فرِّغ الكائنات الكبيرة",
+    "load_via_partition_root": "حمِّل الأقسام عبر الجدول المقسَّم",
+    "data_style": "الدالة المستخدمة عند تفريغ البيانات:",
+    "on_conflict_do_nothing": "جمل <code>INSERT … ON CONFLICT DO NOTHING</code>",
+    "syntax": {
+      "title": "الصيغة المستخدمة عند إدراج البيانات:",
+      "columns": "ضمِّن أسماء الأعمدة في كل جملة <code>INSERT</code>",
+      "multi": "أدرج صفوفًا متعددة في كل جملة <code>INSERT</code>",
+      "both": "كلا الخيارين أعلاه",
+      "neither": "لا هذا ولا ذاك",
+      "example": "مثال:",
+      "example_columns": "INSERT INTO tbl_name (col_A, col_B, col_C) VALUES (1, 2, 3)",
+      "example_multi": "INSERT INTO tbl_name VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9)",
+      "example_both": "INSERT INTO tbl_name (col_A, col_B, col_C) VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9)",
+      "example_neither": "INSERT INTO tbl_name VALUES (1, 2, 3)"
+    },
+    "rows_per_insert": "عدد الصفوف في كل جملة INSERT:"
+  }
+}

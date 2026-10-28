@@ -1,0 +1,726 @@
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
+import { useParams, useSearchParams } from 'react-router'
+import { errorMessage, type ApiError } from '@/api/request'
+import { useRequest } from '@/api/useRequest'
+import Icon from '@/components/Icon'
+import { notify, notifyError, notifySuccess } from '@/notify'
+import { createTemplate, deleteTemplate, downloadExport, exportOptions, exportText, updateTemplate, type ExportObject, type ExportOptions, type ExportScope, type ExportSettings, type ExportTarget, type ExportTemplate } from '../api'
+
+const DEFAULTS: Omit<ExportSettings, 'filename_template' | 'encoding' | 'databases' | 'structure' | 'data'> = {
+  method: 'quick',
+  format: 'plain',
+  output: 'file',
+  compression: 'none',
+  max_size: '',
+  header_comment: '',
+  contents: 'both',
+  globals: 'all',
+  large_objects: true,
+  data_style: 'copy',
+  insert_syntax: 'both',
+  rows_per_insert: '100',
+  owner: true,
+  privileges: true,
+  comments: true,
+  tablespaces: true,
+  publications: true,
+  subscriptions: true,
+  security_labels: true,
+  policies: true,
+  unlogged_data: true,
+  role_passwords: true,
+  create: false,
+  clean: false,
+  if_exists: false,
+  statistics: false,
+  set_session_authorization: false,
+  quote_all_identifiers: false,
+  disable_dollar_quoting: false,
+  serializable_deferrable: false,
+  disable_triggers: false,
+  load_via_partition_root: false,
+  on_conflict_do_nothing: false,
+}
+
+type Flag = { [K in keyof ExportSettings]: ExportSettings[K] extends boolean ? K : never }[keyof ExportSettings]
+
+/** Relation kinds with rows of their own; a view's structure is all there is to export. */
+const WITH_DATA = ['r', 'p', 'm', 'S']
+
+const FILENAME_KEY = (scope: ExportScope) => `pgaExportFilename.${scope}`
+
+function rememberedFilename(scope: ExportScope): string | null {
+  try {
+    return localStorage.getItem(FILENAME_KEY(scope))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The Export page of every level, laid out like phpMyAdmin's export.twig with
+ * server/database/table/export/index.twig's selection card: the export templates, Quick or
+ * Custom, the format, what to export, the output, and the format's options, here pg_dump's (and
+ * pg_dumpall's for the server). The export downloads as pg_dump writes it, or shows as text.
+ */
+export default function Export({ scope }: { scope: ExportScope }) {
+  const params = useParams()
+  const [search] = useSearchParams()
+  const target: ExportTarget = scope === 'server' ? {} : scope === 'database' ? { database: params.db } : scope === 'schema' ? { database: params.db, schema: params.schema } : { database: params.db, schema: params.schema, table: params.table }
+  const { data: options, error } = useRequest(() => exportOptions(target), [scope, params.db, params.schema, params.table])
+
+  if (error) {
+    return (
+      <div className="container">
+        <div className="alert alert-danger my-3" role="alert">
+          {error.message}
+        </div>
+      </div>
+    )
+  }
+  if (!options) return null
+
+  // Tables ticked on the schema's Structure page ("With selected: Export") come in the URL.
+  const preselected = search.getAll('table')
+
+  return <ExportForm key={`${scope}:${params.db}:${params.schema}:${params.table}`} scope={scope} target={target} options={options} preselected={preselected} />
+}
+
+function ExportForm({ scope, target, options, preselected }: { scope: ExportScope; target: ExportTarget; options: ExportOptions; preselected: string[] }) {
+  const { t } = useTranslation('export')
+  const names = options.objects.map((object) => object.name)
+  const initialSelection = preselected.length > 0 ? names.filter((name) => preselected.includes(name)) : names
+  const [settings, setSettings] = useState<ExportSettings>(() => ({
+    ...DEFAULTS,
+    method: preselected.length > 0 ? 'custom' : 'quick',
+    filename_template: rememberedFilename(scope) ?? options.filename_template,
+    encoding: options.encoding,
+    databases: names,
+    structure: initialSelection,
+    data: initialSelection.filter((name) => dataOf(options.objects.find((object) => object.name === name))),
+  }))
+  const [rememberFilename, setRememberFilename] = useState(true)
+  const [templates, setTemplates] = useState<ExportTemplate[]>(options.templates)
+  const [templateName, setTemplateName] = useState('')
+  const [templateId, setTemplateId] = useState('')
+  const [text, setText] = useState<string | null>(null)
+  const [running, setRunning] = useState(false)
+  const textRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (text !== null) textRef.current?.scrollIntoView({ block: 'start' })
+  }, [text])
+
+  const set = <K extends keyof ExportSettings>(key: K, value: ExportSettings[K]) => setSettings((current) => ({ ...current, [key]: value }))
+  const custom = settings.method === 'custom'
+  const plain = settings.format === 'plain'
+  const tools = options.tools
+
+  // What the selection adds up to at the database and schema scopes, as the server reads it.
+  const contents: ExportSettings['contents'] = scope === 'database' || scope === 'schema' ? (settings.structure.length === 0 ? 'data' : settings.data.length === 0 ? 'structure' : 'both') : settings.contents
+
+  function dataOf(object: ExportObject | undefined): boolean {
+    return object !== undefined && (object.kind === undefined || WITH_DATA.includes(object.kind))
+  }
+
+  /** The settings a template keeps: the objects ticked are the page's, not the template's, unless they exist here. */
+  function apply(template: ExportTemplate) {
+    const data = template.data
+    setSettings((current) => ({
+      ...current,
+      ...data,
+      databases: data.databases ? data.databases.filter((name) => names.includes(name)) : current.databases,
+      structure: data.structure ? data.structure.filter((name) => names.includes(name)) : current.structure,
+      data: data.data ? data.data.filter((name) => names.includes(name)) : current.data,
+    }))
+  }
+
+  /** The request for the server: the target, and in Custom mode every option the page shows. */
+  function request(): Record<string, unknown> {
+    if (!custom) return { ...target, format: settings.format }
+    const { method: _method, output: _output, databases, structure, data, ...rest } = settings
+    const selection = scope === 'server' ? { databases } : scope === 'database' || scope === 'schema' ? { structure, data } : {}
+
+    return { ...target, ...rest, ...selection }
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    if (running) return
+    if (tools === null || !tools.usable) {
+      notifyError(tools === null ? t('tools.missing') : t('tools.too_old', { version: tools.version, server: options.server_major }))
+
+      return
+    }
+    if (custom && rememberFilename) {
+      try {
+        localStorage.setItem(FILENAME_KEY(scope), settings.filename_template)
+      } catch {
+        // The template is remembered where the browser allows it.
+      }
+    }
+    if (custom && settings.output === 'text') {
+      setRunning(true)
+      exportText(request()).then(
+        (output) => {
+          setText(output)
+          setRunning(false)
+        },
+        (err: unknown) => {
+          setRunning(false)
+          notifyError(describe(err))
+        },
+      )
+
+      return
+    }
+    setText(null)
+    downloadExport(request(), (err) => notifyError(describe(err)))
+  }
+
+  function describe(err: unknown): string {
+    const detail = (err as Partial<ApiError>).detail
+
+    return detail ? `${errorMessage(err)}\n${detail}` : errorMessage(err)
+  }
+
+  async function saveTemplate(e: FormEvent) {
+    e.preventDefault()
+    try {
+      const template = await createTemplate(scope, templateName.trim(), templateData())
+      setTemplates((list) => [...list, template].sort((a, b) => a.name.localeCompare(b.name)))
+      setTemplateId(String(template.id))
+      setTemplateName('')
+      notifySuccess(t('templates.created'))
+    } catch (err) {
+      notifyError(errorMessage(err))
+    }
+  }
+
+  async function overwriteTemplate() {
+    if (templateId === '') return notify(t('templates.none_selected'), 'error')
+    try {
+      const template = await updateTemplate(Number(templateId), templateData())
+      setTemplates((list) => list.map((entry) => (entry.id === template.id ? template : entry)))
+      notifySuccess(t('templates.updated'))
+    } catch (err) {
+      notifyError(errorMessage(err))
+    }
+  }
+
+  async function removeTemplate() {
+    if (templateId === '') return notify(t('templates.none_selected'), 'error')
+    try {
+      await deleteTemplate(Number(templateId))
+      setTemplates((list) => list.filter((entry) => String(entry.id) !== templateId))
+      setTemplateId('')
+      notifySuccess(t('templates.deleted'))
+    } catch (err) {
+      notifyError(errorMessage(err))
+    }
+  }
+
+  function templateData(): Partial<ExportSettings> {
+    return { ...settings }
+  }
+
+  const title = {
+    server: t('title.server'),
+    database: t('title.database', { name: target.database }),
+    schema: t('title.schema', { name: target.schema }),
+    table: t('title.table', { name: target.table }),
+  }[scope]
+
+  const formats: { value: ExportSettings['format']; label: string }[] = [
+    { value: 'plain', label: t('format.plain') },
+    ...(scope === 'server' ? [] : [{ value: 'custom' as const, label: t('format.custom') }, { value: 'tar' as const, label: t('format.tar') }]),
+  ]
+
+  const toggle = (key: Flag, label: ReactNode, children?: ReactNode) => (
+    <li className="list-group-item">
+      <div className="form-check form-switch">
+        <input className="form-check-input" type="checkbox" role="switch" name={`sql_${key}`} id={`checkbox_sql_${key}`} checked={settings[key]} onChange={(e) => set(key, e.target.checked)} />
+        <label className="form-check-label" htmlFor={`checkbox_sql_${key}`}>
+          {label}
+        </label>
+      </div>
+      {children}
+    </li>
+  )
+  const code = { code: <code /> }
+  const label = (key: string) => <Trans t={t} i18nKey={key} components={code} />
+
+  return (
+    <div className="container">
+      <h2 className="my-3">
+        <Icon name="b_export" /> {title}
+      </h2>
+
+      {tools === null && (
+        <div className="alert alert-danger" role="alert">
+          {t('tools.missing')}
+        </div>
+      )}
+      {tools !== null && !tools.usable && (
+        <div className="alert alert-danger" role="alert">
+          {t('tools.too_old', { version: tools.version, server: options.server_major })}
+        </div>
+      )}
+
+      <div className="card mb-3">
+        <div className="card-header">{t('templates.title')}</div>
+        <div className="card-body row gy-3">
+          <form className="col-12 col-md" onSubmit={(e) => void saveTemplate(e)}>
+            <fieldset>
+              <legend>{t('templates.new')}</legend>
+              <div className="row g-3 align-items-center">
+                <div className="col-auto">
+                  <label htmlFor="templateName" className="col-form-label">
+                    {t('templates.name')}
+                  </label>
+                </div>
+                <div className="col-auto">
+                  <input className="form-control" type="text" name="templateName" id="templateName" maxLength={64} placeholder={t('templates.name')} required value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
+                </div>
+                <div className="col-auto">
+                  <input className="btn btn-secondary" type="submit" name="createTemplate" id="createTemplate" value={t('templates.create')} />
+                </div>
+              </div>
+            </fieldset>
+          </form>
+
+          <form
+            className="col-12 col-md"
+            id="existingTemplatesForm"
+            onSubmit={(e) => {
+              e.preventDefault()
+              // Update and Delete are both the form's submit buttons, as in phpMyAdmin.
+              const submitter = (e.nativeEvent as SubmitEvent).submitter
+              void (submitter?.id === 'deleteTemplate' ? removeTemplate() : overwriteTemplate())
+            }}
+          >
+            <fieldset>
+              <legend>{t('templates.existing')}</legend>
+              <div className="row g-3 align-items-center">
+                <div className="col-auto">
+                  <label htmlFor="template" className="col-form-label">
+                    {t('templates.template')}
+                  </label>
+                </div>
+                <div className="col-auto">
+                  <select
+                    className="form-select"
+                    name="template"
+                    id="template"
+                    required
+                    value={templateId}
+                    onChange={(e) => {
+                      setTemplateId(e.target.value)
+                      const template = templates.find((entry) => String(entry.id) === e.target.value)
+                      if (template) apply(template)
+                    }}
+                  >
+                    <option value="">-- {t('templates.select')} --</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-auto">
+                  <input className="btn btn-secondary" type="submit" name="updateTemplate" id="updateTemplate" value={t('templates.update')} />
+                </div>
+                <div className="col-auto">
+                  <input className="btn btn-secondary" type="submit" name="deleteTemplate" id="deleteTemplate" value={t('templates.delete')} />
+                </div>
+              </div>
+            </fieldset>
+          </form>
+        </div>
+      </div>
+
+      <form method="post" name="dump" onSubmit={submit}>
+        <div className="card mb-3" id="quick_or_custom">
+          <div className="card-header">{t('method.title')}</div>
+          <div className="card-body">
+            <div className="form-check">
+              <input className="form-check-input" type="radio" name="quick_or_custom" value="quick" id="radio_quick_export" checked={!custom} onChange={() => set('method', 'quick')} />
+              <label className="form-check-label" htmlFor="radio_quick_export">
+                {t('method.quick')}
+              </label>
+            </div>
+            <div className="form-check">
+              <input className="form-check-input" type="radio" name="quick_or_custom" value="custom" id="radio_custom_export" checked={custom} onChange={() => set('method', 'custom')} />
+              <label className="form-check-label" htmlFor="radio_custom_export">
+                {t('method.custom')}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="card mb-3" id="format">
+          <div className="card-header">{t('format.title')}</div>
+          <div className="card-body">
+            <select className="form-select" id="plugins" name="what" aria-label={t('format.aria')} value={settings.format} onChange={(e) => set('format', e.target.value as ExportSettings['format'])}>
+              {formats.map((format) => (
+                <option key={format.value} value={format.value}>
+                  {format.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {custom && scope === 'server' && <DatabaseSelection databases={names} selected={settings.databases} onChange={(databases) => set('databases', databases)} />}
+        {custom && (scope === 'database' || scope === 'schema') && (
+          <ObjectSelection scope={scope} objects={options.objects} structure={settings.structure} data={settings.data} hasData={dataOf} onChange={(structure, data) => setSettings((current) => ({ ...current, structure, data }))} />
+        )}
+
+        {custom && (
+          <div className="card mb-3" id="output">
+            <div className="card-header">{t('output.title')}</div>
+            <ul className="list-group list-group-flush">
+              <li className="list-group-item">
+                <div className="form-check">
+                  <input className="form-check-input" type="radio" id="radio_view_as_text" name="output_format" value="astext" checked={settings.output === 'text'} onChange={() => set('output', 'text')} />
+                  <label className="form-check-label" htmlFor="radio_view_as_text">
+                    {t('output.as_text')}
+                  </label>
+                </div>
+                <div className="form-check mb-2">
+                  <input className="form-check-input" type="radio" name="output_format" value="sendit" id="radio_dump_asfile" checked={settings.output === 'file'} onChange={() => set('output', 'file')} />
+                  <label className="form-check-label" htmlFor="radio_dump_asfile">
+                    {t('output.as_file')}
+                  </label>
+                </div>
+                {settings.output === 'file' && (
+                  <div className="hstack gap-3">
+                    <div className="vr"></div>
+                    <ul className="list-group" id="ul_save_asfile">
+                      <li className="list-group-item">
+                        <div className="row g-3 align-items-center">
+                          <div className="col-auto">
+                            <label htmlFor="filename_template" className="col-form-label">
+                              {t('output.filename')} <Icon name="b_help" title={t(`output.filename_hint.${scope}`)} />
+                            </label>
+                          </div>
+                          <div className="col-auto">
+                            <input type="text" className="form-control" name="filename_template" id="filename_template" value={settings.filename_template} onChange={(e) => set('filename_template', e.target.value)} />
+                          </div>
+                          <div className="col-auto">
+                            <div className="form-check form-switch">
+                              <input className="form-check-input" type="checkbox" role="switch" name="remember_template" id="checkbox_remember_template" checked={rememberFilename} onChange={(e) => setRememberFilename(e.target.checked)} />
+                              <label className="form-check-label" htmlFor="checkbox_remember_template">
+                                {t('output.remember')}
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                      <li className="list-group-item">
+                        <div className="row">
+                          <div className="col-auto">
+                            <label htmlFor="select_charset" className="col-form-label">
+                              {t('output.charset')}
+                            </label>
+                          </div>
+                          <div className="col-auto">
+                            <select className="form-select" id="select_charset" name="charset" value={settings.encoding} onChange={(e) => set('encoding', e.target.value)}>
+                              {options.encodings.map((encoding) => (
+                                <option key={encoding} value={encoding}>
+                                  {encoding}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </li>
+                      <li className="list-group-item">
+                        <div className="row">
+                          <div className="col-auto">
+                            <label htmlFor="compression" className="col-form-label">
+                              {t('output.compression')}
+                            </label>
+                          </div>
+                          <div className="col-auto">
+                            <select className="form-select" id="compression" name="compression" value={settings.compression} onChange={(e) => set('compression', e.target.value as ExportSettings['compression'])}>
+                              <option value="none">{t('output.none')}</option>
+                              <option value="gzip">{t('output.gzip')}</option>
+                            </select>
+                          </div>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+              </li>
+
+              {scope !== 'server' && (
+                <li className="list-group-item">
+                  <label htmlFor="maxsize" className="form-label">
+                    {t('output.max_size')}
+                  </label>
+                  <input className="form-control" type="number" min={0} step="any" id="maxsize" name="maxsize" aria-describedby="maxsizeHelp" value={settings.max_size} onChange={(e) => set('max_size', e.target.value)} />
+                  <div id="maxsizeHelp" className="form-text">
+                    {t('output.max_size_help')}
+                  </div>
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {custom && (
+          <div className="card mb-3" id="format_specific_opts">
+            <div className="card-header">{t('options.title')}</div>
+            <div className="card-body">
+              <div id="sql_options" className="format_specific_options">
+                <div id="sql_general_opts">
+                  <ul className="list-group">
+                    {plain && (
+                      <li className="list-group-item">
+                        <label htmlFor="text_sql_header_comment" className="form-label">
+                          {t('options.header_comment')}
+                        </label>
+                        <input className="form-control" type="text" name="sql_header_comment" id="text_sql_header_comment" value={settings.header_comment} onChange={(e) => set('header_comment', e.target.value)} />
+                      </li>
+                    )}
+                    {scope === 'server' && (
+                      <li className="list-group-item">
+                        {t('options.globals.title')}
+                        <ul className="list-group" id="ul_globals">
+                          {(['all', 'globals', 'roles', 'tablespaces'] as const).map((value) => (
+                            <li className="list-group-item" key={value}>
+                              <div className="form-check">
+                                <input className="form-check-input" type="radio" name="sql_globals" id={`radio_sql_globals_${value}`} value={value} checked={settings.globals === value} onChange={() => set('globals', value)} />
+                                <label className="form-check-label" htmlFor={`radio_sql_globals_${value}`}>
+                                  {t(`options.globals.${value}`)}
+                                </label>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    )}
+                    {(scope === 'server' || scope === 'table') && (
+                      <li className="list-group-item">
+                        {t(scope === 'server' ? 'options.contents.title_databases' : 'options.contents.title_table')}
+                        <ul className="list-group" id="ul_structure_or_data">
+                          {(['structure', 'data', 'both'] as const).map((value) => (
+                            <li className="list-group-item" key={value}>
+                              <div className="form-check">
+                                <input className="form-check-input" type="radio" name="sql_structure_or_data" id={`radio_sql_structure_or_data_${value}`} value={value} checked={settings.contents === value} onChange={() => set('contents', value)} />
+                                <label className="form-check-label" htmlFor={`radio_sql_structure_or_data_${value}`}>
+                                  {t(`options.contents.${value}`)}
+                                </label>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    )}
+                    {scope !== 'server' && contents !== 'structure' && toggle('serializable_deferrable', label('options.serializable_deferrable'))}
+                    {toggle('quote_all_identifiers', label('options.quote_all_identifiers'))}
+                    {toggle('disable_dollar_quoting', label('options.disable_dollar_quoting'))}
+                  </ul>
+                </div>
+
+                {contents !== 'data' && (
+                  <div id="sql_structure">
+                    <h5 className="card-title mt-4 mb-2">{t('options.structure_title')}</h5>
+                    <ul className="list-group">
+                      <li className="list-group-item">{t('options.add_statements')}</li>
+                      <li className="list-group-item">
+                        <ul className="list-group" id="ul_add_statements">
+                          {scope === 'database' && plain && toggle('create', label('options.create'))}
+                          {plain &&
+                            toggle(
+                              'clean',
+                              label('options.clean'),
+                              settings.clean && <ul className="list-group mt-2">{toggle('if_exists', label('options.if_exists'))}</ul>,
+                            )}
+                          {plain &&
+                            toggle(
+                              'owner',
+                              label('options.owner'),
+                              settings.owner && <ul className="list-group mt-2">{toggle('set_session_authorization', label('options.set_session_authorization'))}</ul>,
+                            )}
+                          {toggle('privileges', label('options.privileges'))}
+                          {toggle('comments', label('options.comments'))}
+                          {toggle('tablespaces', label('options.tablespaces'))}
+                          {toggle('security_labels', label('options.security_labels'))}
+                          {tools?.policies !== false && toggle('policies', label('options.policies'))}
+                          {(scope === 'server' || scope === 'database') && toggle('publications', label('options.publications'))}
+                          {(scope === 'server' || scope === 'database') && toggle('subscriptions', label('options.subscriptions'))}
+                          {scope === 'server' && toggle('role_passwords', label('options.role_passwords'))}
+                          {tools?.statistics !== false && contents === 'both' && toggle('statistics', label('options.statistics'))}
+                        </ul>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+
+                {contents !== 'structure' && (
+                  <div id="sql_data">
+                    <h5 className="card-title mt-4 mb-2">{t('options.data_title')}</h5>
+                    <ul className="list-group">
+                      {contents === 'data' && toggle('disable_triggers', label('options.disable_triggers'))}
+                      {toggle('unlogged_data', label('options.unlogged_data'))}
+                      {(scope === 'database' || scope === 'schema') && toggle('large_objects', label('options.large_objects'))}
+                      {toggle('load_via_partition_root', label('options.load_via_partition_root'))}
+                      <li className="list-group-item">
+                        <label htmlFor="select_sql_type" className="form-label">
+                          {t('options.data_style')}
+                        </label>
+                        <select className="form-select" name="sql_type" id="select_sql_type" value={settings.data_style} onChange={(e) => set('data_style', e.target.value as ExportSettings['data_style'])}>
+                          <option value="copy">COPY</option>
+                          <option value="insert">INSERT</option>
+                        </select>
+                      </li>
+                      {settings.data_style === 'insert' && (
+                        <>
+                          {toggle('on_conflict_do_nothing', label('options.on_conflict_do_nothing'))}
+                          <li className="list-group-item">
+                            {t('options.syntax.title')}
+                            <ul className="list-group" id="ul_insert_syntax">
+                              {(['columns', 'multi', 'both', 'neither'] as const).map((value) => (
+                                <li className="list-group-item" key={value}>
+                                  <div className="form-check">
+                                    <input className="form-check-input" type="radio" name="sql_insert_syntax" id={`radio_sql_insert_syntax_${value}`} value={value} checked={settings.insert_syntax === value} onChange={() => set('insert_syntax', value)} />
+                                    <label className="form-check-label" htmlFor={`radio_sql_insert_syntax_${value}`}>
+                                      {label(`options.syntax.${value}`)}
+                                      <br />
+                                      {t('options.syntax.example')} <code>{t(`options.syntax.example_${value}`)}</code>
+                                    </label>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </li>
+                          {(settings.insert_syntax === 'multi' || settings.insert_syntax === 'both') && (
+                            <li className="list-group-item">
+                              <label htmlFor="text_sql_rows_per_insert" className="form-label">
+                                {t('options.rows_per_insert')}
+                              </label>
+                              <input className="form-control" type="number" min={1} name="sql_rows_per_insert" id="text_sql_rows_per_insert" value={settings.rows_per_insert} onChange={(e) => set('rows_per_insert', e.target.value)} />
+                            </li>
+                          )}
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div id="submit">
+          <input id="buttonGo" className="btn btn-primary" type="submit" value={t('export')} />
+        </div>
+      </form>
+
+      {text !== null && (
+        <div className="card my-3">
+          <div className="card-header">{t('output.text_title')}</div>
+          <div className="card-body">
+            <textarea ref={textRef} id="textSQLDUMP" className="form-control font-monospace" rows={30} readOnly value={text} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** server/export/index.twig's Databases card: a multiple select with Select all / Unselect all. */
+function DatabaseSelection({ databases, selected, onChange }: { databases: string[]; selected: string[]; onChange: (selected: string[]) => void }) {
+  const { t } = useTranslation('export')
+
+  return (
+    <div className="card mb-3" id="databases_and_tables">
+      <div className="card-header">{t('selection.databases')}</div>
+      <div className="card-body">
+        <div className="mb-3">
+          <button type="button" className="btn btn-secondary" id="db_select_all" onClick={() => onChange(databases)}>
+            {t('selection.select_all')}
+          </button>{' '}
+          <button type="button" className="btn btn-secondary" id="db_unselect_all" onClick={() => onChange([])}>
+            {t('selection.unselect_all')}
+          </button>
+        </div>
+        <select className="form-select" name="db_select[]" id="db_select" size={10} multiple aria-label={t('selection.databases')} value={selected} onChange={(e) => onChange(Array.from(e.target.selectedOptions, (option) => option.value))}>
+          {databases.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * database/export/index.twig's Tables card: a row per schema (at the database scope) or per
+ * relation (at the schema scope) with its Structure and Data boxes. A view has no Data box.
+ */
+function ObjectSelection({ scope, objects, structure, data, hasData, onChange }: { scope: 'database' | 'schema'; objects: ExportObject[]; structure: string[]; data: string[]; hasData: (object: ExportObject) => boolean; onChange: (structure: string[], data: string[]) => void }) {
+  const { t } = useTranslation('export')
+  const withData = objects.filter(hasData).map((object) => object.name)
+  const all = objects.map((object) => object.name)
+  const allStructure = all.length > 0 && all.every((name) => structure.includes(name))
+  const allData = withData.length > 0 && withData.every((name) => data.includes(name))
+  const toggle = (list: string[], name: string, on: boolean) => (on ? (list.includes(name) ? list : [...list, name]) : list.filter((entry) => entry !== name))
+
+  return (
+    <div className="card mb-3" id="databases_and_tables">
+      <div className="card-header">{t(scope === 'database' ? 'selection.schemas' : 'selection.tables')}</div>
+      <div className="card-body" style={{ overflowY: 'scroll', maxHeight: '20em' }}>
+        <table className="table table-sm table-striped table-hover export_table_select">
+          <thead>
+            <tr>
+              <th></th>
+              <th>{t(scope === 'database' ? 'selection.schemas_column' : 'selection.tables_column')}</th>
+              <th className="export_structure text-center">{t('selection.structure')}</th>
+              <th className="export_data text-center">{t('selection.data')}</th>
+            </tr>
+            <tr>
+              <td></td>
+              <td className="align-middle">{t('selection.select_all')}</td>
+              <td className="export_structure text-center">
+                <input type="checkbox" id="table_structure_all" aria-label={t('selection.structure_all')} checked={allStructure} onChange={(e) => onChange(e.target.checked ? all : [], data)} />
+              </td>
+              <td className="export_data text-center">
+                <input type="checkbox" id="table_data_all" aria-label={t('selection.data_all')} checked={allData} onChange={(e) => onChange(structure, e.target.checked ? withData : [])} />
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            {objects.map((object) => {
+              const inStructure = structure.includes(object.name)
+              const inData = data.includes(object.name)
+              const rowData = hasData(object)
+
+              return (
+                <tr key={object.name} className={inStructure || inData ? 'marked' : undefined}>
+                  <td>
+                    <input className="checkall" type="checkbox" name="table_select[]" value={object.name} checked={inStructure || inData} onChange={(e) => onChange(toggle(structure, object.name, e.target.checked), rowData ? toggle(data, object.name, e.target.checked) : data)} />
+                  </td>
+                  <td className="align-middle text-nowrap">{object.name}</td>
+                  <td className="export_structure text-center">
+                    <input type="checkbox" name="table_structure[]" value={object.name} aria-label={t('selection.structure_of', { name: object.name })} checked={inStructure} onChange={(e) => onChange(toggle(structure, object.name, e.target.checked), data)} />
+                  </td>
+                  <td className="export_data text-center">
+                    {rowData && <input type="checkbox" name="table_data[]" value={object.name} aria-label={t('selection.data_of', { name: object.name })} checked={inData} onChange={(e) => onChange(structure, toggle(data, object.name, e.target.checked))} />}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}

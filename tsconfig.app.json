@@ -64,6 +64,9 @@
       "@replication/*": [
         "./Modules/Replication/resources/*"
       ],
+      "@export/*": [
+        "./Modules/Export/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]

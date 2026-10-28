@@ -9,7 +9,7 @@ import Variables from './Pages/Variables'
 
 // The server's "Status" tab where phpMyAdmin has it: after SQL, before the Roles tab (its User
 // accounts), so the module sorts after Roles; "Variables" after the tabs that phpMyAdmin puts
-// before its own (Tablespaces stands in for Export, Import and Settings until they are built).
+// before its own (Export and the rest place themselves after Tablespaces too, ahead of it).
 registerModule({
   id: 'status',
   order: 45,

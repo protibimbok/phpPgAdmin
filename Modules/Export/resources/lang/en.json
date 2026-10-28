@@ -1,0 +1,133 @@
+{
+  "tab": "Export",
+  "export": "Export",
+  "title": {
+    "server": "Exporting databases from the current server",
+    "database": "Exporting schemas from \"{{name}}\" database",
+    "schema": "Exporting tables from \"{{name}}\" schema",
+    "table": "Exporting rows from \"{{name}}\" table"
+  },
+  "tools": {
+    "missing": "pg_dump was not found on the web server. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the directory of the PostgreSQL client programs.",
+    "too_old": "pg_dump {{version}} cannot export from a PostgreSQL {{server}} server. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the client programs of version {{server}} or newer."
+  },
+  "templates": {
+    "title": "Export templates:",
+    "new": "New template:",
+    "name": "Template name",
+    "create": "Create",
+    "existing": "Existing templates:",
+    "template": "Template:",
+    "select": "Select a template",
+    "update": "Update",
+    "delete": "Delete",
+    "created": "The template has been created.",
+    "updated": "The template has been updated.",
+    "deleted": "The template has been deleted.",
+    "none_selected": "Select a template first."
+  },
+  "method": {
+    "title": "Export method:",
+    "quick": "Quick - display only the minimal options",
+    "custom": "Custom - display all possible options"
+  },
+  "format": {
+    "title": "Format:",
+    "aria": "File format to export",
+    "plain": "SQL",
+    "custom": "PostgreSQL custom archive (pg_restore)",
+    "tar": "PostgreSQL tar archive (pg_restore)"
+  },
+  "selection": {
+    "databases": "Databases",
+    "schemas": "Schemas:",
+    "tables": "Tables:",
+    "schemas_column": "Schemas",
+    "tables_column": "Tables",
+    "structure": "Structure",
+    "data": "Data",
+    "select_all": "Select all",
+    "unselect_all": "Unselect all",
+    "structure_all": "Export the structure of all objects.",
+    "data_all": "Export the data of all objects.",
+    "structure_of": "Export the structure of {{name}}.",
+    "data_of": "Export the data of {{name}}."
+  },
+  "output": {
+    "title": "Output:",
+    "as_text": "View output as text",
+    "as_file": "Save output to a file",
+    "filename": "File name template:",
+    "filename_hint": {
+      "server": "This value is interpreted using the 'strftime' function, so you can use time formatting strings. Additionally the following transformations will happen: @SERVER@ will become the server name. Other text will be kept as is.",
+      "database": "This value is interpreted using the 'strftime' function, so you can use time formatting strings. Additionally the following transformations will happen: @SERVER@ will become the server name and @DATABASE@ will become the database name. Other text will be kept as is.",
+      "schema": "This value is interpreted using the 'strftime' function, so you can use time formatting strings. Additionally the following transformations will happen: @SERVER@ will become the server name, @DATABASE@ will become the database name and @SCHEMA@ will become the schema name. Other text will be kept as is.",
+      "table": "This value is interpreted using the 'strftime' function, so you can use time formatting strings. Additionally the following transformations will happen: @SERVER@ will become the server name, @DATABASE@ will become the database name, @SCHEMA@ will become the schema name and @TABLE@ will become the table name. Other text will be kept as is."
+    },
+    "remember": "Use this for future exports",
+    "charset": "Character set of the file:",
+    "compression": "Compression:",
+    "none": "None",
+    "gzip": "gzipped",
+    "max_size": "Skip the data of tables larger than:",
+    "max_size_help": "The size is measured in MiB, indexes and TOAST included.",
+    "text_title": "Output:"
+  },
+  "options": {
+    "title": "Format-specific options:",
+    "header_comment": "Additional custom header comment (\\n splits lines):",
+    "globals": {
+      "title": "Dump:",
+      "all": "roles, tablespaces and databases",
+      "globals": "roles and tablespaces only",
+      "roles": "roles only",
+      "tablespaces": "tablespaces only"
+    },
+    "contents": {
+      "title_databases": "Dump databases:",
+      "title_table": "Dump table:",
+      "structure": "structure",
+      "data": "data",
+      "both": "structure and data"
+    },
+    "serializable_deferrable": "Wait for a <code>SERIALIZABLE, READ ONLY, DEFERRABLE</code> snapshot <i>(the dump cannot conflict with concurrent transactions)</i>",
+    "quote_all_identifiers": "Enclose all identifiers in double quotes <i>(Protects names that are keywords in a newer server)</i>",
+    "disable_dollar_quoting": "Quote function bodies as standard strings instead of with dollar quoting",
+    "structure_title": "Object creation options",
+    "add_statements": "Add statements:",
+    "create": "Add <code>CREATE DATABASE</code> / <code>\\connect</code> statement",
+    "clean": "Add <code>DROP</code> statements before the objects are created",
+    "if_exists": "<code>IF EXISTS</code>",
+    "owner": "Add <code>ALTER … OWNER TO</code> statements",
+    "set_session_authorization": "Use <code>SET SESSION AUTHORIZATION</code> instead",
+    "privileges": "Add <code>GRANT</code> / <code>REVOKE</code> statements",
+    "comments": "Add <code>COMMENT ON</code> statements",
+    "tablespaces": "Add tablespace assignments",
+    "security_labels": "Add <code>SECURITY LABEL</code> statements",
+    "policies": "Add <code>CREATE POLICY</code> statements",
+    "publications": "Add <code>CREATE PUBLICATION</code> statements",
+    "subscriptions": "Add <code>CREATE SUBSCRIPTION</code> statements",
+    "role_passwords": "Add role passwords",
+    "statistics": "Add the planner statistics",
+    "data_title": "Data creation options",
+    "disable_triggers": "Disable triggers while the data is loaded <i>(needs a superuser to restore)</i>",
+    "unlogged_data": "Dump the data of unlogged tables",
+    "large_objects": "Dump large objects",
+    "load_via_partition_root": "Load partitions through the partitioned table",
+    "data_style": "Function to use when dumping data:",
+    "on_conflict_do_nothing": "<code>INSERT … ON CONFLICT DO NOTHING</code> statements",
+    "syntax": {
+      "title": "Syntax to use when inserting data:",
+      "columns": "include column names in every <code>INSERT</code> statement",
+      "multi": "insert multiple rows in every <code>INSERT</code> statement",
+      "both": "both of the above",
+      "neither": "neither of the above",
+      "example": "Example:",
+      "example_columns": "INSERT INTO tbl_name (col_A, col_B, col_C) VALUES (1, 2, 3)",
+      "example_multi": "INSERT INTO tbl_name VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9)",
+      "example_both": "INSERT INTO tbl_name (col_A, col_B, col_C) VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9)",
+      "example_neither": "INSERT INTO tbl_name VALUES (1, 2, 3)"
+    },
+    "rows_per_insert": "Rows in each INSERT statement:"
+  }
+}

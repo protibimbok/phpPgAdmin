@@ -77,6 +77,31 @@ final class Connector
         return $this->open($credentials->username, $credentials->password, $database ?? $credentials->database);
     }
 
+    /**
+     * The libpq environment a client program (pg_dump, psql) connects with as the session's role
+     * to the given database: the same server, SSL mode and timeout as our own connections, the
+     * password in PGPASSWORD so it never shows on a command line.
+     *
+     * @return array<string, string>
+     */
+    public function environment(Credentials $credentials, ?string $database = null): array
+    {
+        $env = [
+            'PGHOST' => $this->host,
+            'PGPORT' => (string) $this->port,
+            'PGDATABASE' => $database ?? $credentials->database,
+            'PGUSER' => $credentials->username,
+            'PGPASSWORD' => $credentials->password,
+            'PGCONNECT_TIMEOUT' => (string) $this->timeout,
+            'PGAPPNAME' => 'phpPgAdmin',
+        ];
+        if (!$this->server->isSocket()) {
+            $env['PGSSLMODE'] = $this->server->sslmode;
+        }
+
+        return $env;
+    }
+
     /** @throws ConnectionException */
     private function open(string $username, #[\SensitiveParameter] string $password, string $database): Connection
     {
