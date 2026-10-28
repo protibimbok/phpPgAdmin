@@ -52,6 +52,9 @@
       "@routines/*": [
         "./Modules/Routines/resources/*"
       ],
+      "@types/*": [
+        "./Modules/Types/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]

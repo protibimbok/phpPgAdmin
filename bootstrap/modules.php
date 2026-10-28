@@ -12,6 +12,7 @@ use PhpPgAdmin\Modules\Sequences\SequencesModule;
 use PhpPgAdmin\Modules\Server\ServerModule;
 use PhpPgAdmin\Modules\Sql\SqlModule;
 use PhpPgAdmin\Modules\Tables\TablesModule;
+use PhpPgAdmin\Modules\Types\TypesModule;
 use PhpPgAdmin\Modules\Views\ViewsModule;
 
 /**
@@ -27,6 +28,7 @@ return [
     ViewsModule::class,
     SequencesModule::class,
     RoutinesModule::class,
+    TypesModule::class,
     SqlModule::class,
     FrontendModule::class,
 ];
