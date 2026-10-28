@@ -12,9 +12,9 @@ use PhpPgAdmin\Core\Nodes\Ddl;
 use PhpPgAdmin\Modules\Roles\Privileges\PrivilegeSql;
 
 /**
- * The privileges on one object (a database, schema, relation, sequence, routine or type) and
- * its columns, the default privileges of a database or schema, and the grant wizard's bulk
- * GRANT: what pgAdmin edits in each node's Security tab, its Default Privileges tab and its
+ * The privileges on one object (a database, tablespace, schema, relation, sequence, routine or
+ * type) and its columns, the default privileges of a database or schema, and the grant
+ * wizard's bulk GRANT: what pgAdmin edits in each node's Security tab, its Default Privileges tab and its
  * Grant Wizard. Privileges are read with aclexplode() over the ACL or, when it is NULL, the
  * built-in default, so what the owner and PUBLIC hold implicitly shows too.
  */
@@ -229,6 +229,7 @@ final class PrivilegeController
     {
         $row = match ($kind) {
             'database' => $conn->row("SELECT 'DATABASE' AS keyword, datname AS name, pg_catalog.quote_ident(datname) AS ident, pg_catalog.pg_get_userbyid(datdba) AS owner, COALESCE(datacl, pg_catalog.acldefault('d', datdba)) AS acl, NULL AS type FROM pg_catalog.pg_database WHERE oid = $1", [$oid]),
+            'tablespace' => $conn->row("SELECT 'TABLESPACE' AS keyword, spcname AS name, pg_catalog.quote_ident(spcname) AS ident, pg_catalog.pg_get_userbyid(spcowner) AS owner, COALESCE(spcacl, pg_catalog.acldefault('t', spcowner)) AS acl, NULL AS type FROM pg_catalog.pg_tablespace WHERE oid = $1", [$oid]),
             'schema' => $conn->row("SELECT 'SCHEMA' AS keyword, nspname AS name, pg_catalog.quote_ident(nspname) AS ident, pg_catalog.pg_get_userbyid(nspowner) AS owner, COALESCE(nspacl, pg_catalog.acldefault('n', nspowner)) AS acl, NULL AS type FROM pg_catalog.pg_namespace WHERE oid = $1", [$oid]),
             'table', 'sequence' => $conn->row("SELECT CASE WHEN relkind = 'S' THEN 'SEQUENCE' ELSE 'TABLE' END AS keyword, oid::pg_catalog.regclass::text AS name, oid::pg_catalog.regclass::text AS ident, pg_catalog.pg_get_userbyid(relowner) AS owner, COALESCE(relacl, pg_catalog.acldefault((CASE WHEN relkind = 'S' THEN 's' ELSE 'r' END)::\"char\", relowner)) AS acl, relkind::text AS type FROM pg_catalog.pg_class WHERE oid = $1", [$oid]),
             'function' => $conn->row("SELECT CASE WHEN prokind = 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END AS keyword, oid::pg_catalog.regprocedure::text AS name, oid::pg_catalog.regprocedure::text AS ident, pg_catalog.pg_get_userbyid(proowner) AS owner, COALESCE(proacl, pg_catalog.acldefault('f', proowner)) AS acl, prokind::text AS type FROM pg_catalog.pg_proc WHERE oid = $1", [$oid]),
@@ -251,6 +252,7 @@ final class PrivilegeController
     {
         return match ($kind) {
             'database' => ['CREATE', 'CONNECT', 'TEMPORARY'],
+            'tablespace' => ['CREATE'],
             'schema' => ['USAGE', 'CREATE'],
             'sequence' => ['USAGE', 'SELECT', 'UPDATE'],
             'function', 'type' => [$kind === 'function' ? 'EXECUTE' : 'USAGE'],

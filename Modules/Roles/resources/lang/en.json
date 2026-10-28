@@ -129,7 +129,8 @@
       "table": "table-specific",
       "sequence": "sequence-specific",
       "function": "routine",
-      "type": "type-specific"
+      "type": "type-specific",
+      "tablespace": "tablespace-specific"
     },
     "column": "Column",
     "revoke": "Revoke",
@@ -193,6 +194,73 @@
       "sequence": "sequence",
       "function": "function",
       "procedure": "procedure"
+    }
+  },
+  "tablespaces": {
+    "tab": "Tablespaces",
+    "title": "Tablespaces",
+    "none_selected": "No tablespace selected.",
+    "edit": "Edit",
+    "edit_title": "Tablespace:",
+    "export_title": "CREATE statement for {{name}}",
+    "data_directory": "(data directory)",
+    "total_one": "Total: {{count}} tablespace",
+    "total_other": "Total: {{count}} tablespaces",
+    "dropped_one": "The tablespace has been dropped.",
+    "dropped_other": "{{count}} tablespaces have been dropped.",
+    "drop_warning": "A tablespace can only be dropped once it is empty in every database.",
+    "created": "Tablespace {{name}} has been created.",
+    "altered": "Tablespace {{name}} has been altered.",
+    "columns": {
+      "name": "Tablespace",
+      "owner": "Owner",
+      "location": "Location",
+      "size": "Size",
+      "options": "Parameters",
+      "privileges": "Privileges",
+      "comment": "Comment"
+    },
+    "create": {
+      "title": "Create tablespace",
+      "name": "Tablespace name",
+      "location": "Directory",
+      "location_hint": "An absolute path to an existing, empty directory owned by the PostgreSQL server's operating-system user.",
+      "create": "Create"
+    },
+    "properties": "Tablespace options",
+    "parameters": "Parameters",
+    "remove": "Remove tablespace",
+    "drop": "Delete the tablespace (DROP)",
+    "move": {
+      "title": "Move objects",
+      "database": "In database:",
+      "to": "Move to tablespace:",
+      "owned_by": "Owned by (all when none is chosen):",
+      "owned_by_hint": "Ctrl+click to choose several roles.",
+      "nowait": "NOWAIT: fail at once rather than wait for locks",
+      "moved": "The objects in {{database}} have been moved.",
+      "kinds": {
+        "tables": "Tables",
+        "indexes": "Indexes",
+        "materialized_views": "Materialized views"
+      }
+    },
+    "contents": {
+      "title": "Objects in this tablespace",
+      "show": "List the objects stored in it in every database",
+      "loading": "Loading…",
+      "empty": "Nothing is stored in this tablespace.",
+      "type": "Type",
+      "name": "Name",
+      "database": "Database",
+      "kinds": {
+        "database": "default tablespace of the database",
+        "table": "table",
+        "index": "index",
+        "sequence": "sequence",
+        "mview": "materialized view",
+        "toast table": "TOAST table"
+      }
     }
   }
 }

@@ -116,7 +116,7 @@ export interface Grantee {
   privileges: Grant[]
 }
 
-export type PrivilegeKind = 'database' | 'schema' | 'table' | 'sequence' | 'function' | 'type'
+export type PrivilegeKind = 'database' | 'tablespace' | 'schema' | 'table' | 'sequence' | 'function' | 'type'
 
 export interface ObjectPrivileges {
   object: { kind: PrivilegeKind; name: string; owner: string }
@@ -135,17 +135,18 @@ export interface PrivilegeChange {
   column?: string
 }
 
-const privilegesUrl = (db: string, kind: PrivilegeKind, oid: number) => `/api/databases/${encodeURIComponent(db)}/privileges/${kind}/${oid}`
+/** A tablespace is shared by the databases, so its privileges hang from the server (db null). */
+const privilegesUrl = (db: string | null, kind: PrivilegeKind, oid: number) => `${db === null ? '/api/server' : `/api/databases/${encodeURIComponent(db)}`}/privileges/${kind}/${oid}`
 
-export function objectPrivileges(db: string, kind: PrivilegeKind, oid: number): Promise<ObjectPrivileges> {
+export function objectPrivileges(db: string | null, kind: PrivilegeKind, oid: number): Promise<ObjectPrivileges> {
   return api.get<ObjectPrivileges>(privilegesUrl(db, kind, oid))
 }
 
-export function privilegesSql(db: string, kind: PrivilegeKind, oid: number, change: PrivilegeChange): Promise<string> {
+export function privilegesSql(db: string | null, kind: PrivilegeKind, oid: number, change: PrivilegeChange): Promise<string> {
   return api.post<{ sql: string }>(`${privilegesUrl(db, kind, oid)}/msql`, change).then((r) => r.sql)
 }
 
-export function updatePrivileges(db: string, kind: PrivilegeKind, oid: number, change: PrivilegeChange): Promise<ObjectPrivileges> {
+export function updatePrivileges(db: string | null, kind: PrivilegeKind, oid: number, change: PrivilegeChange): Promise<ObjectPrivileges> {
   return api.post<ObjectPrivileges>(privilegesUrl(db, kind, oid), change)
 }
 
@@ -208,4 +209,64 @@ export function wizardSql(db: string, scid: number, grant: WizardGrant): Promise
 
 export function runWizard(db: string, scid: number, grant: WizardGrant): Promise<string> {
   return api.post<{ sql: string }>(wizardUrl(db, scid), grant).then((r) => r.sql)
+}
+
+/** A tablespace as pgAdmin's properties.sql describes it, with its size in bytes. */
+export interface Tablespace {
+  oid: number
+  name: string
+  spcuser: string
+  /** '' for pg_default and pg_global, which live in the data directory. */
+  spclocation: string
+  spcoptions: { name: string; value: string }[]
+  /** The ACL as text, null while it holds the built-in default. */
+  acl: string | null
+  description: string | null
+  size: number | null
+  is_sys_obj: boolean
+}
+
+/** What a create or an update sends; an update changes what differs from the tablespace. */
+export interface TablespaceData {
+  name?: string
+  spcuser?: string
+  spclocation?: string
+  description?: string
+  spcoptions?: { name: string; value: string }[]
+}
+
+export interface TablespaceOptions {
+  roles: string[]
+  /** The planner settings a tablespace may override (pgAdmin's vopts). */
+  variables: { name: string; vartype: string; min_val: string | null; max_val: string | null }[]
+  /** The databases the session may connect to, where objects may be moved. */
+  databases: string[]
+  tablespaces: string[]
+}
+
+export const tablespaces = collection<Tablespace>(collectionUrl(null, 'tablespaces'))
+
+export function resolveTablespace(name: string): Promise<number> {
+  return resolve(null, 'tablespace', { name }).then((ids) => ids.tsid)
+}
+
+export function tablespaceOptions(): Promise<TablespaceOptions> {
+  return api.get<TablespaceOptions>('/api/server/tablespaces/options')
+}
+
+/** pgAdmin's "Move objects": ALTER … ALL IN TABLESPACE … SET TABLESPACE, in one database. */
+export interface MoveObjects {
+  database: string
+  kinds: ('tables' | 'indexes' | 'materialized_views')[]
+  tablespace: string
+  owned_by: string[]
+  nowait: boolean
+}
+
+export function moveObjectsSql(tsid: number, data: MoveObjects): Promise<string> {
+  return api.post<{ sql: string }>(`/api/server/tablespaces/${tsid}/move/sql`, data).then((r) => r.sql)
+}
+
+export function moveObjects(tsid: number, data: MoveObjects): Promise<string> {
+  return api.post<{ sql: string }>(`/api/server/tablespaces/${tsid}/move`, data).then((r) => r.sql)
 }

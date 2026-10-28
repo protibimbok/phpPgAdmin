@@ -35,14 +35,10 @@ interface Editing {
 
 /**
  * The Privileges tab of a database, schema, table or view, laid out like phpMyAdmin's
- * database/privileges/index.twig: "Roles having access to …" with each grantee's privileges,
- * whether it may grant them on, who granted them, and Edit privileges / Revoke; a table's
- * column privileges follow its own. Then the "New" fieldset, the default privileges (database
- * and schema) and the grant wizard (schema).
+ * database/privileges/index.twig: the grantees (ObjectPrivilegesPanel), then the default
+ * privileges (database and schema) and the grant wizard (schema).
  */
 export default function Privileges() {
-  const { t } = useTranslation('roles')
-  const { t: tApp } = useTranslation()
   const level = useLevel()
   const db = level.db ?? ''
   const { data, error } = useRequest(async () => {
@@ -51,11 +47,6 @@ export default function Privileges() {
 
     return { object, privileges, roles: options.roles }
   }, [db, level.schema, level.table, level.kind])
-  const [privileges, setPrivileges] = useState<ObjectPrivileges | null>(null)
-  const [editing, setEditing] = useState<Editing | null>(null)
-  const [revoking, setRevoking] = useState<{ change: PrivilegeChange; sql: string } | null>(null)
-
-  useEffect(() => setPrivileges(null), [data])
 
   if (error) {
     return (
@@ -68,12 +59,36 @@ export default function Privileges() {
   if (!data) return null
 
   const { object, roles } = data
-  const current = privileges ?? data.privileges
+
+  return (
+    <div className="container-fluid my-3">
+      <ObjectPrivilegesPanel db={db} kind={object.kind} oid={object.oid} initial={data.privileges} roles={roles} />
+      {object.kind !== 'table' && <DefaultPrivileges db={db} scid={object.kind === 'schema' ? object.scid : undefined} roles={roles} />}
+      {object.kind === 'schema' && object.scid !== undefined && <GrantWizard db={db} scid={object.scid} roles={roles} />}
+    </div>
+  )
+}
+
+/**
+ * "Roles having access to …" with each grantee's privileges, whether it may grant them on, who
+ * granted them, and Edit privileges / Revoke; a table's column privileges follow its own. Then
+ * the "New" fieldset. A tablespace's (db null) are read and set at the server level.
+ */
+export function ObjectPrivilegesPanel({ db, kind, oid, initial, roles }: { db: string | null; kind: PrivilegeKind; oid: number; initial: ObjectPrivileges; roles: string[] }) {
+  const { t } = useTranslation('roles')
+  const { t: tApp } = useTranslation()
+  const [privileges, setPrivileges] = useState<ObjectPrivileges | null>(null)
+  const [editing, setEditing] = useState<Editing | null>(null)
+  const [revoking, setRevoking] = useState<{ change: PrivilegeChange; sql: string } | null>(null)
+
+  useEffect(() => setPrivileges(null), [initial])
+
+  const current = privileges ?? initial
   const allowedFor = (column?: string) => (column === undefined ? current.allowed : (current.column_allowed ?? []))
 
   async function save(change: PrivilegeChange) {
     try {
-      setPrivileges(await updatePrivileges(db, object.kind, object.oid, change))
+      setPrivileges(await updatePrivileges(db, kind, oid, change))
       notifySuccess(t('privileges.updated', { grantee: change.grantee }))
       setEditing(null)
     } catch (err) {
@@ -84,7 +99,7 @@ export default function Privileges() {
   async function askRevoke(grantee: string, column?: string) {
     const change = { grantee, privileges: [], column }
     try {
-      setRevoking({ change, sql: await privilegesSql(db, object.kind, object.oid, change) })
+      setRevoking({ change, sql: await privilegesSql(db, kind, oid, change) })
     } catch (err) {
       notifyError(errorMessage(err))
     }
@@ -93,7 +108,7 @@ export default function Privileges() {
   const rows: { grantee: Grantee; column?: string }[] = [...current.acl.map((grantee) => ({ grantee })), ...(current.columns ?? []).flatMap((column) => column.acl.map((grantee) => ({ grantee, column: column.name })))]
 
   return (
-    <div className="container-fluid my-3">
+    <>
       <form id="usersForm" onSubmit={(e) => e.preventDefault()}>
         <div className="w-100">
           <fieldset className="pma-fieldset">
@@ -171,9 +186,6 @@ export default function Privileges() {
         </div>
       </div>
 
-      {object.kind !== 'table' && <DefaultPrivileges db={db} scid={object.kind === 'schema' ? object.scid : undefined} roles={roles} />}
-      {object.kind === 'schema' && object.scid !== undefined && <GrantWizard db={db} scid={object.scid} roles={roles} />}
-
       <PrivilegesDialog
         key={editing?.column}
         show={editing !== null}
@@ -182,7 +194,7 @@ export default function Privileges() {
         roles={roles}
         allowed={allowedFor(editing?.column)}
         currentOf={(grantee) => (editing?.column === undefined ? current.acl : (current.columns?.find((c) => c.name === editing.column)?.acl ?? [])).find((g) => g.grantee === grantee)?.privileges ?? []}
-        onPreview={(change) => privilegesSql(db, object.kind, object.oid, { ...change, column: editing?.column })}
+        onPreview={(change) => privilegesSql(db, kind, oid, { ...change, column: editing?.column })}
         onSave={(change) => save({ ...change, column: editing?.column })}
         onClose={() => setEditing(null)}
       >
@@ -215,6 +227,6 @@ export default function Privileges() {
           if (pending) void save(pending.change)
         }}
       />
-    </div>
+    </>
   )
 }

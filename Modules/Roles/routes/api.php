@@ -11,15 +11,17 @@ use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Roles\Http\Controllers\PrivilegeController;
 use PhpPgAdmin\Modules\Roles\Http\Controllers\RoleController;
+use PhpPgAdmin\Modules\Roles\Http\Controllers\TablespaceController;
 use Psr\Http\Message\ServerRequestInterface;
 
-// Beyond the node operations: the editor's lists, and REASSIGN OWNED / DROP OWNED (preview and run).
+// Beyond the node operations: the editors' lists, REASSIGN OWNED / DROP OWNED and a tablespace's
+// "Move objects" (preview and run), and the privileges on a tablespace.
 Route::middleware(Authenticate::class)->group(function (): void {
-    $context = static function (ServerRequestInterface $request, array $ids = []): NodeContext {
+    $context = static function (ServerRequestInterface $request, array $ids = [], string $type = 'role'): NodeContext {
         $pool = ConnectionPool::from($request);
         $conn = $pool->maintenance();
 
-        return new NodeContext(Nodes::get('role'), Nodes::registry(), $pool, $conn, $conn->database(), $ids, $request);
+        return new NodeContext(Nodes::get($type), Nodes::registry(), $pool, $conn, $conn->database(), $ids, $request);
     };
 
     Route::get('/server/roles/options', fn (ServerRequestInterface $request): array => (new RoleController())->options($context($request)))
@@ -35,6 +37,32 @@ Route::middleware(Authenticate::class)->group(function (): void {
 
     Route::get('/server/roles/{rid:number}/databases', fn (ServerRequestInterface $request, array $args): array => ['databases' => (new PrivilegeController())->databasesOf(ConnectionPool::from($request)->maintenance(), (int) $args['rid'])])
         ->setName('roles.databases');
+
+    Route::get('/server/tablespaces/options', fn (ServerRequestInterface $request): array => (new TablespaceController())->options($context($request, [], 'tablespace')))
+        ->setName('tablespaces.options');
+
+    foreach (['move' => true, 'move/sql' => false] as $path => $run) {
+        Route::post('/server/tablespaces/{tsid:number}/' . $path, function (ServerRequestInterface $request, array $args) use ($context, $run): array {
+            $ctx = $context($request, ['tsid' => (int) $args['tsid']], 'tablespace');
+
+            return ['sql' => (new TablespaceController())->move($ctx, (int) $args['tsid'], $ctx->input(), $run)];
+        })->setName($run ? 'tablespaces.move' : 'tablespaces.move.sql');
+    }
+
+    // pg_tablespace is shared, so its privileges are read and set through the maintenance connection.
+    $privileges = new PrivilegeController();
+    $maintenance = static fn (ServerRequestInterface $request): Connection => ConnectionPool::from($request)->maintenance();
+    $body = static fn (ServerRequestInterface $request): array => (array) ($request->getParsedBody() ?? []);
+    Route::get('/server/privileges/tablespace/{oid:number}', fn (ServerRequestInterface $request, array $args): array => $privileges->show($maintenance($request), 'tablespace', (int) $args['oid']))
+        ->setName('privileges.tablespace.show');
+    Route::post('/server/privileges/tablespace/{oid:number}/msql', fn (ServerRequestInterface $request, array $args): array => ['sql' => $privileges->sql($maintenance($request), 'tablespace', (int) $args['oid'], $body($request))])
+        ->setName('privileges.tablespace.msql');
+    Route::post('/server/privileges/tablespace/{oid:number}', function (ServerRequestInterface $request, array $args) use ($maintenance, $body, $privileges): array {
+        $connection = $maintenance($request);
+        $privileges->run($connection, $privileges->sql($connection, 'tablespace', (int) $args['oid'], $body($request)));
+
+        return $privileges->show($connection, 'tablespace', (int) $args['oid']);
+    })->setName('privileges.tablespace.update');
 });
 
 // Privileges: on one object and its columns, the default privileges, and the grant wizard. Each
