@@ -37,6 +37,9 @@
       "@databases/*": [
         "./Modules/Databases/resources/*"
       ],
+      "@roles/*": [
+        "./Modules/Roles/resources/*"
+      ],
       "@schemas/*": [
         "./Modules/Schemas/resources/*"
       ],

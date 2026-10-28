@@ -1,0 +1,53 @@
+// The role forms, after pmahomme's "user privileges" rules in _common.scss: the login fields
+// as label / options / input rows, the attribute groups floated side by side.
+
+#fieldset_add_user_login {
+  div.item {
+    display: flex;
+    align-items: center;
+    border-bottom: border-width('base') solid silver;
+    padding-bottom: 0.3em;
+    margin-bottom: 0.3em;
+  }
+
+  label {
+    float: left;
+    display: block;
+    width: 10em;
+    max-width: 100%;
+    text-align: right;
+    padding-right: 0.5em;
+    margin-bottom: 0;
+  }
+
+  input {
+    width: 12em;
+    clear: right;
+    max-width: 100%;
+  }
+
+  span.options {
+    float: left;
+    display: block;
+    width: 12em;
+    max-width: 100%;
+    padding-right: 0.5em;
+
+    select {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    input {
+      width: auto;
+    }
+  }
+}
+
+#fieldset_user_global_rights .pma-fieldset {
+  float: left;
+}
+
+#fieldset_user_global_rights > legend input {
+  margin-left: 2em;
+}

@@ -40,6 +40,8 @@ final class TwigExtension extends AbstractExtension
             // Python's list() and Jinja's unique: a PostgreSQL array string becomes a list too.
             new TwigFilter('list', static fn (mixed $value): array => is_array($value) ? array_values($value) : Options::list($value)),
             new TwigFilter('unique', static fn (mixed $value): array => array_values(array_unique(is_array($value) ? $value : Options::list($value)))),
+            // pgAdmin's hasAny: whether the dict has any of the keys.
+            new TwigFilter('hasAny', static fn (mixed $data, array $keys): bool => is_array($data) && array_intersect_key($data, array_flip($keys)) !== []),
         ];
     }
 
@@ -58,6 +60,7 @@ final class TwigExtension extends AbstractExtension
     {
         return [
             new TwigTest('none', static fn (mixed $value): bool => $value === null),
+            new TwigTest('number', static fn (mixed $value): bool => is_int($value) || is_float($value)),
         ];
     }
 

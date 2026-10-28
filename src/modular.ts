@@ -25,6 +25,25 @@ export interface MenuItem {
 /** Receives the menu the modules before it built and returns the one it wants. */
 export type MenuFilter = (menu: MenuItem[]) => MenuItem[]
 
+/** Names a tab by its label and level, for placing another next to it. */
+export type MenuSlot = Pick<MenuItem, 'label' | 'level'>
+
+const same = (a: MenuSlot, b: MenuItem) => a.label === b.label && (a.level ?? 'server') === (b.level ?? 'server')
+
+/** The item placed after the one with that label at that level, or at the end when there is no such item. */
+export function insertAfter(menu: MenuItem[], after: MenuSlot, item: MenuItem): MenuItem[] {
+  const at = menu.findIndex((entry) => same(after, entry))
+
+  return at === -1 ? [...menu, item] : [...menu.slice(0, at + 1), item, ...menu.slice(at + 1)]
+}
+
+/** The item placed before the one with that label at that level, or at the start when there is no such item. */
+export function insertBefore(menu: MenuItem[], before: MenuSlot, item: MenuItem): MenuItem[] {
+  const at = menu.findIndex((entry) => same(before, entry))
+
+  return at === -1 ? [item, ...menu] : [...menu.slice(0, at), item, ...menu.slice(at)]
+}
+
 export interface ModuleRegistration {
   id: string
   /** Non-negative: from the start (0 = first). Negative: from the end (-1 = last). */

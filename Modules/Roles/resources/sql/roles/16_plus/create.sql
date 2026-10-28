@@ -1,0 +1,68 @@
+{% import 'macros/security.macros' as SECLABEL %}
+{% import 'macros/variable.macros' as VARIABLE %}
+CREATE ROLE {{ conn|qtIdent(data.rolname) }} WITH{% if data.rolcanlogin and data.rolcanlogin is same as(true)  %}
+
+	LOGIN{% else %}
+
+	NOLOGIN{% endif %}{% if data.rolsuper %}
+
+	SUPERUSER{% else %}
+
+	NOSUPERUSER{% endif %}{% if data.rolcreatedb %}
+
+	CREATEDB{% else %}
+
+	NOCREATEDB{% endif %}{% if data.rolcreaterole %}
+
+	CREATEROLE{% else %}
+
+	NOCREATEROLE{% endif %}{% if data.rolinherit is same as(true) %}
+
+	INHERIT{% else %}
+
+	NOINHERIT{% endif %}{% if data.rolreplication %}
+
+	REPLICATION{% else %}
+
+	NOREPLICATION{% endif %}{% if data.rolbypassrls %}
+
+	BYPASSRLS{% else %}
+
+	NOBYPASSRLS{% endif %}{% if data.rolconnlimit is defined and data.rolconnlimit is number and data.rolconnlimit >= -1 %}
+
+	CONNECTION LIMIT {{ data.rolconnlimit }}{% endif %}{% if data.rolvaliduntil and data.rolvaliduntil is not null %}
+
+	VALID UNTIL {{ data.rolvaliduntil|qtLiteral(conn) }} {% endif %}{% if data.rolpassword %}
+
+	PASSWORD {% if data.rolpassword is null %}NULL{% else %}{% if dummy %}'xxxxxx'{% else %} {{ data.rolpassword|qtLiteral(conn) }}{% endif %}{% endif %}{% endif %};
+{% if data.rolmembership_list and data.rolmembership_list|length > 0 %}
+{% for item in data.rolmembership_list %}
+{% set admin_opt = item.admin|default(false) %}
+{% set inherit_opt = item.inherit|default(false) %}
+{% set set_opt = item.set is defined ? item.set : true %}
+
+GRANT {{ conn|qtIdent(item.role) }} TO {{ conn|qtIdent(data.rolname) }}{% if item.admin is defined or item.inherit is defined or item.set is defined %} WITH ADMIN {{ admin_opt|string }}, INHERIT {{ inherit_opt|string }}, SET {{ set_opt|string }}{% endif %};
+{% endfor %}
+{% endif %}
+{% if data.seclabels and data.seclabels|length > 0 %}
+{% for r in data.seclabels %}
+
+{{ SECLABEL.APPLY(conn, 'ROLE', data.rolname, r.provider, r.label) }}
+{% endfor %}{% endif %}{% if data.variables %}
+
+{% for var in data.variables %}
+
+{{ VARIABLE.APPLY(conn, var.database, data.rolname, var.name, var.value) }}
+{% endfor %}{% endif %}{% if data.description %}
+
+COMMENT ON ROLE {{ conn|qtIdent(data.rolname) }} IS {{ data.description|qtLiteral(conn) }};
+{% endif %}
+{% if data.rol_members_list and data.rol_members_list|length > 0 %}
+{% for item in data.rol_members_list %}
+{% set admin_opt = item.admin|default(false) %}
+{% set inherit_opt = item.inherit|default(false) %}
+{% set set_opt = item.set is defined ? item.set : true %}
+
+GRANT {{ conn|qtIdent(data.rolname) }} TO {{ conn|qtIdent(item.role) }}{% if item.admin is defined or item.inherit is defined or item.set is defined %} WITH ADMIN {{ admin_opt|string }}, INHERIT {{ inherit_opt|string }}, SET {{ set_opt|string }}{% endif %};
+{% endfor %}
+{% endif %}

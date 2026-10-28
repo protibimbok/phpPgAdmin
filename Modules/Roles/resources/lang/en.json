@@ -1,0 +1,198 @@
+{
+  "tab": "Roles",
+  "overview": "Roles overview",
+  "show_system": "Show the predefined pg_* roles",
+  "none_selected": "No role selected.",
+  "columns": {
+    "name": "Role name",
+    "login": "Can log in",
+    "password": "Password",
+    "attributes": "Attributes",
+    "member_of": "Member of",
+    "comment": "Comment",
+    "action": "Action"
+  },
+  "actions": {
+    "edit": "Edit privileges",
+    "export": "Export"
+  },
+  "export_title": "CREATE statement for {{name}}",
+  "export_title_many": "CREATE statements",
+  "new": "New",
+  "add": "Add role",
+  "remove": {
+    "title": "Remove selected roles",
+    "text": "Drop the selected roles. A role that still owns objects or holds privileges is refused: reassign or drop what it owns from its edit page first.",
+    "databases": "Drop the databases that have the same names as the roles."
+  },
+  "dropped_one": "The role has been dropped.",
+  "dropped_other": "{{count}} roles have been dropped.",
+  "created": "Role {{name}} has been created.",
+  "altered": "Role {{name}} has been altered.",
+  "nothing_to_change": "-- Nothing to change.",
+  "login": {
+    "title": "Login Information",
+    "change_title": "Change login information",
+    "name": "Role name:",
+    "name_title": "Role name",
+    "password": "Password:",
+    "password_title": "Password",
+    "keep_password": "Do not change the password",
+    "no_password": "No password",
+    "use_text_field": "Use text field",
+    "retype": "Re-type:",
+    "retype_title": "Re-type",
+    "comment": "Comment:",
+    "password_mismatch": "The passwords aren't the same!"
+  },
+  "database": {
+    "title": "Database for role",
+    "create": "Create database with same name and make the role its owner."
+  },
+  "attributes": {
+    "title": "Role attributes",
+    "note": "Note: PostgreSQL attribute names are expressed in English.",
+    "login": "Login",
+    "administration": "Administration",
+    "limits": "Resource limits",
+    "limits_note": "Note: A connection limit of -1 (or empty) removes the limit; an empty VALID UNTIL never expires.",
+    "hint": {
+      "rolcanlogin": "Allows logging in: a role with LOGIN is a user.",
+      "rolinherit": "Uses the privileges of the roles it is a member of without SET ROLE.",
+      "rolsuper": "Bypasses every permission check, except the right to log in.",
+      "rolcreatedb": "Allows creating databases.",
+      "rolcreaterole": "Allows creating, altering and dropping other roles and granting membership in them.",
+      "rolreplication": "Allows connecting for streaming replication and creating replication slots.",
+      "rolbypassrls": "Bypasses every row-level security policy.",
+      "connlimit": "Limits the number of concurrent connections the role may make.",
+      "valid_until": "The date and time after which the role's password stops being valid."
+    }
+  },
+  "membership": {
+    "title": "Membership",
+    "member_of": "Member of",
+    "members": "Members",
+    "role": "Role",
+    "add": "Add a role…",
+    "remove": "Remove",
+    "hint": {
+      "admin": "WITH ADMIN: the member may grant and revoke membership in the role.",
+      "inherit": "WITH INHERIT: the member uses the role's privileges without SET ROLE.",
+      "set": "WITH SET: the member may SET ROLE to the role."
+    }
+  },
+  "variables": {
+    "title": "Configuration parameters",
+    "name": "Name",
+    "value": "Value",
+    "database": "Database",
+    "all_databases": "(every database)",
+    "add": "Add parameter",
+    "remove": "Remove"
+  },
+  "password": {
+    "title": "Change password",
+    "none": "No Password",
+    "has_none": "the role has none",
+    "password": "Password:",
+    "enter": "Enter:",
+    "retype": "Re-type:"
+  },
+  "edit": {
+    "title": "Edit privileges: Role",
+    "current_user": "Note: You are attempting to edit privileges of the role with which you are currently logged in."
+  },
+  "reassign": {
+    "title": "Reassign or drop owned objects",
+    "database": "Database:",
+    "reassign_to": "Reassign owned objects to:",
+    "drop": "Drop owned objects",
+    "note": "Both work in the database chosen; DROP OWNED also revokes the role's privileges there. A role can be dropped once nothing in any database depends on it.",
+    "reassigned": "Reassign owned executed successfully!",
+    "dropped": "Drop owned executed successfully!"
+  },
+  "privileges": {
+    "tab": "Privileges",
+    "title": "Privileges",
+    "having_access": "Roles having access to \"{{name}}\"",
+    "role": "Role",
+    "type": "Type",
+    "privileges": "Privileges",
+    "grant": "Grant",
+    "grantor": "Granted by",
+    "owner": "owner",
+    "none": "No role holds privileges here.",
+    "no_databases": "The role holds no privileges on any database.",
+    "specific": {
+      "database": "database-specific",
+      "schema": "schema-specific",
+      "table": "table-specific",
+      "sequence": "sequence-specific",
+      "function": "routine",
+      "type": "type-specific"
+    },
+    "column": "Column",
+    "revoke": "Revoke",
+    "add": "Add privileges for a role",
+    "add_column": "Add column privileges",
+    "edit_title": "Privileges of {{grantee}} on {{name}}",
+    "grantee": "Role:",
+    "updated": "The privileges of {{grantee}} have been updated.",
+    "database_specific": "Database-specific privileges",
+    "database": "Database",
+    "with_grant_hint": "The role may grant the privilege on to others.",
+    "hint": {
+      "SELECT": "Allows reading data.",
+      "INSERT": "Allows inserting data.",
+      "UPDATE": "Allows changing data.",
+      "DELETE": "Allows deleting data.",
+      "TRUNCATE": "Allows emptying the table.",
+      "REFERENCES": "Allows creating foreign keys that refer to it.",
+      "TRIGGER": "Allows creating triggers on it.",
+      "MAINTAIN": "Allows VACUUM, ANALYZE, CLUSTER, REINDEX, REFRESH MATERIALIZED VIEW and LOCK TABLE.",
+      "CREATE": "Allows creating objects in it.",
+      "CONNECT": "Allows connecting to the database.",
+      "TEMPORARY": "Allows creating temporary tables.",
+      "USAGE": "Allows using it.",
+      "EXECUTE": "Allows calling the routine."
+    },
+    "note": "Note: PostgreSQL privilege names are expressed in English."
+  },
+  "defaults": {
+    "title": "Default privileges",
+    "title_schema": "Default privileges in this schema",
+    "for_role": "For objects created by",
+    "objects": "Objects",
+    "none": "New objects get the built-in default privileges.",
+    "add": "Add default privileges",
+    "current_role": "(current role)",
+    "edit_title": "Default privileges of {{grantee}} on new {{objects}}",
+    "type": {
+      "r": "tables",
+      "S": "sequences",
+      "f": "functions",
+      "T": "types",
+      "n": "schemas"
+    }
+  },
+  "wizard": {
+    "title": "Grant wizard",
+    "note": "Grants the privileges checked on every object chosen that accepts them; privileges already held are kept.",
+    "objects": "Objects",
+    "name": "Name",
+    "choose_objects": "Choose objects to see the privileges they accept.",
+    "no_role": "Choose a role to grant the privileges to.",
+    "granted_one": "The privileges have been granted to {{grantee}} on {{count}} object.",
+    "granted_other": "The privileges have been granted to {{grantee}} on {{count}} objects.",
+    "type": {
+      "table": "table",
+      "partitioned": "partitioned table",
+      "view": "view",
+      "mview": "materialized view",
+      "foreign": "foreign table",
+      "sequence": "sequence",
+      "function": "function",
+      "procedure": "procedure"
+    }
+  }
+}

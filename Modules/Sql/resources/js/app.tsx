@@ -1,4 +1,4 @@
-import { registerModule, type MenuItem } from '@/modular'
+import { insertAfter, insertBefore, registerModule } from '@/modular'
 import Console from './console/Console'
 import Browse from './Pages/Browse'
 import Change from './Pages/Change'
@@ -6,23 +6,6 @@ import Search from './Pages/Search'
 import SqlPage from './Pages/Sql'
 
 const KINDS = ['table', 'view', 'mview'] as const
-
-type Slot = Pick<MenuItem, 'label' | 'level'>
-
-const same = (a: Slot, b: MenuItem) => a.label === b.label && (a.level ?? 'server') === (b.level ?? 'server')
-
-/** The item placed after the one with that label at that level, or at the end when there is no such item. */
-function insertAfter(menu: MenuItem[], after: Slot, item: MenuItem): MenuItem[] {
-  const at = menu.findIndex((entry) => same(after, entry))
-
-  return at === -1 ? [...menu, item] : [...menu.slice(0, at + 1), item, ...menu.slice(at + 1)]
-}
-
-function insertBefore(menu: MenuItem[], before: Slot, item: MenuItem): MenuItem[] {
-  const at = menu.findIndex((entry) => same(before, entry))
-
-  return at === -1 ? [item, ...menu] : [...menu.slice(0, at), item, ...menu.slice(at)]
-}
 
 // The SQL tab follows the first tab of every level, as it does in phpMyAdmin (Databases, then
 // SQL on the server; Structure, then SQL below); Browse opens a table's bar, and Search and
