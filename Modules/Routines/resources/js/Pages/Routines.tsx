@@ -10,18 +10,17 @@ import SqlView from '@/components/SqlView'
 import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
-import { qualifiedName } from '@sql/js/sql'
-import { dropRoutine, KIND_LABELS, listRoutines, resolveSchema, routines as routinesOf, type Routine, type RoutineKind } from '../api'
+import { qualifiedName, quoteIdent } from '@sql/js/sql'
+import { dropRoutineRow, listRoutineRows, resolveSchema, ROW_LABELS, routineRowSql, type Routine, type RoutineKind, type RoutineRow as Row } from '../api'
 import ExecuteDialog from '../ExecuteDialog'
-
-type Row = Routine & { kind: RoutineKind }
 
 /**
  * The schema's "Routines" page, after phpMyAdmin's database/routines/index.twig: the heading,
  * the check-all / Export / Drop group, the filter box and the "Create new routine" button, then
  * the table of routines with their type and return type and the Edit, Execute, Export and Drop
  * links per row. Export shows the CREATE statement; Execute asks for the arguments and runs the
- * call on the SQL page.
+ * call on the SQL page. The schema's aggregates and operators are listed with the routines:
+ * they have Export and Drop, and are created and altered on the SQL page, as in pgAdmin.
  */
 export default function Routines() {
   const { t } = useTranslation('routines')
@@ -31,7 +30,7 @@ export default function Routines() {
   const { data, error, reload } = useRequest(async () => {
     const scid = await resolveSchema(db, schema)
 
-    return { scid, rows: await listRoutines(db, scid) }
+    return { scid, rows: await listRoutineRows(db, scid) }
   }, [db, schema])
   const [filter, setFilter] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set())
@@ -59,7 +58,19 @@ export default function Routines() {
   const keyOf = (row: Row) => `${row.kind}_${row.oid}`
   const allChecked = rows.length > 0 && rows.every((row) => checked.has(keyOf(row)))
   const selected = () => rows.filter((row) => checked.has(keyOf(row)))
-  const dropStatement = (row: Row) => `DROP ${row.kind === 'procedure' ? 'PROCEDURE' : 'FUNCTION'} ${qualifiedName(schema, row.name)}(${row.proargtypenames});`
+  const isRoutine = (row: Row): row is Routine & { kind: RoutineKind } => row.kind !== 'aggregate' && row.kind !== 'operator'
+
+  /** The DROP a row's kind takes: a routine or aggregate by its argument types, an operator by its operands. */
+  function dropStatement(row: Row): string {
+    switch (row.kind) {
+      case 'aggregate':
+        return `DROP AGGREGATE ${qualifiedName(schema, row.name)}(${row.input_types});`
+      case 'operator':
+        return `DROP OPERATOR ${quoteIdent(schema)}.${row.name} (${row.lefttype ?? 'NONE'}, ${row.righttype ?? 'NONE'});`
+      default:
+        return `DROP ${row.kind === 'procedure' ? 'PROCEDURE' : 'FUNCTION'} ${qualifiedName(schema, row.name)}(${row.proargtypenames});`
+    }
+  }
 
   function toggle(key: string, value: boolean) {
     setChecked((current) => {
@@ -75,7 +86,7 @@ export default function Routines() {
   function exportRows(targets: Row[]) {
     if (targets.length === 0) return notify(t('none_selected'), 'error')
     setExported({ title: targets.length === 1 ? t('export_title', { name: targets[0].signature }) : t('export_title_many'), sql: null })
-    Promise.all(targets.map((row) => routinesOf(db, scid, row.kind).sql(row.oid))).then(
+    Promise.all(targets.map((row) => routineRowSql(db, scid, row))).then(
       (parts) => setExported((current) => (current ? { ...current, sql: parts.join('\n\n') } : null)),
       (e: unknown) => {
         setExported(null)
@@ -92,7 +103,7 @@ export default function Routines() {
         let done = 0
         try {
           for (const row of targets) {
-            await dropRoutine(db, scid, row.kind, row.oid)
+            await dropRoutineRow(db, scid, row)
             done++
           }
           notifySuccess(targets.length === 1 ? t('dropped', { name: targets[0].signature }) : t('dropped_many', { count: done }))
@@ -180,15 +191,17 @@ export default function Routines() {
                   <td>
                     <strong>{row.signature}</strong>
                   </td>
-                  <td>{KIND_LABELS[row.kind]}</td>
-                  <td dir="ltr">{row.kind === 'procedure' ? '' : row.prorettypename}</td>
+                  <td>{ROW_LABELS[row.kind]}</td>
+                  <td dir="ltr">{row.kind === 'procedure' ? '' : row.kind === 'aggregate' ? row.final_type : row.kind === 'operator' ? row.resulttype : row.prorettypename}</td>
                   <td>
-                    <Link className="ajax edit_anchor" to={`${base}/${row.kind}/${row.oid}/edit`}>
-                      <Icon name="b_edit" /> {t('actions.edit')}
-                    </Link>
+                    {isRoutine(row) && (
+                      <Link className="ajax edit_anchor" to={`${base}/${row.kind}/${row.oid}/edit`}>
+                        <Icon name="b_edit" /> {t('actions.edit')}
+                      </Link>
+                    )}
                   </td>
                   <td>
-                    {row.kind !== 'trigger_function' && (
+                    {(row.kind === 'function' || row.kind === 'procedure') && (
                       <a className="ajax exec_anchor" href="#execute" onClick={(e) => { e.preventDefault(); setExecuting(row) }}>
                         <Icon name="b_nextpage" /> {t('actions.execute')}
                       </a>
@@ -221,7 +234,7 @@ export default function Routines() {
         show={executing !== null}
         db={db}
         scid={scid}
-        routine={executing}
+        routine={executing && isRoutine(executing) ? executing : null}
         schema={schema}
         onClose={() => setExecuting(null)}
         onRun={(sql) => {

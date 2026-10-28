@@ -14,6 +14,15 @@ for (const kind of KINDS) {
   })
 }
 
+// An aggregate or operator has no editor: the tree opens the Routines page that lists it.
+for (const kind of ['aggregate', 'operator'] as const) {
+  registerNodeLink(kind, (_node, { db, ancestors }) => {
+    const schema = ancestors.find((a) => a.type === 'schema')
+
+    return db === null || !schema ? '#' : `${urls.schema(db, schema.label)}/routines`
+  })
+}
+
 // The schema's "Routines" tab, after the Operations tab the Schemas module adds.
 registerModule({
   id: 'routines',

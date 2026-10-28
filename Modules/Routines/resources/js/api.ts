@@ -138,3 +138,87 @@ export function dropRoutine(db: string, scid: number, kind: RoutineKind, fnid: n
 export function routineModifiedSql(db: string, scid: number, kind: RoutineKind, data: RoutineData, fnid?: number): Promise<string> {
   return routines(db, scid, kind).modifiedSql(data, fnid)
 }
+
+/** An aggregate as pgAdmin's aggregates/properties.sql describes it: its functions and settings. */
+export interface Aggregate {
+  oid: number
+  name: string
+  /** "name(numeric)". */
+  signature: string
+  schema: string
+  owner: string
+  input_types: string
+  /** 'normal', 'ordered-set' or 'hypothetical-set'. */
+  kind: string
+  state_func: string | null
+  state_type: string
+  final_func: string | null
+  final_type: string
+  combine_func: string | null
+  moving_state_func: string | null
+  initial_val: string | null
+  sort_oper: string | null
+  description: string | null
+  is_sys_obj: boolean
+}
+
+/** An operator as pgAdmin's operators/properties.sql describes it. */
+export interface Operator {
+  oid: number
+  name: string
+  /** "^^ (integer, integer)". */
+  signature: string
+  schema: string
+  owner: string
+  /** 'infix', 'prefix' or 'postfix'. */
+  oprkind: string
+  lefttype: string | null
+  righttype: string | null
+  resulttype: string
+  operproc: string
+  commutator: string | null
+  negator: string | null
+  restrproc: string | null
+  joinproc: string | null
+  support_hash: boolean
+  support_merge: boolean
+  description: string | null
+  is_sys_obj: boolean
+}
+
+export function aggregates(db: string, scid: number) {
+  return collection<Aggregate>(collectionUrl(db, 'schemas', scid, 'aggregates'))
+}
+
+export function operators(db: string, scid: number) {
+  return collection<Operator>(collectionUrl(db, 'schemas', scid, 'operators'))
+}
+
+/** A row of the Routines page: a routine, an aggregate or an operator, tagged with its kind. */
+export type RoutineRow = (Routine & { kind: RoutineKind }) | (Aggregate & { kind: 'aggregate' }) | (Operator & { kind: 'operator' })
+
+export const ROW_LABELS: Record<RoutineRow['kind'], string> = { ...KIND_LABELS, aggregate: 'AGGREGATE', operator: 'OPERATOR' }
+
+/** Every routine, aggregate and operator of the schema, by signature. */
+export function listRoutineRows(db: string, scid: number): Promise<RoutineRow[]> {
+  return Promise.all([
+    listRoutines(db, scid),
+    aggregates(db, scid).list().then((rows) => rows.map((row): RoutineRow => ({ ...row, kind: 'aggregate' }))),
+    operators(db, scid).list().then((rows) => rows.map((row): RoutineRow => ({ ...row, kind: 'operator' }))),
+  ]).then(([routines, aggs, ops]) => [...routines, ...aggs, ...ops].sort((a, b) => a.signature.localeCompare(b.signature)))
+}
+
+/** The CREATE statement of a row, whatever its kind. */
+export function routineRowSql(db: string, scid: number, row: RoutineRow): Promise<string> {
+  if (row.kind === 'aggregate') return aggregates(db, scid).sql(row.oid)
+  if (row.kind === 'operator') return operators(db, scid).sql(row.oid)
+
+  return routines(db, scid, row.kind).sql(row.oid)
+}
+
+export function dropRoutineRow(db: string, scid: number, row: RoutineRow, cascade = false): Promise<void> {
+  if (row.kind === 'aggregate') return aggregates(db, scid).remove(row.oid, cascade).then(() => undefined)
+  if (row.kind === 'operator') return operators(db, scid).remove(row.oid, cascade).then(() => undefined)
+
+  return dropRoutine(db, scid, row.kind, row.oid, cascade)
+}
