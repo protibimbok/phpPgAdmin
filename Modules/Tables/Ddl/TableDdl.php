@@ -19,7 +19,7 @@ use PhpPgAdmin\Modules\Tables\Http\Controllers\RuleController;
  * _fetch_table_properties, _formatter and get_reverse_engineered_sql (tables/utils.py).
  *
  * The table's own DDL (create.sql) is followed by its indexes, row security policies,
- * triggers and rules, in pgAdmin's order; partitions follow once their node is ported.
+ * triggers, rules and partitions, in pgAdmin's order.
  */
 final class TableDdl
 {
@@ -45,9 +45,17 @@ final class TableDdl
         return self::format($ctx, $tid, $row);
     }
 
-    /** The "SQL" tab: header, commented DROP, CREATE TABLE with everything, then each index. */
+    /** The "SQL" tab: header, commented DROP, CREATE TABLE with everything, then each index, policy, trigger, rule and partition. */
     public static function sql(NodeContext $ctx, int $tid, array $row, bool $ifNotExists = true): string
     {
+        // A partition's DDL is CREATE TABLE … PARTITION OF its parent, with what it adds of its own.
+        if (!empty($row['relispartition'])) {
+            $parent = $ctx->conn->row('SELECT inh.inhparent AS oid, rel.relname AS name, nsp.nspname AS schema FROM pg_catalog.pg_inherits inh JOIN pg_catalog.pg_class rel ON rel.oid = inh.inhparent JOIN pg_catalog.pg_namespace nsp ON nsp.oid = rel.relnamespace WHERE inh.inhrelid = $1', [$tid]);
+            if ($parent !== null) {
+                return PartitionDdl::partitionSql($ctx, (int) $parent['oid'], $tid, [...$parent, 'default_amname' => $row['default_amname'] ?? null], withHeader: true);
+            }
+        }
+
         $data = self::properties($ctx, $tid, $row);
         $data['columns'] = ColumnFormatter::forTemplate($data['columns']);
 
@@ -87,14 +95,28 @@ final class TableDdl
                 $parts[] = (new RuleController())->createSqlOf(self::childContext($ctx, 'rule'), (int) $rule['oid'], true);
             }
         }
+        if (!empty($data['is_partitioned'])) {
+            array_push($parts, ...PartitionDdl::partitionsSql($ctx, $tid, $data));
+        }
 
         return Ddl::assemble($parts);
     }
 
-    /** A context for one of the table's child nodes, on the same connection and route ids. */
-    public static function childContext(NodeContext $ctx, string $type): NodeContext
+    /**
+     * A context for one of the table's child nodes, on the same connection and route ids
+     * (overridden by the given ones: a partition's own "tid").
+     *
+     * @param array<string, int> $ids
+     */
+    public static function childContext(NodeContext $ctx, string $type, array $ids = []): NodeContext
     {
-        return new NodeContext($ctx->registry->get($type), $ctx->registry, $ctx->pool, $ctx->conn, $ctx->database, $ctx->ids, $ctx->request);
+        return new NodeContext($ctx->registry->get($type), $ctx->registry, $ctx->pool, $ctx->conn, $ctx->database, [...$ctx->ids, ...$ids], $ctx->request);
+    }
+
+    /** The last OID the server initialised, below which objects are the system's. */
+    public static function lastSystemOid(): int
+    {
+        return DatabaseController::LAST_SYSTEM_OID;
     }
 
     /**

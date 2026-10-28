@@ -9,7 +9,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
-import { constraints, copyTable, dropTable, indexes as indexesOf, resolveTable, tableModifiedSql, tableOptions, tables, truncateTable, updateTable, type CopyTableOptions, type ForeignKeyRow, type TableChanges } from '../api'
+import { constraints, copyTable, detachPartition, dropTable, indexes as indexesOf, partitions as partitionsOf, resolveTable, tableModifiedSql, tableOptions, tables, truncateTable, updateTable, type CopyTableOptions, type ForeignKeyRow, type Partition, type TableChanges } from '../api'
 
 type Preview = { sql: string | null; error: string | null } | null
 
@@ -34,8 +34,9 @@ export default function TableOperations() {
       constraints(db, scid, tid, 'foreign_key').list() as Promise<ForeignKeyRow[]>,
       indexesOf(db, scid, tid).list(),
     ])
+    const parts: Partition[] = properties.is_partitioned ? await partitionsOf(db, scid, tid).list() : []
 
-    return { scid, tid, properties, options, keys, clustered: idx.find((i) => i.indisclustered)?.name ?? null }
+    return { scid, tid, properties, options, keys, clustered: idx.find((i) => i.indisclustered)?.name ?? null, partitions: parts }
   }, [db, schema, table])
   const [preview, setPreview] = useState<Preview>(null)
   const [confirm, setConfirm] = useState<{ sql: string; warning?: string; run: () => Promise<void>; boxes?: { key: string; label: string }[] } | null>(null)
@@ -48,6 +49,8 @@ export default function TableOperations() {
   const [owner, setOwner] = useState('')
   const [tablespace, setTablespace] = useState('')
   const [inherits, setInherits] = useState<string[]>([])
+  const [partitionNames, setPartitionNames] = useState<string[]>([])
+  const [partitionOperation, setPartitionOperation] = useState<'ANALYZE' | 'VACUUM' | 'TRUNCATE' | 'DETACH' | 'DROP'>('ANALYZE')
   const [copy, setCopy] = useState<CopyTableOptions & { switch_to_new: boolean }>({ schema, name: table, what: 'data', drop_if_exists: false, add_constraints: true, switch_to_new: false })
 
   useEffect(() => {
@@ -199,6 +202,38 @@ export default function TableOperations() {
           navigate(urls.schema(db, schema))
         } catch (e) {
           notifyError(errorMessage(e))
+        }
+      },
+    })
+  }
+
+  /** phpMyAdmin's partition maintenance: the operation on the selected partitions (ANALYZE and VACUUM run on the SQL page). */
+  function submitPartitions(e: FormEvent) {
+    e.preventDefault()
+    const targets = data!.partitions.filter((p) => partitionNames.includes(p.name))
+    if (targets.length === 0) return notify(t('partitions.none_selected'), 'error')
+    const names = targets.map((p) => qualifiedName(p.schema, p.name))
+    if (partitionOperation === 'ANALYZE' || partitionOperation === 'VACUUM') {
+      return navigate(sqlPage(names.map((n) => `${partitionOperation} ${n}`).join(';\n')))
+    }
+    const statement = (n: string) => (partitionOperation === 'TRUNCATE' ? `TRUNCATE TABLE ${n}` : partitionOperation === 'DETACH' ? `ALTER TABLE ${relation} DETACH PARTITION ${n}` : `DROP TABLE ${n}`)
+    setBoxes({})
+    setConfirm({
+      sql: names.map(statement).join(';\n'),
+      warning: partitionOperation === 'DROP' ? t('operations.drop_warning') : partitionOperation === 'TRUNCATE' ? t('operations.truncate_warning') : undefined,
+      run: async () => {
+        try {
+          for (const p of targets) {
+            if (partitionOperation === 'TRUNCATE') await truncateTable(db, scid, p.oid)
+            else if (partitionOperation === 'DETACH') await detachPartition(db, scid, tid, p.oid)
+            else await partitionsOf(db, scid, tid).remove(p.oid)
+          }
+          notifySuccess(tApp('query_executed'))
+          treeState.refresh()
+          setPartitionNames([])
+          reload()
+        } catch (err) {
+          notifyError(errorMessage(err))
         }
       },
     })
@@ -394,6 +429,39 @@ export default function TableOperations() {
           </div>
         </div>
       </form>
+
+      {properties.is_partitioned && (
+        <form id="partitionsForm" onSubmit={submitPartitions}>
+          <div className="card mb-2">
+            <div className="card-header">{t('partitions.maintenance')}</div>
+            <div className="card-body">
+              <div className="mb-3">
+                <label htmlFor="partition_name">{t('partitions.columns.partition')}</label>
+                <select className="form-select resize-vertical" id="partition_name" name="partition_name[]" multiple size={Math.min(6, Math.max(2, data.partitions.length))} value={partitionNames} onChange={(e) => setPartitionNames(Array.from(e.target.selectedOptions, (o) => o.value))} required>
+                  {data.partitions.map((p) => (
+                    <option key={p.oid} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-3 form-check-inline">
+                {(['ANALYZE', 'VACUUM', 'TRUNCATE', 'DETACH', 'DROP'] as const).map((value) => (
+                  <div className="form-check" key={value}>
+                    <input className="form-check-input" type="radio" name="partition_operation" id={`partitionOperationRadio${value}`} value={value} checked={partitionOperation === value} onChange={() => setPartitionOperation(value)} />
+                    <label className="form-check-label" htmlFor={`partitionOperationRadio${value}`}>
+                      {t(`partitions.operations.${value.toLowerCase()}`)}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="card-footer text-end">
+              <input className="btn btn-primary" type="submit" value={tApp('go')} />
+            </div>
+          </div>
+        </form>
+      )}
 
       <div className="card mb-2">
         <div className="card-header">{t('operations.maintenance')}</div>

@@ -62,8 +62,8 @@ SELECT rel.oid, rel.relname AS name, rel.reltablespace AS spcoid,rel.relacl AS r
 	(CASE WHEN rel.reltoastrelid = 0 THEN false ELSE true END) AS hastoasttable,
 	(SELECT pg_catalog.array_agg(provider || '=' || label) FROM pg_catalog.pg_seclabels sl1 WHERE sl1.objoid=rel.oid AND sl1.objsubid=0) AS seclabels,
 	(CASE WHEN rel.oid <= {{ datlastsysoid}}::oid THEN true ElSE false END) AS is_sys_table,
-	{### phpPgAdmin: what the schema's structure page shows per table ###}
-	pg_catalog.pg_total_relation_size(rel.oid) AS size
+	{### phpPgAdmin: what the schema's structure page shows per table, and whether the table is a partition ###}
+	pg_catalog.pg_total_relation_size(rel.oid) AS size, rel.relispartition
 	-- Added for partition table
     {% if tid %}, (CASE WHEN rel.relkind = 'p' THEN pg_catalog.pg_get_partkeydef({{ tid }}::oid) ELSE '' END) AS partition_scheme {% endif %}
 FROM pg_catalog.pg_class rel
@@ -74,6 +74,7 @@ FROM pg_catalog.pg_class rel
   LEFT JOIN pg_catalog.pg_type typ ON rel.reloftype=typ.oid
   LEFT OUTER JOIN pg_catalog.pg_am am ON am.oid = rel.relam
 WHERE rel.relkind IN ('r','s','t','p') AND rel.relnamespace = {{ scid }}::oid
-AND NOT rel.relispartition
+{### phpPgAdmin: a partition is a table of its own when asked for by OID; the listing leaves them under their parent ###}
+{% if not tid %}AND NOT rel.relispartition{% endif %}
 {% if tid %}  AND rel.oid = {{ tid }}::oid {% endif %}
 ORDER BY rel.relname;

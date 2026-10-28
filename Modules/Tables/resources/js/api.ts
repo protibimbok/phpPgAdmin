@@ -9,6 +9,10 @@ export interface Table {
   relowner: string
   relkind: string
   is_partitioned: boolean
+  /** The PARTITION BY clause, "RANGE (logdate)", of a partitioned table (properties only). */
+  partition_scheme?: string
+  /** Whether the table is itself a partition of another. */
+  relispartition: boolean
   relhassubclass: boolean
   /** The planner's estimate (pg_class.reltuples); -1 when the table was never analysed. */
   reltuples: number
@@ -308,6 +312,9 @@ export interface NewTable {
   check_constraint?: CheckConstraintData[]
   exclude_constraint?: ExclusionConstraintData[]
   indexes?: IndexData[]
+  /** "RANGE (col)", "LIST (col)" or "HASH (col)": the table is created PARTITION BY it. */
+  partition_scheme?: string
+  partitions?: PartitionData[]
 }
 
 /** What ALTER TABLE may change; only the fields given are changed. */
@@ -327,6 +334,8 @@ export interface TableChanges {
   check_constraint?: Changes<CheckConstraintData>
   exclusion_constraint?: Changes<ExclusionConstraintData>
   indexes?: Changes<IndexData | { name: string }>
+  /** Partitions to create or attach, and to detach (by oid). */
+  partitions?: { added?: PartitionData[]; deleted?: { oid: number; mode?: string }[] }
 }
 
 export function createTable(db: string, scid: number, data: NewTable) {
@@ -506,4 +515,59 @@ export function triggerOptions(db: string, scid: number, parent: TriggerParent, 
 /** The relation's OIDs by kind: a table's or a view's. */
 export function resolveRelation(db: string, schema: string, name: string, parent: TriggerParent): Promise<{ scid: number; oid: number }> {
   return resolve(db, parent, { schema, name }).then((ids) => ({ scid: ids.scid, oid: parent === 'table' ? ids.tid : ids.vid }))
+}
+
+/** A partition as pgAdmin's partitions/properties.sql describes it. */
+export interface Partition {
+  oid: number
+  name: string
+  schema: string
+  /** "FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')", "FOR VALUES IN (…)", "FOR VALUES WITH (MODULUS …)" or "DEFAULT". */
+  partition_value: string
+  reltuples: number
+  description: string | null
+  relowner: string
+  spcname: string
+  is_partitioned: boolean
+  partition_scheme: string
+  relpersistence: boolean
+}
+
+/**
+ * What a new partition takes (pgAdmin's partition grid): a name and the bounds for the
+ * parent's strategy, or an existing table to attach with its bounds.
+ */
+export interface PartitionData {
+  name?: string
+  /** The table to attach, "schema.table", with is_attach. */
+  partition_name?: string
+  is_attach?: boolean
+  is_default?: boolean
+  values_from?: string
+  values_to?: string
+  values_in?: string
+  values_modulus?: string
+  values_remainder?: string
+  description?: string
+}
+
+export function partitions(db: string, scid: number, tid: number) {
+  return collection<Partition>(collectionUrl(db, 'schemas', scid, 'tables', tid, 'partitions'))
+}
+
+/** The tables whose columns match the parent's, which may be attached as partitions. */
+export function attachCandidates(db: string, scid: number, tid: number): Promise<{ oid: number; table_name: string }[]> {
+  return api.get<{ tables: { oid: number; table_name: string }[] }>(`${collectionUrl(db, 'schemas', scid, 'tables', tid, 'partitions')}/attach-candidates`).then((r) => r.tables)
+}
+
+/** ALTER TABLE … DETACH PARTITION; the statement run comes back. */
+export function detachPartition(db: string, scid: number, tid: number, ptid: number, mode: '' | 'concurrently' | 'finalize' = ''): Promise<string> {
+  return api.post<{ sql: string }>(`${collectionUrl(db, 'schemas', scid, 'tables', tid, 'partitions')}/${ptid}/detach`, { mode }).then((r) => r.sql)
+}
+
+/** The partitioning strategy of a scheme, "RANGE (col)" → "range". */
+export function partitionType(scheme: string | undefined): 'range' | 'list' | 'hash' | '' {
+  const word = (scheme ?? '').trim().split(/[\s(]/)[0].toLowerCase()
+
+  return word === 'range' || word === 'list' || word === 'hash' ? word : ''
 }

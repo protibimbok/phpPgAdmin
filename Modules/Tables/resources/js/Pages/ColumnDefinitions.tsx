@@ -55,6 +55,8 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
   const [owner, setOwner] = useState('')
   const [tablespace, setTablespace] = useState('')
   const [inherits, setInherits] = useState<string[]>([])
+  const [partitionBy, setPartitionBy] = useState('')
+  const [partitionExpr, setPartitionExpr] = useState('')
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -93,6 +95,7 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
 
     if (mode === 'create') {
       const created: NewTable = { name, columns: filled.map(toColumnData), description: comment || undefined, relowner: owner || undefined, spcname: tablespace || undefined, coll_inherits: inherits.length > 0 ? inherits : undefined }
+      if (partitionBy && partitionExpr.trim() !== '') created.partition_scheme = `${partitionBy} (${partitionExpr.trim()})`
       if (keys.primary) created.primary_key = [keys.primary]
       if (keys.unique.length > 0) created.unique_constraint = keys.unique
       if (keys.indexes.length > 0) created.indexes = keys.indexes
@@ -284,6 +287,31 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {mode === 'create' && (
+        /* columns_definitions/partitions.twig: "Partition by: [strategy] (expression or column list)". Partitions are added from the structure page. */
+        <table className="table table-borderless w-auto align-middle mb-0" id="partition_table">
+          <tbody>
+            <tr className="align-middle">
+              <td>
+                <label htmlFor="partition_by">{t('partitions.partition_by')}</label>
+              </td>
+              <td>
+                <select name="partition_by" id="partition_by" value={partitionBy} onChange={(e) => setPartitionBy(e.target.value)}>
+                  {['', 'RANGE', 'LIST', 'HASH'].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td>
+                (<input name="partition_expr" type="text" placeholder={t('partitions.expression_hint')} value={partitionExpr} onChange={(e) => setPartitionExpr(e.target.value)} />)
+              </td>
+            </tr>
+          </tbody>
+        </table>
       )}
 
       <fieldset className="pma-fieldset tblFooters">

@@ -9,6 +9,7 @@ use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Core\Nodes\NodeController;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\PartitionController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TableController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TriggerController;
 use Psr\Http\Message\ServerRequestInterface;
@@ -57,6 +58,26 @@ Route::middleware(Authenticate::class)->group(function () use ($context, $flag):
             return (new TriggerController())->options(new NodeContext(Nodes::get($type), Nodes::registry(), $pool, $pool->for($db), $db, $ids, $request));
         })->setName("{$type}.options");
     }
+
+    // Partitions beyond the node operations: the tables that may be attached, and DETACH. The
+    // context is the partition node's, so its templates render from the partitions folder.
+    $partitionContext = static function (ServerRequestInterface $request, array $args): NodeContext {
+        $db = rawurldecode($args['db']);
+        $pool = ConnectionPool::from($request);
+
+        return new NodeContext(Nodes::get('partition'), Nodes::registry(), $pool, $pool->for($db), $db, ['scid' => (int) $args['scid'], 'tid' => (int) $args['tid']], $request);
+    };
+
+    Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/partitions/attach-candidates', fn (ServerRequestInterface $request, array $args): array => [
+        'tables' => (new PartitionController())->attachCandidates($partitionContext($request, $args)),
+    ])->setName('partitions.attach_candidates');
+
+    // {mode: '' | 'concurrently' | 'finalize'}: the statement run comes back.
+    Route::post('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/partitions/{ptid:number}/detach', function (ServerRequestInterface $request, array $args) use ($partitionContext): array {
+        $ctx = $partitionContext($request, $args);
+
+        return ['ok' => true, 'sql' => (new PartitionController())->detach($ctx, (int) $args['ptid'], (string) ($ctx->input()['mode'] ?? ''))];
+    })->setName('partitions.detach');
 
     Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/count', fn (ServerRequestInterface $request, array $args): array => [
         'count' => (new TableController())->countRows($context($request, $args), (int) $args['tid']),

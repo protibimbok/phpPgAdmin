@@ -103,7 +103,8 @@
       "table": "جدول",
       "unlogged": "غير مسجّل",
       "inherits": "يرث",
-      "access_method": "طريقة الوصول"
+      "access_method": "طريقة الوصول",
+      "partition": "قسم"
     },
     "statistics": "إحصاءات",
     "messages": {
@@ -408,5 +409,55 @@
     "roles_hint": "عدم تحديد أي دور يعني PUBLIC.",
     "using": "باستخدام (تعبير)",
     "with_check": "مع التحقق (تعبير)"
+  },
+  "partitions": {
+    "title": "الأقسام",
+    "partitioned_by": "مقسّم حسب:",
+    "none": "لا توجد أقسام معرّفة!",
+    "columns": {
+      "partition": "القسم",
+      "expression": "التعبير",
+      "rows": "الصفوف",
+      "comment": "تعليق",
+      "action": "إجراء"
+    },
+    "actions": {
+      "analyze": "تحليل",
+      "vacuum": "تفريغ",
+      "detach": "فصل",
+      "drop": "حذف"
+    },
+    "sub_partitioned": "مقسّم",
+    "add_label": "إضافة قسم:",
+    "add_button": "تنفيذ",
+    "add_title": "إضافة قسم",
+    "source": "القسم",
+    "new_table": "جدول جديد",
+    "attach_existing": "إلحاق جدول موجود",
+    "table": "الجدول",
+    "attach_hint": "الجداول التي تطابق أعمدتها أعمدة الجدول المقسّم.",
+    "name": "اسم القسم",
+    "default": "القسم الافتراضي",
+    "from": "FROM",
+    "to": "TO",
+    "in": "IN",
+    "modulus": "MODULUS",
+    "remainder": "REMAINDER",
+    "comment": "تعليق",
+    "created": "تم إنشاء القسم {{name}}.",
+    "attached": "تم إلحاق الجدول {{name}} كقسم.",
+    "detached": "تم فصل القسم {{name}}.",
+    "dropped": "تم حذف القسم {{name}}.",
+    "partition_by": "التقسيم حسب:",
+    "expression_hint": "تعبير أو قائمة أعمدة",
+    "maintenance": "صيانة الأقسام",
+    "none_selected": "لم يتم تحديد أي قسم.",
+    "operations": {
+      "analyze": "تحليل",
+      "vacuum": "تفريغ",
+      "truncate": "إفراغ",
+      "detach": "فصل",
+      "drop": "حذف"
+    }
   }
 }

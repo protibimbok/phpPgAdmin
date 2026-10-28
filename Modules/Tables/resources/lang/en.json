@@ -103,7 +103,8 @@
       "table": "Table",
       "unlogged": "Unlogged",
       "inherits": "Inherits",
-      "access_method": "Access method"
+      "access_method": "Access method",
+      "partition": "Partition"
     },
     "statistics": "Statistics",
     "messages": {
@@ -400,5 +401,55 @@
     "roles_hint": "None selected means PUBLIC.",
     "using": "Using (expression)",
     "with_check": "With check (expression)"
+  },
+  "partitions": {
+    "title": "Partitions",
+    "partitioned_by": "Partitioned by:",
+    "none": "No partitions defined!",
+    "columns": {
+      "partition": "Partition",
+      "expression": "Expression",
+      "rows": "Rows",
+      "comment": "Comment",
+      "action": "Action"
+    },
+    "actions": {
+      "analyze": "Analyze",
+      "vacuum": "Vacuum",
+      "detach": "Detach",
+      "drop": "Drop"
+    },
+    "sub_partitioned": "partitioned",
+    "add_label": "Add a partition:",
+    "add_button": "Go",
+    "add_title": "Add partition",
+    "source": "Partition",
+    "new_table": "New table",
+    "attach_existing": "Attach an existing table",
+    "table": "Table",
+    "attach_hint": "Tables whose columns match the partitioned table's.",
+    "name": "Partition name",
+    "default": "Default partition",
+    "from": "FROM",
+    "to": "TO",
+    "in": "IN",
+    "modulus": "MODULUS",
+    "remainder": "REMAINDER",
+    "comment": "Comment",
+    "created": "Partition {{name}} has been created.",
+    "attached": "Table {{name}} has been attached as a partition.",
+    "detached": "Partition {{name}} has been detached.",
+    "dropped": "Partition {{name}} has been dropped.",
+    "partition_by": "Partition by:",
+    "expression_hint": "Expression or column list",
+    "maintenance": "Partition maintenance",
+    "none_selected": "No partition selected.",
+    "operations": {
+      "analyze": "Analyze",
+      "vacuum": "Vacuum",
+      "truncate": "Truncate",
+      "detach": "Detach",
+      "drop": "Drop"
+    }
   }
 }

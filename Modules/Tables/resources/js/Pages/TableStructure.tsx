@@ -11,7 +11,8 @@ import { formatSize } from '@/format'
 import { urls } from '@/level'
 import type { Statistics } from '@/nodes/client'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
-import { columns, constraints, indexes, resolveTable, tableOptions, tables, updateTable, type Column, type Constraint, type ConstraintType, type Index, type IndexProperties, type Table, type TableChanges, type TableOptions } from '../api'
+import { columns, constraints, indexes, partitions as partitionsOf, resolveTable, tableOptions, tables, updateTable, type Column, type Constraint, type ConstraintType, type Index, type IndexProperties, type Partition, type Table, type TableChanges, type TableOptions } from '../api'
+import PartitionsCard from '../partitions/PartitionsCard'
 import ConstraintDialog from '../indexes/ConstraintDialog'
 import IndexDialog from '../indexes/IndexDialog'
 
@@ -32,6 +33,7 @@ interface Loaded {
   indexes: Index[]
   constraints: { type: ConstraintType; rows: Constraint[] }[]
   statistics: Statistics | null
+  partitions: Partition[]
 }
 
 /**
@@ -55,8 +57,9 @@ export default function TableStructure() {
       Promise.all(CONSTRAINT_TYPES.map((type) => constraints(db, scid, tid, type).list().then((rows) => ({ type, rows })))),
       tables(db, scid).statistics(tid).catch(() => null),
     ])
+    const parts = properties.is_partitioned ? await partitionsOf(db, scid, tid).list() : []
 
-    return { scid, tid, table: properties, columns: cols, indexes: idx, constraints: cons, statistics }
+    return { scid, tid, table: properties, columns: cols, indexes: idx, constraints: cons, statistics, partitions: parts }
   }, [db, schema, table])
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [confirm, setConfirm] = useState<{ sql: string[]; warning?: string; run: () => Promise<void> } | null>(null)
@@ -549,6 +552,8 @@ export default function TableStructure() {
           </div>
         </div>
 
+        {data.table.is_partitioned && <PartitionsCard db={db} schema={schema} table={table} scid={scid} tid={tid} scheme={data.table.partition_scheme ?? ''} partitions={data.partitions} onChanged={reload} />}
+
         <Information table={data.table} statistics={data.statistics} />
       </div>
 
@@ -671,7 +676,7 @@ function Information({ table, statistics }: { table: Table; statistics: Statisti
           <tbody>
             <tr>
               <th className="name">{t('structure.stats.type')}</th>
-              <td className="value">{table.is_partitioned ? t('structure.stats.partitioned') : t('structure.stats.table')}</td>
+              <td className="value">{table.is_partitioned ? t('structure.stats.partitioned') : table.relispartition ? t('structure.stats.partition') : t('structure.stats.table')}</td>
             </tr>
             <tr>
               <th className="name">{t('structure.stats.rows')}</th>

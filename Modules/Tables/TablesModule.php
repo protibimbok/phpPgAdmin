@@ -17,6 +17,7 @@ use PhpPgAdmin\Modules\Tables\Http\Controllers\ColumnController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\ExclusionConstraintController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\ForeignKeyController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\IndexController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\PartitionController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\PolicyController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\PrimaryKeyController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\RuleController;
@@ -67,6 +68,7 @@ final class TablesModule implements Module, ProvidesNodes, ProvidesApiRoutes, Pr
             new NodeDefinition('trigger', 'triggers', 'trid', TriggerController::class, parent: 'table', templateDir: 'triggers', label: 'Triggers', icon: 'b_triggers', supports: ['sql', 'msql', 'depends']),
             new NodeDefinition('rule', 'rules', 'rid', RuleController::class, parent: 'table', templateDir: 'rules', label: 'Rules', icon: 'b_triggers', supports: ['sql', 'msql', 'depends']),
             new NodeDefinition('row_security_policy', 'policies', 'plid', PolicyController::class, parent: 'table', templateDir: 'row_security_policies', label: 'Policies', icon: 's_rights', supports: ['sql', 'msql', 'depends']),
+            new NodeDefinition('partition', 'partitions', 'ptid', PartitionController::class, parent: 'table', templateDir: 'partitions', label: 'Partitions', icon: 's_tbl', supports: ['sql', 'msql', 'depends']),
         ];
     }
 

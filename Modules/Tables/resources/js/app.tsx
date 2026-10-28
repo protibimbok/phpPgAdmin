@@ -17,6 +17,13 @@ registerNodeLink('table', (node, { db, ancestors }) => {
   return db === null || !schema ? '#' : `${urls.relation(db, schema.label, node.label, 'table')}/browse`
 })
 
+// A partition in the tree opens its own structure page: it is a table in its schema.
+registerNodeLink('partition', (node, { db }) => {
+  const meta = node.meta as { schema_name?: string }
+
+  return db === null || !meta.schema_name ? '#' : urls.relation(db, meta.schema_name, node.label, 'table')
+})
+
 // The schema's "Structure" tab, first in the schema's bar, where /db/:db/schema/:schema lands;
 // the relation's "Structure", "Operations" and "Show create" tabs, where a table's own URL lands.
 // phpMyAdmin gives a view the same bar as a table, so the tabs name the kind in their path and

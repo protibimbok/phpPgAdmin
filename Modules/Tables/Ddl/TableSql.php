@@ -19,7 +19,9 @@ use PhpPgAdmin\Core\Nodes\Options;
  * unique_constraint, foreign_key, check_constraint, exclude_constraint, relowner, spcname,
  * description, relpersistence (true for UNLOGGED), coll_inherits [quoted names], fillfactor,
  * relacl… An update sends the columns and constraints as {added, changed, deleted} lists,
- * and may add "indexes" ({added, deleted}) for CREATE INDEX statements after the ALTERs.
+ * and may add "indexes" ({added, deleted}) for CREATE INDEX statements after the ALTERs, and
+ * "partitions" ({added, deleted}) to create or attach and to detach partitions. A new table with
+ * "partition_scheme" is created PARTITION BY it, with its "partitions" list after it.
  */
 final class TableSql
 {
@@ -59,6 +61,19 @@ final class TableSql
         $data['vacuum_table'] = [];
         $data['vacuum_toast'] = [];
 
+        // A partitioned table: PARTITION BY from the scheme ("RANGE (col)"), then its first partitions.
+        $partitions = [];
+        if (trim((string) ($data['partition_scheme'] ?? '')) !== '') {
+            $data['relkind'] = 'p';
+            $data['partition_scheme'] = trim((string) $data['partition_scheme']);
+            $type = PartitionDdl::type($data['partition_scheme']);
+            foreach ((array) ($data['partitions'] ?? []) as $partition) {
+                $partitions[] = PartitionDdl::createSql($ctx, $data['schema'], $name, $type, (array) $partition);
+            }
+        } else {
+            unset($data['partition_scheme'], $data['relkind']);
+        }
+
         $indexes = [];
         foreach ((array) ($data['indexes'] ?? []) as $index) {
             $indexes[] = IndexSql::createSql($ctx, $data['schema'], $name, $index);
@@ -66,7 +81,7 @@ final class TableSql
 
         return [
             'sql' => $ctx->renderFrom('tables', 'create.sql', ['data' => $data, 'add_not_exists_clause' => false]),
-            'indexes' => $indexes,
+            'indexes' => [...$partitions, ...$indexes],
             'name' => $name,
             'schema' => $data['schema'],
         ];
@@ -145,6 +160,21 @@ final class TableSql
             }
             foreach ((array) ($indexes['added'] ?? []) as $index) {
                 $parts[] = IndexSql::createSql($ctx, $schema, $table, $index);
+            }
+        }
+
+        // Partitions detached ("deleted", by oid) and created or attached ("added"): pgAdmin's _check_for_partitions_in_sql.
+        $partitions = $data['partitions'] ?? null;
+        if (is_array($partitions) && !array_is_list($partitions)) {
+            foreach ((array) ($partitions['deleted'] ?? []) as $partition) {
+                $target = $ctx->conn->row('SELECT rel.relname AS name, nsp.nspname AS schema FROM pg_catalog.pg_class rel JOIN pg_catalog.pg_namespace nsp ON nsp.oid = rel.relnamespace WHERE rel.oid = $1', [(int) ($partition['oid'] ?? 0)]);
+                if ($target !== null) {
+                    $parts[] = PartitionDdl::detachSql($ctx, $schema, $table, (string) $target['schema'], (string) $target['name'], (string) ($partition['mode'] ?? ''));
+                }
+            }
+            $type = PartitionDdl::type((string) ($old['partition_scheme'] ?? ''));
+            foreach ((array) ($partitions['added'] ?? []) as $partition) {
+                $parts[] = PartitionDdl::createSql($ctx, $schema, $table, $type, (array) $partition);
             }
         }
 
