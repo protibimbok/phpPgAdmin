@@ -8,7 +8,12 @@ use PhpPgAdmin\Core\Facades\Nodes;
 use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
+use PhpPgAdmin\Modules\Types\Http\Controllers\CollationController;
 use PhpPgAdmin\Modules\Types\Http\Controllers\DomainController;
+use PhpPgAdmin\Modules\Types\Http\Controllers\FtsConfigurationController;
+use PhpPgAdmin\Modules\Types\Http\Controllers\FtsDictionaryController;
+use PhpPgAdmin\Modules\Types\Http\Controllers\FtsParserController;
+use PhpPgAdmin\Modules\Types\Http\Controllers\FtsTemplateController;
 use PhpPgAdmin\Modules\Types\Http\Controllers\TypeController;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -32,4 +37,21 @@ Route::middleware(Authenticate::class)->group(function () use ($context): void {
     })->setName('types.options');
 
     Route::get('/databases/{db}/schemas/{scid:number}/domains/options', fn (ServerRequestInterface $request, array $args): array => (new DomainController())->options($context($request, $args, 'domain')))->setName('domains.options');
+
+    Route::get('/databases/{db}/schemas/{scid:number}/collations/options', fn (ServerRequestInterface $request, array $args): array => (new CollationController())->options($context($request, $args, 'collation')))->setName('collations.options');
+
+    Route::get('/databases/{db}/schemas/{scid:number}/fts_configurations/options', fn (ServerRequestInterface $request, array $args): array => (new FtsConfigurationController())->options($context($request, $args, 'fts_configuration')))->setName('fts_configurations.options');
+    // ?parser=<oid>: the token types the parser produces, which a configuration maps.
+    Route::get('/databases/{db}/schemas/{scid:number}/fts_configurations/tokens', function (ServerRequestInterface $request, array $args) use ($context): array {
+        $ctx = $context($request, $args, 'fts_configuration');
+        $parser = (int) ($ctx->queryParams()['parser'] ?? 0);
+        if ($parser <= 0) {
+            throw new BadRequestException('A parser OID is required.');
+        }
+
+        return (new FtsConfigurationController())->tokens($ctx, $parser);
+    })->setName('fts_configurations.tokens');
+    Route::get('/databases/{db}/schemas/{scid:number}/fts_dictionaries/options', fn (ServerRequestInterface $request, array $args): array => (new FtsDictionaryController())->options($context($request, $args, 'fts_dictionary')))->setName('fts_dictionaries.options');
+    Route::get('/databases/{db}/schemas/{scid:number}/fts_parsers/options', fn (ServerRequestInterface $request, array $args): array => (new FtsParserController())->options($context($request, $args, 'fts_parser')))->setName('fts_parsers.options');
+    Route::get('/databases/{db}/schemas/{scid:number}/fts_templates/options', fn (ServerRequestInterface $request, array $args): array => (new FtsTemplateController())->options($context($request, $args, 'fts_template')))->setName('fts_templates.options');
 });

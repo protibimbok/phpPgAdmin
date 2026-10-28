@@ -177,3 +177,201 @@ export function dropTypeRow(db: string, scid: number, row: TypeRow, cascade = fa
 export function typeRowSql(db: string, scid: number, row: TypeRow): Promise<string> {
   return row.node === 'domain' ? domains(db, scid).sql(row.oid) : types(db, scid).sql(row.oid)
 }
+
+/** A collation as pgAdmin's collations/properties.sql describes it. */
+export interface Collation {
+  oid: number;
+  name: string;
+  schema: string;
+  lc_collate: string | null;
+  lc_type: string | null;
+  /** 'libc', 'icu' or, on PostgreSQL 17+, 'builtin'. */
+  provider: string;
+  is_deterministic: boolean;
+  version: string | null;
+  rules: string | null;
+  owner: string;
+  description: string | null;
+  is_sys_obj: boolean;
+}
+
+/** What CREATE COLLATION and ALTER COLLATION take (collations/create.sql, update.sql). */
+export interface CollationData {
+  name?: string;
+  owner?: string;
+  description?: string;
+  copy_collation?: string;
+  locale?: string;
+  lc_collate?: string;
+  lc_type?: string;
+  provider?: string;
+  is_deterministic?: boolean;
+  rules?: string;
+  version?: string;
+}
+
+export interface CollationOptions {
+  collations: string[];
+  roles: string[];
+  /** The server version number, which decides the providers and whether RULES is offered. */
+  version: number;
+}
+
+export function collations(db: string, scid: number) {
+  return collection<Collation>(
+    collectionUrl(db, "schemas", scid, "collations"),
+  );
+}
+
+export function collationOptions(
+  db: string,
+  scid: number,
+): Promise<CollationOptions> {
+  return api.get<CollationOptions>(
+    `${collectionUrl(db, "schemas", scid, "collations")}/options`,
+  );
+}
+
+/** pgAdmin's four full text search nodes. */
+export type FtsKind =
+  "fts_configuration" | "fts_dictionary" | "fts_parser" | "fts_template";
+
+export const FTS_KINDS: FtsKind[] = [
+  "fts_configuration",
+  "fts_dictionary",
+  "fts_parser",
+  "fts_template",
+];
+
+const FTS_COLLECTIONS: Record<FtsKind, string> = {
+  fts_configuration: "fts_configurations",
+  fts_dictionary: "fts_dictionaries",
+  fts_parser: "fts_parsers",
+  fts_template: "fts_templates",
+};
+
+/** A token type with the dictionaries it maps to, as a configuration's properties list them. */
+export interface TokenMapping {
+  token: string;
+  dictname: string[];
+}
+
+export interface DictionaryOption {
+  option: string;
+  value: string;
+}
+
+/** A text search object as its properties.sql describes it, with each kind's own fields. */
+export interface FtsObject {
+  oid: number;
+  name: string;
+  schema: string;
+  description: string | null;
+  is_sys_obj: boolean;
+  owner?: string;
+  /** A configuration: the parser's OID and name, and the mappings (properties only). */
+  parser?: number;
+  prsname?: string;
+  tokens?: TokenMapping[];
+  /** A dictionary: its template and options. */
+  template?: string;
+  options?: DictionaryOption[];
+  /** A parser: its functions. */
+  prsstart?: string;
+  prstoken?: string;
+  prsend?: string;
+  prslextype?: string;
+  prsheadline?: string;
+  /** A template: its functions. */
+  tmplinit?: string;
+  tmpllexize?: string;
+}
+
+/** A row of the text search list: an object tagged with its kind. */
+export type FtsRow = FtsObject & { kind: FtsKind };
+
+/** What the CREATE and ALTER TEXT SEARCH statements take, by pgAdmin's field names. */
+export interface FtsData {
+  name?: string;
+  owner?: string;
+  description?: string;
+  prsname?: string;
+  copy_config?: string;
+  tokens?: TokenMapping[];
+  template?: string;
+  options?: DictionaryOption[];
+  prsstart?: string;
+  prstoken?: string;
+  prsend?: string;
+  prslextype?: string;
+  prsheadline?: string;
+  tmplinit?: string;
+  tmpllexize?: string;
+}
+
+/** What the text search editor offers, by kind (GET …/<collection>/options). */
+export interface FtsOptions {
+  roles?: string[];
+  parsers?: { oid: number; name: string }[];
+  configurations?: string[];
+  dictionaries?: string[];
+  templates?: string[];
+  start?: string[];
+  token?: string[];
+  end?: string[];
+  lextype?: string[];
+  headline?: string[];
+  init?: string[];
+  lexize?: string[];
+}
+
+export function textSearch(db: string, scid: number, kind: FtsKind) {
+  return collection<FtsObject>(
+    collectionUrl(db, "schemas", scid, FTS_COLLECTIONS[kind]),
+  );
+}
+
+export function ftsOptions(
+  db: string,
+  scid: number,
+  kind: FtsKind,
+): Promise<FtsOptions> {
+  return api.get<FtsOptions>(
+    `${collectionUrl(db, "schemas", scid, FTS_COLLECTIONS[kind])}/options`,
+  );
+}
+
+/** The token types a parser produces, which a configuration maps. */
+export function ftsTokens(
+  db: string,
+  scid: number,
+  parser: number,
+): Promise<string[]> {
+  return api.get<string[]>(
+    `${collectionUrl(db, "schemas", scid, "fts_configurations")}/tokens?${new URLSearchParams({ parser: String(parser) })}`,
+  );
+}
+
+/** Every text search object of the schema: configurations, dictionaries, parsers then templates, each by name. */
+export function listTextSearch(db: string, scid: number): Promise<FtsRow[]> {
+  return Promise.all(
+    FTS_KINDS.map((kind) =>
+      textSearch(db, scid, kind)
+        .list()
+        .then((rows) => rows.map((row): FtsRow => ({ ...row, kind }))),
+    ),
+  ).then((lists) =>
+    lists
+      .flat()
+      .sort(
+        (a, b) =>
+          FTS_KINDS.indexOf(a.kind) - FTS_KINDS.indexOf(b.kind) ||
+          a.name.localeCompare(b.name),
+      ),
+  );
+}
+
+/** The object kind as the SQL names it: TEXT SEARCH CONFIGURATION… */
+export function ftsSqlKind(kind: FtsKind): string {
+  return `TEXT SEARCH ${kind.slice(4).toUpperCase()}`;
+}

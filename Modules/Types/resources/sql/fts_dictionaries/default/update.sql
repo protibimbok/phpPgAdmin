@@ -1,0 +1,49 @@
+{# UPDATE statement for FTS DICTIONARY #}
+{% if data %}
+{% set name = o_data.name %}
+{% set schema = o_data.schema %}
+{% if data.name and data.name != o_data.name %}
+{% set name = data.name %}
+ALTER TEXT SEARCH DICTIONARY {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(o_data.name)}}
+    RENAME TO {{ conn|qtIdent(data.name) }};
+
+{% endif %}
+{% if data.options is defined %}
+{% if data.options.changed is defined %}
+{% for opt in data.options.changed %}
+ALTER TEXT SEARCH DICTIONARY {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}
+    ({{ conn|qtIdent(opt.option) }} = {{ opt.value|qtLiteral(conn) }});
+
+{% endfor %}
+{% endif %}
+{% if data.options.added is defined%}
+{% for opt in data.options.added %}
+ALTER TEXT SEARCH DICTIONARY {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}
+    ({{ conn|qtIdent(opt.option) }} = {{ opt.value|qtLiteral(conn) }});
+
+{% endfor %}
+{% endif %}
+{% if data.options.deleted is defined%}
+{% for opt in data.options.deleted %}
+ALTER TEXT SEARCH DICTIONARY {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}
+    ({{ conn|qtIdent(opt.option) }});
+
+{% endfor %}
+{% endif %}
+{% endif %}
+{% if data.owner is defined and data.owner != o_data.owner %}
+ALTER TEXT SEARCH DICTIONARY {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}
+    OWNER TO {{ conn|qtIdent(data.owner) }};
+
+{% endif %}
+{% if data.schema is defined and data.schema != o_data.schema %}
+{% set schema = data.schema%}
+ALTER TEXT SEARCH DICTIONARY {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}
+    SET SCHEMA {{ conn|qtIdent(data.schema) }};
+
+{% endif %}
+{% if data.description is defined and data.description != o_data.description %}
+COMMENT ON TEXT SEARCH DICTIONARY {{conn|qtIdent(schema)}}.{{conn|qtIdent(name)}}
+    IS {{ data.description|qtLiteral(conn) }};
+{% endif %}
+{% endif %}

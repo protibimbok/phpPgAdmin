@@ -1,14 +1,14 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
-import Icon from '@/components/Icon'
 import Modal from '@/components/Modal'
+import ObjectSection from '@/components/ObjectSection'
 import SqlView from '@/components/SqlView'
 import { treeState } from '@/layout/tree/treeState'
-import { notify, notifyError, notifySuccess } from '@/notify'
+import { notifyError, notifySuccess } from '@/notify'
 import { useLevel } from '@/level'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
 import { columns as columnsOf, policies as policiesOf, resolveRelation, rules as rulesOf, triggerOptions, triggers as triggersOf, type Column, type Policy, type Rule, type Trigger, type TriggerOptions, type TriggerParent } from '../api'
@@ -116,13 +116,14 @@ export default function Triggers() {
     }
   }
 
+  const labels = { name: t('triggers.columns.name'), edit: t('triggers.actions.edit'), export: t('triggers.actions.export'), drop: t('triggers.actions.drop') }
   const triggerUrl = triggersOf(db, scid, parent, oid)
   const ruleUrl = rulesOf(db, scid, parent, oid)
   const policyUrl = policiesOf(db, scid, oid)
 
   return (
     <>
-      <Section<Trigger>
+      <ObjectSection<Trigger>
         id="triggers"
         icon="b_triggers"
         title={t('triggers.title')}
@@ -143,9 +144,10 @@ export default function Triggers() {
         onExport={(rows) => exportSql(rows.length === 1 ? t('triggers.export_title', { name: rows[0].name }) : t('triggers.export_title_many'), rows.map((row) => triggerUrl.sql(row.oid)))}
         onDrop={(rows) => askDrop(rows.map((row) => `DROP TRIGGER ${quoteIdent(row.name)} ON ${relation};`), () => dropAll((id) => triggerUrl.remove(id), rows.map((r) => r.oid), rows.length === 1 ? t('triggers.dropped', { name: rows[0].name }) : t('triggers.dropped_many', { count: rows.length })))}
         noneSelected={t('triggers.none_selected')}
+        labels={labels}
       />
 
-      <Section<Rule>
+      <ObjectSection<Rule>
         id="rules"
         icon="b_triggers"
         title={t('triggers.rules_title')}
@@ -165,10 +167,11 @@ export default function Triggers() {
         onExport={(rows) => exportSql(rows.length === 1 ? t('triggers.export_title', { name: rows[0].name }) : t('triggers.export_title_many'), rows.map((row) => ruleUrl.sql(row.oid)))}
         onDrop={(rows) => askDrop(rows.map((row) => `DROP RULE ${quoteIdent(row.name)} ON ${relation};`), () => dropAll((id) => ruleUrl.remove(id), rows.map((r) => r.oid), rows.length === 1 ? t('triggers.rule_dropped', { name: rows[0].name }) : t('triggers.dropped_many', { count: rows.length })))}
         noneSelected={t('triggers.none_selected')}
+        labels={labels}
       />
 
       {parent === 'table' && (
-        <Section<Policy>
+        <ObjectSection<Policy>
           id="policies"
           icon="s_rights"
           title={t('triggers.policies_title')}
@@ -188,6 +191,7 @@ export default function Triggers() {
           onExport={(rows) => exportSql(rows.length === 1 ? t('triggers.export_title', { name: rows[0].name }) : t('triggers.export_title_many'), rows.map((row) => policyUrl.sql(row.oid)))}
           onDrop={(rows) => askDrop(rows.map((row) => `DROP POLICY ${quoteIdent(row.name)} ON ${relation};`), () => dropAll((id) => policyUrl.remove(id), rows.map((r) => r.oid), rows.length === 1 ? t('triggers.policy_dropped', { name: rows[0].name }) : t('triggers.dropped_many', { count: rows.length })))}
           noneSelected={t('triggers.none_selected')}
+          labels={labels}
         />
       )}
 
@@ -200,132 +204,5 @@ export default function Triggers() {
       </Modal>
       <ConfirmQuery show={confirm !== null} sql={confirm?.sql ?? ''} confirmLabel={tApp('ok')} onClose={() => setConfirm(null)} onConfirm={() => { const pending = confirm; setConfirm(null); if (pending) void pending.run() }} />
     </>
-  )
-}
-
-interface SectionProps<Row extends { oid: number; name: string }> {
-  id: string
-  icon: string
-  title: string
-  rows: Row[]
-  empty: string
-  createLabel: string
-  createIcon: string
-  onCreate: () => void
-  columns: { label: string; render: (row: Row) => ReactNode }[]
-  onEdit: (row: Row) => void
-  onExport: (rows: Row[]) => void
-  onDrop: (rows: Row[]) => void
-  noneSelected: string
-}
-
-/** One list after phpMyAdmin's triggers/list.twig: heading, the bulk group and create button, the table with Edit / Export / Drop. */
-function Section<Row extends { oid: number; name: string }>({ id, icon, title, rows, empty, createLabel, createIcon, onCreate, columns, onEdit, onExport, onDrop, noneSelected }: SectionProps<Row>) {
-  const { t } = useTranslation('tables')
-  const { t: tApp } = useTranslation()
-  const [checked, setChecked] = useState<Set<number>>(new Set())
-  const allChecked = rows.length > 0 && rows.every((row) => checked.has(row.oid))
-  const selected = () => rows.filter((row) => checked.has(row.oid))
-  const withSelected = (action: (rows: Row[]) => void) => {
-    const target = selected()
-    if (target.length === 0) return notify(noneSelected, 'error')
-    action(target)
-  }
-
-  function toggle(oid: number, value: boolean) {
-    setChecked((current) => {
-      const next = new Set(current)
-      if (value) next.add(oid)
-      else next.delete(oid)
-
-      return next
-    })
-  }
-
-  return (
-    <div className="container-fluid my-3" id={`${id}_section`}>
-      <h2>
-        <Icon name={icon} /> {title}
-      </h2>
-
-      <div className="d-flex flex-wrap my-3">
-        {rows.length > 0 && (
-          <div>
-            <div className="input-group">
-              <div className="input-group-text">
-                <div className="form-check mb-0">
-                  <input className="form-check-input checkall_box" type="checkbox" id={`${id}_checkAll`} checked={allChecked} onChange={(e) => setChecked(e.target.checked ? new Set(rows.map((r) => r.oid)) : new Set())} />
-                  <label className="form-check-label" htmlFor={`${id}_checkAll`}>
-                    {tApp('check_all')}
-                  </label>
-                </div>
-              </div>
-              <button className="btn btn-outline-secondary" type="button" title={t('triggers.actions.export')} onClick={() => withSelected(onExport)}>
-                <Icon name="b_export" /> {t('triggers.actions.export')}
-              </button>
-              <button className="btn btn-outline-secondary" type="button" title={t('triggers.actions.drop')} onClick={() => withSelected(onDrop)}>
-                <Icon name="b_drop" /> {t('triggers.actions.drop')}
-              </button>
-            </div>
-          </div>
-        )}
-        <div className={rows.length > 0 ? 'ms-auto' : undefined}>
-          <button type="button" className="ajax add_anchor btn btn-primary" onClick={onCreate}>
-            <Icon name={createIcon} /> {createLabel}
-          </button>
-        </div>
-      </div>
-
-      <form className="ajax" onSubmit={(e) => e.preventDefault()}>
-        {rows.length === 0 ? (
-          <div className="alert alert-primary" role="alert">
-            <Icon name="s_notice" /> {empty}
-          </div>
-        ) : (
-          <table id={`${id}Table`} className="table table-striped table-hover w-auto data">
-            <thead>
-              <tr>
-                <th />
-                <th>{t('triggers.columns.name')}</th>
-                {columns.map((column) => (
-                  <th key={column.label}>{column.label}</th>
-                ))}
-                <th colSpan={3} />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.oid}>
-                  <td>
-                    <input type="checkbox" className="checkall" checked={checked.has(row.oid)} onChange={(e) => toggle(row.oid, e.target.checked)} aria-label={row.name} />
-                  </td>
-                  <td>
-                    <strong>{row.name}</strong>
-                  </td>
-                  {columns.map((column) => (
-                    <td key={column.label}>{column.render(row)}</td>
-                  ))}
-                  <td>
-                    <a className="ajax edit_anchor" href="#edit" onClick={(e) => { e.preventDefault(); onEdit(row) }}>
-                      <Icon name="b_edit" /> {t('triggers.actions.edit')}
-                    </a>
-                  </td>
-                  <td>
-                    <a className="ajax export_anchor" href="#export" onClick={(e) => { e.preventDefault(); onExport([row]) }}>
-                      <Icon name="b_export" /> {t('triggers.actions.export')}
-                    </a>
-                  </td>
-                  <td>
-                    <a className="ajax drop_anchor" href="#drop" onClick={(e) => { e.preventDefault(); onDrop([row]) }}>
-                      <Icon name="b_drop" /> {t('triggers.actions.drop')}
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </form>
-    </div>
   )
 }

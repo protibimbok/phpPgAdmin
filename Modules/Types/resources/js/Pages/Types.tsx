@@ -1,17 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import Modal from '@/components/Modal'
+import ObjectSection from '@/components/ObjectSection'
 import SqlView from '@/components/SqlView'
 import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName } from '@sql/js/sql'
-import { dropTypeRow, listTypes, resolveSchema, typeRowSql, type TypeRow } from '../api'
+import { collations as collationsOf, dropTypeRow, ftsSqlKind, listTextSearch, listTypes, resolveSchema, textSearch, typeRowSql, type Collation, type FtsKind, type FtsRow, type TypeRow } from '../api'
+import CollationDialog from '../dialogs/CollationDialog'
+import TextSearchDialog from '../dialogs/TextSearchDialog'
 
 /** The kinds the editor can open; the others (base, shell, multirange) are shown and dropped only. */
 const EDITABLE = new Set(['c', 'e', 'r', 'd'])
@@ -20,7 +23,10 @@ const EDITABLE = new Set(['c', 'e', 'r', 'd'])
  * The schema's "Types" page, laid out like phpMyAdmin's Routines page (MySQL has no types):
  * the heading, the check-all / Export / Drop group, the filter and the "Create new type"
  * button, then every type and domain with its kind, definition, owner and comment, and the
- * Edit, Export and Drop links.
+ * Edit, Export and Drop links. Below it, the schema's collations and full text search objects
+ * (configurations, dictionaries, parsers and templates) are listed the same way and edited in
+ * dialogs; ?open=<node>:<name> opens one of those dialogs on arrival, which is how the tree
+ * reaches them.
  */
 export default function Types() {
   const { t } = useTranslation('types')
@@ -28,9 +34,13 @@ export default function Types() {
   const { db = '', schema = '' } = useParams()
   const { data, error, reload } = useRequest(async () => {
     const scid = await resolveSchema(db, schema)
+    const [rows, collations, textSearch] = await Promise.all([listTypes(db, scid), collationsOf(db, scid).list(), listTextSearch(db, scid)])
 
-    return { scid, rows: await listTypes(db, scid) }
+    return { scid, rows, collations, textSearch }
   }, [db, schema])
+  const [search, setSearch] = useSearchParams()
+  const [collationDialog, setCollationDialog] = useState<{ collation: Collation | null } | null>(null)
+  const [ftsDialog, setFtsDialog] = useState<{ kind: FtsKind; object: FtsRow | null } | null>(null)
   const [filter, setFilter] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [confirm, setConfirm] = useState<{ sql: string[]; run: () => Promise<void> } | null>(null)
@@ -41,6 +51,22 @@ export default function Types() {
 
     return (data?.rows ?? []).filter((row) => needle === '' || row.name.toUpperCase().includes(needle))
   }, [data, filter])
+
+  // The tree opens a collation or text search object by name: ?open=collation:german.
+  const open = search.get('open')
+  useEffect(() => {
+    if (!data || !open) return
+    const [node, ...rest] = open.split(':')
+    const name = rest.join(':')
+    if (node === 'collation') {
+      const collation = data.collations.find((c) => c.name === name)
+      if (collation) setCollationDialog({ collation })
+    } else {
+      const object = data.textSearch.find((o) => o.kind === node && o.name === name)
+      if (object) setFtsDialog({ kind: object.kind, object })
+    }
+    setSearch((params) => { params.delete('open'); return params }, { replace: true })
+  }, [data, open, setSearch])
 
   if (error) {
     return (
@@ -124,114 +150,216 @@ export default function Types() {
 
   cascadeRef.current = cascade
 
+  const changed = () => {
+    treeState.refresh()
+    reload()
+  }
+
+  /** The Export of a collation or text search object: the CREATE statement(s) in a dialog. */
+  function exportSql(title: string, loads: Promise<string>[]) {
+    setExported({ title, sql: null })
+    Promise.all(loads).then(
+      (parts) => setExported((current) => (current ? { ...current, sql: parts.join('\n\n') } : null)),
+      (e: unknown) => {
+        setExported(null)
+        notifyError(errorMessage(e))
+      },
+    )
+  }
+
+  function askDropSql(statements: string[], remove: (oid: number) => Promise<unknown>, oids: number[], message: string) {
+    setCascade(false)
+    setConfirm({
+      sql: statements,
+      run: async () => {
+        try {
+          for (const id of oids) await remove(id)
+          notifySuccess(message)
+        } catch (e) {
+          notifyError(errorMessage(e))
+        } finally {
+          changed()
+        }
+      },
+    })
+  }
+
+  const sectionLabels = { name: t('columns.name'), edit: t('actions.edit'), export: t('actions.export'), drop: t('actions.drop') }
+  const exportTitle = (names: string[]) => (names.length === 1 ? t('export_title', { name: names[0] }) : t('export_title_many'))
+
+  /** What the text search Definition column shows: the parser, the template and options, or the functions. */
+  function ftsDefinition(row: FtsRow): string {
+    switch (row.kind) {
+      case 'fts_configuration':
+        return `PARSER = ${row.prsname ?? ''}`
+      case 'fts_dictionary':
+        return [`TEMPLATE = ${row.template ?? ''}`, ...(row.options ?? []).map((o) => `${o.option} = '${o.value}'`)].join(', ')
+      case 'fts_parser':
+        return [`START = ${row.prsstart}`, `GETTOKEN = ${row.prstoken}`, `END = ${row.prsend}`, `LEXTYPES = ${row.prslextype}`, ...(row.prsheadline && row.prsheadline !== '-' ? [`HEADLINE = ${row.prsheadline}`] : [])].join(', ')
+      case 'fts_template':
+        return [...(row.tmplinit && row.tmplinit !== '-' ? [`INIT = ${row.tmplinit}`] : []), `LEXIZE = ${row.tmpllexize}`].join(', ')
+    }
+  }
+
   return (
-    <div className="container-fluid my-3">
-      <h2>
-        <Icon name="b_plugin" /> {t('title')}
-      </h2>
+    <>
+      <div className="container-fluid my-3">
+        <h2>
+          <Icon name="b_plugin" /> {t('title')}
+        </h2>
 
-      <div className="d-flex flex-wrap my-3">
-        {data.rows.length > 0 && (
-          <>
-            <div>
-              <div className="input-group">
-                <div className="input-group-text">
-                  <div className="form-check mb-0">
-                    <input className="form-check-input checkall_box" type="checkbox" id="checkAllCheckbox" checked={allChecked} onChange={(e) => setChecked(e.target.checked ? new Set(rows.map(keyOf)) : new Set())} />
-                    <label className="form-check-label" htmlFor="checkAllCheckbox">
-                      {tApp('check_all')}
-                    </label>
+        <div className="d-flex flex-wrap my-3">
+          {data.rows.length > 0 && (
+            <>
+              <div>
+                <div className="input-group">
+                  <div className="input-group-text">
+                    <div className="form-check mb-0">
+                      <input className="form-check-input checkall_box" type="checkbox" id="checkAllCheckbox" checked={allChecked} onChange={(e) => setChecked(e.target.checked ? new Set(rows.map(keyOf)) : new Set())} />
+                      <label className="form-check-label" htmlFor="checkAllCheckbox">
+                        {tApp('check_all')}
+                      </label>
+                    </div>
                   </div>
+                  <button className="btn btn-outline-secondary" id="bulkActionExportButton" type="button" title={t('actions.export')} onClick={() => exportRows(selected())}>
+                    <Icon name="b_export" /> {t('actions.export')}
+                  </button>
+                  <button className="btn btn-outline-secondary" id="bulkActionDropButton" type="button" title={t('actions.drop')} onClick={() => askDrop(selected())}>
+                    <Icon name="b_drop" /> {t('actions.drop')}
+                  </button>
                 </div>
-                <button className="btn btn-outline-secondary" id="bulkActionExportButton" type="button" title={t('actions.export')} onClick={() => exportRows(selected())}>
-                  <Icon name="b_export" /> {t('actions.export')}
-                </button>
-                <button className="btn btn-outline-secondary" id="bulkActionDropButton" type="button" title={t('actions.drop')} onClick={() => askDrop(selected())}>
-                  <Icon name="b_drop" /> {t('actions.drop')}
-                </button>
               </div>
-            </div>
 
-            <div className="ms-auto">
-              <div className="input-group">
-                <span className="input-group-text">
-                  <Icon name="b_search" title={tApp('search')} />
-                </span>
-                <input className="form-control" name="filterText" type="text" id="filterText" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={tApp('search')} aria-label={tApp('search')} />
+              <div className="ms-auto">
+                <div className="input-group">
+                  <span className="input-group-text">
+                    <Icon name="b_search" title={tApp('search')} />
+                  </span>
+                  <input className="form-control" name="filterText" type="text" id="filterText" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={tApp('search')} aria-label={tApp('search')} />
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        <div className={data.rows.length > 0 ? 'ms-2' : undefined}>
-          <Link className="ajax add_anchor btn btn-primary" to={`${base}/create`} role="button">
-            <Icon name="b_plus" /> {t('create_new')}
-          </Link>
+          <div className={data.rows.length > 0 ? 'ms-2' : undefined}>
+            <Link className="ajax add_anchor btn btn-primary" to={`${base}/create`} role="button">
+              <Icon name="b_plus" /> {t('create_new')}
+            </Link>
+          </div>
         </div>
+
+        <form id="typesForm" onSubmit={(e) => e.preventDefault()}>
+          {data.rows.length === 0 ? (
+            <div id="nothing2display">
+              <div className="alert alert-primary" role="alert">
+                <Icon name="s_notice" /> {t('none')}
+              </div>
+            </div>
+          ) : (
+            <table id="typesTable" className="table table-striped table-hover data w-auto">
+              <thead>
+                <tr>
+                  <th />
+                  <th>{t('columns.name')}</th>
+                  <th>{t('columns.kind')}</th>
+                  <th>{t('columns.definition')}</th>
+                  <th>{t('columns.owner')}</th>
+                  <th>{t('columns.comment')}</th>
+                  <th colSpan={3} />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const kind = kindOf(row)
+
+                  return (
+                    <tr key={keyOf(row)}>
+                      <td>
+                        <input type="checkbox" className="checkall" checked={checked.has(keyOf(row))} onChange={(e) => toggle(keyOf(row), e.target.checked)} aria-label={row.name} />
+                      </td>
+                      <td>
+                        <strong>{row.name}</strong>
+                      </td>
+                      <td className="text-nowrap">{t(`kinds.${kind}`, { defaultValue: kind })}</td>
+                      <td dir="ltr">
+                        <code>{definition(row)}</code>
+                      </td>
+                      <td>{row.node === 'domain' ? row.owner : row.typeowner}</td>
+                      <td>{row.description}</td>
+                      <td>
+                        {EDITABLE.has(kind) && (
+                          <Link className="ajax edit_anchor" to={`${base}/${row.node}/${encodeURIComponent(row.name)}/edit`}>
+                            <Icon name="b_edit" /> {t('actions.edit')}
+                          </Link>
+                        )}
+                      </td>
+                      <td>
+                        <a className="ajax export_anchor" href="#export" onClick={(e) => { e.preventDefault(); exportRows([row]) }}>
+                          <Icon name="b_export" /> {t('actions.export')}
+                        </a>
+                      </td>
+                      <td>
+                        <a className="ajax drop_anchor" href="#drop" onClick={(e) => { e.preventDefault(); askDrop([row]) }}>
+                          <Icon name="b_drop" /> {t('actions.drop')}
+                        </a>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </form>
+
       </div>
 
-      <form id="typesForm" onSubmit={(e) => e.preventDefault()}>
-        {data.rows.length === 0 ? (
-          <div id="nothing2display">
-            <div className="alert alert-primary" role="alert">
-              <Icon name="s_notice" /> {t('none')}
-            </div>
-          </div>
-        ) : (
-          <table id="typesTable" className="table table-striped table-hover data w-auto">
-            <thead>
-              <tr>
-                <th />
-                <th>{t('columns.name')}</th>
-                <th>{t('columns.kind')}</th>
-                <th>{t('columns.definition')}</th>
-                <th>{t('columns.owner')}</th>
-                <th>{t('columns.comment')}</th>
-                <th colSpan={3} />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const kind = kindOf(row)
+      <ObjectSection<Collation>
+        id="collations"
+        icon="s_lang"
+        title={t('collations.title')}
+        rows={data.collations}
+        empty={t('collations.none')}
+        createLabel={t('collations.create_new')}
+        createIcon="b_plus"
+        onCreate={() => setCollationDialog({ collation: null })}
+        columns={[
+          { label: t('collations.columns.locale'), render: (row) => <code>{row.lc_collate === row.lc_type ? row.lc_collate : `${row.lc_collate} / ${row.lc_type}`}</code> },
+          { label: t('collations.columns.provider'), render: (row) => row.provider },
+          { label: t('collations.columns.deterministic'), render: (row) => (row.is_deterministic ? tApp('yes') : tApp('no')) },
+          { label: t('columns.owner'), render: (row) => row.owner },
+          { label: t('columns.comment'), render: (row) => row.description },
+        ]}
+        onEdit={(row) => setCollationDialog({ collation: row })}
+        onExport={(rows) => exportSql(exportTitle(rows.map((r) => r.name)), rows.map((row) => collationsOf(db, scid).sql(row.oid)))}
+        onDrop={(rows) => askDropSql(rows.map((row) => `DROP COLLATION ${qualifiedName(schema, row.name)};`), (id) => collationsOf(db, scid).remove(id, cascadeRef.current), rows.map((r) => r.oid), rows.length === 1 ? t('collations.dropped', { name: rows[0].name }) : t('dropped_many_objects', { count: rows.length }))}
+        noneSelected={t('none_selected_object')}
+        labels={sectionLabels}
+      />
 
-                return (
-                  <tr key={keyOf(row)}>
-                    <td>
-                      <input type="checkbox" className="checkall" checked={checked.has(keyOf(row))} onChange={(e) => toggle(keyOf(row), e.target.checked)} aria-label={row.name} />
-                    </td>
-                    <td>
-                      <strong>{row.name}</strong>
-                    </td>
-                    <td className="text-nowrap">{t(`kinds.${kind}`, { defaultValue: kind })}</td>
-                    <td dir="ltr">
-                      <code>{definition(row)}</code>
-                    </td>
-                    <td>{row.node === 'domain' ? row.owner : row.typeowner}</td>
-                    <td>{row.description}</td>
-                    <td>
-                      {EDITABLE.has(kind) && (
-                        <Link className="ajax edit_anchor" to={`${base}/${row.node}/${encodeURIComponent(row.name)}/edit`}>
-                          <Icon name="b_edit" /> {t('actions.edit')}
-                        </Link>
-                      )}
-                    </td>
-                    <td>
-                      <a className="ajax export_anchor" href="#export" onClick={(e) => { e.preventDefault(); exportRows([row]) }}>
-                        <Icon name="b_export" /> {t('actions.export')}
-                      </a>
-                    </td>
-                    <td>
-                      <a className="ajax drop_anchor" href="#drop" onClick={(e) => { e.preventDefault(); askDrop([row]) }}>
-                        <Icon name="b_drop" /> {t('actions.drop')}
-                      </a>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </form>
+      <ObjectSection<FtsRow>
+        id="textSearch"
+        icon="s_fulltext"
+        title={t('fts.title')}
+        rows={data.textSearch}
+        empty={t('fts.none')}
+        createLabel={t('fts.create_new')}
+        createIcon="b_plus"
+        onCreate={() => setFtsDialog({ kind: 'fts_configuration', object: null })}
+        columns={[
+          { label: t('columns.kind'), render: (row) => t(`fts.kinds.${row.kind}`) },
+          { label: t('columns.definition'), render: (row) => <code dir="ltr">{ftsDefinition(row)}</code> },
+          { label: t('columns.owner'), render: (row) => row.owner ?? '' },
+          { label: t('columns.comment'), render: (row) => row.description },
+        ]}
+        onEdit={(row) => setFtsDialog({ kind: row.kind, object: row })}
+        onExport={(rows) => exportSql(exportTitle(rows.map((r) => r.name)), rows.map((row) => textSearch(db, scid, row.kind).sql(row.oid)))}
+        onDrop={(rows) => askDropSql(rows.map((row) => `DROP ${ftsSqlKind(row.kind)} ${qualifiedName(schema, row.name)};`), async (id) => { const row = rows.find((r) => r.oid === id); if (row) await textSearch(db, scid, row.kind).remove(id, cascadeRef.current) }, rows.map((r) => r.oid), rows.length === 1 ? t('fts.dropped', { name: rows[0].name }) : t('dropped_many_objects', { count: rows.length }))}
+        noneSelected={t('none_selected_object')}
+        labels={sectionLabels}
+      />
+
+      <CollationDialog show={collationDialog !== null} db={db} scid={scid} collation={collationDialog?.collation ?? null} onClose={() => setCollationDialog(null)} onSaved={() => { setCollationDialog(null); changed() }} />
+      <TextSearchDialog show={ftsDialog !== null} db={db} scid={scid} kind={ftsDialog?.kind ?? 'fts_configuration'} object={ftsDialog?.object ?? null} onClose={() => setFtsDialog(null)} onSaved={() => { setFtsDialog(null); changed() }} />
 
       <Modal show={exported !== null} title={exported?.title ?? ''} size="lg" onClose={() => setExported(null)}>
         {exported?.sql === null ? tApp('loading') : <SqlView sql={exported?.sql ?? ''} />}
@@ -251,7 +379,7 @@ export default function Types() {
           </label>
         </div>
       </ConfirmQuery>
-    </div>
+    </>
   )
 }
 

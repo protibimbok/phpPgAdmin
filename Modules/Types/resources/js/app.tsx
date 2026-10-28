@@ -13,6 +13,15 @@ for (const node of ['type', 'domain'] as const) {
   })
 }
 
+// A collation or text search object in the tree opens its dialog on the Types page.
+for (const node of ['collation', 'fts_configuration', 'fts_dictionary', 'fts_parser', 'fts_template'] as const) {
+  registerNodeLink(node, (treeNode, { db, ancestors }) => {
+    const schema = ancestors.find((a) => a.type === 'schema')
+
+    return db === null || !schema ? '#' : `${urls.schema(db, schema.label)}/types?${new URLSearchParams({ open: `${node}:${treeNode.label}` })}`
+  })
+}
+
 // The schema's "Types" tab, after Sequences.
 registerModule({
   id: 'types',
