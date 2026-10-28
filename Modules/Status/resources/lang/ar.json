@@ -5,7 +5,8 @@
     "processes": "العمليات",
     "locks": "الأقفال",
     "prepared": "المعاملات المُعدّة",
-    "monitor": "المراقب"
+    "monitor": "المراقب",
+    "logs": "السجلات"
   },
   "rate": {
     "label": "معدل التحديث",
@@ -190,5 +191,36 @@
     "processing": "جارٍ معالجة الطلب",
     "saved": "تم تغيير {{name}}.",
     "saved_restart": "تم تغيير {{name}} في postgresql.auto.conf؛ وتسري القيمة الجديدة عند إعادة تشغيل الخادم."
+  },
+  "logs": {
+    "heading": "سجلات الخادم",
+    "select": "اختر ملف السجل لعرضه",
+    "current": "(قيد الكتابة)",
+    "files_zero": "{{count}} ملف",
+    "files_one": "ملف واحد",
+    "files_two": "ملفان",
+    "files_few": "{{count}} ملفات",
+    "files_many": "{{count}} ملفًا",
+    "files_other": "{{count}} ملف",
+    "plain": "اعرض الصفحة نصًا عاديًا",
+    "go": "انطلق",
+    "download": "تنزيل",
+    "previous": "السابق",
+    "next": "التالي",
+    "full": "اعرض الرسائل كاملة",
+    "truncate": "اختصر الرسائل المعروضة",
+    "range": "البايتات {{start}}–{{end}} من {{size}}",
+    "none": "لا توجد إدخالات في هذا الجزء من الملف.",
+    "empty": "لا توجد ملفات في مجلد السجلات \"{{directory}}\".",
+    "no_collector": "لا يكتب PostgreSQL سجله في ملفات يمكنه قراءتها: logging_collector معطّل (log_destination هو \"{{destination}}\"). فعّله من صفحة المتغيرات؛ ويسري ذلك بعد إعادة التشغيل.",
+    "columns": {
+      "time": "الوقت",
+      "prefix": "بادئة سطر السجل",
+      "pid": "معرّف العملية",
+      "user": "المستخدم",
+      "database": "قاعدة البيانات",
+      "severity": "الخطورة",
+      "message": "الرسالة"
+    }
   }
 }

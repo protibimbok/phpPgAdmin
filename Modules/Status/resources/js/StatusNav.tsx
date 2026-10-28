@@ -10,6 +10,7 @@ const PAGES = [
   { key: 'locks', path: '/server/status/locks' },
   { key: 'prepared', path: '/server/status/prepared' },
   { key: 'monitor', path: '/server/status/monitor' },
+  { key: 'logs', path: '/server/status/logs' },
 ] as const
 
 /** The pills above every Status page, as phpMyAdmin's server/status/base.twig lays them out. */

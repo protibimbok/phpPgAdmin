@@ -5,7 +5,8 @@
     "processes": "Processes",
     "locks": "Locks",
     "prepared": "Prepared transactions",
-    "monitor": "Monitor"
+    "monitor": "Monitor",
+    "logs": "Logs"
   },
   "rate": {
     "label": "Refresh rate",
@@ -182,5 +183,32 @@
     "processing": "Processing request",
     "saved": "{{name}} has been changed.",
     "saved_restart": "{{name}} has been changed in postgresql.auto.conf; the new value takes effect when the server restarts."
+  },
+  "logs": {
+    "heading": "Server logs",
+    "select": "Select log file to view",
+    "current": "(being written)",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "plain": "Show the page as plain text",
+    "go": "Go",
+    "download": "Download",
+    "previous": "Previous",
+    "next": "Next",
+    "full": "Show full messages",
+    "truncate": "Truncate shown messages",
+    "range": "bytes {{start}}–{{end}} of {{size}}",
+    "none": "This part of the file has no entries.",
+    "empty": "The log directory \"{{directory}}\" has no files.",
+    "no_collector": "PostgreSQL does not write its log to files it can read: logging_collector is off (log_destination is \"{{destination}}\"). Turn it on under Variables; it takes effect after a restart.",
+    "columns": {
+      "time": "Time",
+      "prefix": "Log line prefix",
+      "pid": "Process ID",
+      "user": "User",
+      "database": "Database",
+      "severity": "Severity",
+      "message": "Message"
+    }
   }
 }

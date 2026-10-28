@@ -166,3 +166,68 @@ export function variable(name: string): Promise<{ variable: Variable }> {
 export function setVariable(name: string, change: { value: string } | { reset: true }): Promise<{ sql: string; variable: Variable; restart: boolean }> {
   return api.put<{ sql: string; variable: Variable; restart: boolean }>(`/api/server/variables/${encodeURIComponent(name)}`, change)
 }
+
+/** A file of the server's log directory; its format follows from the extension. */
+export interface LogFile {
+  name: string
+  size: number
+  /** Seconds since the epoch. */
+  modification: number
+  format: 'stderr' | 'csvlog' | 'jsonlog'
+  /** The server is writing to it. */
+  current: boolean
+}
+
+export interface LogFiles {
+  /** logging_collector: without it nothing is written to the log directory. */
+  collector: boolean
+  destination: string
+  directory: string
+  /** Newest first. */
+  files: LogFile[]
+}
+
+export function logFiles(): Promise<LogFiles> {
+  return api.get<LogFiles>('/api/server/logs')
+}
+
+/** An entry of a log file; the stderr format has only time (its whole log_line_prefix), severity and message. */
+export interface LogEntry {
+  time: string | null
+  severity: string | null
+  message: string | null
+  detail: string | null
+  hint: string | null
+  context: string | null
+  statement: string | null
+  sqlstate: string | null
+  pid: number | null
+  user: string | null
+  database: string | null
+  application: string | null
+  backend_type: string | null
+}
+
+/** The page starting at offset, or the one ending at before (the file's size for the last page). */
+export type LogPosition = { offset: number } | { before: number }
+
+/** A page of a log file: the bytes from start to end, as entries or, with plain, as text. */
+export interface LogPage {
+  name: string
+  format: LogFile['format']
+  size: number
+  start: number
+  end: number
+  entries?: LogEntry[]
+  text?: string
+}
+
+export function logPage(name: string, position: LogPosition, plain: boolean): Promise<LogPage> {
+  const query = new URLSearchParams('offset' in position ? { offset: String(position.offset) } : { before: String(position.before) })
+  if (plain) query.set('plain', '1')
+
+  return api.get<LogPage>(`/api/server/logs/${encodeURIComponent(name)}?${query}`)
+}
+
+/** The whole file, as an attachment. */
+export const logDownloadUrl = (name: string) => `/api/server/logs/${encodeURIComponent(name)}/download`

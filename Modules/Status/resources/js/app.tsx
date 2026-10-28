@@ -1,5 +1,6 @@
 import { insertAfter, insertBefore, registerModule } from '@/modular'
 import Locks from './Pages/Locks'
+import Logs from './Pages/Logs'
 import Monitor from './Pages/Monitor'
 import Prepared from './Pages/Prepared'
 import Processes from './Pages/Processes'
@@ -23,6 +24,7 @@ registerModule({
     { path: 'server/status/locks', element: <Locks /> },
     { path: 'server/status/prepared', element: <Prepared /> },
     { path: 'server/status/monitor', element: <Monitor /> },
+    { path: 'server/status/logs', element: <Logs /> },
     { path: 'server/variables', element: <Variables /> },
   ],
 })

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
+use PhpPgAdmin\Modules\Status\Http\Controllers\LogsController;
 use PhpPgAdmin\Modules\Status\Http\Controllers\StatusController;
 use PhpPgAdmin\Modules\Status\Http\Controllers\VariablesController;
 
@@ -23,4 +24,10 @@ Route::middleware(Authenticate::class)->controller(VariablesController::class)->
     Route::get('/server/variables', 'index')->setName('variables.index');
     Route::get('/server/variables/{name}', 'show')->setName('variables.show');
     Route::put('/server/variables/{name}', 'update')->setName('variables.update');
+});
+
+Route::middleware(Authenticate::class)->controller(LogsController::class)->group(function (): void {
+    Route::get('/server/logs', 'index')->setName('logs.index');
+    Route::get('/server/logs/{name:[^/]+}', 'show')->setName('logs.show');
+    Route::get('/server/logs/{name:[^/]+}/download', 'download')->setName('logs.download');
 });
