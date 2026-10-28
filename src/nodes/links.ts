@@ -1,16 +1,22 @@
+import { urls, type RelationKind } from '@/level'
 import type { TreeNode } from './client'
 
 /** Where a tree node of some type leads; the module owning the type registers it. */
 export type NodeLink = (node: TreeNode, context: NodeLinkContext) => string
 
+/** Where the container of a node type ("Tables", "Columns") leads, given where it hangs. */
+export type ContainerLink = (context: NodeLinkContext) => string
+
 export interface NodeLinkContext {
   /** The database the node is in; null for a server-level node. */
   db: string | null
-  /** The ancestors above the node, outermost first. */
+  /** The ancestors above the node (for a container, above its nodes), outermost first. */
   ancestors: TreeNode[]
 }
 
 const links = new Map<string, NodeLink>()
+
+const containers = new Map<string, ContainerLink>()
 
 /**
  * Register the page a node type opens: registerNodeLink('schema', (node, { db }) =>
@@ -20,7 +26,39 @@ export function registerNodeLink(type: string, link: NodeLink): void {
   links.set(type, link)
 }
 
-/** The page for a node, or "#" when no module claims its type yet. */
+/**
+ * Register the page a node type's container opens, the list of those objects:
+ * registerContainerLink('sequence', ({ db, ancestors }) => …/sequences). A node type without
+ * a page of its own opens its container's page too.
+ */
+export function registerContainerLink(type: string, link: ContainerLink): void {
+  containers.set(type, link)
+}
+
+/** The page for a node: its own, else its container's. */
 export function nodeLink(node: TreeNode, context: NodeLinkContext): string {
-  return links.get(node.type)?.(node, context) ?? '#'
+  return links.get(node.type)?.(node, context) ?? containerLink(node.type, context)
+}
+
+/** The page for a container: the one registered, else the page of the node it hangs under. */
+export function containerLink(type: string, context: NodeLinkContext): string {
+  const link = containers.get(type)
+  if (link) return link(context)
+
+  const parent = context.ancestors.at(-1)
+  if (parent) return nodeLink(parent, { db: context.db, ancestors: context.ancestors.slice(0, -1) })
+
+  return context.db === null ? urls.server() : urls.database(context.db)
+}
+
+/** The schema a node is in, from its ancestors. */
+export function schemaOf(ancestors: TreeNode[]): string | undefined {
+  return ancestors.find((a) => a.type === 'schema')?.label
+}
+
+/** The table, view or materialized view a node belongs to, from its ancestors. */
+export function relationOf(ancestors: TreeNode[]): { name: string; kind: RelationKind } | undefined {
+  const relation = [...ancestors].reverse().find((a) => a.type === 'table' || a.type === 'view' || a.type === 'mview')
+
+  return relation && { name: relation.label, kind: relation.type as RelationKind }
 }

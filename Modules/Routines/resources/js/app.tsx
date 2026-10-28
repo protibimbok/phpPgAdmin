@@ -1,6 +1,6 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
-import { registerNodeLink } from '@/nodes/links'
+import { registerContainerLink, registerNodeLink, schemaOf } from '@/nodes/links'
 import { KINDS } from './api'
 import RoutineEditor from './Pages/RoutineEditor'
 import Routines from './Pages/Routines'
@@ -14,12 +14,12 @@ for (const kind of KINDS) {
   })
 }
 
-// An aggregate or operator has no editor: the tree opens the Routines page that lists it.
-for (const kind of ['aggregate', 'operator'] as const) {
-  registerNodeLink(kind, (_node, { db, ancestors }) => {
-    const schema = ancestors.find((a) => a.type === 'schema')
+// Every routine container opens the Routines page; an aggregate or operator, having no editor, does too.
+for (const kind of [...KINDS, 'aggregate', 'operator']) {
+  registerContainerLink(kind, ({ db, ancestors }) => {
+    const schema = schemaOf(ancestors)
 
-    return db === null || !schema ? '#' : `${urls.schema(db, schema.label)}/routines`
+    return db === null || schema === undefined ? '#' : `${urls.schema(db, schema)}/routines`
   })
 }
 

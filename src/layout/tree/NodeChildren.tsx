@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useRequest } from '@/api/useRequest'
 import { useLevel, type Level } from '@/level'
 import { collection, collectionUrl, getNodeTypes, type NodeType, type TreeNode } from '@/nodes/client'
-import { nodeLink } from '@/nodes/links'
+import { containerLink, nodeLink } from '@/nodes/links'
 import TreeItem from './TreeItem'
 import TreeList from './TreeList'
 import { useTreeState } from './treeState'
@@ -89,7 +89,7 @@ export default function NodeChildren({ db, parentType = 'database', path = [], a
           key={type.type}
           path={`${parentPath}/${type.collection}`}
           label={type.label || type.collection}
-          href="#"
+          href={containerLink(type.type, { db, ancestors })}
           icon={type.icon}
           className={`${type.collection}Container subContainer`}
           expandable

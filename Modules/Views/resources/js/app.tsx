@@ -1,6 +1,6 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
-import { registerNodeLink } from '@/nodes/links'
+import { registerContainerLink, registerNodeLink, schemaOf } from '@/nodes/links'
 import CreateView from './Pages/CreateView'
 import ViewDdl from './Pages/ViewDdl'
 import ViewOperations from './Pages/ViewOperations'
@@ -14,6 +14,12 @@ for (const kind of KINDS) {
     const schema = ancestors.find((a) => a.type === 'schema')
 
     return db === null || !schema ? '#' : `${urls.relation(db, schema.label, node.label, kind)}/browse`
+  })
+  // The containers open the schema's list, which shows views with the tables.
+  registerContainerLink(kind, ({ db, ancestors }) => {
+    const schema = schemaOf(ancestors)
+
+    return db === null || schema === undefined ? '#' : urls.schema(db, schema)
   })
 }
 

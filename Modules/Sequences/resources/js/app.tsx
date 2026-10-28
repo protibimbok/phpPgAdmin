@@ -1,6 +1,6 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
-import { registerNodeLink } from '@/nodes/links'
+import { registerContainerLink, registerNodeLink, schemaOf } from '@/nodes/links'
 import SequenceEditor from './Pages/SequenceEditor'
 import Sequences from './Pages/Sequences'
 
@@ -9,6 +9,12 @@ registerNodeLink('sequence', (node, { db, ancestors }) => {
   const schema = ancestors.find((a) => a.type === 'schema')
 
   return db === null || !schema ? '#' : `${urls.schema(db, schema.label)}/sequences/${encodeURIComponent(node.label)}/edit`
+})
+
+registerContainerLink('sequence', ({ db, ancestors }) => {
+  const schema = schemaOf(ancestors)
+
+  return db === null || schema === undefined ? '#' : `${urls.schema(db, schema)}/sequences`
 })
 
 // The schema's "Sequences" tab, after Routines.

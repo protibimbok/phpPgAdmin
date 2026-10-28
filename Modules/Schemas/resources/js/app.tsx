@@ -1,11 +1,12 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
-import { registerNodeLink } from '@/nodes/links'
+import { registerContainerLink, registerNodeLink } from '@/nodes/links'
 import Operations from './Pages/Operations'
 import Structure from './Pages/Structure'
 
 // A schema in the tree opens the schema's own page.
 registerNodeLink('schema', (node, { db }) => (db === null ? '#' : urls.schema(db, node.label)))
+registerContainerLink('schema', ({ db }) => (db === null ? urls.server() : urls.database(db)))
 
 // The database's "Structure" tab, first in the database's bar, where /db/:db lands.
 registerModule({

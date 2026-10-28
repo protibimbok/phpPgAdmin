@@ -1,6 +1,6 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
-import { registerNodeLink } from '@/nodes/links'
+import { registerContainerLink, registerNodeLink, schemaOf } from '@/nodes/links'
 import TypeEditor from './Pages/TypeEditor'
 import Types from './Pages/Types'
 
@@ -19,6 +19,15 @@ for (const node of ['collation', 'fts_configuration', 'fts_dictionary', 'fts_par
     const schema = ancestors.find((a) => a.type === 'schema')
 
     return db === null || !schema ? '#' : `${urls.schema(db, schema.label)}/types?${new URLSearchParams({ open: `${node}:${treeNode.label}` })}`
+  })
+}
+
+// Their containers open the Types page that lists them all.
+for (const node of ['type', 'domain', 'collation', 'fts_configuration', 'fts_dictionary', 'fts_parser', 'fts_template']) {
+  registerContainerLink(node, ({ db, ancestors }) => {
+    const schema = schemaOf(ancestors)
+
+    return db === null || schema === undefined ? '#' : `${urls.schema(db, schema)}/types`
   })
 }
 

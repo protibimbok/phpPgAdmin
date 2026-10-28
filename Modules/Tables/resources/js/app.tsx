@@ -1,6 +1,6 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
-import { registerNodeLink } from '@/nodes/links'
+import { registerContainerLink, registerNodeLink, relationOf, schemaOf, type NodeLinkContext } from '@/nodes/links'
 import ColumnDefinitions from './Pages/ColumnDefinitions'
 import RelationView from './Pages/RelationView'
 import TableOperations from './Pages/TableOperations'
@@ -30,6 +30,35 @@ registerNodeLink('partition', (node, { db }) => {
 
   return db === null || !meta.schema_name ? '#' : urls.relation(db, meta.schema_name, node.label, 'table')
 })
+
+// The tables and statistics containers open the schema's table list, as phpMyAdmin's "Tables"
+// container opens the database structure.
+for (const type of ['table', 'statistic']) {
+  registerContainerLink(type, ({ db, ancestors }) => {
+    const schema = schemaOf(ancestors)
+
+    return db === null || schema === undefined ? '#' : urls.schema(db, schema)
+  })
+}
+
+/** A page of the relation the node hangs under: its structure (''), or "/triggers". */
+function relationPage(page: string) {
+  return ({ db, ancestors }: NodeLinkContext) => {
+    const schema = schemaOf(ancestors)
+    const relation = relationOf(ancestors)
+
+    return db === null || schema === undefined || relation === undefined ? '#' : `${urls.relation(db, schema, relation.name, relation.kind)}${page}`
+  }
+}
+
+// What a table holds is shown on its pages: columns, indexes, constraints and partitions on
+// Structure, triggers, rules and policies on Triggers; a view's rules and triggers likewise.
+for (const type of ['column', 'index', 'primary_key', 'unique_constraint', 'foreign_key', 'check_constraint', 'exclusion_constraint', 'partition']) {
+  registerContainerLink(type, relationPage(''))
+}
+for (const type of ['trigger', 'rule', 'row_security_policy', 'view_trigger', 'view_rule']) {
+  registerContainerLink(type, relationPage('/triggers'))
+}
 
 // The schema's "Structure" tab, first in the schema's bar, where /db/:db/schema/:schema lands;
 // the relation's "Structure", "Operations" and "Show create" tabs, where a table's own URL lands.
