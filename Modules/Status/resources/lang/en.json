@@ -122,5 +122,65 @@
       "Reads": "Reads",
       "Hits": "Hits"
     }
+  },
+  "locks": {
+    "only_waiting": "Show only waiting locks",
+    "none": "No lock matches the filters.",
+    "yes": "Yes",
+    "no": "No",
+    "columns": {
+      "pid": "PID",
+      "locktype": "Lock type",
+      "datname": "Database",
+      "relation": "Relation",
+      "page": "Page",
+      "tuple": "Tuple",
+      "virtualxid": "Virtual XID",
+      "transactionid": "Transaction ID",
+      "classid": "Class",
+      "objid": "Object ID",
+      "objsubid": "Sub-object",
+      "virtualtransaction": "Virtual transaction",
+      "mode": "Mode",
+      "granted": "Granted",
+      "fastpath": "Fast path"
+    }
+  },
+  "prepared": {
+    "action": "Action",
+    "commit": "Commit",
+    "rollback": "Rollback",
+    "none": "There are no prepared transactions.",
+    "disabled": "max_prepared_transactions is 0 on this server, so no transaction can be prepared for two-phase commit. Raise it under Variables; it takes effect after a restart.",
+    "columns": {
+      "gid": "Global ID",
+      "database": "Database",
+      "owner": "Owner",
+      "transaction": "Transaction",
+      "prepared": "Prepared at"
+    },
+    "done": {
+      "commit": "The prepared transaction {{gid}} has been committed.",
+      "rollback": "The prepared transaction {{gid}} has been rolled back."
+    }
+  },
+  "variables": {
+    "tab": "Variables",
+    "title": "Server variables and settings",
+    "containing": "Containing the word:",
+    "action": "Action",
+    "variable": "Variable",
+    "value": "Value",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "reset": "Reset",
+    "reset_title": "ALTER SYSTEM RESET: back to the value of postgresql.conf or the default",
+    "read_only": "This is a read-only variable and can not be edited",
+    "not_allowed": "Only a superuser, or a role granted ALTER SYSTEM on this parameter, can change it",
+    "after_restart": "after a restart",
+    "processing": "Processing request",
+    "saved": "{{name}} has been changed.",
+    "saved_restart": "{{name}} has been changed in postgresql.auto.conf; the new value takes effect when the server restarts."
   }
 }

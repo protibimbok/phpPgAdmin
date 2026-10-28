@@ -16,7 +16,8 @@ use Psr\Http\Message\ServerRequestInterface;
  * pg_cancel_backend / pg_terminate_backend), the counters its charts plot, and the totals
  * phpMyAdmin's Status page shows, all through the maintenance connection since the views are
  * server-wide. A "database" query parameter limits activity and charts to one database, as
- * pgAdmin's database dashboard does.
+ * pgAdmin's database dashboard does. Its locks and prepared transactions are listed too, and
+ * a prepared transaction can be committed or rolled back.
  */
 final class StatusController
 {
@@ -128,6 +129,73 @@ final class StatusController
     public function terminate(ServerRequestInterface $request, array $args): array
     {
         return $this->signal($request, 'pg_terminate_backend', (int) $args['pid']);
+    }
+
+    /**
+     * pgAdmin's locks.sql: every lock in pg_locks with the backend holding or awaiting it. With a
+     * "database", through a connection to that database so its relations are named; through
+     * the maintenance connection the relations of other databases are shown by OID. "waiting"
+     * keeps the locks not granted yet.
+     *
+     * @return array{locks: list<array<string, mixed>>}
+     */
+    public function locks(ServerRequestInterface $request): array
+    {
+        $query = $request->getQueryParams();
+        $pool = ConnectionPool::from($request);
+        $name = (string) ($query['database'] ?? '');
+        $conn = $name === '' ? $pool->maintenance() : $pool->for($name);
+        $rows = $conn->rows(Sql::render('dashboard', 'locks.sql', ['did' => $this->did($conn, $query), 'conn' => $conn], $conn->version()));
+        if (($query['waiting'] ?? '') === '1') {
+            $rows = array_values(array_filter($rows, static fn (array $row): bool => !$row['granted']));
+        }
+
+        return ['locks' => $rows];
+    }
+
+    /**
+     * pgAdmin's prepared.sql: the transactions prepared for two-phase commit, with
+     * max_prepared_transactions since none can be prepared while it is 0.
+     *
+     * @return array{transactions: list<array<string, mixed>>, max_prepared_transactions: int}
+     */
+    public function prepared(ServerRequestInterface $request): array
+    {
+        $query = $request->getQueryParams();
+        $conn = ConnectionPool::from($request)->maintenance();
+
+        return [
+            'transactions' => $conn->rows(Sql::render('dashboard', 'prepared.sql', ['did' => $this->did($conn, $query), 'conn' => $conn], $conn->version())),
+            'max_prepared_transactions' => (int) $conn->scalar("SELECT pg_catalog.current_setting('max_prepared_transactions')"),
+        ];
+    }
+
+    /** COMMIT PREPARED, in the transaction's database as PostgreSQL requires. */
+    public function commitPrepared(ServerRequestInterface $request): array
+    {
+        return $this->finishPrepared($request, 'COMMIT');
+    }
+
+    /** ROLLBACK PREPARED, in the transaction's database. */
+    public function rollbackPrepared(ServerRequestInterface $request): array
+    {
+        return $this->finishPrepared($request, 'ROLLBACK');
+    }
+
+    /** @return array{sql: string} */
+    private function finishPrepared(ServerRequestInterface $request, string $verb): array
+    {
+        $body = (array) $request->getParsedBody();
+        $gid = (string) ($body['gid'] ?? '');
+        $database = (string) ($body['database'] ?? '');
+        if ($gid === '' || $database === '') {
+            throw new BadRequestException('Name the prepared transaction (gid) and its database.');
+        }
+        $conn = ConnectionPool::from($request)->for($database);
+        $sql = sprintf('%s PREPARED %s;', $verb, $conn->escapeLiteral($gid));
+        $conn->exec($sql);
+
+        return ['sql' => $sql];
     }
 
     /** @return array{ok: bool, sql: string} false when the backend was gone or not signalled */

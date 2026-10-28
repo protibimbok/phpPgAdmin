@@ -77,3 +77,92 @@ export function signalSession(pid: number, action: 'cancel' | 'terminate'): Prom
 
 /** phpMyAdmin's refresh rates, in seconds. */
 export const REFRESH_RATES = [2, 3, 4, 5, 10, 20, 40, 60, 120, 300, 600, 1200]
+
+/** A lock in pg_locks, as pgAdmin's locks.sql lists it. */
+export interface Lock {
+  pid: number | null
+  locktype: string
+  datname: string | null
+  /** The relation's name, or its OID when it is in another database than the one asked about. */
+  relation: string | null
+  page: number | null
+  tuple: number | null
+  virtualxid: string | null
+  transactionid: string | null
+  classid: string | null
+  objid: number | null
+  objsubid: number | null
+  virtualtransaction: string | null
+  mode: string
+  granted: boolean
+  fastpath: boolean
+}
+
+export function locks(filter: { database?: string; waiting?: boolean }): Promise<{ locks: Lock[] }> {
+  const query = new URLSearchParams()
+  if (filter.database) query.set('database', filter.database)
+  if (filter.waiting) query.set('waiting', '1')
+
+  return api.get<{ locks: Lock[] }>(`/api/server/status/locks?${query}`)
+}
+
+/** A transaction prepared for two-phase commit, from pg_prepared_xacts. */
+export interface PreparedTransaction {
+  gid: string
+  database: string
+  owner: string
+  transaction: string
+  prepared: string
+}
+
+export function prepared(database?: string): Promise<{ transactions: PreparedTransaction[]; max_prepared_transactions: number }> {
+  const query = new URLSearchParams()
+  if (database) query.set('database', database)
+
+  return api.get<{ transactions: PreparedTransaction[]; max_prepared_transactions: number }>(`/api/server/status/prepared?${query}`)
+}
+
+/** COMMIT PREPARED or ROLLBACK PREPARED, run in the transaction's database. */
+export function finishPrepared(transaction: PreparedTransaction, action: 'commit' | 'rollback'): Promise<{ sql: string }> {
+  return api.post<{ sql: string }>(`/api/server/status/prepared/${action}`, { gid: transaction.gid, database: transaction.database })
+}
+
+/** A run-time parameter from pg_settings. */
+export interface Variable {
+  name: string
+  /** As SHOW prints it, with its unit: "128MB". */
+  value: string
+  setting: string
+  unit: string | null
+  category: string
+  short_desc: string
+  extra_desc: string | null
+  /** When it can be changed: internal, postmaster, sighup, superuser-backend, backend, superuser, user. */
+  context: string
+  vartype: 'bool' | 'enum' | 'integer' | 'real' | 'string'
+  source: string
+  min_val: string | null
+  max_val: string | null
+  enumvals: string[] | null
+  boot_val: string | null
+  reset_val: string | null
+  /** Changed in the configuration files, but in effect only after a restart. */
+  pending_restart: boolean
+  /** The value it will have after the restart, when this role may read the files. */
+  pending: string | null
+  /** This role may ALTER SYSTEM it. */
+  editable: boolean
+}
+
+export function variables(): Promise<{ variables: Variable[]; superuser: boolean }> {
+  return api.get<{ variables: Variable[]; superuser: boolean }>('/api/server/variables')
+}
+
+export function variable(name: string): Promise<{ variable: Variable }> {
+  return api.get<{ variable: Variable }>(`/api/server/variables/${encodeURIComponent(name)}`)
+}
+
+/** ALTER SYSTEM SET (or RESET), then pg_reload_conf(). */
+export function setVariable(name: string, change: { value: string } | { reset: true }): Promise<{ sql: string; variable: Variable; restart: boolean }> {
+  return api.put<{ sql: string; variable: Variable; restart: boolean }>(`/api/server/variables/${encodeURIComponent(name)}`, change)
+}

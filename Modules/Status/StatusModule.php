@@ -12,9 +12,10 @@ use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 
 /**
- * Status: what pgAdmin's dashboard shows about a running server (its activity and the
- * statistics its charts plot) at /api/server/status, and the server's "Status" tab after
- * phpMyAdmin's, with its Server, Processes and Monitor pages.
+ * Status: what pgAdmin's dashboard shows about a running server (its activity, locks, prepared
+ * transactions and the statistics its charts plot) at /api/server/status, its run-time
+ * parameters at /api/server/variables, and the server's "Status" and "Variables" tabs after
+ * phpMyAdmin's.
  */
 final class StatusModule implements Module, ProvidesApiRoutes, ProvidesSqlTemplates, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
 {

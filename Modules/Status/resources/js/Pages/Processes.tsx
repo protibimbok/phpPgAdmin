@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { errorMessage } from '@/api/request'
@@ -10,8 +10,8 @@ import { notify, notifyError, notifySuccess } from '@/notify'
 import { listDatabases } from '@databases/js/api'
 import { roleUrl } from '@roles/js/Pages/Roles'
 import HighlightedSql from '@sql/js/editor/HighlightedSql'
-import { activity, REFRESH_RATES, signalSession, type Session } from '../api'
-import StatusNav, { rateLabel } from '../StatusNav'
+import { activity, signalSession, type Session } from '../api'
+import StatusNav, { AutoRefresh } from '../StatusNav'
 
 type Column = 'pid' | 'usename' | 'datname' | 'application_name' | 'client_addr' | 'backend_type' | 'state' | 'wait_event' | 'blocking_pids' | 'backend_start' | 'time' | 'query'
 
@@ -45,18 +45,9 @@ export default function Processes() {
   const [background, setBackground] = useState(false)
   const [full, setFull] = useState(false)
   const [sort, setSort] = useState<{ column: Column; desc: boolean }>({ column: 'pid', desc: false })
-  const [rate, setRate] = useState(5)
-  const [auto, setAuto] = useState(false)
   const [signal, setSignal] = useState<{ session: Session; action: 'cancel' | 'terminate' } | null>(null)
   const { data, error, reload } = useRequest(() => activity({ database: database || undefined, active: onlyActive }), [database, onlyActive])
   const { data: databases } = useRequest(() => listDatabases(), [])
-
-  useEffect(() => {
-    if (!auto) return
-    const timer = window.setInterval(reload, rate * 1000)
-
-    return () => window.clearInterval(timer)
-  }, [auto, rate, reload])
 
   const sessions = useMemo(() => {
     const rows = (data?.sessions ?? []).filter((session) => background || session.backend_type === 'client backend')
@@ -190,28 +181,7 @@ export default function Processes() {
         </table>
       </div>
 
-      <div className="row">
-        <div className="alert alert-primary" role="alert">
-          <Icon name="s_notice" /> {t('processes.refresh_note')}
-        </div>
-      </div>
-
-      <div className="tabLinks row">
-        <label>
-          {t('rate.label')}:{' '}
-          <select id="id_refreshRate" className="refreshRate" name="refreshRate" value={rate} onChange={(e) => setRate(Number(e.target.value))}>
-            {REFRESH_RATES.map((s) => (
-              <option key={s} value={s}>
-                {rateLabel(t, s)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <a id="toggleRefresh" href="#toggle" onClick={(e) => { e.preventDefault(); setAuto((a) => !a) }}>
-          <Icon name={auto ? 'pause' : 'play'} />
-          {auto ? t('processes.stop_refresh') : t('processes.start_refresh')}
-        </a>
-      </div>
+      <AutoRefresh reload={reload} />
 
       <ConfirmQuery
         show={signal !== null}
