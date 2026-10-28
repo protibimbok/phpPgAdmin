@@ -21,6 +21,7 @@ use PhpPgAdmin\Modules\Tables\Http\Controllers\PartitionController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\PolicyController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\PrimaryKeyController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\RuleController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\StatisticsController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TableController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TriggerController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\UniqueConstraintController;
@@ -69,6 +70,8 @@ final class TablesModule implements Module, ProvidesNodes, ProvidesApiRoutes, Pr
             new NodeDefinition('rule', 'rules', 'rid', RuleController::class, parent: 'table', templateDir: 'rules', label: 'Rules', icon: 'b_triggers', supports: ['sql', 'msql', 'depends']),
             new NodeDefinition('row_security_policy', 'policies', 'plid', PolicyController::class, parent: 'table', templateDir: 'row_security_policies', label: 'Policies', icon: 's_rights', supports: ['sql', 'msql', 'depends']),
             new NodeDefinition('partition', 'partitions', 'ptid', PartitionController::class, parent: 'table', templateDir: 'partitions', label: 'Partitions', icon: 's_tbl', supports: ['sql', 'msql', 'depends']),
+            // A statistics object lives in a schema but describes one table: the structure page lists a table's.
+            new NodeDefinition('statistic', 'statistics', 'stid', StatisticsController::class, parent: 'schema', templateDir: 'statistics', label: 'Statistics', icon: 'b_chart', supports: ['sql', 'msql', 'stats', 'depends', 'resolve']),
         ];
     }
 

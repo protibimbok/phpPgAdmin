@@ -124,6 +124,35 @@
     "index_actions": {
       "edit": "تعديل",
       "drop": "حذف"
+    },
+    "extended_statistics": {
+      "title": "الإحصاءات الموسّعة",
+      "none": "لا توجد إحصاءات موسّعة!",
+      "create_label": "إنشاء إحصاءات موسّعة",
+      "create_title": "إنشاء إحصاءات موسّعة",
+      "edit_title": "تحرير الإحصاءات {{name}}",
+      "name": "الاسم",
+      "name_hint": "إذا تُرك فارغًا، تسمّي PostgreSQL 16 وما بعده الكائن",
+      "columns": "الأعمدة",
+      "columns_hint": "عمودان على الأقل أو تعبير؛ اضغط Ctrl لاختيار عدة أعمدة",
+      "expressions": "التعبيرات",
+      "expressions_hint": "كل تعبير بين قوسين، مفصولة بفواصل",
+      "kinds": "الأنواع",
+      "kinds_hint": "بدون تحديد تُجمع كل الأنواع",
+      "target": "هدف الإحصاءات",
+      "target_default": "الافتراضي",
+      "comment": "تعليق",
+      "all_kinds": "الكل",
+      "columns_head": {
+        "name": "الاسم",
+        "kinds": "الأنواع",
+        "on": "الأعمدة / التعبيرات",
+        "target": "الهدف",
+        "comment": "تعليق"
+      },
+      "created": "تم إنشاء الإحصاءات {{name}}.",
+      "altered": "تم تعديل الإحصاءات {{name}}.",
+      "dropped": "تم حذف الإحصاءات {{name}}."
     }
   },
   "ddl": {

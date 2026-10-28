@@ -124,6 +124,35 @@
     "index_actions": {
       "edit": "Edit",
       "drop": "Drop"
+    },
+    "extended_statistics": {
+      "title": "Extended statistics",
+      "none": "No extended statistics defined!",
+      "create_label": "Create extended statistics",
+      "create_title": "Create extended statistics",
+      "edit_title": "Edit statistics {{name}}",
+      "name": "Name",
+      "name_hint": "Left blank, PostgreSQL 16 and later name the object",
+      "columns": "Columns",
+      "columns_hint": "At least two columns, or an expression; hold Ctrl to pick several",
+      "expressions": "Expressions",
+      "expressions_hint": "Each expression in parentheses, separated by commas",
+      "kinds": "Kinds",
+      "kinds_hint": "None checked collects every kind",
+      "target": "Statistics target",
+      "target_default": "default",
+      "comment": "Comment",
+      "all_kinds": "all",
+      "columns_head": {
+        "name": "Name",
+        "kinds": "Kinds",
+        "on": "Columns / expressions",
+        "target": "Target",
+        "comment": "Comment"
+      },
+      "created": "Statistics {{name}} have been created.",
+      "altered": "Statistics {{name}} have been altered.",
+      "dropped": "Statistics {{name}} have been dropped."
     }
   },
   "ddl": {

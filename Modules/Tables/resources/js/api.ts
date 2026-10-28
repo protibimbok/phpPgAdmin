@@ -571,3 +571,51 @@ export function partitionType(scheme: string | undefined): 'range' | 'list' | 'h
 
   return word === 'range' || word === 'list' || word === 'hash' ? word : ''
 }
+
+/** An extended statistics object as pgAdmin's statistics/properties.sql describes it. */
+export interface ExtendedStatistics {
+  oid: number
+  name: string
+  schema: string
+  table: string
+  table_schema: string
+  owner: string
+  columns: string[]
+  /** The expressions, each parenthesised, comma-separated; null when there are none. */
+  expression_list: string | null
+  /** 'ndistinct', 'dependencies' and/or 'mcv'; none means every kind. */
+  stat_types: string[]
+  /** -1 for the default. */
+  stattarget: number
+  ndistinct_values: string | null
+  dependencies_values: string | null
+  has_mcv_values: boolean
+  has_ext_data_access: boolean
+  comment: string | null
+  is_sys_obj: boolean
+}
+
+/** What CREATE STATISTICS and ALTER STATISTICS take (statistics/create.sql, update.sql). */
+export interface StatisticsData {
+  /** Optional on PostgreSQL 16+, where the server names the object. */
+  name?: string
+  owner?: string
+  table?: string
+  table_schema?: string
+  columns?: string[]
+  expression_list?: string
+  stat_types?: string[]
+  /** A number, or '' / 'DEFAULT' for the default. */
+  stattarget?: string
+  comment?: string
+}
+
+/** The schema's statistics objects (pgAdmin's node lives under the schema). */
+export function extendedStatistics(db: string, scid: number) {
+  return collection<ExtendedStatistics>(collectionUrl(db, 'schemas', scid, 'statistics'))
+}
+
+/** The statistics objects defined on a table, whichever schema holds them. */
+export function tableExtendedStatistics(db: string, scid: number, tid: number): Promise<ExtendedStatistics[]> {
+  return api.get<{ rows: ExtendedStatistics[] }>(`${collectionUrl(db, 'schemas', scid, 'tables', tid)}/extended-statistics`).then((r) => r.rows)
+}

@@ -10,6 +10,7 @@ use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Core\Nodes\NodeController;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\PartitionController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\StatisticsController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TableController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TriggerController;
 use Psr\Http\Message\ServerRequestInterface;
@@ -78,6 +79,15 @@ Route::middleware(Authenticate::class)->group(function () use ($context, $flag):
 
         return ['ok' => true, 'sql' => (new PartitionController())->detach($ctx, (int) $args['ptid'], (string) ($ctx->input()['mode'] ?? ''))];
     })->setName('partitions.detach');
+
+    // The statistics objects defined on the table, whichever schema holds them.
+    Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/extended-statistics', function (ServerRequestInterface $request, array $args): array {
+        $db = rawurldecode($args['db']);
+        $pool = ConnectionPool::from($request);
+        $ctx = new NodeContext(Nodes::get('statistic'), Nodes::registry(), $pool, $pool->for($db), $db, ['scid' => (int) $args['scid']], $request);
+
+        return ['rows' => (new StatisticsController())->forTable($ctx, (int) $args['tid'])];
+    })->setName('tables.extended-statistics');
 
     Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/count', fn (ServerRequestInterface $request, array $args): array => [
         'count' => (new TableController())->countRows($context($request, $args), (int) $args['tid']),

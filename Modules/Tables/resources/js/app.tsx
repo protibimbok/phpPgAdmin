@@ -18,6 +18,13 @@ registerNodeLink('table', (node, { db, ancestors }) => {
 })
 
 // A partition in the tree opens its own structure page: it is a table in its schema.
+// A statistics object opens the structure page of the table it describes.
+registerNodeLink('statistic', (node, { db }) => {
+  const meta = node.meta as { table?: string; table_schema?: string }
+
+  return db === null || !meta.table || !meta.table_schema ? '#' : `${urls.relation(db, meta.table_schema, meta.table, 'table')}#statistics`
+})
+
 registerNodeLink('partition', (node, { db }) => {
   const meta = node.meta as { schema_name?: string }
 
