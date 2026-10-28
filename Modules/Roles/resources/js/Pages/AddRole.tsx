@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
@@ -41,7 +41,9 @@ export default function AddRole() {
   const [comment, setComment] = useState('')
   const [password, setPassword] = useState<{ choice: PasswordChoice; password: string; retype: string }>({ choice: 'userdefined', password: '', retype: '' })
   const [createDb, setCreateDb] = useState(false)
-  const [form, setForm] = useState<RoleForm>(EMPTY)
+  const [search] = useSearchParams()
+  // ?replication=1 is the Replication page's "Add replica replication user": a login role with REPLICATION.
+  const [form, setForm] = useState<RoleForm>(() => (search.get('replication') === '1' ? { ...EMPTY, attributes: { ...EMPTY.attributes, rolreplication: true } } : EMPTY))
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [saving, setSaving] = useState(false)
 

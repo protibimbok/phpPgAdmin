@@ -6,6 +6,7 @@ use PhpPgAdmin\Modules\Auth\AuthModule;
 use PhpPgAdmin\Modules\Databases\DatabasesModule;
 use PhpPgAdmin\Modules\Frontend\FrontendModule;
 use PhpPgAdmin\Modules\I18n\I18nModule;
+use PhpPgAdmin\Modules\Replication\ReplicationModule;
 use PhpPgAdmin\Modules\Roles\RolesModule;
 use PhpPgAdmin\Modules\Routines\RoutinesModule;
 use PhpPgAdmin\Modules\Schemas\SchemasModule;
@@ -33,6 +34,7 @@ return [
     SequencesModule::class,
     RoutinesModule::class,
     TypesModule::class,
+    ReplicationModule::class,
     SqlModule::class,
     FrontendModule::class,
 ];

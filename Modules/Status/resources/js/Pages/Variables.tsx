@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
@@ -16,6 +17,7 @@ const label = (name: string) => name.replaceAll('_', ' ')
  * for an editor (a select for a boolean or an enum) with Cancel, Reset (ALTER SYSTEM RESET) and
  * Save; Enter saves and Escape cancels, as in phpMyAdmin. A parameter changed for the next
  * restart gets a second, italic row with that value, as phpMyAdmin's session values do.
+ * ?filter= fills the filter, as phpMyAdmin's ?filter= does.
  */
 export default function Variables() {
   const { t } = useTranslation('status')
@@ -23,7 +25,8 @@ export default function Variables() {
   const { data, error } = useRequest(() => variables(), [])
   // The parameters saved since the list loaded, as the server read them back.
   const [saved, setSaved] = useState<Record<string, Variable>>({})
-  const [filter, setFilter] = useState('')
+  const [search] = useSearchParams()
+  const [filter, setFilter] = useState(() => search.get('filter') ?? '')
   const [editing, setEditing] = useState<{ variable: Variable; value: string } | null>(null)
 
   const shown = useMemo(() => {
