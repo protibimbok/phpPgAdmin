@@ -11,6 +11,7 @@ use PhpPgAdmin\Modules\Routines\RoutinesModule;
 use PhpPgAdmin\Modules\Schemas\SchemasModule;
 use PhpPgAdmin\Modules\Sequences\SequencesModule;
 use PhpPgAdmin\Modules\Server\ServerModule;
+use PhpPgAdmin\Modules\Status\StatusModule;
 use PhpPgAdmin\Modules\Sql\SqlModule;
 use PhpPgAdmin\Modules\Tables\TablesModule;
 use PhpPgAdmin\Modules\Types\TypesModule;
@@ -25,6 +26,7 @@ return [
     ServerModule::class,
     DatabasesModule::class,
     RolesModule::class,
+    StatusModule::class,
     SchemasModule::class,
     TablesModule::class,
     ViewsModule::class,

@@ -40,6 +40,9 @@
       "@roles/*": [
         "./Modules/Roles/resources/*"
       ],
+      "@status/*": [
+        "./Modules/Status/resources/*"
+      ],
       "@schemas/*": [
         "./Modules/Schemas/resources/*"
       ],

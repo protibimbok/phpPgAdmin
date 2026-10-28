@@ -69,6 +69,14 @@ $colors: (
   'danger-value': #fcc,
   'notification-bg': #ffe57e,
   'notification-border': #e2b709,
+  // charts: pmahomme's monitor surface, jqPlot's grid and ink, and jqPlot's series colours
+  // 1, 2 and 4 (its third, #c5b47f, is too close to the second to tell apart)
+  'chart-surface': #ebebeb,
+  'chart-grid': #ccc,
+  'chart-text': #222,
+  'chart-1': #4bb2c5,
+  'chart-2': #eaa228,
+  'chart-3': #579575,
 );
 
 // Button faces are gradients; each is (top, bottom).
@@ -105,6 +113,7 @@ $gradients: (
 $font-families: (
   'sans': sans-serif,
   'mono': monospace,
+  'chart': ('Trebuchet MS', Arial, Helvetica, sans-serif),
 );
 
 $font-sizes: (

@@ -1,0 +1,134 @@
+// The Status pages, after pmahomme's monitor rules in _common.scss (table#chartGrid,
+// div.tabLinks, .popupContent) and jqPlot's own stylesheet for what it draws: the title above
+// the plot, the axis ticks and the legend below.
+
+div.tabLinks {
+  float: left;
+  padding: 5px 0;
+
+  a,
+  label {
+    margin-right: 7px;
+  }
+
+  .icon {
+    margin: -0.2em 0.3em 0 0;
+  }
+}
+
+.popupContent {
+  position: absolute;
+  border: border-width('base') solid color(border-menu);
+  margin: 0;
+  padding: 3px;
+  background-color: color(surface);
+  z-index: 2;
+  box-shadow: 2px 2px 3px #666;
+
+  > div {
+    margin-right: space(3);
+  }
+}
+
+table#chartGrid {
+  td {
+    padding: 3px;
+    margin: 0;
+    vertical-align: top;
+  }
+
+  div.monitorChart {
+    position: relative;
+    background: color(chart-surface);
+    border: none;
+    min-width: 1px;
+    font-family: font-family(chart);
+    color: color(chart-text);
+
+    svg {
+      display: block;
+    }
+  }
+}
+
+.jqplot-title {
+  font-size: 1.2em;
+  text-align: center;
+  padding-bottom: 0.6em;
+}
+
+.jqplot-tick {
+  font-size: 0.75em;
+  fill: color(chart-text);
+}
+
+.jqplot-grid {
+  stroke: color(chart-grid);
+  stroke-width: 1;
+}
+
+.jqplot-axis-line {
+  stroke: #999;
+  stroke-width: 1;
+}
+
+@for $i from 1 through 3 {
+  .jqplot-series-#{$i} {
+    fill: none;
+    stroke: color(chart-#{$i});
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .jqplot-swatch-#{$i} {
+    background: color(chart-#{$i});
+  }
+
+  .jqplot-marker-#{$i} {
+    fill: color(chart-#{$i});
+    stroke: color(chart-surface);
+    stroke-width: 2;
+  }
+}
+
+.jqplot-crosshair {
+  stroke: #999;
+  stroke-width: 1;
+}
+
+.jqplot-table-legend {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 3px;
+
+  > span {
+    margin-right: space(2);
+    white-space: nowrap;
+  }
+}
+
+.jqplot-table-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin: 0 2px -1px 6px;
+}
+
+.jqplot-highlighter-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(color(surface), 0.95);
+  border: border-width('base') solid color(border-menu);
+  padding: 2px 6px;
+  font-size: 0.9em;
+  white-space: nowrap;
+  z-index: 3;
+
+  .tooltip-key {
+    display: inline-block;
+    width: 10px;
+    height: 2px;
+    margin: 0 4px 3px 0;
+  }
+}
