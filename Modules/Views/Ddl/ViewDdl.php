@@ -13,12 +13,15 @@ use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Core\Nodes\Options;
 use PhpPgAdmin\Core\Nodes\VacuumSettings;
 use PhpPgAdmin\Modules\Tables\Ddl\IndexDdl;
+use PhpPgAdmin\Modules\Tables\Ddl\TableDdl;
+use PhpPgAdmin\Modules\Tables\Ddl\TriggerDdl;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\RuleController;
 
 /**
  * The statements behind a view or materialized view, after pgAdmin's ViewNode and MViewNode
  * (views/__init__.py): the properties with their privileges, CREATE from the client's data,
  * the ALTERs for what differs from the view as it stands, and the "SQL" tab that recreates the
- * view with its grants, column comments and (for a materialized view) its indexes.
+ * view with its grants, column comments, rules, triggers and (for a materialized view) its indexes.
  *
  * The client's data carries pgAdmin's field names: name, schema, definition, owner, comment,
  * check_option ('no', 'local', 'cascaded'), security_barrier, security_invoker, datacl; a
@@ -75,6 +78,15 @@ final class ViewDdl
             $ctx->render('grant.sql', ['data' => $data]),
             self::columnsSql($ctx, $vid, (string) $data['schema']),
         ];
+
+        foreach ($ctx->conn->rows($ctx->renderFrom('rules', 'nodes.sql', ['tid' => $vid])) as $rule) {
+            if ($rule['name'] !== '_RETURN') {
+                $parts[] = (new RuleController())->createSqlOf(TableDdl::childContext($ctx, 'view_rule'), (int) $rule['oid'], true);
+            }
+        }
+        foreach ($ctx->conn->rows($ctx->renderFrom('triggers', 'nodes.sql', ['tid' => $vid])) as $trigger) {
+            $parts[] = TriggerDdl::sql($ctx, (string) $data['schema'], (string) $data['name'], $vid, (int) $trigger['oid']);
+        }
 
         if ($materialized) {
             foreach ($ctx->conn->rows($ctx->renderFrom('indexes', 'nodes.sql', ['tid' => $vid, 'show_sys_objects' => false])) as $index) {

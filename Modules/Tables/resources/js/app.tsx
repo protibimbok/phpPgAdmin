@@ -7,6 +7,7 @@ import TableOperations from './Pages/TableOperations'
 import SchemaStructure from './Pages/SchemaStructure'
 import TableDdl from './Pages/TableDdl'
 import TableStructure from './Pages/TableStructure'
+import Triggers from './Pages/Triggers'
 
 // A table in the tree opens its Browse page, as phpMyAdmin's tree does; the ancestors tell
 // which schema it is in.
@@ -28,6 +29,8 @@ registerModule({
     { label: 'tables:structure.tab', icon: 'b_props', path: '/db/:db/schema/:schema/:kind/:table', level: 'table' },
     { label: 'tables:operations.tab', icon: 'b_tblops', path: '/db/:db/schema/:schema/:kind/:table/operations', level: 'table' },
     { label: 'tables:ddl.tab', icon: 'b_sql', path: '/db/:db/schema/:schema/:kind/:table/ddl', level: 'table' },
+    // phpMyAdmin's Triggers tab; a materialized view has neither triggers nor rules.
+    { label: 'tables:triggers.tab', icon: 'b_triggers', path: '/db/:db/schema/:schema/:kind/:table/triggers', level: 'table', kinds: ['table', 'view'] },
   ],
   routes: [
     { path: 'db/:db/schema/:schema', element: <SchemaStructure /> },
@@ -38,5 +41,7 @@ registerModule({
     { path: 'db/:db/schema/:schema/table/:table/columns/change', element: <ColumnDefinitions mode="change" /> },
     { path: 'db/:db/schema/:schema/table/:table/relation', element: <RelationView /> },
     { path: 'db/:db/schema/:schema/table/:table/operations', element: <TableOperations /> },
+    { path: 'db/:db/schema/:schema/table/:table/triggers', element: <Triggers /> },
+    { path: 'db/:db/schema/:schema/view/:table/triggers', element: <Triggers /> },
   ],
 })

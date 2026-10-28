@@ -373,3 +373,137 @@ export interface ForeignKeyRow extends Constraint {
   reftab: string
   columns: { local_column: string; referenced: string; references: number }[]
 }
+
+/** A trigger as pgAdmin's triggers/properties.sql describes it, with the firing definition decoded. */
+export interface Trigger {
+  oid: number
+  name: string
+  /** 'O' enabled, 'D' disabled, 'R' replica, 'A' always. */
+  is_enable_trigger: 'O' | 'D' | 'R' | 'A'
+  description: string | null
+  /** 'BEFORE', 'AFTER' or 'INSTEAD OF'. */
+  fires: string
+  is_row_trigger: boolean
+  is_constraint_trigger: boolean
+  tgdeferrable: boolean
+  tginitdeferred: boolean
+  evnt_insert: boolean
+  evnt_update: boolean
+  evnt_delete: boolean
+  evnt_truncate: boolean
+  /** The UPDATE OF columns. */
+  columns: string[]
+  /** "schema.function". */
+  tfunction: string
+  /** The arguments as literals, "'a', 'b'", or null. */
+  tgargs: string | null
+  whenclause: string | null
+  tgoldtable: string | null
+  tgnewtable: string | null
+  is_sys_trigger: boolean
+}
+
+/** What CREATE TRIGGER and its ALTERs take (triggers/create.sql, update.sql); an update may send the whole form. */
+export interface TriggerData {
+  name?: string
+  fires?: string
+  evnt_insert?: boolean
+  evnt_update?: boolean
+  evnt_delete?: boolean
+  evnt_truncate?: boolean
+  columns?: string[]
+  is_row_trigger?: boolean
+  is_constraint_trigger?: boolean
+  tgdeferrable?: boolean
+  tginitdeferred?: boolean
+  tfunction?: string
+  tgargs?: string
+  whenclause?: string
+  tgoldtable?: string
+  tgnewtable?: string
+  description?: string
+  is_enable_trigger?: 'O' | 'D' | 'R' | 'A'
+}
+
+/** A rewrite rule as rules/properties.sql describes it, with the definition parsed. */
+export interface Rule {
+  oid: number
+  name: string
+  /** 'SELECT', 'INSERT', 'UPDATE' or 'DELETE'. */
+  event: string
+  do_instead: boolean
+  condition: string
+  statements: string
+  comment: string | null
+  enabled: boolean
+  is_enable_rule: 'O' | 'D' | 'R' | 'A'
+  system_rule: boolean
+  definition: string
+}
+
+export interface RuleData {
+  name?: string
+  event?: string
+  do_instead?: boolean
+  condition?: string
+  statements?: string
+  comment?: string
+  is_enable_rule?: 'O' | 'D' | 'R' | 'A'
+}
+
+/** A row security policy as row_security_policies/properties.sql describes it. */
+export interface Policy {
+  oid: number
+  name: string
+  /** 'ALL', 'SELECT', 'INSERT', 'UPDATE' or 'DELETE'. */
+  event: string
+  /** 'PERMISSIVE' or 'RESTRICTIVE'. */
+  type: string
+  policyowner: string[]
+  using: string | null
+  withcheck: string | null
+  description: string | null
+}
+
+export interface PolicyData {
+  name?: string
+  event?: string
+  type?: string
+  policyowner?: string[]
+  using?: string
+  withcheck?: string
+  description?: string
+}
+
+/** The relation kinds that carry triggers and rules, by the collection their nodes hang from. */
+export type TriggerParent = 'table' | 'view'
+
+const PARENT_COLLECTIONS: Record<TriggerParent, string> = { table: 'tables', view: 'views' }
+
+export function triggers(db: string, scid: number, parent: TriggerParent, relOid: number) {
+  return collection<Trigger>(collectionUrl(db, 'schemas', scid, PARENT_COLLECTIONS[parent], relOid, 'triggers'))
+}
+
+export function rules(db: string, scid: number, parent: TriggerParent, relOid: number) {
+  return collection<Rule>(collectionUrl(db, 'schemas', scid, PARENT_COLLECTIONS[parent], relOid, 'rules'))
+}
+
+/** Row security policies; tables only. */
+export function policies(db: string, scid: number, tid: number) {
+  return collection<Policy>(collectionUrl(db, 'schemas', scid, 'tables', tid, 'policies'))
+}
+
+/** What the trigger and policy editors offer: the trigger functions and the roles. */
+export interface TriggerOptions {
+  functions: string[]
+  roles: string[]
+}
+
+export function triggerOptions(db: string, scid: number, parent: TriggerParent, relOid: number): Promise<TriggerOptions> {
+  return api.get<TriggerOptions>(`${collectionUrl(db, 'schemas', scid, PARENT_COLLECTIONS[parent], relOid, 'triggers')}/options`)
+}
+
+/** The relation's OIDs by kind: a table's or a view's. */
+export function resolveRelation(db: string, schema: string, name: string, parent: TriggerParent): Promise<{ scid: number; oid: number }> {
+  return resolve(db, parent, { schema, name }).then((ids) => ({ scid: ids.scid, oid: parent === 'table' ? ids.tid : ids.vid }))
+}

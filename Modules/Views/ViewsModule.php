@@ -12,6 +12,8 @@ use PhpPgAdmin\Core\Contracts\ProvidesSqlTemplates;
 use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 use PhpPgAdmin\Core\Nodes\NodeDefinition;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\RuleController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\TriggerController;
 use PhpPgAdmin\Modules\Views\Http\Controllers\MaterializedViewController;
 use PhpPgAdmin\Modules\Views\Http\Controllers\ViewController;
 
@@ -56,6 +58,10 @@ final class ViewsModule implements Module, ProvidesNodes, ProvidesApiRoutes, Pro
                 icon: 'b_views',
                 supports: ['sql', 'msql', 'stats', 'depends', 'children', 'resolve'],
             ),
+            // A view's triggers (INSTEAD OF) and rules: the table nodes' controllers and templates,
+            // registered again under the view so their routes hang from /views/{vid}.
+            new NodeDefinition('view_trigger', 'triggers', 'trid', TriggerController::class, parent: 'view', templateDir: 'triggers', label: 'Triggers', icon: 'b_triggers', supports: ['sql', 'msql', 'depends']),
+            new NodeDefinition('view_rule', 'rules', 'rid', RuleController::class, parent: 'view', templateDir: 'rules', label: 'Rules', icon: 'b_triggers', supports: ['sql', 'msql', 'depends']),
         ];
     }
 

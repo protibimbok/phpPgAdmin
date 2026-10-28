@@ -17,8 +17,11 @@ use PhpPgAdmin\Modules\Tables\Http\Controllers\ColumnController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\ExclusionConstraintController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\ForeignKeyController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\IndexController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\PolicyController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\PrimaryKeyController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\RuleController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TableController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\TriggerController;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\UniqueConstraintController;
 
 /**
@@ -61,6 +64,9 @@ final class TablesModule implements Module, ProvidesNodes, ProvidesApiRoutes, Pr
             new NodeDefinition('foreign_key', 'foreign-keys', 'cid', ForeignKeyController::class, parent: 'table', templateDir: 'foreign_key', label: 'Foreign keys', icon: 'b_relations', supports: ['sql', 'msql', 'depends']),
             new NodeDefinition('check_constraint', 'check-constraints', 'cid', CheckConstraintController::class, parent: 'table', templateDir: 'check_constraint', label: 'Check constraints', icon: 's_okay', supports: ['sql', 'msql', 'depends']),
             new NodeDefinition('exclusion_constraint', 'exclusion-constraints', 'exid', ExclusionConstraintController::class, parent: 'table', templateDir: 'exclusion_constraint', label: 'Exclusion constraints', icon: 's_cancel', supports: ['sql', 'msql', 'stats', 'depends']),
+            new NodeDefinition('trigger', 'triggers', 'trid', TriggerController::class, parent: 'table', templateDir: 'triggers', label: 'Triggers', icon: 'b_triggers', supports: ['sql', 'msql', 'depends']),
+            new NodeDefinition('rule', 'rules', 'rid', RuleController::class, parent: 'table', templateDir: 'rules', label: 'Rules', icon: 'b_triggers', supports: ['sql', 'msql', 'depends']),
+            new NodeDefinition('row_security_policy', 'policies', 'plid', PolicyController::class, parent: 'table', templateDir: 'row_security_policies', label: 'Policies', icon: 's_rights', supports: ['sql', 'msql', 'depends']),
         ];
     }
 

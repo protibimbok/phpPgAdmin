@@ -11,13 +11,15 @@ use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Core\Nodes\Options;
 use PhpPgAdmin\Core\Nodes\VacuumSettings;
 use PhpPgAdmin\Modules\Databases\Http\Controllers\DatabaseController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\PolicyController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\RuleController;
 
 /**
  * The reverse-engineered SQL of a table, as pgAdmin's "SQL" tab shows it: BaseTableView's
  * _fetch_table_properties, _formatter and get_reverse_engineered_sql (tables/utils.py).
  *
- * The table's own DDL (create.sql) is followed by its indexes. Row security policies,
- * triggers, rules and partitions follow once their nodes are ported.
+ * The table's own DDL (create.sql) is followed by its indexes, row security policies,
+ * triggers and rules, in pgAdmin's order; partitions follow once their node is ported.
  */
 final class TableDdl
 {
@@ -72,7 +74,27 @@ final class TableDdl
             $parts[] = IndexDdl::sql($ctx, (string) $data['schema'], (string) $data['name'], $tid, (int) $index['oid'], withHeader: true, ifNotExists: $ifNotExists);
         }
 
+        $schema = (string) $data['schema'];
+        $table = (string) $data['name'];
+        foreach ($ctx->conn->rows($ctx->renderFrom('row_security_policies', 'nodes.sql', ['tid' => $tid])) as $policy) {
+            $parts[] = (new PolicyController())->createSqlOf(self::childContext($ctx, 'row_security_policy'), (int) $policy['oid'], true);
+        }
+        foreach ($ctx->conn->rows($ctx->renderFrom('triggers', 'nodes.sql', ['tid' => $tid])) as $trigger) {
+            $parts[] = TriggerDdl::sql($ctx, $schema, $table, $tid, (int) $trigger['oid']);
+        }
+        foreach ($ctx->conn->rows($ctx->renderFrom('rules', 'nodes.sql', ['tid' => $tid])) as $rule) {
+            if ($rule['name'] !== '_RETURN') {
+                $parts[] = (new RuleController())->createSqlOf(self::childContext($ctx, 'rule'), (int) $rule['oid'], true);
+            }
+        }
+
         return Ddl::assemble($parts);
+    }
+
+    /** A context for one of the table's child nodes, on the same connection and route ids. */
+    public static function childContext(NodeContext $ctx, string $type): NodeContext
+    {
+        return new NodeContext($ctx->registry->get($type), $ctx->registry, $ctx->pool, $ctx->conn, $ctx->database, $ctx->ids, $ctx->request);
     }
 
     /**

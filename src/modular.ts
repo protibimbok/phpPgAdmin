@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { RouteObject } from 'react-router'
-import { fillPath, type Level, type LevelName } from './level'
+import { fillPath, type Level, type LevelName, type RelationKind } from './level'
 
 /**
  * A tab in the menu bar under the breadcrumb, as phpMyAdmin lays out the pages of a server, a
@@ -18,6 +18,8 @@ export interface MenuItem {
   path: string
   /** The level whose bar the tab is in; the server's when left out. */
   level?: LevelName
+  /** At the table level, the relation kinds the tab applies to; every kind when left out. */
+  kinds?: RelationKind[]
 }
 
 /** Receives the menu the modules before it built and returns the one it wants. */
@@ -101,7 +103,7 @@ export function getMenu(): MenuItem[] {
 /** The tabs of the level the page is at, their paths filled with the level's names. */
 export function getMenuFor(level: Level): MenuItem[] {
   return getMenu()
-    .filter((item) => (item.level ?? 'server') === level.name)
+    .filter((item) => (item.level ?? 'server') === level.name && (!item.kinds || item.kinds.includes(level.kind ?? 'table')))
     .map((item) => ({ ...item, path: fillPath(item.path, level) }))
 }
 

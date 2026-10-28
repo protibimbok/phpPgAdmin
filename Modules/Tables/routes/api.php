@@ -10,6 +10,7 @@ use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Core\Nodes\NodeController;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Tables\Http\Controllers\TableController;
+use PhpPgAdmin\Modules\Tables\Http\Controllers\TriggerController;
 use Psr\Http\Message\ServerRequestInterface;
 
 // Beyond the node operations: the exact row count of a table, TRUNCATE, the copy of a table and
@@ -40,6 +41,22 @@ Route::middleware(Authenticate::class)->group(function () use ($context, $flag):
 
         return (new TableController())->exclusionOptions($ctx, trim((string) ($params['am'] ?? '')), array_map(strval(...), (array) ($params['types'] ?? [])));
     })->setName('tables.exclusion_options');
+
+    // The lists the trigger and policy editors offer, for a table's or a view's triggers.
+    foreach (['tables/{tid:number}' => 'trigger', 'views/{vid:number}' => 'view_trigger'] as $prefix => $type) {
+        Route::get("/databases/{db}/schemas/{scid:number}/{$prefix}/triggers/options", function (ServerRequestInterface $request, array $args) use ($type): array {
+            $db = rawurldecode($args['db']);
+            $pool = ConnectionPool::from($request);
+            $ids = ['scid' => (int) $args['scid']];
+            foreach (['tid', 'vid'] as $key) {
+                if (isset($args[$key])) {
+                    $ids[$key] = (int) $args[$key];
+                }
+            }
+
+            return (new TriggerController())->options(new NodeContext(Nodes::get($type), Nodes::registry(), $pool, $pool->for($db), $db, $ids, $request));
+        })->setName("{$type}.options");
+    }
 
     Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/count', fn (ServerRequestInterface $request, array $args): array => [
         'count' => (new TableController())->countRows($context($request, $args), (int) $args['tid']),

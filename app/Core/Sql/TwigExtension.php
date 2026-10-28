@@ -25,7 +25,8 @@ final class TwigExtension extends AbstractExtension
     public function getFilters(): array
     {
         return [
-            new TwigFilter('qtIdent', static fn (mixed $conn, string|int|null ...$parts): string => Quoting::ident(...$parts)),
+            // A list as the one argument quotes each entry, as pgAdmin's qtIdent does for a policy's roles.
+            new TwigFilter('qtIdent', static fn (mixed $conn, mixed ...$parts): string|array => count($parts) === 1 && is_array($parts[0]) ? array_map(static fn ($p): string => Quoting::ident((string) $p), array_values($parts[0])) : Quoting::ident(...$parts)),
             new TwigFilter('qtTypeIdent', static fn (mixed $conn, string|int|null ...$parts): string => Quoting::typeIdent(...$parts)),
             new TwigFilter('qtLiteral', self::literal(...)),
             new TwigFilter('string', static fn (mixed $value): string => self::string($value)),
