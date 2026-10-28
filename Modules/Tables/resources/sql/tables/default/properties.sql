@@ -75,6 +75,6 @@ FROM pg_catalog.pg_class rel
   LEFT OUTER JOIN pg_catalog.pg_am am ON am.oid = rel.relam
 WHERE rel.relkind IN ('r','s','t','p') AND rel.relnamespace = {{ scid }}::oid
 {### phpPgAdmin: a partition is a table of its own when asked for by OID; the listing leaves them under their parent ###}
-{% if not tid %}AND NOT rel.relispartition{% endif %}
+{% if not tid %}AND NOT rel.relispartition {% endif %}
 {% if tid %}  AND rel.oid = {{ tid }}::oid {% endif %}
 ORDER BY rel.relname;
