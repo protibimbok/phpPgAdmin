@@ -8,7 +8,8 @@ use League\Route\Http\Exception\BadRequestException;
 
 /**
  * What the Export page asks for, checked: the scope (the server, a database, a schema, a
- * relation), the format and output, what to select, and pg_dump's content options. A field
+ * relation), the format and output, what to select, and pg_dump's content options or the CSV
+ * options. A field
  * left out takes pg_dump's own default, so the page's "Quick" method sends little more than
  * the scope and the format.
  */
@@ -16,7 +17,7 @@ final readonly class ExportRequest
 {
     public const array SCOPES = ['server', 'database', 'schema', 'table'];
 
-    public const array FORMATS = ['plain', 'custom', 'tar'];
+    public const array FORMATS = ['plain', 'custom', 'tar', 'csv', 'excel'];
 
     public const array COMPRESSIONS = ['none', 'gzip'];
 
@@ -80,6 +81,7 @@ final readonly class ExportRequest
         public string $insertSyntax,
         public int $rowsPerInsert,
         public array $flags,
+        public ?CsvOptions $csv = null,
     ) {
     }
 
@@ -152,6 +154,7 @@ final readonly class ExportRequest
             insertSyntax: self::choice($input, 'insert_syntax', ['neither', 'columns', 'multi', 'both'], 'both'),
             rowsPerInsert: (int) $rows,
             flags: $flags,
+            csv: $format === 'csv' || $format === 'excel' ? CsvOptions::fromArray($input, $format) : null,
         );
     }
 
@@ -163,7 +166,7 @@ final readonly class ExportRequest
 
     public function isArchive(): bool
     {
-        return $this->format !== 'plain';
+        return $this->format === 'custom' || $this->format === 'tar';
     }
 
     /** @param list<string> $allowed */

@@ -30,14 +30,15 @@ export interface ExportOptions {
   filename_template: string
   server_major: number
   /** The pg_dump found, or null when there is none. */
-  tools: { directory: string; version: string; usable: boolean; statistics: boolean; policies: boolean } | null
+  tools: { directory: string; version: string; usable: boolean; statistics: boolean; policies: boolean; psql: boolean } | null
   templates: ExportTemplate[]
 }
 
 /** The options of the Export form that a template keeps: everything but what is exported. */
 export interface ExportSettings {
   method: 'quick' | 'custom'
-  format: 'plain' | 'custom' | 'tar'
+  /** pg_dump's formats, or CSV and CSV for MS Excel written by COPY. */
+  format: 'plain' | 'custom' | 'tar' | 'csv' | 'excel'
   output: 'text' | 'file'
   filename_template: string
   encoding: string
@@ -75,6 +76,17 @@ export interface ExportSettings {
   disable_triggers: boolean
   load_via_partition_root: boolean
   on_conflict_do_nothing: boolean
+  csv_separator: string
+  csv_enclosed: string
+  csv_escaped: string
+  csv_terminated: string
+  csv_null: string
+  csv_remove_crlf: boolean
+  csv_columns: boolean
+  excel_null: string
+  excel_remove_crlf: boolean
+  excel_columns: boolean
+  excel_edition: 'win' | 'mac_excel2003' | 'mac_excel2008'
 }
 
 const query = (target: ExportTarget) => new URLSearchParams(Object.entries(target).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString()
@@ -139,7 +151,7 @@ export function downloadExport(request: Record<string, unknown>, onError: (error
   form.remove()
 }
 
-/** The export's plain SQL, for "View output as text". */
+/** The export's plain SQL or CSV, for "View output as text". */
 export async function exportText(request: Record<string, unknown>): Promise<string> {
   const response = await fetch('/api/export', {
     method: 'POST',

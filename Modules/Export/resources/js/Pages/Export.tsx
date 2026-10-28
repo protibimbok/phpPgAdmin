@@ -41,6 +41,17 @@ const DEFAULTS: Omit<ExportSettings, 'filename_template' | 'encoding' | 'databas
   disable_triggers: false,
   load_via_partition_root: false,
   on_conflict_do_nothing: false,
+  csv_separator: ',',
+  csv_enclosed: '"',
+  csv_escaped: '"',
+  csv_terminated: 'AUTO',
+  csv_null: 'NULL',
+  csv_remove_crlf: false,
+  csv_columns: true,
+  excel_null: 'NULL',
+  excel_remove_crlf: false,
+  excel_columns: true,
+  excel_edition: 'win',
 }
 
 type Flag = { [K in keyof ExportSettings]: ExportSettings[K] extends boolean ? K : never }[keyof ExportSettings]
@@ -61,8 +72,9 @@ function rememberedFilename(scope: ExportScope): string | null {
 /**
  * The Export page of every level, laid out like phpMyAdmin's export.twig with
  * server/database/table/export/index.twig's selection card: the export templates, Quick or
- * Custom, the format, what to export, the output, and the format's options, here pg_dump's (and
- * pg_dumpall's for the server). The export downloads as pg_dump writes it, or shows as text.
+ * Custom, the format, what to export, the output, and the format's options: pg_dump's (and
+ * pg_dumpall's for the server), or CSV's, which COPY writes. The export downloads as it is
+ * written, or shows as text.
  */
 export default function Export({ scope }: { scope: ExportScope }) {
   const params = useParams()
@@ -115,7 +127,10 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
   const set = <K extends keyof ExportSettings>(key: K, value: ExportSettings[K]) => setSettings((current) => ({ ...current, [key]: value }))
   const custom = settings.method === 'custom'
   const plain = settings.format === 'plain'
+  // CSV is data only, as in phpMyAdmin: what is ticked under Data goes in.
+  const csv = settings.format === 'csv' || settings.format === 'excel'
   const tools = options.tools
+  const toolsProblem = tools === null ? t('tools.missing') : csv ? (tools.psql ? null : t('tools.no_psql', { directory: tools.directory })) : tools.usable ? null : t('tools.too_old', { version: tools.version, server: options.server_major })
 
   // What the selection adds up to at the database and schema scopes, as the server reads it.
   const contents: ExportSettings['contents'] = scope === 'database' || scope === 'schema' ? (settings.structure.length === 0 ? 'data' : settings.data.length === 0 ? 'structure' : 'both') : settings.contents
@@ -148,8 +163,8 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
   function submit(e: FormEvent) {
     e.preventDefault()
     if (running) return
-    if (tools === null || !tools.usable) {
-      notifyError(tools === null ? t('tools.missing') : t('tools.too_old', { version: tools.version, server: options.server_major }))
+    if (toolsProblem !== null) {
+      notifyError(toolsProblem)
 
       return
     }
@@ -234,14 +249,23 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
 
   const formats: { value: ExportSettings['format']; label: string }[] = [
     { value: 'plain', label: t('format.plain') },
-    ...(scope === 'server' ? [] : [{ value: 'custom' as const, label: t('format.custom') }, { value: 'tar' as const, label: t('format.tar') }]),
+    ...(scope === 'server'
+      ? []
+      : [
+          { value: 'custom' as const, label: t('format.custom') },
+          { value: 'tar' as const, label: t('format.tar') },
+          { value: 'csv' as const, label: t('format.csv') },
+          { value: 'excel' as const, label: t('format.excel') },
+        ]),
   ]
 
+  // The field names of phpMyAdmin's plugins: sql_*, and csv_* and excel_* as they are spelled there.
+  const field = (key: Flag) => (key.startsWith('csv_') || key.startsWith('excel_') ? key.replace('remove_crlf', 'removeCRLF') : `sql_${key}`)
   const toggle = (key: Flag, label: ReactNode, children?: ReactNode) => (
     <li className="list-group-item">
       <div className="form-check form-switch">
-        <input className="form-check-input" type="checkbox" role="switch" name={`sql_${key}`} id={`checkbox_sql_${key}`} checked={settings[key]} onChange={(e) => set(key, e.target.checked)} />
-        <label className="form-check-label" htmlFor={`checkbox_sql_${key}`}>
+        <input className="form-check-input" type="checkbox" role="switch" name={field(key)} id={`checkbox_${field(key)}`} checked={settings[key]} onChange={(e) => set(key, e.target.checked)} />
+        <label className="form-check-label" htmlFor={`checkbox_${field(key)}`}>
           {label}
         </label>
       </div>
@@ -257,14 +281,9 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
         <Icon name="b_export" /> {title}
       </h2>
 
-      {tools === null && (
+      {toolsProblem !== null && (
         <div className="alert alert-danger" role="alert">
-          {t('tools.missing')}
-        </div>
-      )}
-      {tools !== null && !tools.usable && (
-        <div className="alert alert-danger" role="alert">
-          {t('tools.too_old', { version: tools.version, server: options.server_major })}
+          {toolsProblem}
         </div>
       )}
 
@@ -375,7 +394,7 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
 
         {custom && scope === 'server' && <DatabaseSelection databases={names} selected={settings.databases} onChange={(databases) => set('databases', databases)} />}
         {custom && (scope === 'database' || scope === 'schema') && (
-          <ObjectSelection scope={scope} objects={options.objects} structure={settings.structure} data={settings.data} hasData={dataOf} onChange={(structure, data) => setSettings((current) => ({ ...current, structure, data }))} />
+          <ObjectSelection scope={scope} objects={options.objects} structure={settings.structure} data={settings.data} dataOnly={csv} hasData={dataOf} onChange={(structure, data) => setSettings((current) => ({ ...current, structure, data }))} />
         )}
 
         {custom && (
@@ -476,143 +495,189 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
           <div className="card mb-3" id="format_specific_opts">
             <div className="card-header">{t('options.title')}</div>
             <div className="card-body">
-              <div id="sql_options" className="format_specific_options">
-                <div id="sql_general_opts">
-                  <ul className="list-group">
-                    {plain && (
-                      <li className="list-group-item">
-                        <label htmlFor="text_sql_header_comment" className="form-label">
-                          {t('options.header_comment')}
-                        </label>
-                        <input className="form-control" type="text" name="sql_header_comment" id="text_sql_header_comment" value={settings.header_comment} onChange={(e) => set('header_comment', e.target.value)} />
-                      </li>
-                    )}
-                    {scope === 'server' && (
-                      <li className="list-group-item">
-                        {t('options.globals.title')}
-                        <ul className="list-group" id="ul_globals">
-                          {(['all', 'globals', 'roles', 'tablespaces'] as const).map((value) => (
-                            <li className="list-group-item" key={value}>
-                              <div className="form-check">
-                                <input className="form-check-input" type="radio" name="sql_globals" id={`radio_sql_globals_${value}`} value={value} checked={settings.globals === value} onChange={() => set('globals', value)} />
-                                <label className="form-check-label" htmlFor={`radio_sql_globals_${value}`}>
-                                  {t(`options.globals.${value}`)}
-                                </label>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    )}
-                    {(scope === 'server' || scope === 'table') && (
-                      <li className="list-group-item">
-                        {t(scope === 'server' ? 'options.contents.title_databases' : 'options.contents.title_table')}
-                        <ul className="list-group" id="ul_structure_or_data">
-                          {(['structure', 'data', 'both'] as const).map((value) => (
-                            <li className="list-group-item" key={value}>
-                              <div className="form-check">
-                                <input className="form-check-input" type="radio" name="sql_structure_or_data" id={`radio_sql_structure_or_data_${value}`} value={value} checked={settings.contents === value} onChange={() => set('contents', value)} />
-                                <label className="form-check-label" htmlFor={`radio_sql_structure_or_data_${value}`}>
-                                  {t(`options.contents.${value}`)}
-                                </label>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    )}
-                    {scope !== 'server' && contents !== 'structure' && toggle('serializable_deferrable', label('options.serializable_deferrable'))}
-                    {toggle('quote_all_identifiers', label('options.quote_all_identifiers'))}
-                    {toggle('disable_dollar_quoting', label('options.disable_dollar_quoting'))}
-                  </ul>
-                </div>
-
-                {contents !== 'data' && (
-                  <div id="sql_structure">
-                    <h5 className="card-title mt-4 mb-2">{t('options.structure_title')}</h5>
+              {settings.format === 'csv' && (
+                <div id="csv_options" className="format_specific_options">
+                  <div id="csv_general_opts">
                     <ul className="list-group">
-                      <li className="list-group-item">{t('options.add_statements')}</li>
-                      <li className="list-group-item">
-                        <ul className="list-group" id="ul_add_statements">
-                          {scope === 'database' && plain && toggle('create', label('options.create'))}
-                          {plain &&
-                            toggle(
-                              'clean',
-                              label('options.clean'),
-                              settings.clean && <ul className="list-group mt-2">{toggle('if_exists', label('options.if_exists'))}</ul>,
-                            )}
-                          {plain &&
-                            toggle(
-                              'owner',
-                              label('options.owner'),
-                              settings.owner && <ul className="list-group mt-2">{toggle('set_session_authorization', label('options.set_session_authorization'))}</ul>,
-                            )}
-                          {toggle('privileges', label('options.privileges'))}
-                          {toggle('comments', label('options.comments'))}
-                          {toggle('tablespaces', label('options.tablespaces'))}
-                          {toggle('security_labels', label('options.security_labels'))}
-                          {tools?.policies !== false && toggle('policies', label('options.policies'))}
-                          {(scope === 'server' || scope === 'database') && toggle('publications', label('options.publications'))}
-                          {(scope === 'server' || scope === 'database') && toggle('subscriptions', label('options.subscriptions'))}
-                          {scope === 'server' && toggle('role_passwords', label('options.role_passwords'))}
-                          {tools?.statistics !== false && contents === 'both' && toggle('statistics', label('options.statistics'))}
-                        </ul>
-                      </li>
+                      {(['separator', 'enclosed', 'escaped', 'terminated', 'null'] as const).map((key) => (
+                        <li className="list-group-item" key={key}>
+                          <label htmlFor={`text_csv_${key}`} className="form-label">
+                            {t(`csv.${key}`)}
+                          </label>
+                          <input className="form-control" type="text" name={`csv_${key}`} id={`text_csv_${key}`} value={settings[`csv_${key}`]} onChange={(e) => set(`csv_${key}`, e.target.value)} />
+                        </li>
+                      ))}
+                      {toggle('csv_remove_crlf', t('csv.remove_crlf'))}
+                      {toggle('csv_columns', t('csv.columns'))}
                     </ul>
                   </div>
-                )}
-
-                {contents !== 'structure' && (
-                  <div id="sql_data">
-                    <h5 className="card-title mt-4 mb-2">{t('options.data_title')}</h5>
+                </div>
+              )}
+              {settings.format === 'excel' && (
+                <div id="excel_options" className="format_specific_options">
+                  <div id="excel_general_opts">
                     <ul className="list-group">
-                      {contents === 'data' && toggle('disable_triggers', label('options.disable_triggers'))}
-                      {toggle('unlogged_data', label('options.unlogged_data'))}
-                      {(scope === 'database' || scope === 'schema') && toggle('large_objects', label('options.large_objects'))}
-                      {toggle('load_via_partition_root', label('options.load_via_partition_root'))}
                       <li className="list-group-item">
-                        <label htmlFor="select_sql_type" className="form-label">
-                          {t('options.data_style')}
+                        <label htmlFor="text_excel_null" className="form-label">
+                          {t('csv.null')}
                         </label>
-                        <select className="form-select" name="sql_type" id="select_sql_type" value={settings.data_style} onChange={(e) => set('data_style', e.target.value as ExportSettings['data_style'])}>
-                          <option value="copy">COPY</option>
-                          <option value="insert">INSERT</option>
+                        <input className="form-control" type="text" name="excel_null" id="text_excel_null" value={settings.excel_null} onChange={(e) => set('excel_null', e.target.value)} />
+                      </li>
+                      {toggle('excel_remove_crlf', t('csv.remove_crlf'))}
+                      {toggle('excel_columns', t('csv.columns'))}
+                      <li className="list-group-item">
+                        <label htmlFor="select_excel_edition" className="form-label">
+                          {t('csv.edition')}
+                        </label>
+                        <select className="form-select" name="excel_edition" id="select_excel_edition" value={settings.excel_edition} onChange={(e) => set('excel_edition', e.target.value as ExportSettings['excel_edition'])}>
+                          <option value="win">{t('csv.edition_win')}</option>
+                          <option value="mac_excel2003">{t('csv.edition_mac_excel2003')}</option>
+                          <option value="mac_excel2008">{t('csv.edition_mac_excel2008')}</option>
                         </select>
                       </li>
-                      {settings.data_style === 'insert' && (
-                        <>
-                          {toggle('on_conflict_do_nothing', label('options.on_conflict_do_nothing'))}
-                          <li className="list-group-item">
-                            {t('options.syntax.title')}
-                            <ul className="list-group" id="ul_insert_syntax">
-                              {(['columns', 'multi', 'both', 'neither'] as const).map((value) => (
-                                <li className="list-group-item" key={value}>
-                                  <div className="form-check">
-                                    <input className="form-check-input" type="radio" name="sql_insert_syntax" id={`radio_sql_insert_syntax_${value}`} value={value} checked={settings.insert_syntax === value} onChange={() => set('insert_syntax', value)} />
-                                    <label className="form-check-label" htmlFor={`radio_sql_insert_syntax_${value}`}>
-                                      {label(`options.syntax.${value}`)}
-                                      <br />
-                                      {t('options.syntax.example')} <code>{t(`options.syntax.example_${value}`)}</code>
-                                    </label>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </li>
-                          {(settings.insert_syntax === 'multi' || settings.insert_syntax === 'both') && (
-                            <li className="list-group-item">
-                              <label htmlFor="text_sql_rows_per_insert" className="form-label">
-                                {t('options.rows_per_insert')}
-                              </label>
-                              <input className="form-control" type="number" min={1} name="sql_rows_per_insert" id="text_sql_rows_per_insert" value={settings.rows_per_insert} onChange={(e) => set('rows_per_insert', e.target.value)} />
-                            </li>
-                          )}
-                        </>
-                      )}
                     </ul>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+              {!csv && (
+                <div id="sql_options" className="format_specific_options">
+                  <div id="sql_general_opts">
+                    <ul className="list-group">
+                      {plain && (
+                        <li className="list-group-item">
+                          <label htmlFor="text_sql_header_comment" className="form-label">
+                            {t('options.header_comment')}
+                          </label>
+                          <input className="form-control" type="text" name="sql_header_comment" id="text_sql_header_comment" value={settings.header_comment} onChange={(e) => set('header_comment', e.target.value)} />
+                        </li>
+                      )}
+                      {scope === 'server' && (
+                        <li className="list-group-item">
+                          {t('options.globals.title')}
+                          <ul className="list-group" id="ul_globals">
+                            {(['all', 'globals', 'roles', 'tablespaces'] as const).map((value) => (
+                              <li className="list-group-item" key={value}>
+                                <div className="form-check">
+                                  <input className="form-check-input" type="radio" name="sql_globals" id={`radio_sql_globals_${value}`} value={value} checked={settings.globals === value} onChange={() => set('globals', value)} />
+                                  <label className="form-check-label" htmlFor={`radio_sql_globals_${value}`}>
+                                    {t(`options.globals.${value}`)}
+                                  </label>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      )}
+                      {(scope === 'server' || scope === 'table') && (
+                        <li className="list-group-item">
+                          {t(scope === 'server' ? 'options.contents.title_databases' : 'options.contents.title_table')}
+                          <ul className="list-group" id="ul_structure_or_data">
+                            {(['structure', 'data', 'both'] as const).map((value) => (
+                              <li className="list-group-item" key={value}>
+                                <div className="form-check">
+                                  <input className="form-check-input" type="radio" name="sql_structure_or_data" id={`radio_sql_structure_or_data_${value}`} value={value} checked={settings.contents === value} onChange={() => set('contents', value)} />
+                                  <label className="form-check-label" htmlFor={`radio_sql_structure_or_data_${value}`}>
+                                    {t(`options.contents.${value}`)}
+                                  </label>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      )}
+                      {scope !== 'server' && contents !== 'structure' && toggle('serializable_deferrable', label('options.serializable_deferrable'))}
+                      {toggle('quote_all_identifiers', label('options.quote_all_identifiers'))}
+                      {toggle('disable_dollar_quoting', label('options.disable_dollar_quoting'))}
+                    </ul>
+                  </div>
+
+                  {contents !== 'data' && (
+                    <div id="sql_structure">
+                      <h5 className="card-title mt-4 mb-2">{t('options.structure_title')}</h5>
+                      <ul className="list-group">
+                        <li className="list-group-item">{t('options.add_statements')}</li>
+                        <li className="list-group-item">
+                          <ul className="list-group" id="ul_add_statements">
+                            {scope === 'database' && plain && toggle('create', label('options.create'))}
+                            {plain &&
+                              toggle(
+                                'clean',
+                                label('options.clean'),
+                                settings.clean && <ul className="list-group mt-2">{toggle('if_exists', label('options.if_exists'))}</ul>,
+                              )}
+                            {plain &&
+                              toggle(
+                                'owner',
+                                label('options.owner'),
+                                settings.owner && <ul className="list-group mt-2">{toggle('set_session_authorization', label('options.set_session_authorization'))}</ul>,
+                              )}
+                            {toggle('privileges', label('options.privileges'))}
+                            {toggle('comments', label('options.comments'))}
+                            {toggle('tablespaces', label('options.tablespaces'))}
+                            {toggle('security_labels', label('options.security_labels'))}
+                            {tools?.policies !== false && toggle('policies', label('options.policies'))}
+                            {(scope === 'server' || scope === 'database') && toggle('publications', label('options.publications'))}
+                            {(scope === 'server' || scope === 'database') && toggle('subscriptions', label('options.subscriptions'))}
+                            {scope === 'server' && toggle('role_passwords', label('options.role_passwords'))}
+                            {tools?.statistics !== false && contents === 'both' && toggle('statistics', label('options.statistics'))}
+                          </ul>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
+                  {contents !== 'structure' && (
+                    <div id="sql_data">
+                      <h5 className="card-title mt-4 mb-2">{t('options.data_title')}</h5>
+                      <ul className="list-group">
+                        {contents === 'data' && toggle('disable_triggers', label('options.disable_triggers'))}
+                        {toggle('unlogged_data', label('options.unlogged_data'))}
+                        {(scope === 'database' || scope === 'schema') && toggle('large_objects', label('options.large_objects'))}
+                        {toggle('load_via_partition_root', label('options.load_via_partition_root'))}
+                        <li className="list-group-item">
+                          <label htmlFor="select_sql_type" className="form-label">
+                            {t('options.data_style')}
+                          </label>
+                          <select className="form-select" name="sql_type" id="select_sql_type" value={settings.data_style} onChange={(e) => set('data_style', e.target.value as ExportSettings['data_style'])}>
+                            <option value="copy">COPY</option>
+                            <option value="insert">INSERT</option>
+                          </select>
+                        </li>
+                        {settings.data_style === 'insert' && (
+                          <>
+                            {toggle('on_conflict_do_nothing', label('options.on_conflict_do_nothing'))}
+                            <li className="list-group-item">
+                              {t('options.syntax.title')}
+                              <ul className="list-group" id="ul_insert_syntax">
+                                {(['columns', 'multi', 'both', 'neither'] as const).map((value) => (
+                                  <li className="list-group-item" key={value}>
+                                    <div className="form-check">
+                                      <input className="form-check-input" type="radio" name="sql_insert_syntax" id={`radio_sql_insert_syntax_${value}`} value={value} checked={settings.insert_syntax === value} onChange={() => set('insert_syntax', value)} />
+                                      <label className="form-check-label" htmlFor={`radio_sql_insert_syntax_${value}`}>
+                                        {label(`options.syntax.${value}`)}
+                                        <br />
+                                        {t('options.syntax.example')} <code>{t(`options.syntax.example_${value}`)}</code>
+                                      </label>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                            {(settings.insert_syntax === 'multi' || settings.insert_syntax === 'both') && (
+                              <li className="list-group-item">
+                                <label htmlFor="text_sql_rows_per_insert" className="form-label">
+                                  {t('options.rows_per_insert')}
+                                </label>
+                                <input className="form-control" type="number" min={1} name="sql_rows_per_insert" id="text_sql_rows_per_insert" value={settings.rows_per_insert} onChange={(e) => set('rows_per_insert', e.target.value)} />
+                              </li>
+                            )}
+                          </>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -664,9 +729,10 @@ function DatabaseSelection({ databases, selected, onChange }: { databases: strin
 
 /**
  * database/export/index.twig's Tables card: a row per schema (at the database scope) or per
- * relation (at the schema scope) with its Structure and Data boxes. A view has no Data box.
+ * relation (at the schema scope) with its Structure and Data boxes. A view has no Data box. A
+ * data-only format (CSV) hides the Structure column, as phpMyAdmin does.
  */
-function ObjectSelection({ scope, objects, structure, data, hasData, onChange }: { scope: 'database' | 'schema'; objects: ExportObject[]; structure: string[]; data: string[]; hasData: (object: ExportObject) => boolean; onChange: (structure: string[], data: string[]) => void }) {
+function ObjectSelection({ scope, objects, structure, data, dataOnly, hasData, onChange }: { scope: 'database' | 'schema'; objects: ExportObject[]; structure: string[]; data: string[]; dataOnly: boolean; hasData: (object: ExportObject) => boolean; onChange: (structure: string[], data: string[]) => void }) {
   const { t } = useTranslation('export')
   const withData = objects.filter(hasData).map((object) => object.name)
   const all = objects.map((object) => object.name)
@@ -683,15 +749,17 @@ function ObjectSelection({ scope, objects, structure, data, hasData, onChange }:
             <tr>
               <th></th>
               <th>{t(scope === 'database' ? 'selection.schemas_column' : 'selection.tables_column')}</th>
-              <th className="export_structure text-center">{t('selection.structure')}</th>
+              {!dataOnly && <th className="export_structure text-center">{t('selection.structure')}</th>}
               <th className="export_data text-center">{t('selection.data')}</th>
             </tr>
             <tr>
               <td></td>
               <td className="align-middle">{t('selection.select_all')}</td>
-              <td className="export_structure text-center">
-                <input type="checkbox" id="table_structure_all" aria-label={t('selection.structure_all')} checked={allStructure} onChange={(e) => onChange(e.target.checked ? all : [], data)} />
-              </td>
+              {!dataOnly && (
+                <td className="export_structure text-center">
+                  <input type="checkbox" id="table_structure_all" aria-label={t('selection.structure_all')} checked={allStructure} onChange={(e) => onChange(e.target.checked ? all : [], data)} />
+                </td>
+              )}
               <td className="export_data text-center">
                 <input type="checkbox" id="table_data_all" aria-label={t('selection.data_all')} checked={allData} onChange={(e) => onChange(structure, e.target.checked ? withData : [])} />
               </td>
@@ -704,14 +772,16 @@ function ObjectSelection({ scope, objects, structure, data, hasData, onChange }:
               const rowData = hasData(object)
 
               return (
-                <tr key={object.name} className={inStructure || inData ? 'marked' : undefined}>
+                <tr key={object.name} className={inData || (inStructure && !dataOnly) ? 'marked' : undefined}>
                   <td>
-                    <input className="checkall" type="checkbox" name="table_select[]" value={object.name} checked={inStructure || inData} onChange={(e) => onChange(toggle(structure, object.name, e.target.checked), rowData ? toggle(data, object.name, e.target.checked) : data)} />
+                    <input className="checkall" type="checkbox" name="table_select[]" value={object.name} checked={inData || (inStructure && !dataOnly)} onChange={(e) => onChange(toggle(structure, object.name, e.target.checked), rowData ? toggle(data, object.name, e.target.checked) : data)} />
                   </td>
                   <td className="align-middle text-nowrap">{object.name}</td>
-                  <td className="export_structure text-center">
-                    <input type="checkbox" name="table_structure[]" value={object.name} aria-label={t('selection.structure_of', { name: object.name })} checked={inStructure} onChange={(e) => onChange(toggle(structure, object.name, e.target.checked), data)} />
-                  </td>
+                  {!dataOnly && (
+                    <td className="export_structure text-center">
+                      <input type="checkbox" name="table_structure[]" value={object.name} aria-label={t('selection.structure_of', { name: object.name })} checked={inStructure} onChange={(e) => onChange(toggle(structure, object.name, e.target.checked), data)} />
+                    </td>
+                  )}
                   <td className="export_data text-center">
                     {rowData && <input type="checkbox" name="table_data[]" value={object.name} aria-label={t('selection.data_of', { name: object.name })} checked={inData} onChange={(e) => onChange(structure, toggle(data, object.name, e.target.checked))} />}
                   </td>

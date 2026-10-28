@@ -9,7 +9,8 @@
   },
   "tools": {
     "missing": "لم يُعثر على pg_dump في خادم الويب. اضبط PGADMIN_PG_BIN_DIR (config/tools.php) على مجلد برامج عميل PostgreSQL.",
-    "too_old": "لا يستطيع pg_dump {{version}} التصدير من خادم PostgreSQL {{server}}. اضبط PGADMIN_PG_BIN_DIR (config/tools.php) على برامج العميل من الإصدار {{server}} أو أحدث."
+    "too_old": "لا يستطيع pg_dump {{version}} التصدير من خادم PostgreSQL {{server}}. اضبط PGADMIN_PG_BIN_DIR (config/tools.php) على برامج العميل من الإصدار {{server}} أو أحدث.",
+    "no_psql": "لم يُعثر على psql بجانب pg_dump في {{directory}}. يكتب COPY ملفات CSV عبر psql."
   },
   "templates": {
     "title": "قوالب التصدير:",
@@ -36,7 +37,9 @@
     "aria": "صيغة الملف المراد تصديره",
     "plain": "SQL",
     "custom": "أرشيف PostgreSQL المخصص (pg_restore)",
-    "tar": "أرشيف PostgreSQL بصيغة tar (pg_restore)"
+    "tar": "أرشيف PostgreSQL بصيغة tar (pg_restore)",
+    "csv": "CSV",
+    "excel": "CSV لبرنامج MS Excel"
   },
   "selection": {
     "databases": "قواعد البيانات",
@@ -129,5 +132,18 @@
       "example_neither": "INSERT INTO tbl_name VALUES (1, 2, 3)"
     },
     "rows_per_insert": "عدد الصفوف في كل جملة INSERT:"
+  },
+  "csv": {
+    "separator": "الأعمدة مفصولة بـ:",
+    "enclosed": "الأعمدة محاطة بـ:",
+    "escaped": "الأعمدة مهربة بـ:",
+    "terminated": "الأسطر منتهية بـ:",
+    "null": "استبدال NULL بـ:",
+    "remove_crlf": "إزالة محارف العودة/السطر الجديد داخل الأعمدة",
+    "columns": "وضع أسماء الأعمدة في الصف الأول",
+    "edition": "إصدار Excel:",
+    "edition_win": "Windows",
+    "edition_mac_excel2003": "Excel 2003 / Macintosh",
+    "edition_mac_excel2008": "Excel 2008 / Macintosh"
   }
 }

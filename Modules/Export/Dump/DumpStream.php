@@ -9,8 +9,8 @@ use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
 /**
- * A running pg_dump or pg_dumpall as a response body: its output is passed on as it comes,
- * gzipped here when asked (pg_dumpall cannot compress, and plain and tar output then share
+ * A running pg_dump, pg_dumpall or psql (a CSV export) as a response body: its output is passed
+ * on as it comes, through a filter when one is given (CSV line ends), gzipped here when asked (pg_dumpall cannot compress, and plain and tar output then share
  * one way), and nothing is held in memory or on disk but a chunk at a time.
  *
  * start() waits for the program's first output, so a dump that fails before writing anything
@@ -34,16 +34,20 @@ final class DumpStream implements StreamInterface
 
     private ?\DeflateContext $gzip;
 
+    /** @var (\Closure(string): string)|null */
+    private readonly ?\Closure $filter;
+
     /**
      * @param resource|null $process null when the program has already ended
      * @param resource|null $stdout
      */
-    private function __construct($process, $stdout, private readonly string $stderrFile, string $first, private readonly string $program, bool $gzip, private readonly bool $plain)
+    private function __construct($process, $stdout, private readonly string $stderrFile, string $prefix, string $first, private readonly string $program, bool $gzip, private readonly bool $plain, ?\Closure $filter)
     {
         $this->process = $process;
         $this->stdout = $stdout;
+        $this->filter = $filter;
         $this->gzip = $gzip ? (deflate_init(ZLIB_ENCODING_GZIP, ['level' => 6]) ?: null) : null;
-        $this->buffer = $this->compress($first, $process === null);
+        $this->buffer = $this->compress($prefix . $this->filtered($first), $process === null);
         $this->finished = $process === null;
     }
 
@@ -53,9 +57,10 @@ final class DumpStream implements StreamInterface
      * @param list<string> $arguments
      * @param array<string, string> $environment
      * @param string $prefix written before the program's output (a header comment)
+     * @param (\Closure(string): string)|null $filter applied to the program's output, chunk by chunk
      * @throws ApiException when the program fails before writing anything
      */
-    public static function start(string $program, array $arguments, array $environment, bool $gzip, bool $plain, string $prefix = ''): self
+    public static function start(string $program, array $arguments, array $environment, bool $gzip, bool $plain, string $prefix = '', ?\Closure $filter = null): self
     {
         $stderrFile = tempnam(sys_get_temp_dir(), 'pgdump') ?: throw new RuntimeException('No temporary file for the dump\'s messages.');
         $process = proc_open([$program, ...$arguments], [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['file', $stderrFile, 'w']], $pipes, null, $environment + ['PATH' => (string) getenv('PATH'), 'LC_MESSAGES' => 'C']);
@@ -75,16 +80,16 @@ final class DumpStream implements StreamInterface
                 // The program's own "error:" lines are the message; the server's warnings and
                 // notices around them (a collation version mismatch, say) are the detail.
                 $lines = array_values(array_filter(explode("\n", $message), static fn (string $line): bool => trim($line) !== ''));
-                $errors = array_values(array_filter($lines, static fn (string $line): bool => preg_match('/^pg_dump(all)?: (error|fatal):/', $line) === 1));
+                $errors = array_values(array_filter($lines, static fn (string $line): bool => preg_match('/^(pg_dump(all)?|psql): (error|fatal):|^(ERROR|FATAL): /', $line) === 1));
                 $rest = array_values(array_diff($lines, $errors));
 
                 throw new ApiException(422, self::message(basename($program), implode("\n", $errors === [] ? $lines : $errors), $status), $errors === [] || $rest === [] ? [] : ['detail' => implode("\n", $rest)]);
             }
 
-            return new self(null, null, $stderrFile, $prefix, basename($program), $gzip, $plain);
+            return new self(null, null, $stderrFile, $prefix, '', basename($program), $gzip, $plain, $filter);
         }
 
-        return new self($process, $stdout, $stderrFile, $prefix . $first, basename($program), $gzip, $plain);
+        return new self($process, $stdout, $stderrFile, $prefix, $first, basename($program), $gzip, $plain, $filter);
     }
 
     public function __destruct()
@@ -196,7 +201,7 @@ final class DumpStream implements StreamInterface
     {
         $data = $this->stdout !== null ? (string) fread($this->stdout, self::CHUNK) : '';
         if ($data !== '' || ($this->stdout !== null && !feof($this->stdout))) {
-            $this->buffer .= $this->compress($data, false);
+            $this->buffer .= $this->compress($this->filtered($data), false);
 
             return;
         }
@@ -220,6 +225,11 @@ final class DumpStream implements StreamInterface
         @unlink($this->stderrFile);
         $this->buffer .= $this->compress($tail, true);
         $this->finished = true;
+    }
+
+    private function filtered(string $data): string
+    {
+        return $this->filter === null || $data === '' ? $data : ($this->filter)($data);
     }
 
     private function compress(string $data, bool $last): string

@@ -47,12 +47,13 @@ final class FileName
         return ($name === '' ? 'dump' : $name) . $extension;
     }
 
-    /** ".sql", ".dump", ".tar", with ".gz" when the output is gzipped here. */
+    /** ".sql", ".dump", ".tar", ".csv", with ".gz" when the output is gzipped here. */
     public static function extension(string $format, string $compression): string
     {
         return match ($format) {
             'custom' => '.dump',
             'tar' => '.tar',
+            'csv', 'excel' => '.csv',
             default => '.sql',
         } . ($compression === 'gzip' && $format !== 'custom' ? '.gz' : '');
     }

@@ -9,7 +9,8 @@
   },
   "tools": {
     "missing": "pg_dump was not found on the web server. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the directory of the PostgreSQL client programs.",
-    "too_old": "pg_dump {{version}} cannot export from a PostgreSQL {{server}} server. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the client programs of version {{server}} or newer."
+    "too_old": "pg_dump {{version}} cannot export from a PostgreSQL {{server}} server. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the client programs of version {{server}} or newer.",
+    "no_psql": "psql was not found next to pg_dump in {{directory}}. CSV is written by COPY through psql."
   },
   "templates": {
     "title": "Export templates:",
@@ -36,7 +37,9 @@
     "aria": "File format to export",
     "plain": "SQL",
     "custom": "PostgreSQL custom archive (pg_restore)",
-    "tar": "PostgreSQL tar archive (pg_restore)"
+    "tar": "PostgreSQL tar archive (pg_restore)",
+    "csv": "CSV",
+    "excel": "CSV for MS Excel"
   },
   "selection": {
     "databases": "Databases",
@@ -129,5 +132,18 @@
       "example_neither": "INSERT INTO tbl_name VALUES (1, 2, 3)"
     },
     "rows_per_insert": "Rows in each INSERT statement:"
+  },
+  "csv": {
+    "separator": "Columns separated with:",
+    "enclosed": "Columns enclosed with:",
+    "escaped": "Columns escaped with:",
+    "terminated": "Lines terminated with:",
+    "null": "Replace NULL with:",
+    "remove_crlf": "Remove carriage return/line feed characters within columns",
+    "columns": "Put columns names in the first row",
+    "edition": "Excel edition:",
+    "edition_win": "Windows",
+    "edition_mac_excel2003": "Excel 2003 / Macintosh",
+    "edition_mac_excel2008": "Excel 2008 / Macintosh"
   }
 }

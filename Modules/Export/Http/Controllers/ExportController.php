@@ -12,6 +12,8 @@ use PhpPgAdmin\Core\Database\ConnectionPool;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Export\Dump\ClientTools;
+use PhpPgAdmin\Modules\Export\Dump\CopyCommand;
+use PhpPgAdmin\Modules\Export\Dump\CsvLineEnds;
 use PhpPgAdmin\Modules\Export\Dump\DumpCommand;
 use PhpPgAdmin\Modules\Export\Dump\DumpStream;
 use PhpPgAdmin\Modules\Export\Dump\ExportRequest;
@@ -23,7 +25,7 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * The Export pages' backend: what a scope offers to export (GET /api/export/options), and the
  * export itself (POST /api/export), pg_dump or pg_dumpall streamed to the response as an
- * attachment, or as text for "View output as text".
+ * attachment, or as text for "View output as text", and CSV written by COPY through psql.
  */
 final class ExportController
 {
@@ -63,6 +65,7 @@ final class ExportController
                 'usable' => $tools->major() >= $serverMajor,
                 'statistics' => $tools->version >= 180000,
                 'policies' => $tools->version >= 180000,
+                'psql' => is_executable($tools->path('psql')),
             ],
             'templates' => ExportTemplates::for(self::serverKey(), $pool->username())->all($scope),
         ];
@@ -85,7 +88,11 @@ final class ExportController
 
         $tools = ClientTools::locate() ?? throw new ApiException(503, 'pg_dump was not found. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the directory of the PostgreSQL client programs.');
         $serverMajor = intdiv($pool->version(), 10000);
-        if ($tools->major() < $serverMajor) {
+        if ($export->csv !== null && !is_executable($tools->path('psql'))) {
+            throw new ApiException(503, sprintf('psql was not found in %s, next to pg_dump.', $tools->directory));
+        }
+        // COPY has not changed in a way an older psql would notice; pg_dump has to be as new as the server.
+        if ($export->csv === null && $tools->major() < $serverMajor) {
             throw new ApiException(422, sprintf('pg_dump %s cannot dump a PostgreSQL %d server; point PGADMIN_PG_BIN_DIR at the client programs of version %d or newer.', $tools->versionString(), $serverMajor, $serverMajor));
         }
 
@@ -103,10 +110,13 @@ final class ExportController
         }
         $oversized = $export->maxSize !== null && $export->scope !== 'server' ? $this->oversized($conn, $export) : [];
 
-        $command = new DumpCommand($export, $tools, $objects, $oversized, $tableKind);
+        $command = $export->csv !== null
+            ? new CopyCommand($export, $export->csv, $tools, $this->copyRelations($conn, $export, $objects, $tableKind, $oversized))
+            : new DumpCommand($export, $tools, $objects, $oversized, $tableKind);
         $environment = $pool->environment($export->database ?? $conn->database());
         $plain = $export->format === 'plain';
         $gzip = !$export->asText && $export->compression === 'gzip' && $export->format !== 'custom';
+        $filter = $export->csv !== null && $export->csv->terminated !== "\n" ? (new CsvLineEnds($export->csv->enclosed, $export->csv->escaped, $export->csv->terminated))(...) : null;
         $prefix = $plain && trim($export->headerComment) !== ''
             ? implode('', array_map(static fn (string $line): string => '-- ' . $line . "\n", explode('\n', str_replace(["\r\n", "\n"], '\n', $export->headerComment)))) . "\n"
             : '';
@@ -118,7 +128,7 @@ final class ExportController
         }
         set_time_limit(0);
 
-        $stream = DumpStream::start($command->program(), $command->arguments(), $environment, $gzip, $plain, $prefix);
+        $stream = DumpStream::start($command->program(), $command->arguments(), $environment, $gzip, $plain, $prefix, $filter);
         $response = (new Psr17Factory())->createResponse()
             ->withHeader('Cache-Control', 'no-store')
             ->withHeader('X-Accel-Buffering', 'no')
@@ -141,9 +151,61 @@ final class ExportController
                 $gzip => 'application/gzip',
                 $export->format === 'tar' => 'application/x-tar',
                 $export->format === 'custom' => 'application/octet-stream',
+                $export->csv !== null => 'text/csv',
                 default => 'application/sql',
             })
             ->withHeader('Content-Disposition', sprintf('attachment; filename="%s"; filename*=UTF-8\'\'%s', addcslashes($ascii, '"\\'), rawurlencode($name)));
+    }
+
+    /**
+     * The relations a CSV export copies, with their columns: the relation of the table scope,
+     * the relations ticked under Data at the schema scope, and the tables and materialized views
+     * of the schemas ticked under Data at the database scope. Partitions come with their
+     * partitioned table; tables over the size limit are left out.
+     *
+     * @param array<string, string> $objects what the scope offers, by name
+     * @param list<array{0: string, 1: string, 2: string}> $oversized
+     * @return list<array{schema: string, name: string, kind: string, columns: list<string>}>
+     */
+    private function copyRelations(Connection $conn, ExportRequest $export, array $objects, string $tableKind, array $oversized): array
+    {
+        [$schemas, $names, $kinds] = match ($export->scope) {
+            'table' => [[(string) $export->schema], [(string) $export->table], [$tableKind]],
+            'schema' => [[(string) $export->schema], $export->data ?? array_keys(array_filter($objects, static fn (string $kind): bool => in_array($kind, ['r', 'p', 'm', 'S'], true))), ['r', 'p', 'v', 'm', 'f', 'S']],
+            'database' => [$export->data ?? array_keys($objects), null, ['r', 'p', 'm']],
+            default => throw new BadRequestException('A CSV export is of a database, a schema or a relation.'),
+        };
+        foreach ($export->scope === 'schema' ? $names : ($export->scope === 'database' ? $schemas : []) as $name) {
+            if (!array_key_exists($name, $objects)) {
+                throw new BadRequestException(sprintf($export->scope === 'schema' ? 'There is no relation "%s".' : 'There is no schema "%s".', $name));
+            }
+        }
+
+        $rows = $schemas === [] || $names === [] ? [] : $conn->rows(<<<'SQL'
+            SELECT n.nspname, c.relname, c.relkind::text AS relkind,
+                   array_to_json(ARRAY(SELECT a.attname FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum))::text AS columns
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname IN (SELECT jsonb_array_elements_text($1::jsonb))
+              AND ($2::jsonb IS NULL OR c.relname IN (SELECT jsonb_array_elements_text($2::jsonb)))
+              AND c.relkind::text IN (SELECT jsonb_array_elements_text($3::jsonb))
+              AND ($2::jsonb IS NOT NULL OR NOT c.relispartition)
+            ORDER BY 1, 2
+            SQL, [json_encode($schemas), $names === null ? null : json_encode($names), json_encode($kinds)]);
+
+        $skipped = array_map(static fn (array $table): string => $table[0] . '.' . $table[1], $oversized);
+        $relations = [];
+        foreach ($rows as $row) {
+            if (in_array($row['nspname'] . '.' . $row['relname'], $skipped, true)) {
+                continue;
+            }
+            $relations[] = ['schema' => (string) $row['nspname'], 'name' => (string) $row['relname'], 'kind' => (string) $row['relkind'], 'columns' => array_map('strval', (array) json_decode((string) $row['columns'], true))];
+        }
+        if ($relations === []) {
+            throw new ApiException(422, $oversized === [] ? 'There is no data to export: tick a table under Data.' : 'There is no data to export: every table ticked is larger than "Skip tables larger than".');
+        }
+
+        return $relations;
     }
 
     /** @return array<string, string> the databases pg_dumpall dumps, by name */
