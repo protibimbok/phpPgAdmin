@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as R
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '@/api/request'
+import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls, useLevel } from '@/level'
 import { preference, savePreferences, usePreference } from '@/preferences'
-import { clearHistory, createBookmark, deleteBookmark, listBookmarks, listHistory, type Bookmark, type HistoryEntry } from '../api'
+import { createBookmark, deleteBookmark, listBookmarks, listHistory, type Bookmark, type HistoryEntry } from '../api'
 import SqlEditor, { type SqlEditorHandle } from '../editor/SqlEditor'
-import { CONSOLE_ALWAYS_EXPAND, CONSOLE_ENTER_EXECUTES, CONSOLE_HEIGHT, CONSOLE_START_HISTORY } from '../preferences'
+import { CONFIRM, CONSOLE_ALWAYS_EXPAND, CONSOLE_ENTER_EXECUTES, CONSOLE_HEIGHT, CONSOLE_START_HISTORY, isDestructive } from '../preferences'
 
 /** phpMyAdmin's console settings (Config\Settings\Console), the role's settings on the Features page. */
 interface Options {
@@ -77,6 +78,7 @@ export default function Console() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [bookmarks, setBookmarks] = useState<Bookmark[] | null>(null)
   const [newBookmark, setNewBookmark] = useState({ label: '', database: '', shared: false, sql: '' })
+  const [confirming, setConfirming] = useState<{ sql: string; database: string | null } | null>(null)
   const editor = useRef<SqlEditorHandle>(null)
   const content = useRef<HTMLDivElement>(null)
 
@@ -156,8 +158,14 @@ export default function Console() {
   /** Run a statement on the SQL page of the database it belongs to, or of the one the page is at. */
   function execute(sql: string, database: string | null = level.db ?? null) {
     if (!/[A-Za-z]/.test(sql)) return
+    // phpMyAdmin's console asks confirmQuery() first: "Confirm DROP queries" holds a destructive statement.
+    if (preference<boolean>(CONFIRM) && isDestructive(sql)) return setConfirming({ sql, database })
+    run(sql, database)
+  }
+
+  function run(sql: string, database: string | null) {
     const target = database === null ? '/server/sql' : `${urls.database(database)}/sql`
-    navigate(`${target}?${new URLSearchParams({ sql, run: '1' })}`)
+    navigate(`${target}?${new URLSearchParams({ sql, run: '1' })}`, { state: { confirmed: true } })
     setQuery('')
     setHistory(null)
   }
@@ -265,16 +273,18 @@ export default function Console() {
           <div className="switch_button console_switch" onClick={() => setOpen((o) => !o)}>
             <Icon name="console" /> <span>{t('console.title')}</span>
           </div>
-          <div
-            className="button clear"
-            onClick={() => {
-              setCleared(new Set(messages.map((m) => m.key)))
-              void clearHistory().then(() => setHistory([]))
-            }}
-          >
+          {/* phpMyAdmin's ConsoleMessages.clear(): the messages are hidden, the stored history is kept. */}
+          <div className="button clear" onClick={() => setCleared((current) => new Set([...current, ...messages.map((m) => m.key)]))}>
             <span>{t('console.clear')}</span>
           </div>
-          <div className={`button history${historyShown ? ' active' : ''}`} onClick={() => setHistoryShown((h) => !h)}>
+          <div
+            className={`button history${historyShown ? ' active' : ''}`}
+            onClick={() => {
+              // Showing the history brings back what Clear hid, except the failed queries (showHistory()).
+              if (!historyShown) setCleared((current) => new Set((history ?? []).filter((e) => e.status === 'error' && current.has(`h${e.id}`)).map((e) => `h${e.id}`)))
+              setHistoryShown((h) => !h)
+            }}
+          >
             <span>{t('console.history')}</span>
           </div>
           <div className={`button options${card === 'options' ? ' active' : ''}`} onClick={() => setCard(card === 'options' ? null : 'options')}>
@@ -383,6 +393,16 @@ export default function Console() {
           </>
         )}
       </div>
+      <ConfirmQuery
+        show={confirming !== null}
+        sql={confirming?.sql ?? ''}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => {
+          const pending = confirming
+          setConfirming(null)
+          if (pending) run(pending.sql, pending.database)
+        }}
+      />
     </div>
   )
 }

@@ -112,8 +112,9 @@ With the **Confirm DROP queries** setting on (the default, under
 ::: info
 The check looks at the first word of each statement (comments are skipped). A `DELETE` inside a
 `WITH` query or a function that drops something are run without asking.
-Macros and statements run from the console, from **Edit inline** or from a link are not checked
-either.
+Statements run from the [console](/tools/console) and links that open the SQL tab with a statement
+to run (from another page or a bookmark in the browser) are checked too. Macros and **Edit inline**
+are not, nor are statements another page has already confirmed (its own Delete or Drop dialog).
 :::
 
 ## Results
@@ -138,7 +139,7 @@ The links under a message:
 | **Edit inline** | Turns the statement into a text box with **Go** and **Cancel**; **Go** runs the edited text as a new query. |
 | **Edit** | Puts the statement back in the query box and scrolls up. From the Browse page it opens the table's SQL tab with the statement. |
 | **Explain SQL** | For `SELECT`, `WITH`, `VALUES` and `TABLE` statements: runs `EXPLAIN` on it. On an `EXPLAIN` result it reads **Skip Explain SQL** and runs the statement without `EXPLAIN`. |
-| **Refresh** | Runs the query again with the same page and order. |
+| **Refresh** | Runs the statement again with the same page and order; under a batch, that statement alone. |
 
 Below a row-returning statement come the [results grid](/table/browse) — the same
 grid as the Browse tab — the **Query results operations** card and the
@@ -170,9 +171,13 @@ These statements are **not** paged or sortable; the grid shows every row they re
 headings are not links:
 
 - a statement with its own `LIMIT`, `OFFSET`, `FETCH` or `FOR UPDATE/SHARE`;
-- `SELECT … INTO`, and `INSERT/UPDATE/DELETE/MERGE … RETURNING`;
-- `SHOW`, `EXPLAIN`, `FETCH` and any other statement that returns rows;
-- every statement of a batch of two or more (see [Batches](#batches)).
+- `SELECT … INTO`, `INSERT/UPDATE/DELETE/MERGE … RETURNING`, and a `WITH` holding one of them;
+- `SHOW`, `EXPLAIN`, `FETCH` and any other statement that returns rows.
+
+Their grids have no page links, **Show all** or **Number of rows**, since paging would run the
+statement again. The statements of a batch of two or more show all their rows too, but a SELECT
+among them keeps its navigation: using it runs that SELECT again on its own (see
+[Batches](#batches)).
 
 ::: warning No row limit on unpaged results
 An unpaged statement returns all its rows to the browser. `SELECT * FROM big_table LIMIT 1000000`,
@@ -182,18 +187,19 @@ queries a `LIMIT` that you can live with, or run them alone so they are paged.
 
 ::: info The in-memory fallback
 Some single SELECTs cannot be wrapped in a subquery, for example one whose result has two columns
-with the same name (`SELECT id AS a, title AS a FROM books` sorted by `a`), or a `WITH` holding a
-data-modifying statement. When the wrapped statement fails, phpPgAdmin runs your statement as
-written, fetches every row and pages them in memory. The total is then exact, but a click on a
-heading does not change the order.
+with the same name (`SELECT id AS a, title AS a FROM books` sorted by `a`). When the server rejects
+the wrapped statement before running it (a syntax error, or an `ORDER BY` column it cannot pick
+out), phpPgAdmin runs your statement as written, fetches every row and pages them in memory. The
+total is then exact, but a click on a heading does not change the order. An error while the
+statement runs, or a [cancel](#cancelling-a-running-query), is reported as it is; the statement is
+not run a second time.
 :::
 
-::: warning Statements are run more than once
-Paging runs your statement again for every page, and again for the total count. When the wrapped
-statement fails, the fallback runs it a second time. Volatile functions (`nextval()`, `random()`,
-functions that write) in a paged SELECT therefore run more often than you expect: a failing
-`SELECT nextval('s') / 0 …` advances the sequence twice. Put side effects in statements that do not
-return rows, or add a `LIMIT` so the statement is not paged.
+::: warning Paging runs the statement again
+Paging runs your statement again for every page, and again for the total count. Volatile functions
+(`nextval()`, `random()`, functions that write) in a paged SELECT therefore run more often than you
+expect. Put side effects in statements that do not return rows, or add a `LIMIT` so the statement
+is not paged.
 :::
 
 ### Batches
@@ -208,12 +214,10 @@ grid. The run **stops at the first error**; the statements after it are not run 
 
 ![A batch of four statements: a count with its grid, a DO block with its NOTICE, an error box for SELECT nope FROM books, and nothing for the fourth statement](/media/sql/batch-result.png)
 
-::: warning Changing the page or rows per page runs the whole batch again
-The grids of a batch show all their rows, but their navigation bars still work: changing
-**Number of rows**, ticking **Show all** or clicking **Refresh** runs every statement of the batch
-again — including any `INSERT`, `UPDATE` or `DELETE` in it. Run writes and the SELECT that checks
-them separately, or avoid the grid controls on a batch's results.
-:::
+The grids of a batch show all their rows. Changing **Number of rows**, ticking **Show all**,
+clicking a heading or **Refresh** under one of them runs **only that SELECT** again, on its own,
+as phpMyAdmin does: the results of the batch are replaced by that statement's paged result, and the
+other statements (an `INSERT` before it, say) are not run again.
 
 ### Notices
 
@@ -240,17 +244,12 @@ statement, the first two stay done.
 
 | Option | What happens |
 | --- | --- |
-| **Run as one transaction** | `BEGIN` before the first statement, `COMMIT` after the last. The first error rolls everything back. |
+| **Run as one transaction** | `BEGIN` before the first statement, `COMMIT` after the last. The first error rolls everything back: the messages of the statements before it end in **[ROLLBACK occurred.]**, and the error box shows the real error. |
 | **Rollback when finished** | `BEGIN` before the first statement, `ROLLBACK` after the last, so you can try a change and see its effect without keeping it. The last message ends in **[ROLLBACK occurred.]** |
 
-::: warning What the messages do not tell you
-- When a batch fails under **Run as one transaction**, the earlier statements still read
-  **1 row inserted.** and so on, with no rollback note, although nothing was kept.
-- A single SELECT that fails under either option shows *current transaction is aborted, commands
-  ignored until end of transaction block* (25P02) instead of the real error. Untick the option and run
-  it again to see the actual message.
-- Statements that cannot run in a transaction block (`VACUUM`, `CREATE DATABASE`,
-  `CREATE INDEX CONCURRENTLY`, `ALTER SYSTEM`) fail under both options.
+::: warning Not in a transaction block
+Statements that cannot run in a transaction block (`VACUUM`, `CREATE DATABASE`,
+`CREATE INDEX CONCURRENTLY`, `ALTER SYSTEM`) fail under both options.
 :::
 
 ## Bind parameters
@@ -302,14 +301,8 @@ to cancel the statement (`pg_cancel_backend()` from a separate connection). The 
 
 ![While SELECT pg_sleep(4) runs: the Loading notice and Running the query… Cancel under the editor](/media/sql/running.png)
 
-::: danger Cancel does not stop a single SELECT
-When the query box holds one paged SELECT, **Cancel** stops the wrapped statement, and the
-[fallback](#how-paging-and-ordering-work) then runs it again unwrapped, to the end: a cancelled
-`SELECT pg_sleep(5)` returns success after about six seconds. Cancel works for every other
-statement and for statements in a batch. To be able to stop a long SELECT, give it a `LIMIT`, add
-a second statement (`SELECT 1;` before it), or set `statement_timeout` in the same batch:
-`SET statement_timeout = '30s'; SELECT …`.
-:::
+A cancelled statement is not run again, and in a batch the statements after it are not run. Under
+**Run as one transaction** the cancel rolls the batch back like any other error.
 
 Leaving the page does not send a cancel. To stop a statement you can no longer reach, cancel its
 backend on [Status → Processes](/server/status).

@@ -31,10 +31,12 @@ current page belongs to — `/db/bookshop/sql` from any page inside `bookshop`, 
 runs the query there, with the results in the usual [result boxes](/tools/sql#results). Outside a
 database (server pages) it uses the server-level SQL tab, which runs in the database you signed in to.
 
-::: warning No confirmation, default options
-A query from the console runs at once with the SQL tab's default options: each statement commits on
-its own, and a `DELETE`, `DROP` or `TRUNCATE` is **not** confirmed, whatever the **Confirm DROP
-queries** setting says. Text without a letter in it is ignored.
+::: warning Default options
+A query from the console runs with the SQL tab's default options: each statement commits on its own.
+With **Confirm DROP queries** on, a `DROP`, `ALTER TABLE … DROP`, `DELETE`, `TRUNCATE` or an
+`UPDATE` without `WHERE` asks **Do you really want to execute "…"?** first, as phpMyAdmin's console
+does; **Cancel** leaves you on the page with the query still in the box. Text without a letter in it is
+ignored.
 :::
 
 ::: info
@@ -68,8 +70,9 @@ query run from the SQL tab's **Go**, the Browse grid or a macro does not appear 
 something from the console or reload the page.
 :::
 
-**Clear** deletes your whole query history on this server — every entry, not only the ones listed —
-and empties the list. It cannot be undone.
+**Clear** empties the list, as phpMyAdmin's does: the entries are hidden, not deleted, and the
+stored history is kept. Queries you run afterwards appear as usual. Turning **History** off and on
+again brings the hidden entries back, except the failed ones; reloading the page brings back all.
 
 ## Options
 

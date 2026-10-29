@@ -20,6 +20,9 @@ final class Splitter
     /** A top-level keyword that makes a WITH statement write data, or a SELECT create a table. */
     private const array NOT_PAGEABLE = ['INSERT' => true, 'UPDATE' => true, 'DELETE' => true, 'MERGE' => true, 'INTO' => true];
 
+    /** The statements a WITH may hold in parentheses that make it write data. */
+    private const array WRITING = ['INSERT' => true, 'UPDATE' => true, 'DELETE' => true, 'MERGE' => true];
+
     /** A top-level clause the statement already has, so paging must not add another. */
     private const array LIMITING = ['LIMIT' => true, 'OFFSET' => true, 'FETCH' => true, 'FOR' => true];
 
@@ -96,8 +99,9 @@ final class Splitter
 
     /**
      * The keywords of the statement at parenthesis depth 0 (plus the very first one, which may
-     * sit inside parentheses), upper-cased, in order, up to $max of them; anything quoted,
-     * commented or inside parentheses is skipped.
+     * sit inside parentheses, and an INSERT, UPDATE, DELETE or MERGE opening a parenthesis, the
+     * body of a data-modifying WITH), upper-cased, in order, up to $max of them; anything
+     * quoted, commented or inside parentheses is skipped.
      *
      * @return list<string>
      */
@@ -105,12 +109,15 @@ final class Splitter
     {
         $words = [];
         $depth = 0;
+        // Just inside a parenthesis opened at depth 0, before anything but blanks and comments.
+        $opened = false;
         $length = strlen($sql);
         $i = 0;
 
         while ($i < $length && count($words) < $max) {
             $skipped = self::skipQuotedOrComment($sql, $i, $length);
             if ($skipped !== null) {
+                $opened = $opened && ($sql[$i] === '-' || $sql[$i] === '/');
                 $i = $skipped;
                 continue;
             }
@@ -118,18 +125,26 @@ final class Splitter
             $c = $sql[$i];
             if ($c === '(') {
                 $depth++;
+                $opened = $depth === 1;
                 $i++;
             } elseif ($c === ')') {
                 $depth = max(0, $depth - 1);
+                $opened = false;
                 $i++;
-            } elseif (($depth === 0 || $words === []) && (ctype_alpha($c) || $c === '_')) {
+            } elseif (($depth === 0 || $words === [] || $opened) && (ctype_alpha($c) || $c === '_')) {
                 // The first word counts whatever its depth, so "(SELECT 1) UNION (SELECT 2)" reads as a SELECT.
                 $j = $i + 1;
                 while ($j < $length && (ctype_alnum($sql[$j]) || $sql[$j] === '_')) {
                     $j++;
                 }
-                $words[] = strtoupper(substr($sql, $i, $j - $i));
+                $word = strtoupper(substr($sql, $i, $j - $i));
+                if ($depth === 0 || $words === [] || isset(self::WRITING[$word])) {
+                    $words[] = $word;
+                }
+                $opened = false;
                 $i = $j;
+            } elseif ($opened && ctype_space($c)) {
+                $i++;
             } elseif ($depth === 0 && ctype_digit($c)) {
                 // A number: skip it whole so "1e5" is not read as the keyword "e5".
                 $j = $i + 1;
@@ -138,6 +153,7 @@ final class Splitter
                 }
                 $i = $j;
             } else {
+                $opened = false;
                 $i++;
             }
         }

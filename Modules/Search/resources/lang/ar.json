@@ -25,6 +25,7 @@
     "matches_few": "{{count}} تطابقات في <strong>{{table}}</strong>",
     "matches_many": "{{count}} تطابقًا في <strong>{{table}}</strong>",
     "matches_other": "{{count}} تطابق في <strong>{{table}}</strong>",
+    "failed": "تعذّر البحث في <strong>{{table}}</strong>:",
     "total_zero": "<strong>المجموع:</strong> <em>{{count}}</em> تطابق",
     "total_one": "<strong>المجموع:</strong> <em>{{count}}</em> تطابق",
     "total_two": "<strong>المجموع:</strong> <em>{{count}}</em> تطابقان",

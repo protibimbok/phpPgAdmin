@@ -26,8 +26,10 @@ other objects whose name contains a text.
 
 Every column is cast to text, so numbers, dates, enums, arrays, JSON and composite values are searched
 in their text form: `2025-01` finds orders placed in January 2025 through `placed_at::text`. Matching
-ignores case, as MySQL's usual collations do. `%` and `_` in your words are `LIKE` wildcards in all
-but the regular-expression mode; there is no way to escape them.
+ignores case, as MySQL's usual collations do. The text is compared with the database's default
+collation (`col::text COLLATE "default"`), because a column's nondeterministic collation (such as the
+demo's `case_insensitive` on `customers.full_name`) supports neither `ILIKE` nor regular expressions.
+`%` and `_` in your words are `LIKE` wildcards in all but the regular-expression mode; there is no way to escape them.
 
 ### Results
 
@@ -43,20 +45,16 @@ Each line gives the number of **rows** that match in a relation, with:
 A **Total:** line follows when more than one relation was searched. Relations searched for a column
 they do not have count 0 matches.
 
+A relation the server cannot search shows **Could not search** with the server's message in red
+instead of a count, and the search goes on with the others: an invalid regular expression (*brackets
+[] not balanced*), a view whose query fails, or a relation you may not read.
+
 ### What is searched
 
 **Inside tables** lists the database's tables, views, materialized views and foreign tables, in every
 schema except `pg_catalog`, `information_schema` and the other `pg_*` schemas. Partitions are not
 listed: searching a partitioned table searches all its partitions. Searching a table with children by
 inheritance also counts the children's rows (`books` includes `ebooks`).
-
-::: warning One failing relation fails the whole search
-The search stops at the first relation the server cannot search and shows only that error, for
-example *nondeterministic collations are not supported for ILIKE*. In the demo database the
-`customers.full_name` column has the ICU collation `case_insensitive`, so a search over all tables
-fails until you unselect `public.customers` (or name another column in **Inside column:**). An invalid
-regular expression (*brackets [] not balanced*) fails the same way.
-:::
 
 ::: warning Cost
 Each selected relation is read in full with a `count(*)` over every column cast to text; nothing uses

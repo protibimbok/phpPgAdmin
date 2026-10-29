@@ -11,7 +11,6 @@ use PhpPgAdmin\Core\Database\QueryException;
 use PhpPgAdmin\Core\Database\Quoting;
 use PhpPgAdmin\Core\Facades\Nodes;
 use PhpPgAdmin\Core\Facades\Sql;
-use PhpPgAdmin\Core\Http\ApiException;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -59,7 +58,10 @@ final class SearchController
      * phpMyAdmin's search of the data: for each relation chosen, the number of rows in which a
      * column (or the column named) matches, with the SELECT and DELETE that show and remove them.
      *
-     * @return array{results: list<array{schema: string, name: string, kind: string, count: int, select: string, delete: string|null}>, total: int}
+     * A relation the search fails in (a type without a text cast, a permission it lacks) is
+     * reported with its error, and the search goes on with the next one.
+     *
+     * @return array{results: list<array{schema: string, name: string, kind: string, count: int, select: string, delete: string|null, error: string|null}>, total: int}
      */
     public function data(ServerRequestInterface $request, array $args): array
     {
@@ -97,10 +99,12 @@ final class SearchController
             ), 'attname');
             $name = Quoting::ident($relation['schema'], $relation['name']);
             $where = self::where($text, $type, $columns);
+            $error = null;
             try {
                 $count = $where === null ? 0 : (int) $conn->scalar("SELECT count(*) FROM {$name} WHERE {$where}");
             } catch (QueryException $e) {
-                throw new ApiException(422, $e->getMessage());
+                $count = 0;
+                $error = $e->getMessage();
             }
             $total += $count;
             $results[] = $relation + [
@@ -108,6 +112,7 @@ final class SearchController
                 'select' => $where === null ? '' : "SELECT * FROM {$name} WHERE {$where}",
                 // Rows are deleted from a table; a view or a materialized view is left to the user.
                 'delete' => $where === null || !in_array($relation['kind'], ['r', 'p'], true) ? null : "DELETE FROM {$name} WHERE {$where}",
+                'error' => $error,
             ];
         }
 
@@ -159,7 +164,9 @@ final class SearchController
 
     /**
      * phpMyAdmin's Search::getWhereClause, for PostgreSQL: each column read as text and matched
-     * without regard to case (ILIKE, ~*), as MySQL's case-insensitive collations match.
+     * without regard to case (ILIKE, ~*), as MySQL's case-insensitive collations match. The
+     * text takes the database's default collation, since a column's nondeterministic one
+     * supports neither ILIKE nor regular expressions.
      *
      * @param list<string> $columns
      */
@@ -168,7 +175,7 @@ final class SearchController
         if ($columns === []) {
             return null;
         }
-        $cast = array_map(static fn (string $c): string => Quoting::ident($c) . '::text', $columns);
+        $cast = array_map(static fn (string $c): string => Quoting::ident($c) . '::text COLLATE "default"', $columns);
         $any = static fn (string $op, string $pattern): string => '(' . implode(' OR ', array_map(static fn (string $c): string => "{$c} {$op} " . Quoting::literal($pattern), $cast)) . ')';
 
         if ($type === 1 || $type === 2) {

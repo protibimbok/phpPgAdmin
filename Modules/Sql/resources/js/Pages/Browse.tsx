@@ -127,7 +127,8 @@ export default function Browse() {
         edit={(statement) => `${sqlPage}?${new URLSearchParams({ sql: statement })}`}
         onExplain={(statement) => navigateTo(`${sqlPage}?${new URLSearchParams({ sql: statement, run: '1' })}`)}
         onRefresh={reload}
-        onRun={(statement) => navigateTo(`${sqlPage}?${new URLSearchParams({ sql: statement, run: '1' })}`)}
+        // Edit inline runs what was typed without the "Confirm DROP queries" question, as on the SQL tab.
+        onRun={(statement) => navigateTo(`${sqlPage}?${new URLSearchParams({ sql: statement, run: '1' })}`, { state: { confirmed: true } })}
         grid={{ sortKeys, rowActions: actions.rowActions, bulkActions: actions.bulkActions, cellEditor: actions.cellEditor }}
         bookmarkDatabase={db}
       />

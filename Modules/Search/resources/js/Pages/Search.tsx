@@ -56,7 +56,8 @@ function DataSearch({ db, options }: { db: string; options: SearchOptions }) {
   const [deleting, setDeleting] = useState<DataResult | null>(null)
 
   /** A statement run on the database's SQL page, as phpMyAdmin's Browse and Delete links do. */
-  const runOnSqlPage = (sql: string) => navigate(`${urls.database(db)}/sql?${new URLSearchParams({ sql, run: '1' })}`)
+  /** Runs a statement on the SQL page; a DELETE comes confirmed already, so the page does not ask again. */
+  const runOnSqlPage = (sql: string) => navigate(`${urls.database(db)}/sql?${new URLSearchParams({ sql, run: '1' })}`, { state: { confirmed: true } })
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -159,8 +160,14 @@ function DataSearch({ db, options }: { db: string; options: SearchOptions }) {
             <tbody>
               {results.rows.map((row) => (
                 <tr className="noclick" key={relationKey(row)}>
-                  <td>
-                    <Trans t={t} i18nKey="data.matches" count={row.count} values={{ table: relationKey(row) }} components={{ strong: <strong /> }} />
+                  <td className={row.error !== null ? 'text-danger' : undefined}>
+                    {row.error !== null ? (
+                      <>
+                        <Trans t={t} i18nKey="data.failed" values={{ table: relationKey(row) }} components={{ strong: <strong /> }} /> {row.error}
+                      </>
+                    ) : (
+                      <Trans t={t} i18nKey="data.matches" count={row.count} values={{ table: relationKey(row) }} components={{ strong: <strong /> }} />
+                    )}
                   </td>
                   <td>
                     {row.count > 0 && (

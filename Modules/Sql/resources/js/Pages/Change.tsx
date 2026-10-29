@@ -607,8 +607,9 @@ function rowFrom(columns: RelationColumn[], row: Record<string, string | null>, 
 }
 
 /**
- * A copy of a row: every value counts as entered so the new row repeats it, except a key the
- * server generates (a serial or identity column), which is left to the default.
+ * A copy of a row: every value counts as entered so the new row repeats it, except what the
+ * server numbers (a serial key, any identity column, as pgAdmin pastes a row without its
+ * serial and identity values) and a generated column, which are left to the server.
  */
 function copyOf(columns: RelationColumn[], row: Record<string, string | null>): FormRow {
   return {
@@ -616,7 +617,7 @@ function copyOf(columns: RelationColumn[], row: Record<string, string | null>): 
     ignore: false,
     fields: Object.fromEntries(
       columns.map((c) => {
-        const generatedKey = c.pk && c.has_default
+        const generatedKey = (c.pk && c.has_default) || c.is_identity
         const value = generatedKey || row[c.name] === null ? '' : padFraction(row[c.name] ?? '', fractionDigits(c))
 
         return [c.name, newField(value, !generatedKey && row[c.name] === null, '', !generatedKey && !c.is_generated)]

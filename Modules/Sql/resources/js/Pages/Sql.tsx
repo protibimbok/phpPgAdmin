@@ -222,13 +222,20 @@ function SqlPageAt() {
   }
 
   // A link that carries a query (Edit from the Browse page, the console) puts it in the box,
-  // and runs it when it says so (Explain SQL, a console run).
+  // and runs it when it says so (Explain SQL, a console run). A destructive statement waits for
+  // "Confirm DROP queries" unless the page that sent it asked already (its navigation state
+  // says so, which a link from elsewhere cannot carry).
   const urlSql = search.get('sql')
   const autorun = search.get('run') === '1'
+  const { state: locationState } = useLocation()
   useEffect(() => {
     if (urlSql === null) return
     setQuery(urlSql)
-    if (autorun && urlSql.trim() !== '') execute(urlSql)
+    if (autorun && urlSql.trim() !== '') {
+      const asked = (locationState as { confirmed?: boolean } | null)?.confirmed === true
+      if (!asked && preference<boolean>(CONFIRM) && isDestructive(urlSql)) setConfirming(urlSql)
+      else execute(urlSql)
+    }
     setSearch((params) => {
       params.delete('sql')
       params.delete('run')
@@ -238,10 +245,15 @@ function SqlPageAt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlSql, autorun])
 
-  function navigate(next: GridNav) {
-    if (ran === null) return
+  /**
+   * Another page, order or a refresh of a result: its statement runs again on its own, as
+   * phpMyAdmin's navigation sends the displayed query, never the rest of the batch it came from.
+   */
+  function navigate(next: GridNav, sql: string | null = ran) {
+    if (sql === null) return
+    setRan(sql)
     setNav(next)
-    void runner.run({ sql: ran, delimiter, limit: next.maxRows, offset: next.pos, order: next.order, rollback, transaction })
+    void runner.run({ sql, delimiter, limit: next.maxRows, offset: next.pos, order: next.order, rollback, transaction })
   }
 
   function quick(kind: 'select_all' | 'select' | 'insert' | 'update' | 'delete') {
@@ -540,7 +552,7 @@ function SqlPageAt() {
             setQuery(sql)
             execute(sql)
           }}
-          onRefresh={() => ran !== null && navigate(nav)}
+          onRefresh={(sql) => navigate(nav, sql)}
           onRun={(sql) => {
             setQuery(sql)
             execute(sql)

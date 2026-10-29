@@ -47,10 +47,10 @@ If you change a console option from the console's own **Options** card, or resiz
 
 | Setting | Default | Effect |
 |---|---|---|
-| **Confirm DROP queries** | On | On the SQL tab, a statement that starts with DROP, ALTER TABLE … DROP, DELETE FROM or TRUNCATE, or an UPDATE without WHERE, asks **Do you really want to execute "…"?** before it runs. Off, it runs straight away. phpMyAdmin's `Confirm`. |
+| **Confirm DROP queries** | On | On the SQL tab and in the console, a statement that starts with DROP, ALTER TABLE … DROP, DELETE FROM or TRUNCATE, or an UPDATE without WHERE, asks **Do you really want to execute "…"?** before it runs. Off, it runs straight away. phpMyAdmin's `Confirm`. |
 
-::: warning Only the SQL tab
-The setting applies to what you type on an SQL tab. The Drop buttons and links on the other pages always ask, whatever the setting, and a statement run from the [console](/tools/console) never asks, even with the setting on.
+::: warning SQL tab and console
+The setting applies to what you type on an SQL tab or in the [console](/tools/console), and to links that open the SQL tab with a statement to run. The Drop buttons and links on the other pages always ask, whatever the setting.
 :::
 
 ### Console

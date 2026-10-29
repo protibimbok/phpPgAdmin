@@ -96,7 +96,7 @@ box and **Edit**, **Copy** and **Delete**.
 | Action | What it does |
 | --- | --- |
 | **Edit** | Opens the [edit form](/table/insert#edit-a-row) for the row. |
-| **Copy** | Opens the insert form filled with the row's values, to insert a new row like it. The primary key is left to its default when it has one. |
+| **Copy** | Opens the insert form filled with the row's values, to insert a new row like it. A primary key with a default and every identity column are left for the server to number ([Copy a row](/table/insert#copy-a-row)). |
 | **Delete** | Asks *Do you really want to execute "DELETE FROM … WHERE "id" = '5'"?* in a browser dialog and deletes the row. |
 
 ### Double-click editing

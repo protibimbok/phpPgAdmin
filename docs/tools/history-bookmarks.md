@@ -41,10 +41,11 @@ Lowering the setting does not hide entries: at the next statement that runs, eve
 the newest *N* is removed for good. Raising it again does not bring them back.
 :::
 
-### Clear the history
+### Clearing the console
 
-The console's **Clear** button deletes **all** your history entries on this server, not only the
-ones the console shows. There is no way to delete a single entry.
+The console's **Clear** button only empties the console's list, as in phpMyAdmin; the stored history
+is kept (see [Console → History](/tools/console#history)). Entries are deleted only by the
+[history length](#history-length) limit; there is no way to delete a single entry.
 
 ## Bookmarks
 

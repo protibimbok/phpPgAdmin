@@ -138,13 +138,14 @@ touched are sent; the other columns get their defaults. Changing the label of a 
 ## Copy a row
 
 **Copy** opens the insert form filled with the row's values, every field counted as typed, so the new
-row repeats them. A primary key with a default (serial, identity) is left empty for the server to
-number.
+row repeats them. What the server numbers is left empty for it to fill in: a primary key with a
+default (serial, identity) and every identity column, key or not (`GENERATED ALWAYS` or
+`BY DEFAULT`), as pgAdmin pastes a row without its serial and identity values. Generated stored
+columns are computed again.
 
-::: warning Copy and GENERATED ALWAYS identity columns
-Only the primary key is left out. A table with another `GENERATED ALWAYS AS IDENTITY` column cannot be
-copied as it is: clear that field's value before **Go**, or the insert fails with *cannot insert a
-non-DEFAULT value into column*. Unique columns (an ISBN, an email) also need a new value.
+::: warning Unique columns
+Unique columns (an ISBN, an email) keep the copied value and need a new one, or the insert fails with
+*duplicate key value violates unique constraint*.
 :::
 
 ## Views

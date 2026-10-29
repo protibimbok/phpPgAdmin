@@ -24,6 +24,9 @@ final class QueryRunner
     /** The alias of the paging wrapper; a name no real column is likely to carry. */
     private const string WRAPPER = '_pga';
 
+    /** What a WITH holding an INSERT, UPDATE, DELETE or MERGE says when it is put in a subquery. */
+    private const string FEATURE_NOT_SUPPORTED = '0A000';
+
     /**
      * @param array{sql: string, delimiter?: string, request_id?: string|null, limit?: int|null, offset?: int, count?: bool, order?: list<array{name: string, desc?: bool}>, transaction?: bool, rollback?: bool, statement_timeout_ms?: int} $options
      */
@@ -84,7 +87,7 @@ final class QueryRunner
         }
 
         foreach ($statements as $statement) {
-            $result = $this->runStatement($statement, $pageable);
+            $result = $this->runStatement($statement, $pageable, $transaction);
             $results[] = $result;
 
             if ($result['kind'] === 'error') {
@@ -114,28 +117,51 @@ final class QueryRunner
     }
 
     /** @return array<string, mixed> */
-    private function runStatement(Statement $statement, bool $pageable): array
+    private function runStatement(Statement $statement, bool $pageable, bool $transaction): array
     {
         $limit = $this->options['limit'] ?? null;
         $limit = $limit === null || (int) $limit <= 0 ? null : (int) $limit;
         $offset = max(0, (int) ($this->options['offset'] ?? 0));
         $order = $pageable ? $this->orderClause() : '';
         $wrapped = $pageable && ($limit !== null || $order !== '' || $offset > 0);
+        // Whether the statement may be run again on its own for another page or order: in a
+        // batch too, where paging runs just that statement, never the batch.
+        $pagesAlone = Splitter::isPageable($statement->sql);
 
         $startedAt = gmdate('Y-m-d\TH:i:s\Z');
         $started = hrtime(true);
         $sliced = false;
 
         try {
-            try {
-                $result = $this->conn->query($wrapped ? $this->wrap($statement->sql, $order, $limit, $offset) : $statement->sql);
-            } catch (QueryException $e) {
-                if (!$wrapped) {
-                    throw $e;
-                }
-                // The statement cannot be a subquery after all: run it as written and page in memory.
+            if (!$wrapped) {
                 $result = $this->conn->query($statement->sql);
-                $sliced = true;
+            } else {
+                // Inside a transaction a failed attempt would abort it; a savepoint keeps it usable.
+                if ($transaction) {
+                    $this->conn->exec('SAVEPOINT ' . self::WRAPPER);
+                }
+                try {
+                    $result = $this->conn->query($this->wrap($statement->sql, $order, $limit, $offset));
+                } catch (QueryException $e) {
+                    if ($transaction) {
+                        $this->conn->exec('ROLLBACK TO SAVEPOINT ' . self::WRAPPER);
+                    }
+                    if (!self::cannotWrap($e, $order !== '')) {
+                        throw $e;
+                    }
+                    // The statement cannot be a subquery after all: run it as written and page in memory.
+                    $result = $this->conn->query($statement->sql);
+                    $sliced = true;
+                    // A data-modifying WITH ran: paging it again would run it again, so it shows all its rows.
+                    if ($e->sqlstate === self::FEATURE_NOT_SUPPORTED) {
+                        $pagesAlone = false;
+                        $limit = null;
+                        $offset = 0;
+                    }
+                }
+                if ($transaction) {
+                    $this->conn->exec('RELEASE SAVEPOINT ' . self::WRAPPER);
+                }
             }
         } catch (QueryException $e) {
             $duration = (hrtime(true) - $started) / 1e6;
@@ -202,12 +228,28 @@ final class QueryRunner
             'offset' => $wrapped || $sliced ? $offset : 0,
             'limit' => $wrapped || $sliced ? $limit : null,
             'has_more' => $hasMore,
-            'pageable' => $pageable,
+            'pageable' => $pagesAlone,
             'command_tag' => $result->commandTag(),
             'duration_ms' => $duration,
             'notices' => $result->notices(),
             'source' => $described['source'],
         ];
+    }
+
+    /**
+     * True when the wrapped statement failed because of the wrapper, as the server rejects it
+     * while parsing, before anything ran: a syntax error, a data-modifying WITH in a subquery,
+     * or (with an order) a column name the ORDER BY cannot pick out. Any other failure, a
+     * cancel or an error at run time, is the statement's own and is not run again.
+     */
+    private static function cannotWrap(QueryException $e, bool $ordered): bool
+    {
+        return match ($e->sqlstate) {
+            '42601', self::FEATURE_NOT_SUPPORTED => true,
+            // ambiguous_column, undefined_column
+            '42702', '42703' => $ordered,
+            default => false,
+        };
     }
 
     private function wrap(string $sql, string $order, ?int $limit, int $offset): string

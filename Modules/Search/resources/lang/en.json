@@ -21,6 +21,7 @@
     "results": "Search results for \"<em>{{text}}</em>\" {{how}}:",
     "matches_one": "{{count}} match in <strong>{{table}}</strong>",
     "matches_other": "{{count}} matches in <strong>{{table}}</strong>",
+    "failed": "Could not search <strong>{{table}}</strong>:",
     "total_one": "<strong>Total:</strong> <em>{{count}}</em> match",
     "total_other": "<strong>Total:</strong> <em>{{count}}</em> matches",
     "browse": "Browse",

@@ -510,7 +510,7 @@ export default function TableOperations() {
               onClick={(e) => {
                 e.preventDefault()
                 setBoxes({})
-                setConfirm({ sql: `DELETE FROM ${relation}`, warning: t('operations.delete_warning'), run: async () => navigate(sqlPage(`DELETE FROM ${relation}`)) })
+                setConfirm({ sql: `DELETE FROM ${relation}`, warning: t('operations.delete_warning'), run: async () => navigate(sqlPage(`DELETE FROM ${relation}`), { state: { confirmed: true } }) })
               }}
             >
               {t('operations.delete_from')}

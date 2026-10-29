@@ -159,7 +159,7 @@ Dropping, emptying or deleting asks first, in phpMyAdmin's words: **Do you reall
 
 ![The Confirm dialog: Do you really want to execute "DROP TABLE IF EXISTS guide_nothing"? with OK and Cancel](/media/guide/confirm-dialog.png)
 
-The setting **Confirm DROP queries** ([Settings › Features](/server/settings#features)) controls the question for statements you type on the SQL tab: DROP, ALTER TABLE … DROP, DELETE, TRUNCATE and UPDATE without WHERE. The confirmations of the Drop buttons and links on the other pages always appear.
+The setting **Confirm DROP queries** ([Settings › Features](/server/settings#features)) controls the question for statements you type on the SQL tab or in the console: DROP, ALTER TABLE … DROP, DELETE, TRUNCATE and UPDATE without WHERE. The confirmations of the Drop buttons and links on the other pages always appear.
 
 Press **Escape** or click outside a dialog to close it. When dialogs are stacked (a preview opened from a dialog), Escape closes the top one.
 
@@ -185,10 +185,6 @@ Press **Escape** or click outside a dialog to close it. When dialogs are stacked
 ## Console
 
 The **Console** bar at the bottom of every page opens a small query box with the query history and bookmarks, after phpMyAdmin's console. A query run from it opens on the SQL tab of the current database. See [Console](/tools/console).
-
-::: warning The console skips the DROP confirmation
-A DROP, DELETE or TRUNCATE run from the console is executed without the **Confirm DROP queries** question, even when that setting is on.
-:::
 
 ## Language and right-to-left
 

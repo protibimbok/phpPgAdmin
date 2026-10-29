@@ -26,6 +26,8 @@ export interface DataResult extends SearchRelation {
   select: string
   /** null for a view or a materialized view */
   delete: string | null
+  /** The server's message when the relation could not be searched; the other relations still are. */
+  error: string | null
 }
 
 export interface ObjectResult {

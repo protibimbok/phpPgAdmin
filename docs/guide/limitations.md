@@ -56,7 +56,7 @@ Every run of the SQL editor uses a fresh connection, so `SET`, temporary tables 
 
 ### Paging re-runs the query
 
-A paged `SELECT` is wrapped in a subquery and run again for every page and for the row count, so volatile functions such as `nextval()` run more than once. Statements that cannot be wrapped, and every statement in a batch after the first, return all their rows with no limit ([How paging and ordering work](/tools/sql#how-paging-and-ordering-work)).
+A paged `SELECT` is wrapped in a subquery and run again for every page and for the row count, so volatile functions such as `nextval()` run more than once. Statements that cannot be wrapped, and the statements of a batch, return all their rows with no limit; paging a SELECT of a batch runs that SELECT alone, never the rest of the batch ([How paging and ordering work](/tools/sql#how-paging-and-ordering-work)).
 
 ### PostgreSQL is not MySQL
 

@@ -74,17 +74,20 @@ try {
     await close()
   }
 
-  // Database search: the form, results (customers left out; see the page), object search.
+  // Database search: the form, results (customers too: its nondeterministic collation is searched as "default"), object search.
   {
     const { page, close } = await openRetry('/db/bookshop/search')
     await page.fill('#criteriaSearchString', 'guards')
     await snap(page, 'sql/db-search.png', '#db_search_form')
-    // The seed's relations only (other scratch objects may exist), without customers.
-    const seed = ['audit_log', 'author_stats', 'authors', 'book_catalogue', 'books', 'ebooks', 'order_items', 'orders', 'publishers', 'reviews'].map((t) => `public.${t}`)
+    // The seed's relations only (other scratch objects may exist).
+    const seed = ['audit_log', 'author_stats', 'authors', 'book_catalogue', 'books', 'customers', 'ebooks', 'order_items', 'orders', 'publishers', 'reviews'].map((t) => `public.${t}`)
     const keep = await page.locator('#criteriaTables option').evaluateAll((os, seed) => os.map((o) => o.value).filter((v) => seed.includes(v) || /^inventory\.(warehouses|stock|promotions)$/.test(v)), seed)
     await page.selectOption('#criteriaTables', keep)
     await page.click('#buttonGo')
     await page.waitForSelector('#searchresults')
+    // Every relation is searched, customers.full_name (ICU case_insensitive) included.
+    const failed = await page.locator('#searchresults td.text-danger').allInnerTexts()
+    if (failed.length) throw new Error(`database search failed in: ${failed.join('; ')}`)
     await snap(page, 'sql/db-search-results.png', '#searchresults')
     await page.fill('#objectSearchString', 'book')
     await page.selectOption('#objectSearchType', 'column')

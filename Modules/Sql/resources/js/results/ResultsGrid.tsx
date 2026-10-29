@@ -166,105 +166,110 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
       <tbody>
         <tr>
           <td className="navigation_separator" />
-          {pos > 0 && !showingAll && (
+          {/* Paging runs the statement again, which only a read-only SELECT may be. */}
+          {result.pageable && (
             <>
-              <td>
-                <input type="submit" name="navig" className="btn btn-secondary ajax" value="<<" title={t('grid.begin')} onClick={() => go({ pos: 0 })} />
-              </td>
-              <td>
-                <input type="submit" name="navig" className="btn btn-secondary ajax" value="<" title={t('grid.previous')} onClick={() => go({ pos: Math.max(0, pos - (pageSize ?? 0)) })} />
-              </td>
-            </>
-          )}
-          {pageCount !== null && pageCount > 1 && (
-            <td>
-              <form onSubmit={(e) => e.preventDefault()}>
-                <label htmlFor={`pageselector_${uniqueId}`} className="visually-hidden">
-                  {t('grid.page_number')}
-                </label>
-                <select
-                  id={`pageselector_${uniqueId}`}
-                  className="pageselector ajax"
-                  name="pos"
-                  value={pos}
-                  onChange={(e) => go({ pos: Number(e.target.value) })}
-                >
-                  {pageOptions(pageCount, pageNumber).map((page) => (
-                    <option key={page} value={(page - 1) * (pageSize ?? 0)}>
-                      {page}
-                    </option>
-                  ))}
-                </select>
-              </form>
-            </td>
-          )}
-          {!isLastPage && (
-            <>
-              <td>
-                <input type="submit" name="navig" className="btn btn-secondary ajax" value=">" title={t('grid.next')} onClick={() => go({ pos: pos + (pageSize ?? 0) })} />
-              </td>
-              {total !== null && pageSize !== null && (
+              {pos > 0 && !showingAll && (
+                <>
+                  <td>
+                    <input type="submit" name="navig" className="btn btn-secondary ajax" value="<<" title={t('grid.begin')} onClick={() => go({ pos: 0 })} />
+                  </td>
+                  <td>
+                    <input type="submit" name="navig" className="btn btn-secondary ajax" value="<" title={t('grid.previous')} onClick={() => go({ pos: Math.max(0, pos - (pageSize ?? 0)) })} />
+                  </td>
+                </>
+              )}
+              {pageCount !== null && pageCount > 1 && (
                 <td>
-                  <input
-                    type="submit"
-                    name="navig"
-                    className="btn btn-secondary ajax"
-                    value=">>"
-                    title={t('grid.end')}
-                    onClick={() => go({ pos: Math.max(0, Math.floor((total - 1) / pageSize) * pageSize) })}
-                  />
+                  <form onSubmit={(e) => e.preventDefault()}>
+                    <label htmlFor={`pageselector_${uniqueId}`} className="visually-hidden">
+                      {t('grid.page_number')}
+                    </label>
+                    <select
+                      id={`pageselector_${uniqueId}`}
+                      className="pageselector ajax"
+                      name="pos"
+                      value={pos}
+                      onChange={(e) => go({ pos: Number(e.target.value) })}
+                    >
+                      {pageOptions(pageCount, pageNumber).map((page) => (
+                        <option key={page} value={(page - 1) * (pageSize ?? 0)}>
+                          {page}
+                        </option>
+                      ))}
+                    </select>
+                  </form>
                 </td>
               )}
+              {!isLastPage && (
+                <>
+                  <td>
+                    <input type="submit" name="navig" className="btn btn-secondary ajax" value=">" title={t('grid.next')} onClick={() => go({ pos: pos + (pageSize ?? 0) })} />
+                  </td>
+                  {total !== null && pageSize !== null && (
+                    <td>
+                      <input
+                        type="submit"
+                        name="navig"
+                        className="btn btn-secondary ajax"
+                        value=">>"
+                        title={t('grid.end')}
+                        onClick={() => go({ pos: Math.max(0, Math.floor((total - 1) / pageSize) * pageSize) })}
+                      />
+                    </td>
+                  )}
+                </>
+              )}
+              {(pageCount === null || pageCount !== 1) && (
+                <td>
+                  <div className="navigation_separator">|</div>
+                </td>
+              )}
+              <td>
+                <form onSubmit={(e) => e.preventDefault()}>
+                  <input
+                    type="checkbox"
+                    name="navig"
+                    id={`showAll_${uniqueId}`}
+                    className="showAllRows"
+                    value="all"
+                    checked={showingAll}
+                    onChange={(e) => go({ maxRows: e.target.checked ? null : defaultMaxRows(), pos: 0 })}
+                  />
+                  <label htmlFor={`showAll_${uniqueId}`}>{t('grid.show_all')}</label>
+                </form>
+              </td>
+              <td>
+                <div className="navigation_separator">|</div>
+              </td>
+              <td className="navigation_goto">
+                <form className="maxRowsForm" onSubmit={(e) => e.preventDefault()}>
+                  <label htmlFor={`sessionMaxRowsSelect_${uniqueId}`}>{t('grid.number_of_rows')}</label>
+                  <select
+                    className="autosubmit"
+                    name="session_max_rows"
+                    id={`sessionMaxRowsSelect_${uniqueId}`}
+                    value={showingAll ? '' : String(pageSize)}
+                    onChange={(e) => go({ maxRows: Number(e.target.value), pos: 0 })}
+                  >
+                    {showingAll && (
+                      <option value="" disabled>
+                        {t('grid.all')}
+                      </option>
+                    )}
+                    {[...new Set([...ROWS_OPTIONS, ...(pageSize !== null ? [pageSize] : [])])]
+                      .sort((a, b) => a - b)
+                      .map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                  </select>
+                </form>
+              </td>
+              <td className="navigation_separator" />
             </>
           )}
-          {(pageCount === null || pageCount !== 1) && (
-            <td>
-              <div className="navigation_separator">|</div>
-            </td>
-          )}
-          <td>
-            <form onSubmit={(e) => e.preventDefault()}>
-              <input
-                type="checkbox"
-                name="navig"
-                id={`showAll_${uniqueId}`}
-                className="showAllRows"
-                value="all"
-                checked={showingAll}
-                onChange={(e) => go({ maxRows: e.target.checked ? null : defaultMaxRows(), pos: 0 })}
-              />
-              <label htmlFor={`showAll_${uniqueId}`}>{t('grid.show_all')}</label>
-            </form>
-          </td>
-          <td>
-            <div className="navigation_separator">|</div>
-          </td>
-          <td className="navigation_goto">
-            <form className="maxRowsForm" onSubmit={(e) => e.preventDefault()}>
-              <label htmlFor={`sessionMaxRowsSelect_${uniqueId}`}>{t('grid.number_of_rows')}</label>
-              <select
-                className="autosubmit"
-                name="session_max_rows"
-                id={`sessionMaxRowsSelect_${uniqueId}`}
-                value={showingAll ? '' : String(pageSize)}
-                onChange={(e) => go({ maxRows: Number(e.target.value), pos: 0 })}
-              >
-                {showingAll && (
-                  <option value="" disabled>
-                    {t('grid.all')}
-                  </option>
-                )}
-                {[...new Set([...ROWS_OPTIONS, ...(pageSize !== null ? [pageSize] : [])])]
-                  .sort((a, b) => a - b)
-                  .map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-              </select>
-            </form>
-          </td>
-          <td className="navigation_separator" />
           <td className="largescreenonly">
             <span>{t('grid.filter_rows')}</span>
             <input

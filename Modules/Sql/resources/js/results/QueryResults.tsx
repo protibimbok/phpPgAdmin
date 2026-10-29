@@ -11,11 +11,13 @@ import ResultsGrid, { type GridNav, type ResultsGridProps } from './ResultsGrid'
 export interface QueryResultsProps {
   response: QueryResponse
   nav: GridNav
-  onNavigate: (nav: GridNav) => void
+  /** Another page or order of a result: the statement that gave it is run again, alone. */
+  onNavigate: (nav: GridNav, sql: string) => void
   /** The "Edit" link of each message: a page for the statement, or what to do with it. */
   edit?: (sql: string) => string | (() => void)
   onExplain?: (sql: string) => void
-  onRefresh?: () => void
+  /** Runs the statement of a result again, alone. */
+  onRefresh?: (sql: string) => void
   onRun?: (sql: string) => void
   /** Row and bulk actions and sort keys for an editable result; the page knows the source. */
   grid?: Pick<ResultsGridProps, 'rowActions' | 'bulkActions' | 'sortKeys' | 'cellEditor'>
@@ -31,6 +33,8 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
   const { t } = useTranslation('sql')
   const { t: tApp } = useTranslation()
   const [createView, setCreateView] = useState<string | null>(null)
+  // A batch that failed inside a transaction took its earlier statements with it.
+  const failed = response.results[response.results.length - 1]?.kind === 'error'
 
   return (
     <div id="sqlqueryresultsouter">
@@ -40,15 +44,15 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
             result={result}
             edit={edit?.(result.sql)}
             onExplain={onExplain}
-            onRefresh={onRefresh}
+            onRefresh={onRefresh && (() => onRefresh(result.sql))}
             onRun={onRun}
-            rolledBack={response.rolled_back && i === response.results.length - 1}
+            rolledBack={response.rolled_back && (failed || i === response.results.length - 1)}
           />
           {result.kind === 'rows' && result.row_count > 0 && (
             <ResultsGrid
               result={result}
               nav={nav}
-              onNavigate={onNavigate}
+              onNavigate={(next) => onNavigate(next, result.sql)}
               {...grid}
               footer={
                 <div className="card mb-3 d-print-none">
