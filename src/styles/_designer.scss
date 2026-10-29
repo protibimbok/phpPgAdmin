@@ -5,10 +5,114 @@ $designer-header: linear-gradient(#b8e6fa, #b8e6fa 6%, #cdf5fd 10%, #dbffff 10%,
 
 #designer {
   position: relative;
+  outline: none;
+
+  // The viewport: a window on a canvas without edges, panned and zoomed by a transform.
+  #canvas_outer {
+    position: relative;
+    overflow: hidden;
+    background-color: #fff;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+
+    &.panning {
+      cursor: grabbing;
+    }
+  }
 
   #canvas {
-    background-color: #fff;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
     color: #000;
+    transform-origin: 0 0;
+  }
+
+  #relations {
+    overflow: visible;
+    pointer-events: none;
+
+    .relation {
+      cursor: pointer;
+      pointer-events: stroke;
+    }
+  }
+
+  #designer_band {
+    position: absolute;
+    border: border-width('base') solid #09c;
+    background-color: rgba(0, 153, 204, 0.1);
+    pointer-events: none;
+    z-index: 40;
+  }
+
+  #designer_view {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    z-index: 55;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    cursor: default;
+
+    &.left {
+      right: auto;
+      left: 8px;
+      align-items: flex-start;
+    }
+
+    .minimap {
+      background: #fff;
+      border: border-width('base') solid grey;
+      cursor: pointer;
+
+      rect {
+        fill: #9bd2f6;
+        stroke: #69c;
+      }
+
+      rect.selected {
+        fill: #9f9;
+      }
+
+      rect.screen {
+        fill: rgba(0, 153, 204, 0.08);
+        stroke: #09c;
+      }
+    }
+
+    .zoom-bar {
+      display: flex;
+      background: #efefef;
+      border: border-width('base') solid grey;
+      padding: 2px;
+
+      .btn {
+        border: border-width('base') solid transparent;
+        border-radius: 0;
+        padding: 0 4px;
+        line-height: 1.5;
+
+        &:hover {
+          border-color: #09c;
+          background-color: #fe9;
+        }
+
+        &.active {
+          border-color: #c0c0bb;
+          background-color: #9f9;
+        }
+      }
+
+      .zoom-level {
+        min-width: 3.5em;
+      }
+    }
   }
 }
 
@@ -26,6 +130,11 @@ $designer-header: linear-gradient(#b8e6fa, #b8e6fa 6%, #cdf5fd 10%, #dbffff 10%,
 
   td {
     padding: 0.1em 0.3em;
+  }
+
+  &.selected {
+    outline: 2px solid #09c;
+    outline-offset: 1px;
   }
 }
 

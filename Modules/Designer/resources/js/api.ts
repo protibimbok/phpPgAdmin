@@ -29,12 +29,20 @@ export interface DesignerTable {
   foreign_keys: DesignerForeignKey[]
 }
 
-/** Where a table sits, whether it is folded; the diagram's settings. */
+/** The canvas's pan (where its origin is on screen) and zoom. */
+export interface View {
+  x: number
+  y: number
+  zoom: number
+}
+
+/** Where a table sits, whether it is folded; the diagram's settings, and the view it was saved with. */
 export interface Layout {
   tables: Record<string, { x: number; y: number; small: boolean }>
   angular: boolean
   grid: boolean
   lines: boolean
+  view?: View
 }
 
 export interface DesignerPage {

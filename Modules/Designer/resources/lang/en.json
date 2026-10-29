@@ -54,9 +54,21 @@
   },
   "help": {
     "intro": "The diagram shows the database's tables, views and foreign tables with a line for each foreign key.",
-    "drag": "Drag a box by its name; the small v folds it.",
+    "drag": "Drag a box from anywhere on it to move it; the small v folds it.",
+    "select": "Click a box to select it; Shift or Ctrl+click adds to the selection, Shift+drag on the background selects by rectangle, Ctrl+A selects all. The arrow keys move the selection (Shift for bigger steps).",
+    "pan": "Drag the background, or hold Space or the middle button and drag anywhere, to pan; the wheel scrolls (Shift+wheel sideways).",
+    "zoom": "Ctrl+wheel or a pinch zooms around the pointer; + and − zoom, 0 returns to 100%, 1 fits the diagram (or the selection) on screen. The minimap moves the view.",
     "relation": "Create relationship: click the referenced key's column, then the foreign key's column, and choose the actions.",
     "drop": "Click a relationship's line to delete it.",
     "pages": "Save the layout as a page to come back to it; pages are kept per role and database."
+  },
+  "view": {
+    "zoom_in": "Zoom in (+)",
+    "zoom_out": "Zoom out (−)",
+    "actual_size": "Actual size (0)",
+    "fit": "Fit to screen (1)",
+    "fit_short": "Fit",
+    "minimap": "Show/hide the minimap",
+    "minimap_short": "Map"
   }
 }
