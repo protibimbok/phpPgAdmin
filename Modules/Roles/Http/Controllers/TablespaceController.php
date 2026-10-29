@@ -33,10 +33,20 @@ final class TablespaceController extends NodeController
     /** pg_class.relkind → the type pgAdmin's get_dependents reports; indexes are named "index ON table". */
     private const array DEPENDENT_KINDS = ['r' => 'table', 'p' => 'table', 'i' => 'index', 'I' => 'index', 'S' => 'sequence', 'm' => 'mview', 't' => 'toast table'];
 
-    /** Every tablespace with its properties, size and privileges. */
+    /**
+     * pg_tablespace_size() for the tablespaces the session may measure, NULL for the others: it
+     * raises permission denied unless the role has CREATE on the tablespace, has the privileges of
+     * pg_read_all_stats, or it is the current database's default (superusers pass the first test).
+     */
+    private const string SIZE = 'CASE WHEN pg_catalog.has_tablespace_privilege(ts.oid, \'CREATE\')'
+        . ' OR pg_catalog.pg_has_role(\'pg_read_all_stats\', \'USAGE\')'
+        . ' OR ts.oid = (SELECT dattablespace FROM pg_catalog.pg_database WHERE datname = pg_catalog.current_database())'
+        . ' THEN pg_catalog.pg_tablespace_size(ts.oid) END';
+
+    /** Every tablespace with its properties, size (null where it may not be read) and privileges. */
     public function list(NodeContext $ctx): array
     {
-        $sizes = array_column($ctx->conn->rows('SELECT oid, pg_catalog.pg_tablespace_size(oid) AS size FROM pg_catalog.pg_tablespace'), 'size', 'oid');
+        $sizes = array_column($ctx->conn->rows('SELECT ts.oid, ' . self::SIZE . ' AS size FROM pg_catalog.pg_tablespace ts'), 'size', 'oid');
 
         return array_map(fn (array $row): array => [...$this->transform($row), 'size' => isset($sizes[$row['oid']]) ? (int) $sizes[$row['oid']] : null], $ctx->rows('properties.sql'));
     }
@@ -44,21 +54,27 @@ final class TablespaceController extends NodeController
     public function properties(NodeContext $ctx, int $oid): array
     {
         $row = $this->transform($ctx->row('properties.sql', ['tsid' => $oid]) ?? throw $this->gone($ctx));
-        $row['size'] = (int) $ctx->conn->scalar('SELECT pg_catalog.pg_tablespace_size($1::oid)', [$oid]);
+        $size = $ctx->conn->scalar('SELECT ' . self::SIZE . ' FROM pg_catalog.pg_tablespace ts WHERE ts.oid = $1::oid', [$oid]);
+        $row['size'] = $size === null ? null : (int) $size;
 
         return $row;
     }
 
-    /** pgAdmin's sql(): the header, CREATE TABLESPACE (not for pg_default and pg_global), then alter.sql. */
+    /**
+     * pgAdmin's sql(): the header, CREATE TABLESPACE (not for pg_default and pg_global), then
+     * alter.sql. The owner goes in CREATE's OWNER clause, so alter.sql sets it only for the two
+     * built-in tablespaces.
+     */
     public function sql(NodeContext $ctx, int $oid): string
     {
         $data = $this->transform($ctx->row('properties.sql', ['tsid' => $oid]) ?? throw $this->gone($ctx));
         $data['spcacl'] = Acl::toDb(Acl::allFromDb($ctx->rows('acl.sql', ['tsid' => $oid])), ['C']);
+        $builtIn = str_starts_with($data['name'], 'pg_');
 
         return Ddl::assemble([
             Ddl::header('Tablespace', $data['name'], $ctx->render('delete.sql', ['tsname' => $data['name']])),
-            str_starts_with($data['name'], 'pg_') ? '' : $ctx->render('create.sql', ['data' => $data]),
-            $ctx->render('alter.sql', ['data' => $data]),
+            $builtIn ? '' : $ctx->render('create.sql', ['data' => $data]),
+            $ctx->render('alter.sql', ['data' => $builtIn ? $data : [...$data, 'spcuser' => null]]),
         ]);
     }
 

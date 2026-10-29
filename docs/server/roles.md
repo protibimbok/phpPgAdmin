@@ -21,11 +21,9 @@ is a role other roles are members of; both live here.
 Roles are ordered with the non-login roles first, then by name. Each row has **Edit privileges** and
 **Export**.
 
-::: warning The bootstrap superuser is hidden with the pg_* roles
 **Show the predefined pg_\* roles** also lists `pg_monitor`, `pg_read_all_data` and the other built-in
-roles. It is off by default, and the role created by `initdb` (usually `postgres`, OID 10) is hidden
-with them, although its name does not start with `pg_`. Check the box to see it.
-:::
+roles. It is off by default. The role created by `initdb` (usually `postgres`, OID 10) is always
+listed.
 
 ### Export
 
@@ -137,7 +135,8 @@ created, the role stays created and the message gives the database error.
 ::: info Creating roles without being a superuser
 A role needs `CREATEROLE` to create roles, and from PostgreSQL 16 it may only grant membership in
 roles it has `ADMIN` on and cannot give attributes it does not have itself. Without it the page shows
-*permission denied to create role*.
+*permission denied to create role* with PostgreSQL's *DETAIL: Only roles with the CREATEROLE
+attribute may create roles.*
 :::
 
 [**Add replica replication user**](/server/replication#primary-replication) on the Replication page
@@ -228,9 +227,11 @@ users"). The confirmation lists those `DROP DATABASE` statements too.
 
 ::: warning A role that still owns something is refused
 PostgreSQL refuses `DROP ROLE` while the role owns objects or holds privileges in any database:
-*role "…" cannot be dropped because some objects depend on it*. The message does not say what; use
-**Reassign or drop owned objects** on the role's page in each database, then drop it. Roles are
-dropped one after another, so the ones before a failure stay dropped.
+*role "…" cannot be dropped because some objects depend on it*. The **DETAIL:** under the message
+says where, one line per database (*1 object in database bookshop*), or names the objects when they
+are in the maintenance database. Use **Reassign or drop owned objects** on the role's page in each
+of those databases, then drop it. Roles are dropped one after another, so the ones before a failure
+stay dropped.
 :::
 
 ## See also

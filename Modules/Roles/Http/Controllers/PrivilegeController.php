@@ -36,13 +36,13 @@ final class PrivilegeController
     /**
      * The object, its grantees and, for a relation, the grantees of each column.
      *
-     * @return array{object: array{kind: string, name: string, owner: string}, allowed: list<string>, acl: list<array<string, mixed>>, columns?: list<array{name: string, acl: list<array<string, mixed>>}>, column_allowed?: list<string>}
+     * @return array{object: array{kind: string, name: string, owner: string, type: ?string}, allowed: list<string>, acl: list<array<string, mixed>>, columns?: list<array{name: string, acl: list<array<string, mixed>>}>, column_allowed?: list<string>}
      */
     public function show(Connection $conn, string $kind, int $oid): array
     {
         $object = $this->object($conn, $kind, $oid);
         $result = [
-            'object' => ['kind' => $object['kind'], 'name' => $object['name'], 'owner' => $object['owner']],
+            'object' => ['kind' => $object['kind'], 'name' => $object['name'], 'owner' => $object['owner'], 'type' => $object['type']],
             'allowed' => $object['allowed'],
             'acl' => $this->grantees($conn, $object['acl']),
         ];
@@ -173,20 +173,49 @@ final class PrivilegeController
      */
     public function wizardSql(Connection $conn, array $data): string
     {
+        return $this->wizardStatements($conn, $data)['sql'];
+    }
+
+    /**
+     * Run the grant wizard's statements as one implicit transaction.
+     *
+     * @param array<string, mixed> $data
+     * @return array{sql: string, objects: int} the statements and how many objects they changed
+     */
+    public function runWizard(Connection $conn, array $data): array
+    {
+        $result = $this->wizardStatements($conn, $data);
+        $this->run($conn, $result['sql']);
+
+        return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array{sql: string, objects: int} the statements, and how many of the objects chosen
+     *                                           got one (those already holding everything get none)
+     */
+    private function wizardStatements(Connection $conn, array $data): array
+    {
         $grantee = $this->grantee($data);
         $statements = [];
+        $objects = 0;
         foreach (is_array($data['objects'] ?? null) ? $data['objects'] : [] as $item) {
             $object = $this->object($conn, (string) ($item['kind'] ?? ''), (int) ($item['oid'] ?? 0));
             $old = $this->privilegesOf($this->grantees($conn, $object['acl']), $grantee);
             $new = PrivilegeSql::fromClient($data['privileges'] ?? [], $object['allowed']);
             // The wizard adds privileges; what the grantee already holds stays as it is.
-            $statements = [...$statements, ...PrivilegeSql::diff('', $object['target'], $grantee, $old, [...$old, ...array_filter($new, static fn (bool $g, string $p): bool => $g || !isset($old[$p]), ARRAY_FILTER_USE_BOTH)])];
+            $diff = PrivilegeSql::diff('', $object['target'], $grantee, $old, [...$old, ...array_filter($new, static fn (bool $g, string $p): bool => $g || !isset($old[$p]), ARRAY_FILTER_USE_BOTH)]);
+            if ($diff !== []) {
+                $statements = [...$statements, ...$diff];
+                $objects++;
+            }
         }
         if ($statements === []) {
             throw new BadRequestException('Choose at least one object and one privilege it accepts.');
         }
 
-        return Ddl::assemble($statements);
+        return ['sql' => Ddl::assemble($statements), 'objects' => $objects];
     }
 
     /**
@@ -223,7 +252,7 @@ final class PrivilegeController
      * What a kind of object is called in GRANT, its owner, the privileges it accepts and its ACL
      * (or the built-in default when it has none).
      *
-     * @return array{kind: string, name: string, owner: string, target: string, allowed: list<string>, acl: mixed}
+     * @return array{kind: string, name: string, owner: string, type: ?string, target: string, allowed: list<string>, acl: mixed}
      */
     private function object(Connection $conn, string $kind, int $oid): array
     {
@@ -241,6 +270,7 @@ final class PrivilegeController
             'kind' => $kind,
             'name' => (string) $row['name'],
             'owner' => (string) $row['owner'],
+            'type' => $row['type'],
             'target' => $row['keyword'] . ' ' . $row['ident'],
             'allowed' => $this->allowed($conn, $kind, $row['type']),
             'acl' => $row['acl'],

@@ -103,11 +103,6 @@ Route::middleware(Authenticate::class)->prefix('databases/{db}')->group(function
         ->setName('privileges.wizard');
     Route::post('/schemas/{scid:number}/grant-wizard/msql', fn (ServerRequestInterface $request, array $args): array => ['sql' => $privileges->wizardSql($conn($request, $args), $body($request))])
         ->setName('privileges.wizard.msql');
-    Route::post('/schemas/{scid:number}/grant-wizard', function (ServerRequestInterface $request, array $args) use ($conn, $body, $privileges): array {
-        $connection = $conn($request, $args);
-        $sql = $privileges->wizardSql($connection, $body($request));
-        $privileges->run($connection, $sql);
-
-        return ['sql' => $sql];
-    })->setName('privileges.wizard.run');
+    Route::post('/schemas/{scid:number}/grant-wizard', fn (ServerRequestInterface $request, array $args): array => $privileges->runWizard($conn($request, $args), $body($request)))
+        ->setName('privileges.wizard.run');
 });

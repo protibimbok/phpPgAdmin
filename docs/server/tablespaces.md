@@ -10,7 +10,7 @@ files of tables, indexes and whole databases.
 ## The list
 
 Columns: **Tablespace** (links to its page), **Owner**, **Location** (*(data directory)* for the two
-built-in ones), **Size** (`pg_tablespace_size`), **Parameters** (`seq_page_cost`,
+built-in ones), **Size** (`pg_tablespace_size`, *–* where the role may not read it), **Parameters** (`seq_page_cost`,
 `random_page_cost`… set on it), **Privileges** (the raw ACL), **Comment**, and **Edit**,
 **Export** and **Drop** links. The search box filters by name; **Total** counts the rows.
 
@@ -19,9 +19,11 @@ dropped: they have no checkbox and no **Drop** link.
 
 **Export** shows the `CREATE TABLESPACE` statement with the owner, parameters, privileges and comment.
 
-::: warning The tab fails for roles that are not superusers
-Reading the size of `pg_global` needs `CREATE` on it or `pg_read_all_stats`, which ordinary roles do
-not have, so for them the whole list is replaced by *permission denied for tablespace pg_global*.
+::: info Sizes a role may not read
+PostgreSQL lets a role read a tablespace's size only with `CREATE` on it, the privileges of
+`pg_read_all_stats`, or when it is the current database's default tablespace. For the other
+tablespaces (for an ordinary role, usually `pg_global` and tablespaces it has no `CREATE` on) **Size**
+shows *–*, here and on the tablespace's page; the rest of the list is the same.
 :::
 
 ## Create a tablespace

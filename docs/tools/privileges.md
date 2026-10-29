@@ -17,7 +17,7 @@ so what the owner and `PUBLIC` hold implicitly shows too.
 | Column | What it shows |
 |---|---|
 | **Role** | The grantee; `PUBLIC` (every role) in red; *(owner)* after the owner. |
-| **Type** | *database-specific*, *schema-specific*, *table-specific*, or **Column:** *name* for a column grant. Views and materialized views also say *table-specific*. |
+| **Type** | *database-specific*, *schema-specific*, *table-specific*, *view-specific*, *materialized view-specific*, *foreign table-specific*, *type-specific*, *domain-specific*, *tablespace-specific*, or **Column:** *name* for a column grant. |
 | **Privileges** | The privileges held, or **ALL PRIVILEGES** when it holds every one the object accepts. |
 | **Grant** | **No**, or the privileges it holds `WITH GRANT OPTION` (it may grant them on). |
 | **Granted by** | The grantor(s). |
@@ -164,8 +164,8 @@ GRANT EXECUTE ON FUNCTION srv_priv_schema.srv_priv_fn() TO srv_priv_reader;
 ```
 
 The wizard only adds privileges; ones already held are kept and not repeated (above, a fifth checked
-table where the role already had `SELECT` got no statement, although the message counts it:
-*… on 5 objects*). Use each object's Privileges tab to revoke. Without a role, **Go** says
+table where the role already had `SELECT` got no statement). The message counts the objects that got a
+statement: *… on 4 objects*. Use each object's Privileges tab to revoke. Without a role, **Go** says
 *Choose a role to grant the privileges to.*
 
 ::: info Sequences and routines

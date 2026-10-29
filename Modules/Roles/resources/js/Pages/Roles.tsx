@@ -35,7 +35,9 @@ export default function Roles() {
   const [dropping, setDropping] = useState<{ roles: Role[]; databases: { did: number; name: string }[] } | null>(null)
   const [exported, setExported] = useState<{ title: string; sql: string | null } | null>(null)
 
-  const visible = useMemo(() => (roles ?? []).filter((role) => showSystem || !role.is_sys_obj), [roles, showSystem])
+  // Only the predefined roles are named pg_* (CREATE ROLE refuses the prefix); the bootstrap
+  // superuser shares their low OIDs but is always listed.
+  const visible = useMemo(() => (roles ?? []).filter((role) => showSystem || !role.rolname.startsWith('pg_')), [roles, showSystem])
 
   if (error) {
     return (

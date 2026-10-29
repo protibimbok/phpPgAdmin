@@ -119,7 +119,8 @@ export interface Grantee {
 export type PrivilegeKind = 'database' | 'tablespace' | 'schema' | 'table' | 'sequence' | 'function' | 'type'
 
 export interface ObjectPrivileges {
-  object: { kind: PrivilegeKind; name: string; owner: string }
+  /** type: pg_class.relkind, pg_proc.prokind or pg_type.typtype; null for the other kinds. */
+  object: { kind: PrivilegeKind; name: string; owner: string; type: string | null }
   /** The privileges GRANT accepts on the object. */
   allowed: string[]
   acl: Grantee[]
@@ -207,8 +208,9 @@ export function wizardSql(db: string, scid: number, grant: WizardGrant): Promise
   return api.post<{ sql: string }>(`${wizardUrl(db, scid)}/msql`, grant).then((r) => r.sql)
 }
 
-export function runWizard(db: string, scid: number, grant: WizardGrant): Promise<string> {
-  return api.post<{ sql: string }>(wizardUrl(db, scid), grant).then((r) => r.sql)
+/** Runs the wizard's statements; objects is how many of the objects chosen they changed. */
+export function runWizard(db: string, scid: number, grant: WizardGrant): Promise<{ sql: string; objects: number }> {
+  return api.post<{ sql: string; objects: number }>(wizardUrl(db, scid), grant)
 }
 
 /** A tablespace as pgAdmin's properties.sql describes it, with its size in bytes. */

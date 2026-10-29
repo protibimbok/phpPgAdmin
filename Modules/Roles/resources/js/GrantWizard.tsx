@@ -66,8 +66,8 @@ export default function GrantWizard({ db, scid, roles }: { db: string; scid: num
   async function run() {
     setConfirm(null)
     try {
-      await runWizard(db, scid, grant())
-      notifySuccess(t('wizard.granted', { grantee, count: grant().objects.length }))
+      const { objects } = await runWizard(db, scid, grant())
+      notifySuccess(t('wizard.granted', { grantee, count: objects }))
       setChecked(new Set())
     } catch (err) {
       notifyError(errorMessage(err))

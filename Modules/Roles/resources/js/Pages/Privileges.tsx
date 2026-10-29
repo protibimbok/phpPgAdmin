@@ -142,7 +142,7 @@ export function ObjectPrivilegesPanel({ db, kind, oid, initial, roles }: { db: s
                         {grantee.grantee === 'PUBLIC' ? <span className="text-danger">PUBLIC</span> : grantee.grantee}
                         {grantee.grantee === current.object.owner && column === undefined && <span className="text-muted"> ({t('privileges.owner')})</span>}
                       </td>
-                      <td>{column === undefined ? t(`privileges.specific.${current.object.kind}`) : <>{t('privileges.column')}: <code>{column}</code></>}</td>
+                      <td>{column === undefined ? t(`privileges.specific.${specificKey(current.object)}`) : <>{t('privileges.column')}: <code>{column}</code></>}</td>
                       <td>
                         <code>{privilegeList(grantee.privileges, allowedFor(column))}</code>
                       </td>
@@ -229,4 +229,12 @@ export function ObjectPrivilegesPanel({ db, kind, oid, initial, roles }: { db: s
       />
     </>
   )
+}
+
+/** The relations GRANT ... ON TABLE also covers, by pg_class.relkind, and domains among the types. */
+const SPECIFIC_TYPES: Record<string, string> = { v: 'view', m: 'mview', f: 'foreign_table', d: 'domain' }
+
+/** The "…-specific" label of the object's own rows: its kind, or what kind of relation or type it is. */
+function specificKey(object: ObjectPrivileges['object']): string {
+  return ((object.kind === 'table' || object.kind === 'type') && object.type !== null && SPECIFIC_TYPES[object.type]) || object.kind
 }
