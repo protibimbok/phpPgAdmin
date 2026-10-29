@@ -8,8 +8,8 @@ use PDO;
 use PhpPgAdmin\Core\Facades\Storage;
 
 /**
- * A role's background processes on a server: the imports it started that have not been
- * dismissed, each with its target (a database, a schema, a table of it). Another role, or the same role on another server, does not see them.
+ * A role's background processes on a server: the imports and maintenance commands it started
+ * that have not been dismissed, each with its target (a database, a schema, a table of it). Another role, or the same role on another server, does not see them.
  *
  * @phpstan-type Row array{id: string, database: string|null, schema: string|null, relation: string|null, type: string, description: string, command: list<string>, started_at: string, ended_at: string|null, exit_code: int|null}
  */
@@ -29,17 +29,21 @@ final class Processes
 
     /**
      * The processes, newest first; with a target, those started on that database (schema,
-     * table), or on the server.
+     * table), or on the server; with a type, those of the type.
      *
      * @return list<Row>
      */
-    public function all(bool $filtered = false, ?string $database = null, ?string $schema = null, ?string $relation = null): array
+    public function all(bool $filtered = false, ?string $database = null, ?string $schema = null, ?string $relation = null, ?string $type = null): array
     {
         $sql = 'SELECT * FROM processes WHERE server = ? AND username = ?';
         $bindings = [$this->server, $this->username];
         if ($filtered) {
             $sql .= ' AND database IS ? AND schema IS ? AND relation IS ?';
             array_push($bindings, $database, $schema, $relation);
+        }
+        if ($type !== null) {
+            $sql .= ' AND type = ?';
+            $bindings[] = $type;
         }
         $statement = $this->db->prepare($sql . ' ORDER BY started_at DESC, rowid DESC');
         $statement->execute($bindings);

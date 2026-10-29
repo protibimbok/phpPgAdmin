@@ -10,6 +10,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { listSchemas } from '@schemas/js/api'
+import MaintenanceCard from '@maintenance/js/MaintenanceCard'
 import { quoteIdent } from '@sql/js/sql'
 import { collationRemedy, createDatabase, databaseModifiedSql, databaseOptions, databaseProperties, dropDatabase, resolveDatabase, updateDatabase, type CollationRemedy, type DatabaseChanges, type NewDatabase } from '../api'
 import CollationRefreshDialog from '../CollationRefreshDialog'
@@ -389,6 +390,8 @@ export default function Operations() {
           </div>
         </div>
       </div>
+
+      <MaintenanceCard target={{ database: db }} />
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />
 

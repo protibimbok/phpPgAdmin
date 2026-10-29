@@ -95,7 +95,15 @@
     "lost": "انتهى استيراد {{file}} دون الإبلاغ عن كيفية انتهائه.",
     "progress": "نسبة ما قُرئ من الملف",
     "stop": "إيقاف",
-    "dismiss": "إغلاق"
+    "dismiss": "إغلاق",
+    "maintenance_title": "{{file}}",
+    "maintenance_running": "جارٍ تنفيذ {{file}}…",
+    "maintenance_finished": "انتهى {{file}}.",
+    "maintenance_finished_errors": "انتهى {{file}}. الأخطاء المبلّغ عنها: {{errors}}.",
+    "maintenance_failed": "فشل {{file}} (رمز الخروج {{code}}).",
+    "maintenance_failed_errors": "فشل {{file}} (رمز الخروج {{code}}). الأخطاء المبلّغ عنها: {{errors}}.",
+    "maintenance_killed": "أُوقف {{file}}.",
+    "maintenance_lost": "انتهى {{file}} دون أن يبلّغ عن نتيجته."
   },
   "copy": {
     "replace": "تحديث البيانات عند وجود مفاتيح مكررة أثناء الاستيراد (إضافة <code>ON CONFLICT … DO UPDATE</code>)",

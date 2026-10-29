@@ -70,6 +70,9 @@
       "@import/*": [
         "./Modules/Import/resources/*"
       ],
+      "@maintenance/*": [
+        "./Modules/Maintenance/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]

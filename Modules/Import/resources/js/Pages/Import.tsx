@@ -5,9 +5,9 @@ import { errorMessage, type ApiError } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import { formatSize } from '@/format'
-import { treeState } from '@/layout/tree/treeState'
 import { notifyError } from '@/notify'
-import { dismissProcess, getProcess, importOptions, listProcesses, startImport, stopProcess, type BackgroundProcess, type CopyFormat, type CopySettings, type ImportOptions, type ImportScope, type ImportSettings, type ImportTarget } from '../api'
+import { importOptions, listProcesses, startImport, type BackgroundProcess, type CopyFormat, type CopySettings, type ImportOptions, type ImportScope, type ImportSettings, type ImportTarget } from '../api'
+import ProcessView from '../ProcessView'
 
 const DEFAULTS: Omit<ImportSettings, 'charset'> = {
   format: 'sql',
@@ -100,7 +100,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
 
   useEffect(() => {
     let current = true
-    listProcesses(target).then(
+    listProcesses(target, 'import').then(
       (list) => current && setProcesses(list),
       () => undefined,
     )
@@ -461,135 +461,6 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
             <input id="buttonGo" className="btn btn-primary" type="submit" value={t('import')} />
           </div>
         </form>
-      </div>
-    </div>
-  )
-}
-
-/** Output kept on the page at most; the start of a longer one is cut. */
-const OUTPUT_LIMIT = 1048576
-
-/**
- * One import, followed while it runs: its state and progress, and its output, read a piece at
- * a time from where the last read ended. Stop asks the runner to cancel it; Dismiss removes it
- * once it has ended.
- */
-function ProcessView({ initial, onDismiss }: { initial: BackgroundProcess; onDismiss: () => void }) {
-  const { t } = useTranslation('import')
-  const [process, setProcess] = useState(initial)
-  const [output, setOutput] = useState('')
-  const [busy, setBusy] = useState(false)
-  const outputRef = useRef<HTMLPreElement>(null)
-
-  useEffect(() => {
-    let offset = 0
-    let timer: number | undefined
-    let stopped = false
-    let wasRunning = initial.state === 'running'
-
-    const poll = () => {
-      getProcess(initial.id, offset).then(
-        ({ process: next, output: chunk }) => {
-          if (stopped) return
-          setProcess(next)
-          if (chunk.text !== '') {
-            setOutput((text) => {
-              const joined = text + chunk.text
-
-              return joined.length > OUTPUT_LIMIT ? `…\n${joined.slice(joined.indexOf('\n', joined.length - OUTPUT_LIMIT) + 1)}` : joined
-            })
-          }
-          offset = chunk.offset
-          if (wasRunning && next.state !== 'running') {
-            // What the import made shows in the navigation panel.
-            treeState.refresh()
-          }
-          wasRunning = next.state === 'running'
-          // An ended process is read on until its output is all in.
-          if (next.state === 'running' || chunk.offset < chunk.size) timer = window.setTimeout(poll, chunk.offset < chunk.size ? 0 : 1000)
-        },
-        () => {
-          if (!stopped) timer = window.setTimeout(poll, 3000)
-        },
-      )
-    }
-    poll()
-
-    return () => {
-      stopped = true
-      window.clearTimeout(timer)
-    }
-  }, [initial.id, initial.state])
-
-  useEffect(() => {
-    const pre = outputRef.current
-    if (pre) pre.scrollTop = pre.scrollHeight
-  }, [output])
-
-  const running = process.state === 'running'
-  const percent = process.size ? Math.min(100, Math.round((process.read / process.size) * 100)) : null
-  const file = process.description
-  const [alert, icon, message] = {
-    running: ['alert-primary', 's_notice', t('process.running', { file })],
-    finished: process.errors > 0 ? ['alert-warning', 's_notice', t('process.finished_errors', { file, errors: process.errors })] : ['alert-success', 's_success', t('process.finished', { file })],
-    failed: ['alert-danger', 's_error', process.errors > 0 ? t('process.failed_errors', { file, code: process.exit_code, errors: process.errors }) : t('process.failed', { file, code: process.exit_code })],
-    killed: ['alert-warning', 's_notice', t('process.killed', { file })],
-    lost: ['alert-danger', 's_error', t('process.lost', { file })],
-  }[process.state]
-
-  async function stop() {
-    setBusy(true)
-    try {
-      setProcess(await stopProcess(process.id))
-    } catch (err) {
-      notifyError(errorMessage(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function dismiss() {
-    setBusy(true)
-    try {
-      await dismissProcess(process.id)
-      onDismiss()
-    } catch (err) {
-      setBusy(false)
-      notifyError(errorMessage(err))
-    }
-  }
-
-  return (
-    <div className="card mb-3" id={`import_process_${process.id}`}>
-      <div className="card-header">{t('process.title', { file, target: process.table ?? process.schema ?? process.database ?? t('process.server') })}</div>
-      <div className="card-body">
-        <div className={`alert ${alert}`} role="alert">
-          <Icon name={icon} /> {message}
-        </div>
-        {running && percent !== null && (
-          <div className="progress mb-3" role="progressbar" aria-label={t('process.progress')} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
-            <div className="progress-bar progress-bar-striped progress-bar-animated" style={{ width: `${percent}%` }}>
-              {percent}%
-            </div>
-          </div>
-        )}
-        <p className="card-text">
-          <code>{process.command.join(' ')}</code>
-        </p>
-        {output !== '' && (
-          <pre ref={outputRef} className="border rounded p-2 mb-3 overflow-auto" style={{ maxHeight: '20rem' }}>
-            {output}
-          </pre>
-        )}
-        {running ? (
-          <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void stop()}>
-            {t('process.stop')}
-          </button>
-        ) : (
-          <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void dismiss()}>
-            {t('process.dismiss')}
-          </button>
-        )}
       </div>
     </div>
   )

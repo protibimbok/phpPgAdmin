@@ -79,7 +79,7 @@ export type ProcessState = 'running' | 'finished' | 'failed' | 'killed' | 'lost'
 export interface BackgroundProcess {
   id: string
   type: string
-  /** The file imported. */
+  /** The file imported, or the command run. */
   description: string
   database: string | null
   schema: string | null
@@ -145,8 +145,9 @@ export function startImport(options: Record<string, unknown>, file: File | null,
   })
 }
 
-export function listProcesses(target: ImportTarget): Promise<BackgroundProcess[]> {
-  return api.get<{ processes: BackgroundProcess[] }>(`/api/processes?${new URLSearchParams({ database: target.database ?? '', schema: target.schema ?? '', table: target.table ?? '' })}`).then((r) => r.processes)
+/** The processes of a type started on the target. */
+export function listProcesses(target: ImportTarget, type: string): Promise<BackgroundProcess[]> {
+  return api.get<{ processes: BackgroundProcess[] }>(`/api/processes?${new URLSearchParams({ database: target.database ?? '', schema: target.schema ?? '', table: target.table ?? '', type })}`).then((r) => r.processes)
 }
 
 export function getProcess(id: string, offset: number): Promise<{ process: BackgroundProcess; output: ProcessOutput }> {

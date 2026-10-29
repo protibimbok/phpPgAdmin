@@ -1,0 +1,33 @@
+{
+  "title": "Maintenance",
+  "go": "Go",
+  "no_psql": "psql was not found on the web server. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the directory of the PostgreSQL client programs.",
+  "about": {
+    "VACUUM": "Reclaims the space of dead rows in every table of the database (<code>VACUUM</code>).",
+    "VACUUM_schema": "Reclaims the space of dead rows in the schema's tables and materialized views (<code>VACUUM</code>).",
+    "ANALYZE": "Collects the planner's statistics on every table of the database (<code>ANALYZE</code>).",
+    "ANALYZE_schema": "Collects the planner's statistics on the schema's tables and materialized views (<code>ANALYZE</code>).",
+    "REINDEX": "Rebuilds the indexes of the database (<code>REINDEX DATABASE</code>), or of the system catalogs only (<code>REINDEX SYSTEM</code>).",
+    "REINDEX_schema": "Rebuilds the indexes of the schema's tables (<code>REINDEX SCHEMA</code>).",
+    "CLUSTER": "Reorders every table that was clustered before on the index it was clustered on (<code>CLUSTER</code>)."
+  },
+  "help": {
+    "full": "rewrites each table into a new file, which takes an exclusive lock and returns the space to the operating system",
+    "freeze": "freezes every row",
+    "analyze": "updates the planner's statistics afterwards",
+    "disable_page_skipping": "vacuums the pages the visibility map marks all-visible too",
+    "skip_locked": "skips the tables that cannot be locked at once",
+    "truncate": "returns empty pages at the end of a table to the operating system",
+    "process_toast": "vacuums the TOAST tables as well",
+    "process_main": "vacuums the main tables (switched off, only their TOAST tables)",
+    "skip_database_stats": "leaves the database's oldest transaction ID unchanged",
+    "only_database_stats": "only updates the database's oldest transaction ID, vacuuming nothing",
+    "index_cleanup": "whether the indexes are cleaned of dead rows",
+    "parallel": "workers for the index phase; empty for as many as the indexes allow, 0 for none",
+    "buffer_usage_limit": "the size of the buffer ring used, such as 256kB or 16MB; 0 for no limit",
+    "system": "the system catalogs only",
+    "concurrently": "rebuilds without locking out writes, more slowly",
+    "tablespace": "moves the rebuilt indexes to the tablespace",
+    "verbose": "reports what is done, table by table"
+  }
+}

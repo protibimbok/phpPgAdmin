@@ -27,9 +27,10 @@ final class ProcessController
         $database = is_string($query['database'] ?? null) && $query['database'] !== '' ? $query['database'] : null;
         $schema = is_string($query['schema'] ?? null) && $query['schema'] !== '' ? $query['schema'] : null;
         $relation = is_string($query['table'] ?? null) && $query['table'] !== '' ? $query['table'] : null;
+        $type = is_string($query['type'] ?? null) && $query['type'] !== '' ? $query['type'] : null;
         $processes = $this->processes($request);
 
-        return ['processes' => array_map(static fn (array $row): array => self::describe($row, self::directory($row['id']), $processes), $processes->all($filtered, $database, $schema, $relation))];
+        return ['processes' => array_map(static fn (array $row): array => self::describe($row, self::directory($row['id']), $processes), $processes->all($filtered, $database, $schema, $relation, $type))];
     }
 
     /** @return array{process: array<string, mixed>, output: array{text: string, offset: int, size: int}} */
