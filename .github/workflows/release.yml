@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pgsql, pdo_sqlite
+          tools: composer:v2
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # The full install is only for the build: laramod-vite-plugin asks `php artisan laramod:vite`
+      # for the module entries, and artisan needs the autoloader.
+      - run: composer install --no-interaction --no-progress
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+      # Module resources/lang and resources/sql are read at runtime; js, scss and img are bundled
+      # into public/dist, as is src/.
+      - name: Assemble package
+        run: |
+          name="phpPgAdmin-${GITHUB_REF_NAME#v}"
+          mkdir -p "build/$name"
+          rsync -a \
+            --exclude='/Modules/*/resources/js/' \
+            --exclude='/Modules/*/resources/scss/' \
+            --exclude='/Modules/*/resources/img/' \
+            --exclude='/public/hot' \
+            app bin bootstrap config Modules public vendor composer.json \
+            "build/$name/"
+          mkdir -p "build/$name/storage"
+          touch "build/$name/storage/.gitkeep"
+          (cd build && zip -qr "../$name.zip" "$name")
+          echo "ZIP=$name.zip" >> "$GITHUB_ENV"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP }}
+          generate_release_notes: true
