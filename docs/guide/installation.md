@@ -1,6 +1,6 @@
 # Installation
 
-This page covers installing phpPgAdmin from a release zip or from source, setting up the web server, the PHP extensions and PostgreSQL client programs it needs, and upgrading. Once it is installed, see [Configuration](/guide/configuration) and [Signing in](/guide/signing-in).
+This page covers installing phpPgAdmin with phnx, from a release zip or from source, setting up the web server, the PHP extensions and PostgreSQL client programs it needs, and upgrading. Once it is installed, see [Configuration](/guide/configuration) and [Signing in](/guide/signing-in).
 
 ## Requirements
 
@@ -25,6 +25,50 @@ php -m | grep -E 'pgsql|pdo_sqlite|mbstring|ctype|zlib|session'
 ::: tip PHP-FPM and the CLI can differ
 The web server's PHP (PHP-FPM or mod_php) can have other extensions and `php.ini` settings than the `php` command. The **Web server** card on the server home page shows the PHP version the web server runs.
 :::
+
+## With phnx
+
+[phnx](https://github.com/protibimbok/phnx) sets up local PHP development on Linux and macOS: nginx sites, PHP-FPM pools, `/etc/hosts` entries, MariaDB or PostgreSQL, and helper tools. It installs phpPgAdmin as one of those tools, so this is the quickest way to run it on your own machine. For a shared server, use a [release zip](#from-a-release-zip) behind your own web server.
+
+1. Install phnx and run its first-time setup. phnx needs nginx installed; `phnx configure` can install PHP-FPM.
+
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/protibimbok/phnx/master/scripts/install.sh | bash
+   phnx configure
+   ```
+
+   phnx is also packaged for Homebrew, apt, the AUR (`phnx-bin`), rpm and apk; see its README. Run it as your own user, not root: it uses `sudo` for the steps that need it.
+
+2. Install phpPgAdmin:
+
+   ```sh
+   phnx setup phppgadmin
+   ```
+
+   This:
+   - sets up PostgreSQL first if phnx has not yet (`phnx setup postgres`): it installs and starts the server if there is none, and creates a superuser role, `phnx` with the password `secret` by default;
+   - offers to install the PL/pgSQL debugger (see step 4);
+   - downloads the latest [release zip](https://github.com/protibimbok/phpPgAdmin/releases), checks its SHA-256 digest and unpacks it into `~/.phnx/tools/phppgadmin`;
+   - writes `config/db.php` so the login page offers the PostgreSQL server phnx set up;
+   - registers the site with PHP 8.3 or newer at `http://phppgadmin.test` (the `.test` suffix is phnx's `tld` setting).
+
+3. Make sure that PHP has the `pgsql` and `pdo_sqlite` extensions:
+
+   ```sh
+   phnx php ext install pgsql sqlite3
+   ```
+
+4. Optional: for the [Debugger](/tools/debugger), run `phnx setup pgdebugger` (if you skipped it in step 2). It installs the pldebugger plugin, adds `plugin_debugger` to `shared_preload_libraries`, restarts PostgreSQL and creates the `pldbgapi` extension in every database, `template1` included, so new databases have it too.
+
+5. Open `http://phppgadmin.test` and [sign in](/guide/signing-in) with the role phnx created (`phnx` / `secret` unless you changed it), or any other role.
+
+Run `phnx secure phppgadmin` to serve it over HTTPS with a certificate from phnx's local CA.
+
+::: tip Check that your phnx has the command
+`phnx setup --help` lists `phppgadmin` and `pgdebugger` in versions of phnx that include them. Update phnx if they are missing.
+:::
+
+To upgrade, run `phnx setup phppgadmin` again: it unpacks the newest release over the old one and keeps `storage/` (saved servers, preferences, history and bookmarks). Because it rewrites the files in `~/.phnx/tools/phppgadmin`, set any configuration of your own through [environment variables](/guide/configuration#environment-variables) rather than by editing `config/*.php`.
 
 ## From a release zip
 
@@ -221,6 +265,8 @@ CREATE EXTENSION pldbgapi;
 ```
 
 ## Upgrading
+
+With phnx, run `phnx setup phppgadmin` again (see [With phnx](#with-phnx)). Otherwise:
 
 1. Keep `storage/` (or the directory `PGADMIN_STORAGE_PATH` points at). It holds your saved servers, preferences, history and bookmarks.
 2. Keep your configuration. If you edited `config/*.php`, the new release overwrites those files, so setting the [environment variables](/guide/configuration#environment-variables) in the web server is easier to carry over.

@@ -113,7 +113,7 @@ PostgreSQL connections belong to one database, so phpPgAdmin opens a connection 
 | Browser | A current browser with JavaScript enabled. Without JavaScript the page stays blank. |
 | Optional | The `pgstattuple` extension for more table statistics; the `pldbgapi` extension and `shared_preload_libraries = 'plugin_debugger'` for the [Debugger](/tools/debugger). |
 
-[Installation](/guide/installation) has the details.
+[Installation](/guide/installation) has the details. On your own Linux or macOS machine, `phnx setup phppgadmin` with [phnx](https://github.com/protibimbok/phnx) installs and serves it in one step.
 
 ::: warning Older PostgreSQL versions
 The SQL phpPgAdmin sends is written for PostgreSQL 13 and newer. Signing in to an older server is not refused, but pages may fail with SQL errors.
