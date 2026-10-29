@@ -1,0 +1,12 @@
+# Apache: serve the app from public/ without public/ showing in the URL.
+# Point the vhost's DocumentRoot at public/ instead when you can; this is for hosts where you can't.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Everything outside public/ (vendor/, config/, storage/, .git/, ...) is never served directly.
+    RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

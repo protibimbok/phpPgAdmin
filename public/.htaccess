@@ -1,0 +1,18 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # A /public/... URL typed in by hand redirects to the same path without it.
+    RewriteCond %{THE_REQUEST} ^[A-Z]+\s/public(?:/([^\s?]*))?[\s?]
+    RewriteRule ^ /%1 [R=301,L]
+
+    # Pass the Authorization header through to PHP.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Real files (dist/, favicons) are served as-is; every other path goes to the front controller.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+DirectoryIndex index.php
