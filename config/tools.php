@@ -20,4 +20,18 @@ return [
 
     'bin_dir' => getenv('PGADMIN_PG_BIN_DIR') ?: null,
 
+    /*
+    |--------------------------------------------------------------------------
+    | PHP Command Line
+    |--------------------------------------------------------------------------
+    |
+    | The PHP CLI binary that runs bin/process-runner.php, which watches an
+    | import in the background. When it is null the php next to the running
+    | PHP is used (PHP_BINDIR/php under php-fpm). Override it with
+    | PGADMIN_PHP_BINARY.
+    |
+    */
+
+    'php_binary' => getenv('PGADMIN_PHP_BINARY') ?: null,
+
 ];

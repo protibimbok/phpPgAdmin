@@ -7,6 +7,7 @@ use PhpPgAdmin\Modules\Databases\DatabasesModule;
 use PhpPgAdmin\Modules\Export\ExportModule;
 use PhpPgAdmin\Modules\Frontend\FrontendModule;
 use PhpPgAdmin\Modules\I18n\I18nModule;
+use PhpPgAdmin\Modules\Import\ImportModule;
 use PhpPgAdmin\Modules\Replication\ReplicationModule;
 use PhpPgAdmin\Modules\Roles\RolesModule;
 use PhpPgAdmin\Modules\Routines\RoutinesModule;
@@ -37,6 +38,7 @@ return [
     TypesModule::class,
     ReplicationModule::class,
     ExportModule::class,
+    ImportModule::class,
     SqlModule::class,
     FrontendModule::class,
 ];

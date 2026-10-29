@@ -1,0 +1,94 @@
+{
+  "tab": "Import",
+  "import": "Import",
+  "title": {
+    "server": "Importing into the current server",
+    "database": "Importing into the database \"{{name}}\"",
+    "schema": "Importing into the schema \"{{name}}\""
+  },
+  "tools": {
+    "missing": "The PostgreSQL client programs were not found on the web server. Set PGADMIN_PG_BIN_DIR (config/tools.php) to their directory.",
+    "no_program": "{{program}} was not found in {{directory}}.",
+    "no_restrict": "psql {{version}} cannot run a file in restricted mode, which keeps its meta-commands from running on the web server. Use the client programs of 18, or of 17.6, 16.10, 15.14, 14.19, 13.22 or newer."
+  },
+  "file": {
+    "title": "File to import:",
+    "compressed": "File may be compressed (gzip) or uncompressed.",
+    "compressed_name": "A compressed file's name must end in <strong>.[format].[compression]</strong>. Example: <strong>.sql.gz</strong>",
+    "upload_tab": "Upload a file",
+    "local_tab": "Select file to import",
+    "browse": "Browse your computer:",
+    "max": "(Max: {{size}}KiB)",
+    "uploading": "Uploading",
+    "drop": "You may also drag and drop a file on this page.",
+    "dir_unreachable": "The directory you set for upload work cannot be reached.",
+    "select_local": "Select from the web server upload directory <strong>{{path}}</strong>:",
+    "no_files": "There are no files to import!",
+    "charset": "Character set of the file:",
+    "charset_archive": "An archive records the character set it was dumped in; pg_restore uses that one.",
+    "none": "Choose a file to import.",
+    "too_large": "The file is larger than PHP accepts in an upload ({{size}})."
+  },
+  "other": {
+    "title": "Other options",
+    "fk_checks": "Enable foreign key checks",
+    "fk_checks_help": "Switched off, the import runs with <code>session_replication_role = replica</code>, which skips foreign key checks and other triggers; it takes a superuser."
+  },
+  "format": {
+    "title": "Format",
+    "aria": "Format of the file to import",
+    "sql": "SQL",
+    "archive": "PostgreSQL custom or tar archive (pg_restore)"
+  },
+  "options": {
+    "title": "Format-specific options:"
+  },
+  "sql": {
+    "stop_on_error": "Stop at the first error (<code>ON_ERROR_STOP</code>)",
+    "single_transaction": "Run the file as a single transaction (<code>--single-transaction</code>)"
+  },
+  "archive": {
+    "contents": "Restore:",
+    "contents_both": "structure and data",
+    "contents_structure": "structure",
+    "contents_data": "data",
+    "creates_database": "The archive's database is created on the server (<code>--create</code>).",
+    "schema_only": "Only the objects in this schema are restored (<code>--schema</code>).",
+    "structure_title": "Object creation options",
+    "clean": "Drop objects before recreating them (<code>--clean</code>)",
+    "if_exists": "Add <code>IF EXISTS</code> to the drops",
+    "owner": "Restore the objects' owners",
+    "privileges": "Restore privileges (<code>GRANT</code>/<code>REVOKE</code>)",
+    "tablespaces": "Restore tablespace assignments",
+    "comments": "Restore comments",
+    "publications": "Restore publications",
+    "subscriptions": "Restore subscriptions",
+    "security_labels": "Restore security labels",
+    "policies": "Restore row security policies",
+    "table_access_method": "Restore table access methods",
+    "data_title": "Data creation options",
+    "disable_triggers": "Disable triggers while the data is loaded (<code>--disable-triggers</code>)",
+    "no_data_for_failed_tables": "Skip the data of tables that could not be created",
+    "statistics": "Restore the statistics (<code>--statistics</code>)",
+    "run_title": "Restore options",
+    "jobs": "Number of parallel jobs (<code>--jobs</code>, custom archives only):",
+    "single_transaction": "Restore as a single transaction (<code>--single-transaction</code>)",
+    "exit_on_error": "Stop at the first error (<code>--exit-on-error</code>)",
+    "set_session_authorization": "Use <code>SET SESSION AUTHORIZATION</code> instead of <code>ALTER OWNER</code>",
+    "verbose": "Verbose output"
+  },
+  "process": {
+    "title": "Importing {{file}} into {{target}}",
+    "server": "the server",
+    "running": "Importing {{file}}…",
+    "finished": "Import has been successfully finished. ({{file}})",
+    "finished_errors": "The import of {{file}} has finished. Errors reported: {{errors}}.",
+    "failed": "The import of {{file}} failed (exit code {{code}}).",
+    "failed_errors": "The import of {{file}} failed (exit code {{code}}). Errors reported: {{errors}}.",
+    "killed": "The import of {{file}} was stopped.",
+    "lost": "The import of {{file}} ended without reporting how.",
+    "progress": "Share of the file read",
+    "stop": "Stop",
+    "dismiss": "Dismiss"
+  }
+}

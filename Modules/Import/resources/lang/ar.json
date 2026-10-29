@@ -1,0 +1,94 @@
+{
+  "tab": "استيراد",
+  "import": "استيراد",
+  "title": {
+    "server": "الاستيراد إلى الخادم الحالي",
+    "database": "الاستيراد إلى قاعدة البيانات \"{{name}}\"",
+    "schema": "الاستيراد إلى المخطط \"{{name}}\""
+  },
+  "tools": {
+    "missing": "لم يُعثر على برامج عميل PostgreSQL في خادم الويب. اضبط PGADMIN_PG_BIN_DIR (config/tools.php) على مجلدها.",
+    "no_program": "لم يُعثر على {{program}} في {{directory}}.",
+    "no_restrict": "لا يستطيع psql {{version}} تشغيل ملف في الوضع المقيّد، الذي يمنع أوامره الخاصة من العمل على خادم الويب. استخدم برامج العميل من الإصدار 18، أو 17.6 أو 16.10 أو 15.14 أو 14.19 أو 13.22 أو أحدث."
+  },
+  "file": {
+    "title": "الملف المراد استيراده:",
+    "compressed": "يمكن أن يكون الملف مضغوطًا (gzip) أو غير مضغوط.",
+    "compressed_name": "يجب أن ينتهي اسم الملف المضغوط بـ <strong>.[الصيغة].[الضغط]</strong>. مثال: <strong>.sql.gz</strong>",
+    "upload_tab": "رفع ملف",
+    "local_tab": "اختر ملفًا لاستيراده",
+    "browse": "تصفح حاسوبك:",
+    "max": "(الحد الأقصى: {{size}}KiB)",
+    "uploading": "جارٍ الرفع",
+    "drop": "يمكنك أيضًا سحب ملف وإفلاته في هذه الصفحة.",
+    "dir_unreachable": "تعذر الوصول إلى المجلد الذي حددته لعمليات الرفع.",
+    "select_local": "اختر من مجلد الرفع في خادم الويب <strong>{{path}}</strong>:",
+    "no_files": "لا توجد ملفات لاستيرادها!",
+    "charset": "ترميز الملف:",
+    "charset_archive": "يسجّل الأرشيف الترميز الذي صُدِّر به، ويستخدمه pg_restore.",
+    "none": "اختر ملفًا لاستيراده.",
+    "too_large": "الملف أكبر مما يقبله PHP في الرفع ({{size}})."
+  },
+  "other": {
+    "title": "خيارات أخرى",
+    "fk_checks": "تفعيل التحقق من المفاتيح الخارجية",
+    "fk_checks_help": "عند إيقافه يجري الاستيراد مع <code>session_replication_role = replica</code>، فيتخطى التحقق من المفاتيح الخارجية والمشغّلات الأخرى؛ ويتطلب ذلك مستخدمًا خارقًا."
+  },
+  "format": {
+    "title": "الصيغة",
+    "aria": "صيغة الملف المراد استيراده",
+    "sql": "SQL",
+    "archive": "أرشيف PostgreSQL مخصص أو tar (pg_restore)"
+  },
+  "options": {
+    "title": "خيارات خاصة بالصيغة:"
+  },
+  "sql": {
+    "stop_on_error": "التوقف عند أول خطأ (<code>ON_ERROR_STOP</code>)",
+    "single_transaction": "تشغيل الملف كمعاملة واحدة (<code>--single-transaction</code>)"
+  },
+  "archive": {
+    "contents": "استعادة:",
+    "contents_both": "البنية والبيانات",
+    "contents_structure": "البنية",
+    "contents_data": "البيانات",
+    "creates_database": "تُنشأ قاعدة بيانات الأرشيف على الخادم (<code>--create</code>).",
+    "schema_only": "تُستعاد كائنات هذا المخطط فقط (<code>--schema</code>).",
+    "structure_title": "خيارات إنشاء الكائنات",
+    "clean": "حذف الكائنات قبل إعادة إنشائها (<code>--clean</code>)",
+    "if_exists": "إضافة <code>IF EXISTS</code> إلى عبارات الحذف",
+    "owner": "استعادة مالكي الكائنات",
+    "privileges": "استعادة الصلاحيات (<code>GRANT</code>/<code>REVOKE</code>)",
+    "tablespaces": "استعادة تعيينات مساحات الجداول",
+    "comments": "استعادة التعليقات",
+    "publications": "استعادة المنشورات",
+    "subscriptions": "استعادة الاشتراكات",
+    "security_labels": "استعادة التسميات الأمنية",
+    "policies": "استعادة سياسات أمان الصفوف",
+    "table_access_method": "استعادة طرق الوصول إلى الجداول",
+    "data_title": "خيارات إنشاء البيانات",
+    "disable_triggers": "تعطيل المشغّلات أثناء تحميل البيانات (<code>--disable-triggers</code>)",
+    "no_data_for_failed_tables": "تخطي بيانات الجداول التي تعذر إنشاؤها",
+    "statistics": "استعادة الإحصاءات (<code>--statistics</code>)",
+    "run_title": "خيارات الاستعادة",
+    "jobs": "عدد المهام المتوازية (<code>--jobs</code>، للأرشيفات المخصصة فقط):",
+    "single_transaction": "الاستعادة كمعاملة واحدة (<code>--single-transaction</code>)",
+    "exit_on_error": "التوقف عند أول خطأ (<code>--exit-on-error</code>)",
+    "set_session_authorization": "استخدام <code>SET SESSION AUTHORIZATION</code> بدلًا من <code>ALTER OWNER</code>",
+    "verbose": "مخرجات مفصّلة"
+  },
+  "process": {
+    "title": "استيراد {{file}} إلى {{target}}",
+    "server": "الخادم",
+    "running": "جارٍ استيراد {{file}}…",
+    "finished": "انتهى الاستيراد بنجاح. ({{file}})",
+    "finished_errors": "انتهى استيراد {{file}}. الأخطاء المبلّغ عنها: {{errors}}.",
+    "failed": "فشل استيراد {{file}} (رمز الخروج {{code}}).",
+    "failed_errors": "فشل استيراد {{file}} (رمز الخروج {{code}}). الأخطاء المبلّغ عنها: {{errors}}.",
+    "killed": "أُوقف استيراد {{file}}.",
+    "lost": "انتهى استيراد {{file}} دون الإبلاغ عن كيفية انتهائه.",
+    "progress": "نسبة ما قُرئ من الملف",
+    "stop": "إيقاف",
+    "dismiss": "إغلاق"
+  }
+}

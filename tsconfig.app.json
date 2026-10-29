@@ -67,6 +67,9 @@
       "@export/*": [
         "./Modules/Export/resources/*"
       ],
+      "@import/*": [
+        "./Modules/Import/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]
