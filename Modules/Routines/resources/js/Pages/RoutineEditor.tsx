@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
+import DependencyPanel from '@/components/DependencyPanel'
 import PreviewSql from '@/components/PreviewSql'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
@@ -443,6 +444,8 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
           </div>
         </div>
       </form>
+
+      {editing && <DependencyPanel dependencies={() => routines(db, data.scid, editKind).dependencies(oid)} dependents={() => routines(db, data.scid, editKind).dependents(oid)} reloadKey={`${db}/${editKind}/${oid}`} />}
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />
     </div>

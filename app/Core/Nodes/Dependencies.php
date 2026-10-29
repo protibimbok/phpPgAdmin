@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPgAdmin\Core\Nodes;
 
 use PhpPgAdmin\Core\Database\Connection;
+use PhpPgAdmin\Core\Facades\Nodes;
 use PhpPgAdmin\Core\Facades\Sql;
 
 /**
@@ -16,10 +17,13 @@ final class Dependencies
 {
     private const string TEMPLATES = 'depends';
 
+    /** The node whose icon a type without a node of its own takes. */
+    private const array ICON_OF = ['partition_table' => 'table', 'partition_index' => 'index', 'toast_table' => 'table'];
+
     /** relkind codes; null means the row needs a closer look. */
     private const array STANDARD_TYPES = [
         'r' => null, 'i' => 'index', 'S' => 'sequence', 'v' => 'view', 'p' => 'partition_table',
-        'f' => 'foreign_table', 'm' => 'materialized_view', 't' => 'toast_table', 'I' => 'partition_index',
+        'f' => 'foreign_table', 'm' => 'mview', 't' => 'toast_table', 'I' => 'partition_index',
     ];
 
     private const array CUSTOM_TYPES = [
@@ -59,7 +63,7 @@ final class Dependencies
                     'type' => 'role',
                     'name' => (string) $row['refname'],
                     'field' => match ($row['deptype']) { 'a' => 'ACL', 'o' => 'Owner', default => '' },
-                    'icon' => null,
+                    'icon' => Nodes::find('role')?->icon ?: null,
                 ];
             }
         }
@@ -92,7 +96,6 @@ final class Dependencies
             $depCode = (string) ($row['deptype'] ?? '');
             $prefix = $row['nspname'] !== null && $row['nspname'] !== '' ? $row['nspname'] . '.' : '';
             $typeName = '';
-            $icon = null;
             $keepRef = true;
 
             if ($typeCode !== '' && array_key_exists($typeCode, $types) && $types[$typeCode] !== null) {
@@ -102,8 +105,6 @@ final class Dependencies
                     $keepRef = false;
                 } elseif ($typeCode === 'Cf') {
                     $prefix .= (string) $row['ownertable'] . '.';
-                } elseif ($typeCode === 'm') {
-                    $icon = 'icon-mview';
                 }
             } elseif ($typeCode !== '' && array_key_exists($typeCode[0], $types) && $types[$typeCode[0]] === null) {
                 if ($typeCode[0] === 'r') {
@@ -115,14 +116,8 @@ final class Dependencies
                         $typeName = 'table';
                         $inherits = ($row['is_inherits'] ?? '0') === '1';
                         $inherited = ($row['is_inherited'] ?? '0') === '1';
-                        if ($inherits && $inherited) {
-                            $icon = 'icon-table-multi-inherit';
-                        } elseif ($inherits && !$inherited && $depCode === 'a') {
+                        if ($inherits && !$inherited && $depCode === 'a') {
                             $typeName = 'partition';
-                        } elseif ($inherits) {
-                            $icon = 'icon-table-inherits';
-                        } elseif ($inherited) {
-                            $icon = 'icon-table-inherited';
                         }
                     }
                 } elseif ($typeCode[0] === 'A') {
@@ -157,7 +152,8 @@ final class Dependencies
                 }
             }
 
-            $result[] = ['type' => $typeName, 'name' => $name, 'field' => $field, 'icon' => $icon];
+            // pgAdmin's icon classes name its own sprites; the node type's icon is ours.
+            $result[] = ['type' => $typeName, 'name' => $name, 'field' => $field, 'icon' => Nodes::find(self::ICON_OF[$typeName] ?? $typeName)?->icon ?: null];
         }
 
         return $result;

@@ -1,17 +1,18 @@
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { useRequest } from '@/api/useRequest'
+import DependencyPanel from '@/components/DependencyPanel'
 import SqlView from '@/components/SqlView'
 import { resolveTable, tables } from '../api'
 
-/** The DDL that recreates the table, as pgAdmin's "SQL" tab shows it. */
+/** The DDL that recreates the table, as pgAdmin's "SQL" tab shows it, and its Dependencies and Dependents. */
 export default function TableDdl() {
   const { t } = useTranslation('tables')
   const { db = '', schema = '', table = '' } = useParams()
-  const { data: sql, error } = useRequest(async () => {
+  const { data, error } = useRequest(async () => {
     const { scid, tid } = await resolveTable(db, schema, table)
 
-    return tables(db, scid).sql(tid)
+    return { node: tables(db, scid), tid, sql: await tables(db, scid).sql(tid) }
   }, [db, schema, table])
 
   if (error) {
@@ -22,7 +23,12 @@ export default function TableDdl() {
     )
   }
 
-  if (sql === undefined) return null
+  if (data === undefined) return null
 
-  return <SqlView sql={sql} title={t('ddl.title', { table: `${schema}.${table}` })} />
+  return (
+    <>
+      <SqlView sql={data.sql} title={t('ddl.title', { table: `${schema}.${table}` })} />
+      <DependencyPanel dependencies={() => data.node.dependencies(data.tid)} dependents={() => data.node.dependents(data.tid)} reloadKey={`${db}/${data.tid}`} />
+    </>
+  )
 }

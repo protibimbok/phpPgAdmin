@@ -59,5 +59,34 @@
   "do_you_really": "Do you really want to execute \"{{sql}}\"?",
   "processing_request": "Processing request",
   "query_executed": "Your SQL query has been executed successfully.",
-  "nothing_to_change": "Nothing to change."
+  "nothing_to_change": "Nothing to change.",
+  "dependency": {
+    "dependencies": "Dependencies",
+    "dependents": "Dependents",
+    "no_dependencies": "It depends on nothing.",
+    "no_dependents": "Nothing depends on it.",
+    "type": "Type",
+    "name": "Name",
+    "restriction": "Restriction",
+    "types": {
+      "mview": "Materialized view",
+      "partition_table": "Partitioned table",
+      "partition_index": "Partitioned index",
+      "toast_table": "TOAST table",
+      "primary_key": "Primary key",
+      "foreign_key": "Foreign key",
+      "unique_constraint": "Unique constraint",
+      "exclusion_constraint": "Exclusion constraint",
+      "check": "Check constraint",
+      "domain_constraints": "Domain constraint",
+      "row_security_policy": "Policy",
+      "event_trigger": "Event trigger",
+      "foreign_table": "Foreign table",
+      "fts_configuration": "FTS configuration",
+      "fts_dictionary": "FTS dictionary",
+      "fts_parser": "FTS parser",
+      "fts_template": "FTS template",
+      "trigger_function": "Trigger function"
+    }
+  }
 }
