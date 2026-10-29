@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use PhpPgAdmin\Modules\Auth\AuthModule;
 use PhpPgAdmin\Modules\Databases\DatabasesModule;
+use PhpPgAdmin\Modules\DbObjects\DbObjectsModule;
 use PhpPgAdmin\Modules\Export\ExportModule;
 use PhpPgAdmin\Modules\Frontend\FrontendModule;
 use PhpPgAdmin\Modules\I18n\I18nModule;
@@ -38,6 +39,7 @@ return [
     SequencesModule::class,
     RoutinesModule::class,
     TypesModule::class,
+    DbObjectsModule::class,
     ReplicationModule::class,
     ExportModule::class,
     ImportModule::class,

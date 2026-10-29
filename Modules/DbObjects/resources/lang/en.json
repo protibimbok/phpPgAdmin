@@ -1,0 +1,97 @@
+{
+  "tab": "Objects",
+  "cascade": "Drop the objects that depend on it too (CASCADE)",
+  "current_role": "(current role)",
+  "export_title": "Export of {{name}}",
+  "export_title_many": "Export of the selected objects",
+  "none_selected": "No object selected.",
+  "dropped": "{{name}} has been dropped.",
+  "dropped_many": "{{count}} objects have been dropped.",
+  "created": "{{name}} has been created.",
+  "altered": "{{name}} has been altered.",
+  "actions": {
+    "edit": "Edit",
+    "export": "Export",
+    "drop": "Drop"
+  },
+  "columns": {
+    "name": "Name",
+    "version": "Version",
+    "schema": "Schema",
+    "comment": "Comment",
+    "trusted": "Trusted",
+    "handler": "Handler",
+    "owner": "Owner",
+    "function": "Function",
+    "context": "Context",
+    "event": "Event",
+    "tags": "Tags",
+    "state": "State"
+  },
+  "fields": {
+    "name": "Name",
+    "schema": "Schema",
+    "version": "Version",
+    "cascade": "Cascade",
+    "owner": "Owner",
+    "trusted": "Trusted",
+    "handler": "Handler function",
+    "inline": "Inline function",
+    "validator": "Validator function",
+    "comment": "Comment",
+    "source": "Source type",
+    "target": "Target type",
+    "function": "Function",
+    "context": "Context",
+    "event": "Event",
+    "tags": "When tag in",
+    "state": "Enabled"
+  },
+  "extension": {
+    "title": "Extensions",
+    "none": "There are no extensions in this database.",
+    "create": "Add extension",
+    "create_title": "Add extension",
+    "edit_title": "Edit extension {{name}}",
+    "schema_hint": "Empty for the schema the extension's control file names, or the first of the search path.",
+    "fixed_schema": "The extension's control file puts it in {{schema}}.",
+    "default_version": "(default version)",
+    "cascade_hint": "Also installs the extensions it requires."
+  },
+  "language": {
+    "title": "Languages",
+    "none": "There are no procedural languages in this database.",
+    "create": "Add language",
+    "create_title": "Add language",
+    "edit_title": "Edit language {{name}}",
+    "recreate_hint": "A new trust, handler, inline function or validator drops the language with what depends on it (CASCADE) and creates it again."
+  },
+  "cast": {
+    "title": "Casts",
+    "none": "There are no user-defined casts in this database.",
+    "create": "Add cast",
+    "create_title": "Add cast",
+    "edit_title": "Edit cast {{name}}",
+    "binary": "(binary compatible, WITHOUT FUNCTION)",
+    "contexts": {
+      "EXPLICIT": "Explicit",
+      "ASSIGNMENT": "In assignments (AS ASSIGNMENT)",
+      "IMPLICIT": "Implicit (AS IMPLICIT)"
+    }
+  },
+  "event_trigger": {
+    "title": "Event triggers",
+    "none": "There are no event triggers in this database.",
+    "create": "Add event trigger",
+    "create_title": "Add event trigger",
+    "edit_title": "Edit event trigger {{name}}",
+    "tags_hint": "The command tags that fire it, separated by commas; empty for every command.",
+    "no_functions": "There is no function returning event_trigger yet: create one on a schema's Routines page.",
+    "states": {
+      "O": "Enabled",
+      "D": "Disabled",
+      "R": "Replica",
+      "A": "Always"
+    }
+  }
+}
