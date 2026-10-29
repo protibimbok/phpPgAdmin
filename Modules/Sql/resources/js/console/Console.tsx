@@ -5,28 +5,21 @@ import { errorMessage } from '@/api/request'
 import Icon from '@/components/Icon'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls, useLevel } from '@/level'
+import { preference, savePreferences, usePreference } from '@/preferences'
 import { clearHistory, createBookmark, deleteBookmark, listBookmarks, listHistory, type Bookmark, type HistoryEntry } from '../api'
 import SqlEditor, { type SqlEditorHandle } from '../editor/SqlEditor'
+import { CONSOLE_ALWAYS_EXPAND, CONSOLE_ENTER_EXECUTES, CONSOLE_START_HISTORY } from '../preferences'
 
-/** phpMyAdmin's console settings (Config\Settings\Console), kept per browser. */
+/** phpMyAdmin's console settings (Config\Settings\Console), the role's settings on the Features page. */
 interface Options {
   alwaysExpand: boolean
   startHistory: boolean
   enterExecutes: boolean
 }
 
-const OPTIONS_KEY = 'pgaConsoleOptions'
 const OPEN_KEY = 'pgaConsoleOpen'
 
 const DEFAULTS: Options = { alwaysExpand: false, startHistory: false, enterExecutes: false }
-
-function readOptions(): Options {
-  try {
-    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(OPTIONS_KEY) ?? '{}') as Partial<Options>) }
-  } catch {
-    return DEFAULTS
-  }
-}
 
 /** A query shown in the console: one the role ran before, or a bookmark. */
 interface Message {
@@ -59,11 +52,20 @@ export default function Console() {
       return false
     }
   })
-  const [options, setOptions] = useState<Options>(readOptions)
+  const options: Options = {
+    alwaysExpand: usePreference<boolean>(CONSOLE_ALWAYS_EXPAND),
+    startHistory: usePreference<boolean>(CONSOLE_START_HISTORY),
+    enterExecutes: usePreference<boolean>(CONSOLE_ENTER_EXECUTES),
+  }
+  /** The console's Options card changes the same settings as the Settings page. */
+  const setOptions = (next: Options | ((current: Options) => Options)) => {
+    const value = typeof next === 'function' ? next(options) : next
+    savePreferences({ [CONSOLE_ALWAYS_EXPAND]: value.alwaysExpand, [CONSOLE_START_HISTORY]: value.startHistory, [CONSOLE_ENTER_EXECUTES]: value.enterExecutes }).catch((e: unknown) => notifyError(errorMessage(e)))
+  }
   const [card, setCard] = useState<Card>(null)
   const [query, setQuery] = useState('')
   const [history, setHistory] = useState<HistoryEntry[] | null>(null)
-  const [historyShown, setHistoryShown] = useState(() => readOptions().startHistory)
+  const [historyShown, setHistoryShown] = useState(() => preference<boolean>(CONSOLE_START_HISTORY))
   const [cleared, setCleared] = useState<Set<string>>(new Set())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [bookmarks, setBookmarks] = useState<Bookmark[] | null>(null)
@@ -78,14 +80,6 @@ export default function Console() {
       // Not remembered, then.
     }
   }, [open])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(OPTIONS_KEY, JSON.stringify(options))
-    } catch {
-      // Not remembered, then.
-    }
-  }, [options])
 
   const loadHistory = useCallback(() => {
     listHistory(50).then(setHistory, (e: unknown) => notifyError(errorMessage(e)))

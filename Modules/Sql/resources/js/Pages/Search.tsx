@@ -10,7 +10,7 @@ import DateTimeInput from '../fields/DateTimeInput'
 import ForeignSelect from '../fields/ForeignSelect'
 import { fieldKind, fractionDigits, hasTimeZone, inputDataType, integerRange, validationError, type DateKind } from '../fields/kinds'
 import QueryResults from '../results/QueryResults'
-import { DEFAULT_MAX_ROWS, type GridNav } from '../results/ResultsGrid'
+import { defaultMaxRows, type GridNav } from '../results/ResultsGrid'
 import { useGridActions } from '../results/useGridActions'
 import { qualifiedName, quoteIdent, quoteLiteral } from '../sql'
 import { useQueryRunner } from '../useQueryRunner'
@@ -60,12 +60,12 @@ export default function Search() {
   const [shown, setShown] = useState<string[] | null>(null)
   const [distinct, setDistinct] = useState(false)
   const [customWhere, setCustomWhere] = useState('')
-  const [maxRows, setMaxRows] = useState(DEFAULT_MAX_ROWS)
+  const [maxRows, setMaxRows] = useState(defaultMaxRows())
   const [orderBy, setOrderBy] = useState('')
   const [direction, setDirection] = useState<'ASC' | 'DESC'>('ASC')
   const [extraOpen, setExtraOpen] = useState(false)
   const [sql, setSql] = useState<string | null>(null)
-  const [nav, setNav] = useState<GridNav>({ pos: 0, maxRows: DEFAULT_MAX_ROWS, order: [] })
+  const [nav, setNav] = useState<GridNav>({ pos: 0, maxRows: defaultMaxRows(), order: [] })
   const runner = useQueryRunner(db)
 
   const relationUrl = urls.relation(db, schema, table, kind)

@@ -3,8 +3,10 @@ import i18next from 'i18next'
 import { Trans, useTranslation } from 'react-i18next'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { useRequest } from '@/api/useRequest'
+import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import { notify, dismiss, type Notification } from '@/notify'
+import { preference } from '@/preferences'
 import { useSession } from '@/session'
 import { urls, useLevel } from '@/level'
 import { format } from 'sql-formatter'
@@ -16,9 +18,10 @@ import SqlEditor, { type SqlEditorHandle } from '../editor/SqlEditor'
 import MacrosDialog, { nextMacroName } from '../macros/MacrosDialog'
 import MacrosMenu, { macroKeyOf } from '../macros/MacrosMenu'
 import QueryResults from '../results/QueryResults'
-import { DEFAULT_MAX_ROWS, type GridNav } from '../results/ResultsGrid'
+import { defaultMaxRows, type GridNav } from '../results/ResultsGrid'
 import { useGridActions } from '../results/useGridActions'
 import { qualifiedName, quoteIdent, quoteLiteral } from '../sql'
+import { CONFIRM, isDestructive } from '../preferences'
 import { useQueryRunner } from '../useQueryRunner'
 
 /** Where phpMyAdmin keeps the query it saves as you type, for "Get auto-saved query". */
@@ -50,7 +53,8 @@ function SqlPageAt() {
 
   const [query, setQuery] = useState(() => search.get('sql') ?? defaultQuery(level))
   const [ran, setRan] = useState<string | null>(null)
-  const [nav, setNav] = useState<GridNav>({ pos: 0, maxRows: DEFAULT_MAX_ROWS, order: [] })
+  const [nav, setNav] = useState<GridNav>({ pos: 0, maxRows: defaultMaxRows(), order: [] })
+  const [confirming, setConfirming] = useState<string | null>(null)
   const [delimiter, setDelimiter] = useState(';')
   const [showAgain, setShowAgain] = useState(false)
   const [retain, setRetain] = useState(false)
@@ -168,6 +172,13 @@ function SqlPageAt() {
   function submit(e?: FormEvent) {
     e?.preventDefault()
     if (query.trim() === '') return
+    // phpMyAdmin's "Confirm DROP queries": a destructive statement waits for the user's OK.
+    if (preference<boolean>(CONFIRM) && isDestructive(query)) return setConfirming(query)
+    go()
+  }
+
+  /** The Go of the query box, once confirmed: the bookmark the box names, then the query. */
+  function go() {
     if (bookmarkLabel.trim() !== '' && db !== null) {
       createBookmark({ database: db, label: bookmarkLabel.trim(), sql: query, shared: bookmarkShared, replace: bookmarkReplace }).then(
         () => {
@@ -259,6 +270,15 @@ function SqlPageAt() {
 
   return (
     <>
+      <ConfirmQuery
+        show={confirming !== null}
+        sql={confirming ?? ''}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => {
+          setConfirming(null)
+          go()
+        }}
+      />
       {!boxShown && (
         <a id="togglequerybox" href="#querybox" onClick={(e) => { e.preventDefault(); setBoxShown(true) }}>
           {t('show_query_box')}

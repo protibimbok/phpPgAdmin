@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { registerPreferenceGroups, registerPreferences } from '@/preferences'
 
 /**
  * The navigation tree's state across pages, kept in sessionStorage the way phpMyAdmin's
@@ -11,14 +12,22 @@ const PATHS_KEY = 'navTreePaths'
 const LINKED_KEY = 'navTreeLinked'
 const SERVER_KEY = 'navTreeServer'
 
-/** How many items a list may hold before a fast filter appears (NavigationTreeDisplayItemFilterMinimum). */
-export const FILTER_MINIMUM = 30
+/**
+ * The tree's settings, on the Navigation panel settings page: how many databases the first
+ * level shows per page (FirstLevelNavigationItems), how many items another list shows per
+ * page (MaxNavigationItems), and how many a list may hold before a fast filter appears
+ * (NavigationTreeDisplayItemFilterMinimum).
+ */
+export const FIRST_LEVEL_PAGE_SIZE = 'navigation.first_level_items'
+export const PAGE_SIZE = 'navigation.max_items'
+export const FILTER_MINIMUM = 'navigation.filter_minimum'
 
-/** How many items a list shows per page (MaxNavigationItems). */
-export const PAGE_SIZE = 50
-
-/** How many databases the first level shows per page (FirstLevelNavigationItems). */
-export const FIRST_LEVEL_PAGE_SIZE = 100
+registerPreferenceGroups([{ page: 'navigation', id: 'tree', label: 'settings:groups.navigation_tree', description: 'settings:groups.navigation_tree_help' }])
+registerPreferences([
+  { key: FIRST_LEVEL_PAGE_SIZE, type: 'number', default: 100, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.first_level_items', description: 'settings:navigation.first_level_items_help' },
+  { key: PAGE_SIZE, type: 'number', default: 50, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.max_items', description: 'settings:navigation.max_items_help' },
+  { key: FILTER_MINIMUM, type: 'number', default: 30, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.filter_minimum', description: 'settings:navigation.filter_minimum_help' },
+])
 
 type Listener = () => void
 

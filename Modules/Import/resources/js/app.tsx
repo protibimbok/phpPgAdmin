@@ -1,5 +1,6 @@
 import { insertAfter, registerModule } from '@/modular'
 import Import from './Pages/Import'
+import './preferences'
 
 // The Import tab where phpMyAdmin has it, after Export on the server, a database, a schema
 // and a table (not a view: rows are imported into a table). The module sorts after Export,

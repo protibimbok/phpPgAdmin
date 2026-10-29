@@ -5,7 +5,9 @@ import { errorMessage, type ApiError } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import { notify, notifyError, notifySuccess } from '@/notify'
+import { preference } from '@/preferences'
 import { createTemplate, deleteTemplate, downloadExport, exportOptions, exportText, updateTemplate, type ExportObject, type ExportOptions, type ExportScope, type ExportSettings, type ExportTarget, type ExportTemplate } from '../api'
+import { COMPRESSION, FORMAT, METHOD } from '../preferences'
 
 const DEFAULTS: Omit<ExportSettings, 'filename_template' | 'encoding' | 'databases' | 'structure' | 'data'> = {
   method: 'quick',
@@ -105,7 +107,10 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
   const initialSelection = preselected.length > 0 ? names.filter((name) => preselected.includes(name)) : names
   const [settings, setSettings] = useState<ExportSettings>(() => ({
     ...DEFAULTS,
-    method: preselected.length > 0 ? 'custom' : 'quick',
+    // The role's defaults, where the scope offers them: pg_dump's archives and CSV need a database.
+    method: preselected.length > 0 ? 'custom' : preference<ExportSettings['method']>(METHOD),
+    format: scope === 'server' ? 'plain' : preference<ExportSettings['format']>(FORMAT),
+    compression: preference<ExportSettings['compression']>(COMPRESSION),
     filename_template: rememberedFilename(scope) ?? options.filename_template,
     encoding: options.encoding,
     databases: names,

@@ -1,11 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import Icon from '@/components/Icon'
+import { preference } from '@/preferences'
 import { notAvailable } from '@/unbuilt'
 import type { Order, ResultColumn, RowsResult } from '../api'
 import DateTimeInput from '../fields/DateTimeInput'
 import { useForeignValues, foreignOptions } from '../fields/ForeignSelect'
 import { dateFieldClass, dateKind, fieldKind, fractionDigits, hasTimeZone, padFraction } from '../fields/kinds'
+import { MAX_ROWS } from '../preferences'
 import { isBinaryType, isNumericType } from '../sql'
 import { notAvailable as browseForeign } from '@/unbuilt'
 
@@ -19,7 +21,8 @@ export interface GridNav {
 
 export const ROWS_OPTIONS = [25, 50, 100, 250, 500]
 
-export const DEFAULT_MAX_ROWS = 25
+/** The rows a result shows per page, the role's "Number of rows" setting (MaxRows). */
+export const defaultMaxRows = (): number => preference<number>(MAX_ROWS)
 
 /** phpMyAdmin's LimitChars: how much of a long text a cell shows in "Partial texts" mode. */
 const LIMIT_CHARS = 50
@@ -228,7 +231,7 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                 className="showAllRows"
                 value="all"
                 checked={showingAll}
-                onChange={(e) => go({ maxRows: e.target.checked ? null : DEFAULT_MAX_ROWS, pos: 0 })}
+                onChange={(e) => go({ maxRows: e.target.checked ? null : defaultMaxRows(), pos: 0 })}
               />
               <label htmlFor={`showAll_${uniqueId}`}>{t('grid.show_all')}</label>
             </form>

@@ -79,6 +79,9 @@
       "@search/*": [
         "./Modules/Search/resources/*"
       ],
+      "@settings/*": [
+        "./Modules/Settings/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]

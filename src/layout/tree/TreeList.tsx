@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { usePreference } from '@/preferences'
 import { FILTER_MINIMUM, PAGE_SIZE } from './treeState'
 
 export interface TreeListProps<T> {
@@ -23,7 +24,10 @@ export interface TreeListProps<T> {
  * NavigationTreeDisplayItemFilterMinimum items, and the page selector (list_navigator.twig)
  * once it exceeds MaxNavigationItems.
  */
-export default function TreeList<T>({ items, label, render, pageSize = PAGE_SIZE, head, tail, filterClass }: TreeListProps<T>) {
+export default function TreeList<T>({ items, label, render, pageSize: fixedPageSize, head, tail, filterClass }: TreeListProps<T>) {
+  const defaultPageSize = usePreference<number>(PAGE_SIZE)
+  const filterMinimum = usePreference<number>(FILTER_MINIMUM)
+  const pageSize = fixedPageSize ?? defaultPageSize
   const { t } = useTranslation()
   const [filter, setFilter] = useState('')
   const [page, setPage] = useState(0)
@@ -40,7 +44,7 @@ export default function TreeList<T>({ items, label, render, pageSize = PAGE_SIZE
 
   return (
     <>
-      {items.length >= FILTER_MINIMUM && (
+      {items.length >= filterMinimum && (
         <li className={['fast_filter', filterClass].filter(Boolean).join(' ')}>
           <form className="fast_filter" onSubmit={(e) => e.preventDefault()}>
             <div className="input-group">

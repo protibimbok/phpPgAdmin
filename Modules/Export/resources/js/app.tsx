@@ -1,5 +1,6 @@
 import { insertAfter, insertBefore, registerModule } from '@/modular'
 import Export from './Pages/Export'
+import './preferences'
 
 const KINDS = ['table', 'view', 'mview'] as const
 

@@ -6,12 +6,16 @@ namespace PhpPgAdmin\Modules\Sql\Storage;
 
 use PDO;
 use PhpPgAdmin\Core\Facades\Storage;
+use PhpPgAdmin\Modules\Auth\Preferences;
 
-/** The statements a role ran on a server, newest first, kept to a fixed number per role. */
+/** The statements a role ran on a server, newest first, kept to the number the role's settings say. */
 final class QueryHistory
 {
     /** How many entries a role keeps on a server; the oldest go when it is exceeded. */
     public const int LIMIT = 500;
+
+    /** The setting that shortens the history (QueryHistoryMax); the frontend registers it. */
+    public const string PREFERENCE = 'sql.query_history_max';
 
     public function __construct(
         private readonly PDO $db,
@@ -61,6 +65,14 @@ final class QueryHistory
             DELETE FROM query_history WHERE server = ? AND username = ? AND id NOT IN (
                 SELECT id FROM query_history WHERE server = ? AND username = ? ORDER BY id DESC LIMIT ?
             )
-            SQL)->execute([$this->server, $this->username, $this->server, $this->username, self::LIMIT]);
+            SQL)->execute([$this->server, $this->username, $this->server, $this->username, $this->kept()]);
+    }
+
+    /** How many entries are kept: the role's "Query history length" setting, at most LIMIT. */
+    private function kept(): int
+    {
+        $setting = (new Preferences($this->db, $this->server, $this->username))->get(self::PREFERENCE, self::LIMIT);
+
+        return is_int($setting) ? max(1, min($setting, self::LIMIT)) : self::LIMIT;
     }
 }

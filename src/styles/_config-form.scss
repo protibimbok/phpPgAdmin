@@ -1,0 +1,81 @@
+// The settings pages, after pmahomme's "config forms" rules in _common.scss: a tab's card
+// joined to the tab bar, each setting a row of the fieldset with its description small under
+// its name, and the Manage page's indented option blocks.
+
+.config-form {
+  .card {
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  fieldset {
+    margin-top: 0;
+    padding: 0;
+    clear: both;
+    border-radius: 0;
+
+    th {
+      padding: 0.3em;
+      padding-left: 0.5em;
+      text-align: left;
+      vertical-align: top;
+      background: transparent;
+      filter: none;
+      border-top: border-width('base') color(surface-row-alt) solid;
+      border-right: none;
+
+      small {
+        display: block;
+        font-weight: normal;
+        font-family: font-family('sans');
+        font-size: x-small;
+        color: color(text);
+      }
+    }
+
+    td {
+      padding-top: 0.3em;
+      padding-bottom: 0.3em;
+      vertical-align: top;
+      border-top: border-width('base') color(surface-row-alt) solid;
+      border-right: none;
+    }
+  }
+
+  legend {
+    display: none;
+  }
+
+  span.checkbox {
+    padding: 2px;
+    display: inline-block;
+  }
+
+  input {
+    &[type='text'],
+    &[type='number'] {
+      border: border-width('base') #a7a6aa solid;
+      height: auto;
+
+      &:focus {
+        border: border-width('base') #6676ff solid;
+        background: #f7fbff;
+      }
+    }
+  }
+
+  select {
+    border: border-width('base') #a7a6aa solid;
+    height: auto;
+
+    &:focus {
+      border: border-width('base') #6676ff solid;
+      background: #f7fbff;
+    }
+  }
+}
+
+.prefsmanage_opts {
+  margin-left: 2em;
+}

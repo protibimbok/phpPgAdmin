@@ -4,6 +4,7 @@ import Browse from './Pages/Browse'
 import Change from './Pages/Change'
 import Search from './Pages/Search'
 import SqlPage from './Pages/Sql'
+import './preferences'
 
 const KINDS = ['table', 'view', 'mview'] as const
 

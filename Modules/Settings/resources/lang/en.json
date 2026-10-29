@@ -1,0 +1,103 @@
+{
+  "tab": "Settings",
+  "apply": "Apply",
+  "reset": "Reset",
+  "go": "Go",
+  "saved": "Configuration has been saved.",
+  "nothing": "There are no settings on this page.",
+  "invalid_number": "{{name}}: enter a whole number from {{min}} to {{max}}.",
+  "restore_default": "Restore default value",
+  "pages": {
+    "manage": "Manage your settings",
+    "features": "Features",
+    "sql": "SQL queries",
+    "navigation": "Navigation panel",
+    "main-panel": "Main panel",
+    "export": "Export",
+    "import": "Import"
+  },
+  "manage": {
+    "import": "Import",
+    "import_file": "Import from file",
+    "browse": "Browse your computer:",
+    "import_browser": "Import from browser's storage",
+    "import_browser_help": "Settings will be imported from your browser's local storage.",
+    "saved_on": "Saved on: {{date}}",
+    "nothing_saved": "You have no saved settings!",
+    "merge": "Merge with current configuration",
+    "export": "Export",
+    "export_file": "Save as JSON file",
+    "export_browser": "Save to browser's storage",
+    "export_browser_help": "Settings will be saved in your browser's local storage.",
+    "overwritten": "Existing settings will be overwritten!",
+    "reset": "Reset",
+    "reset_help": "You can reset all your settings and restore them to default values.",
+    "no_file": "Choose a file to import.",
+    "invalid_file": "The file does not hold settings exported from here.",
+    "imported": "Configuration has been imported.",
+    "saved_browser": "Configuration has been saved.",
+    "no_storage": "This feature is not supported by your web browser",
+    "reset_done": "Your settings have been reset to their default values."
+  },
+  "groups": {
+    "general": "General",
+    "general_help": "Set some commonly used options.",
+    "console": "Console",
+    "console_help": "How the console at the bottom of the page behaves.",
+    "sql_queries": "SQL queries",
+    "sql_queries_help": "SQL queries settings.",
+    "navigation_tree": "Navigation tree",
+    "navigation_tree_help": "Customize the navigation tree.",
+    "browse": "Browse mode",
+    "browse_help": "Customize browse mode.",
+    "export_defaults": "Export defaults",
+    "export_defaults_help": "Customize default export options.",
+    "import_defaults": "Import defaults",
+    "import_defaults_help": "Customize default common import options."
+  },
+  "features": {
+    "confirm": "Confirm DROP queries",
+    "confirm_help": "Whether a warning (\"Are your really sure…\") should be displayed when you're about to lose data."
+  },
+  "console": {
+    "always_expand": "Always expand query messages",
+    "always_expand_help": "Show a query's whole message in the console instead of its first line.",
+    "start_history": "Show query history at start",
+    "start_history_help": "Open the console on the query history.",
+    "enter_executes": "Execute queries on Enter and insert new line with Shift+Enter",
+    "enter_executes_help": "Otherwise Ctrl+Enter runs the query and Enter starts a new line."
+  },
+  "sql": {
+    "query_history_max": "Query history length",
+    "query_history_max_help": "How many queries are kept in history (at most 500)."
+  },
+  "main": {
+    "max_rows": "Number of rows",
+    "max_rows_help": "Number of rows displayed when browsing a result set. If the result set contains more rows, \"Previous\" and \"Next\" links will be shown."
+  },
+  "navigation": {
+    "first_level_items": "Maximum items on first level",
+    "first_level_items_help": "The number of items that can be displayed on each page on the first level of the navigation tree.",
+    "max_items": "Maximum items in branch",
+    "max_items_help": "The number of items that can be displayed on each page of the navigation tree.",
+    "filter_minimum": "Minimum number of items to display the filter box",
+    "filter_minimum_help": "Defines the minimum number of items (tables, views, routines and events) to display a filter box."
+  },
+  "export": {
+    "method": "Export method",
+    "method_help": "Quick shows only the format; custom shows every option.",
+    "method_quick": "Quick - display only the minimal options to configure",
+    "method_custom": "Custom - display all possible options to configure",
+    "format": "Format",
+    "format_help": "A server export is always SQL (pg_dumpall).",
+    "compression": "Compression",
+    "compression_none": "None",
+    "compression_gzip": "gzipped"
+  },
+  "import": {
+    "charset": "Character set of the file",
+    "charset_help": "The encoding the Import page starts with, as PostgreSQL names it (UTF8, LATIN1, …).",
+    "stop_on_error": "Stop at the first error",
+    "stop_on_error_help": "For an SQL file: psql's ON_ERROR_STOP."
+  }
+}

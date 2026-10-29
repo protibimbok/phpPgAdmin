@@ -6,7 +6,9 @@ import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import { formatSize } from '@/format'
 import { notifyError } from '@/notify'
+import { preference } from '@/preferences'
 import { importOptions, listProcesses, startImport, type BackgroundProcess, type CopyFormat, type CopySettings, type ImportOptions, type ImportScope, type ImportSettings, type ImportTarget } from '../api'
+import { CHARSET, STOP_ON_ERROR } from '../preferences'
 import ProcessView from '../ProcessView'
 
 const DEFAULTS: Omit<ImportSettings, 'charset'> = {
@@ -90,7 +92,12 @@ export default function Import({ scope }: { scope: ImportScope }) {
 
 function ImportForm({ scope, target, options }: { scope: ImportScope; target: ImportTarget; options: ImportOptions }) {
   const { t } = useTranslation('import')
-  const [settings, setSettings] = useState<ImportSettings>(() => ({ ...DEFAULTS, charset: options.encodings.includes('UTF8') ? 'UTF8' : '' }))
+  // The role's defaults: the character set (when the server knows it) and stopping at the first error.
+  const [settings, setSettings] = useState<ImportSettings>(() => {
+    const charset = preference<string>(CHARSET).toUpperCase()
+
+    return { ...DEFAULTS, stop_on_error: preference<boolean>(STOP_ON_ERROR), charset: options.encodings.includes(charset) ? charset : options.encodings.includes('UTF8') ? 'UTF8' : '' }
+  })
   const [copy, setCopy] = useState<Record<CopyFormat, CopySettings>>(COPY_DEFAULTS)
   const [file, setFile] = useState<File | null>(null)
   const [source, setSource] = useState<'upload' | 'local'>('upload')

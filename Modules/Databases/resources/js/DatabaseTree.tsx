@@ -8,6 +8,7 @@ import NodeChildren from '@/layout/tree/NodeChildren'
 import TreeItem from '@/layout/tree/TreeItem'
 import TreeList from '@/layout/tree/TreeList'
 import { FIRST_LEVEL_PAGE_SIZE, useTreeState } from '@/layout/tree/treeState'
+import { usePreference } from '@/preferences'
 import { databaseNodes } from './api'
 
 /**
@@ -16,6 +17,7 @@ import { databaseNodes } from './api'
  * filter and page selector for long lists.
  */
 export default function DatabaseTree() {
+  const firstLevelPageSize = usePreference<number>(FIRST_LEVEL_PAGE_SIZE)
   const { t } = useTranslation('databases')
   const level = useLevel()
   const state = useTreeState()
@@ -27,7 +29,7 @@ export default function DatabaseTree() {
       <TreeList
         items={databases}
         label={(database) => database.label}
-        pageSize={FIRST_LEVEL_PAGE_SIZE}
+        pageSize={firstLevelPageSize}
         filterClass="db_fast_filter"
         head={
           <li className={`first new_database italics${databases.length === 0 ? ' last' : ''}`}>

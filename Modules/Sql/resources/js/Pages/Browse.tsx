@@ -9,7 +9,7 @@ import { indexes, resolveTable, type Index } from '@tables/js/api'
 import { relationColumns, runQuery, type Order, type RowsResult } from '../api'
 import HighlightedSql from '../editor/HighlightedSql'
 import QueryResults from '../results/QueryResults'
-import { DEFAULT_MAX_ROWS, type GridNav, type SortKey } from '../results/ResultsGrid'
+import { defaultMaxRows, type GridNav, type SortKey } from '../results/ResultsGrid'
 import { useGridActions } from '../results/useGridActions'
 import { parseOrder, qualifiedName, quoteIdent, serializeOrder } from '../sql'
 
@@ -35,7 +35,7 @@ export default function Browse() {
   const distinct = search.get('distinct')
   const pos = Math.max(0, Number(search.get('pos') ?? 0) || 0)
   const rowsParam = search.get('rows')
-  const maxRows = rowsParam === 'all' ? null : Math.max(1, Number(rowsParam ?? DEFAULT_MAX_ROWS) || DEFAULT_MAX_ROWS)
+  const maxRows = rowsParam === 'all' ? null : Math.max(1, Number(rowsParam ?? defaultMaxRows()) || defaultMaxRows())
   const order = useMemo(() => parseOrder(search.get('order')), [search])
   const nav: GridNav = { pos, maxRows, order }
 
@@ -97,7 +97,7 @@ export default function Browse() {
     setSearch((params) => {
       params.set('pos', String(next.pos))
       if (next.maxRows === null) params.set('rows', 'all')
-      else if (next.maxRows === DEFAULT_MAX_ROWS) params.delete('rows')
+      else if (next.maxRows === defaultMaxRows()) params.delete('rows')
       else params.set('rows', String(next.maxRows))
       if (next.order.length > 0) params.set('order', serializeOrder(next.order))
       else params.delete('order')
