@@ -163,3 +163,17 @@ export const extensionOptions = (db: string) => api.get<ExtensionOptions>(`${col
 export const languageOptions = (db: string) => api.get<LanguageOptions>(`${collectionUrl(db, 'languages')}/options`)
 export const castOptions = (db: string, srctyp = '', trgtyp = '') => api.get<CastOptions>(`${collectionUrl(db, 'casts')}/options?${new URLSearchParams({ srctyp, trgtyp })}`)
 export const eventTriggerOptions = (db: string) => api.get<EventTriggerOptions>(`${collectionUrl(db, 'event_triggers')}/options`)
+
+export interface ForeignTable {
+  oid: number
+  name: string
+  owner: string
+  basensp: string
+  ftsrvname: string
+  ftoptions: OptionPair[]
+  description: string | null
+  columns: { attnum: number; name: string; cltype: string; attnotnull: boolean; defval: string; coloptions: OptionPair[]; inheritedfrom: string | null }[]
+}
+
+export const foreignTables = (db: string, scid: number) => collection<ForeignTable>(collectionUrl(db, 'schemas', scid, 'foreign_tables'))
+export const foreignTableOptions = (db: string, scid: number) => api.get<{ servers: string[]; roles: string[] }>(`${collectionUrl(db, 'schemas', scid, 'foreign_tables')}/options`)

@@ -12,7 +12,8 @@
   "actions": {
     "edit": "Edit",
     "export": "Export",
-    "drop": "Drop"
+    "drop": "Drop",
+    "browse": "Browse"
   },
   "columns": {
     "name": "Name",
@@ -30,7 +31,10 @@
     "validator": "Validator",
     "options": "Options",
     "wrapper": "Foreign data wrapper",
-    "type": "Type"
+    "type": "Type",
+    "browse": "Rows",
+    "server": "Server",
+    "columns": "Columns"
   },
   "fields": {
     "name": "Name",
@@ -54,7 +58,8 @@
     "wrapper": "Foreign data wrapper",
     "type": "Type",
     "server": "Foreign server",
-    "user": "User"
+    "user": "User",
+    "columns": "Columns"
   },
   "extension": {
     "title": "Extensions",
@@ -135,5 +140,23 @@
     "edit_title": "Edit user mapping for {{name}}",
     "no_servers": "Add a foreign server first: a user mapping belongs to one.",
     "options_hint": "The role's credentials on the remote side, such as user and password for postgres_fdw."
+  },
+  "columns_grid": {
+    "name": "Name",
+    "type": "Type",
+    "not_null": "Not null",
+    "default": "Default",
+    "options": "Options",
+    "add": "Add column"
+  },
+  "foreign_table": {
+    "tab": "Foreign tables",
+    "title": "Foreign tables",
+    "none": "There are no foreign tables in this schema.",
+    "create": "Add foreign table",
+    "create_title": "Add foreign table",
+    "edit_title": "Edit foreign table {{name}}",
+    "no_servers": "There is no foreign server yet: add one on the database's Objects page.",
+    "options_hint": "Where the wrapper finds the rows, such as schema_name and table_name for postgres_fdw."
   }
 }

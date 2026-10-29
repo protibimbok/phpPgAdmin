@@ -12,14 +12,24 @@ export interface OptionPair {
   value: string
 }
 
-export type Value = string | boolean | OptionPair[]
+/** A column of a foreign table: attnum is null for one not created yet. */
+export interface ColumnRow {
+  attnum: number | null
+  name: string
+  cltype: string
+  attnotnull: boolean
+  defval: string
+  coloptions: OptionPair[]
+}
+
+export type Value = string | boolean | OptionPair[] | ColumnRow[]
 
 export type Values = Record<string, Value>
 
 export interface Field {
   key: string
   label: string
-  kind: 'text' | 'select' | 'checkbox' | 'textarea' | 'options'
+  kind: 'text' | 'select' | 'checkbox' | 'textarea' | 'options' | 'columns'
   options?: { value: string; label: string }[]
   /** The label of the empty choice a select starts with; none when left out. */
   empty?: string
@@ -134,8 +144,10 @@ export default function NodeDialog({ show, id, title, fields, initial, onValuesC
                         <label htmlFor={name}>{field.label}</label>
                       </td>
                       <td>
-                        {field.kind === 'options' ? (
-                          <OptionsInput id={name} pairs={Array.isArray(value) ? value : []} readOnly={field.readOnly} onChange={(pairs) => set(field.key, pairs)} />
+                        {field.kind === 'columns' ? (
+                          <ColumnsInput id={name} columns={Array.isArray(value) ? (value as ColumnRow[]) : []} onChange={(columns) => set(field.key, columns)} />
+                        ) : field.kind === 'options' ? (
+                          <OptionsInput id={name} pairs={Array.isArray(value) ? (value as OptionPair[]) : []} readOnly={field.readOnly} onChange={(pairs) => set(field.key, pairs)} />
                         ) : field.kind === 'checkbox' ? (
                           <input type="checkbox" id={name} name={field.key} checked={value === true} onChange={(e) => set(field.key, e.target.checked)} disabled={field.readOnly} />
                         ) : field.kind === 'select' && !field.readOnly ? (
@@ -220,6 +232,68 @@ function OptionsInput({ id, pairs, readOnly, onChange }: { id: string; pairs: Op
             </td>
           </tr>
         )}
+      </tbody>
+    </table>
+  )
+}
+
+/**
+ * The columns of a foreign table, a row each with its name, type, NOT NULL, default and the
+ * wrapper's column options, after the column grid of pgAdmin's foreign table dialog.
+ */
+function ColumnsInput({ id, columns, onChange }: { id: string; columns: ColumnRow[]; onChange: (columns: ColumnRow[]) => void }) {
+  const { t } = useTranslation('dbobjects')
+  const update = (index: number, change: Partial<ColumnRow>) => onChange(columns.map((column, i) => (i === index ? { ...column, ...change } : column)))
+
+  return (
+    <table className="table table-sm table-borderless mb-0" id={id}>
+      <thead>
+        <tr>
+          <th>{t('columns_grid.name')}</th>
+          <th>{t('columns_grid.type')}</th>
+          <th>{t('columns_grid.not_null')}</th>
+          <th>{t('columns_grid.default')}</th>
+          <th>{t('columns_grid.options')}</th>
+          <th />
+        </tr>
+      </thead>
+      <tbody>
+        {columns.map((column, index) => (
+          <tr key={column.attnum ?? `new${index}`}>
+            <td>
+              <input type="text" name={`${id}_name_${index}`} size={12} value={column.name} onChange={(e) => update(index, { name: e.target.value })} />
+            </td>
+            <td>
+              <input type="text" name={`${id}_type_${index}`} size={12} list="foreign_table_types" value={column.cltype} onChange={(e) => update(index, { cltype: e.target.value })} />
+            </td>
+            <td>
+              <input type="checkbox" name={`${id}_notnull_${index}`} checked={column.attnotnull} onChange={(e) => update(index, { attnotnull: e.target.checked })} />
+            </td>
+            <td>
+              <input type="text" name={`${id}_default_${index}`} size={10} value={column.defval} onChange={(e) => update(index, { defval: e.target.value })} />
+            </td>
+            <td>
+              <OptionsInput id={`${id}_options_${index}`} pairs={column.coloptions} onChange={(coloptions) => update(index, { coloptions })} />
+            </td>
+            <td>
+              <button type="button" className="btn btn-link p-0" title={t('options.remove')} onClick={() => onChange(columns.filter((_, i) => i !== index))}>
+                <Icon name="b_drop" /> {t('options.remove')}
+              </button>
+            </td>
+          </tr>
+        ))}
+        <tr>
+          <td colSpan={6}>
+            <button type="button" className="btn btn-link p-0" id={`${id}_add`} onClick={() => onChange([...columns, { attnum: null, name: '', cltype: 'text', attnotnull: false, defval: '', coloptions: [] }])}>
+              <Icon name="b_column_add" /> {t('columns_grid.add')}
+            </button>
+            <datalist id="foreign_table_types">
+              {['integer', 'bigint', 'smallint', 'numeric', 'real', 'double precision', 'text', 'character varying', 'boolean', 'date', 'timestamp without time zone', 'timestamp with time zone', 'uuid', 'jsonb', 'bytea'].map((type) => (
+                <option key={type} value={type} />
+              ))}
+            </datalist>
+          </td>
+        </tr>
       </tbody>
     </table>
   )

@@ -13,6 +13,7 @@ use PhpPgAdmin\Modules\DbObjects\Http\Controllers\EventTriggerController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ExtensionController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ForeignDataWrapperController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ForeignServerController;
+use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ForeignTableController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\LanguageController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\UserMappingController;
 use Psr\Http\Message\ServerRequestInterface;
@@ -25,7 +26,7 @@ $context = static function (ServerRequestInterface $request, array $args, string
     }
     $pool = ConnectionPool::from($request);
 
-    return new NodeContext(Nodes::get($type), Nodes::registry(), $pool, $pool->for($db), $db, [], $request);
+    return new NodeContext(Nodes::get($type), Nodes::registry(), $pool, $pool->for($db), $db, isset($args['scid']) ? ['scid' => (int) $args['scid']] : [], $request);
 };
 
 Route::middleware(Authenticate::class)->group(function () use ($context): void {
@@ -41,5 +42,6 @@ Route::middleware(Authenticate::class)->group(function () use ($context): void {
     Route::get('/databases/{db}/foreign_data_wrappers/options', fn (ServerRequestInterface $request, array $args): array => (new ForeignDataWrapperController())->options($context($request, $args, 'foreign_data_wrapper')))->setName('foreign_data_wrappers.options');
     Route::get('/databases/{db}/foreign_servers/options', fn (ServerRequestInterface $request, array $args): array => (new ForeignServerController())->options($context($request, $args, 'foreign_server')))->setName('foreign_servers.options');
     Route::get('/databases/{db}/user_mappings/options', fn (ServerRequestInterface $request, array $args): array => (new UserMappingController())->options($context($request, $args, 'user_mapping')))->setName('user_mappings.options');
+    Route::get('/databases/{db}/schemas/{scid:number}/foreign_tables/options', fn (ServerRequestInterface $request, array $args): array => (new ForeignTableController())->options($context($request, $args, 'foreign_table')))->setName('foreign_tables.options');
     Route::get('/databases/{db}/event_triggers/options', fn (ServerRequestInterface $request, array $args): array => (new EventTriggerController())->options($context($request, $args, 'event_trigger')))->setName('event_triggers.options');
 });
