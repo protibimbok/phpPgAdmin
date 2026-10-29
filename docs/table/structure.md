@@ -114,17 +114,31 @@ COMMENT ON COLUMN public.tbl_demo.amount
 
 Renames work inside the same save: the later statements already use the new name. Renaming a column does not break views or foreign keys, which refer to columns by number.
 
-::: warning Type changes have no USING clause
-`ALTER COLUMN … TYPE` converts the existing values with the cast PostgreSQL allows implicitly or by assignment: `numeric` → `integer` (rounding), `integer` → `bigint` or `text`, `varchar(80)` → `varchar(200)` work. Conversions that need an explicit cast fail, for example `boolean` → `integer` gives *column "flag" cannot be cast automatically to type integer*. The form cannot add the `USING` clause PostgreSQL's hint asks for; run it on the table's SQL tab:
+### Type changes and USING
+
+`ALTER COLUMN … TYPE` converts the existing values with the cast PostgreSQL allows implicitly or by assignment: `numeric` → `integer` (rounding), `integer` → `bigint` or `text`, `varchar(80)` → `varchar(200)` work. Other conversions need a `USING` expression: `boolean` → `integer`, `text` → `integer` or `date`, or a plain column to an array.
+
+When you change a column's type, length or **Attributes**, a box appears under the **Type** select. Leave it empty to use the automatic cast; type an expression to convert the values yourself. The placeholder shows the usual one, the column cast to the new type:
+
+| Change | USING |
+|---|---|
+| `varchar` holding numbers → `integer` | `v::integer` |
+| `boolean` → `integer` | `flag::integer` |
+| `integer` → `integer[]` (Attributes **ARRAY**) | `ARRAY[n]` |
+| `text[]` → `text` | `array_to_string(a, ',')` |
 
 ```sql
-ALTER TABLE public.t ALTER COLUMN flag TYPE integer USING flag::integer;
+ALTER TABLE public.t
+    ALTER COLUMN v TYPE integer USING v::integer;
 ```
 
+Without an expression, a change that needs one fails with PostgreSQL's *column "v" cannot be cast automatically to type integer*, and its hint names the expression to use. A value the expression cannot convert (`'abc'::integer`) fails the whole statement, and nothing is changed.
+
+::: warning Rewrites and locks
 A type change rewrites the table (except for widening a `varchar` or removing its length) and holds an `ACCESS EXCLUSIVE` lock while it runs, and it fails if a view uses the column.
 :::
 
-Changing a column to a type without collations (`integer`, `date`, `boolean`) drops its collation: the statement has no `COLLATE` clause. A `text` or `varchar` column still needs the `USING` clause above for most such types, since PostgreSQL has no automatic cast from text to them.
+Changing a column to a type without collations (`integer`, `date`, `boolean`) drops its collation: the statement has no `COLLATE` clause. Adding or removing **ARRAY** changes the type too, so the array brackets follow what the form says.
 
 ::: info A_I on an existing column
 Ticking **A_I** on a column that already has a `nextval()` default (a `serial`) fails, because a column cannot have both; drop the default first (**Default** → **None**, save), then tick **A_I**. Unticking **A_I** drops the identity; the column keeps its values but gets no new ones.

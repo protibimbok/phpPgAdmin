@@ -193,6 +193,8 @@ export interface ColumnData {
   /** 'a' ALWAYS, 'd' BY DEFAULT, for an identity column. */
   attidentity?: 'a' | 'd' | ''
   genexpr?: string
+  /** USING expression for a type change (ALTER COLUMN … TYPE … USING). */
+  using?: string
 }
 
 /** A primary key or unique constraint as the templates take it. */

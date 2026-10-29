@@ -8,8 +8,8 @@ ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.table)}}
     RENAME {{conn|qtIdent(o_data.name)}} TO {{conn|qtIdent(data.name)}};
 
 {% endif %}
-{###  Alter column type and collation ###}
-{% if (data.cltype and data.cltype != o_data.cltype) or (data.geometry is defined and data.geometry != o_data.geometry) or (data.srid is defined and data.srid != o_data.srid) or (data.attlen is defined and data.attlen != o_data.attlen) or (data.attprecision is defined and data.attprecision != o_data.attprecision) or (data.collspcname and data.collspcname != o_data.collspcname) or data.col_type_conversion is defined %}
+{###  Alter column type and collation; phpPgAdmin: array brackets count as a type change, and the client may give a USING expression ###}
+{% if (data.cltype and data.cltype != o_data.cltype) or (data.cltype and data.hasSqrBracket is defined and data.hasSqrBracket != o_data.hasSqrBracket) or (data.geometry is defined and data.geometry != o_data.geometry) or (data.srid is defined and data.srid != o_data.srid) or (data.attlen is defined and data.attlen != o_data.attlen) or (data.attprecision is defined and data.attprecision != o_data.attprecision) or (data.collspcname and data.collspcname != o_data.collspcname) or data.col_type_conversion is defined %}
 {% if data.col_type_conversion is defined and data.col_type_conversion is same as(false) %}
 -- WARNING:
 -- The SQL statement below would normally be used to alter the datatype for the {{o_data.name}} column, however,
@@ -18,7 +18,7 @@ ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.table)}}
 {% endif %}
 {% if data.col_type_conversion is defined and data.col_type_conversion is same as(false) %} -- {% endif %}ALTER TABLE {{conn|qtIdent(data.schema, data.table)}}
 {% if data.col_type_conversion is defined and data.col_type_conversion is same as(false) %} -- {% endif %}    ALTER COLUMN {% if data.name %}{{conn|qtTypeIdent(data.name)}}{% else %}{{conn|qtTypeIdent(o_data.name)}}{% endif %} TYPE {{ GET_TYPE.UPDATE_TYPE_SQL(conn, data, o_data) }}{% if data.collspcname and data.collspcname != o_data.collspcname and data.cltype != '"char"' %}
- COLLATE {{data.collspcname}}{% elseif o_data.collspcname and data.cltype != '"char"' %} COLLATE {{o_data.collspcname}}{% endif %};
+ COLLATE {{data.collspcname}}{% elseif o_data.collspcname and data.cltype != '"char"' %} COLLATE {{o_data.collspcname}}{% endif %}{% if data.using %} USING {{ data.using }}{% endif %};
 {% endif %}
 {###  Create the sequence a column becoming SERIAL needs, before its default below can reference it (#10292). IF NOT EXISTS is deliberately not used here: it would silently skip an existing, unrelated relation of the same name (without checking it is even a sequence), and the unconditional ALTER SEQUENCE ... OWNED BY below would then reassign ownership of that unrelated object instead of failing loudly (#10318). ###}
 {% if data.serial_seq_create is defined %}

@@ -192,6 +192,8 @@
     "type": "Type",
     "length": "Length/Values",
     "length_hint": "The length of a character or bit type, the precision of a time type, or \"precision,scale\" for numeric.",
+    "using_hint": "Needed when the old type has no automatic cast to the new one; PostgreSQL's hint suggests the expression.",
+    "using_placeholder": "USING: {{expression}}",
     "default": "Default",
     "default_hint": "For default values, please enter just a single value, without backslash escaping or quotes, using this format: a",
     "collation": "Collation",

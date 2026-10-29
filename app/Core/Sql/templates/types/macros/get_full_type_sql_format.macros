@@ -73,6 +73,6 @@ time({{ data.attlen }}) with time zone {% endif %}{% if o_data.hasSqrBracket %}[
 {% if data.attlen and data.attlen is not null %}
 ({{ data.attlen }}{% elseif old_length and old_length is not null %}({{ old_length }}{% endif %}{% if data_precision and data_precision is not null %}
 , {{ data_precision }}){% elseif old_precision and old_precision is not null %}, {{ old_precision }}){% else %}){% endif %}
-{% endif %}{% if data.geometry %}({{ data.geometry }}{% elseif o_data.geometry %}({{ o_data.geometry }}{% endif %}{% if data.srid %},{{ data.srid }}){% elseif o_data.srid %},{{ o_data.srid }}){% endif %}{% if o_data.hasSqrBracket %}[]{% endif %}
+{% endif %}{% if data.geometry %}({{ data.geometry }}{% elseif o_data.geometry %}({{ o_data.geometry }}{% endif %}{% if data.srid %},{{ data.srid }}){% elseif o_data.srid %},{{ o_data.srid }}){% endif %}{### phpPgAdmin: the new type's brackets when it has a new type ###}{% if (data.cltype and data.hasSqrBracket is defined) ? data.hasSqrBracket : o_data.hasSqrBracket %}[]{% endif %}
 {% endif %}
 {% endmacro %}

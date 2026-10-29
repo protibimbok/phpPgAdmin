@@ -8,7 +8,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { columns as columnsOf, createTable, resolveSchema, resolveTable, tableModifiedSql, tableOptions, tables, updateTable, type ColumnData, type NewTable, type TableChanges, type TableOptions } from '../api'
-import { DEFAULT_TYPES, emptyDefinition, fromColumn, indexesOf, takesLength, toColumnChanges, toColumnData, typeGroups, type ColumnDefinition } from '../columns/definitions'
+import { DEFAULT_TYPES, emptyDefinition, fromColumn, indexesOf, takesLength, toColumnChanges, toColumnData, typeChanged, typeGroups, type ColumnDefinition } from '../columns/definitions'
 
 type Mode = 'create' | 'add' | 'change'
 
@@ -347,6 +347,19 @@ function ColumnRow({ index, row, groups, options, onChange }: { index: number; r
             </optgroup>
           ))}
         </select>
+        {typeChanged(row) && (
+          // A type the old one has no automatic cast to (text to integer) needs USING, as the server's hint says.
+          <input
+            type="text"
+            name={`field_using[${index}]`}
+            className="textfield d-block mt-1"
+            size={16}
+            title={t('definitions.using_hint')}
+            placeholder={t('definitions.using_placeholder', { expression: `${row.original!.name}::${row.type}${row.attribute}` })}
+            value={row.using ?? ''}
+            onChange={(e) => onChange({ using: e.target.value })}
+          />
+        )}
       </td>
       <td className="text-center">
         <input id={id(3)} type="text" name={`field_length[${index}]`} size={8} value={row.length} className="textfield" placeholder={takesLength(row.type) ? '' : undefined} onChange={(e) => onChange({ length: e.target.value })} />
