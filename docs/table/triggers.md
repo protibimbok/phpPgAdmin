@@ -38,7 +38,7 @@ A disabled trigger does not fire, but stays defined. Disabling the internal trig
 | **Constraint** → **Constraint trigger**, **Deferrable**, **Initially deferred** | Tables only: a constraint trigger, which can be deferred to commit. | `CREATE CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED` |
 | **Transition tables** → **OLD TABLE AS**, **NEW TABLE AS** | Shown for **STATEMENT** triggers: names for the sets of old and new rows. | `REFERENCING OLD TABLE AS gone` |
 | **Comment** | Trigger comment. | `COMMENT ON TRIGGER` |
-| **Enabled** | See the warning below. | |
+| **Enabled** | Unticked: the trigger is created or kept disabled. | `ALTER TABLE t DISABLE TRIGGER name` |
 
 **Preview SQL** shows the statements and **Go** runs them. A new trigger is created with `CREATE OR REPLACE TRIGGER` (PostgreSQL 14+):
 
@@ -54,11 +54,20 @@ COMMENT ON TRIGGER tbl_room_touch ON public.tbl_room
     IS 'demo trigger';
 ```
 
-Editing a trigger renames it if you changed the name (`ALTER TRIGGER … RENAME TO`), then replaces it with `CREATE OR REPLACE TRIGGER`. PostgreSQL has no `CREATE OR REPLACE` for constraint triggers, so saving an edited constraint trigger fails with *trigger "…" for relation "…" already exists*; to change one, export it, drop it and create it again.
+Editing a trigger renames it if you changed the name (`ALTER TRIGGER … RENAME TO`), then replaces it with `CREATE OR REPLACE TRIGGER`. A trigger that was disabled (or set to `ENABLE REPLICA` / `ENABLE ALWAYS`) keeps that state: the replace re-enables it, so the matching `ALTER TABLE … DISABLE TRIGGER` follows.
 
-::: warning The Enabled box in the dialog is ignored
-Creating a trigger with **Enabled** unticked creates it enabled, and saving the dialog for a disabled trigger enables it again (`CREATE OR REPLACE TRIGGER` resets the state, and no `DISABLE TRIGGER` follows). Use the **Enabled** box in the list instead, after saving the dialog.
-:::
+PostgreSQL has no `CREATE OR REPLACE` for constraint triggers, so an edited constraint trigger (or a trigger turned into or out of one) is dropped and created again in the same batch, with its comment and state restored:
+
+```sql
+DROP TRIGGER IF EXISTS tbl_room_check ON public.tbl_room;
+
+CREATE CONSTRAINT TRIGGER tbl_room_check
+    AFTER INSERT OR DELETE
+    ON public.tbl_room
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW
+    EXECUTE FUNCTION public.tbl_check();
+```
 
 ::: info Rules PostgreSQL enforces
 These combinations are refused when you click **Go**, with PostgreSQL's message:
@@ -111,7 +120,7 @@ A rule rewrites a query before it runs: `ON DELETE TO t DO INSTEAD NOTHING` sile
 | **Do instead** | Ticked: replace the original command (`INSTEAD`). Unticked: run in addition (`ALSO`). Ticked by default on a view. | `DO INSTEAD` |
 | **Commands** | The SQL to run. *Empty for DO NOTHING; several commands separated by semicolons.* | `DO (NOTIFY a; NOTIFY b)` |
 | **Comment** | Rule comment. | `COMMENT ON RULE` |
-| **Enabled** | See below. | |
+| **Enabled** | Unticked: the rule is created disabled. | `ALTER TABLE t DISABLE RULE name` |
 
 ```sql
 CREATE RULE tbl_room_keep AS
@@ -122,7 +131,7 @@ CREATE RULE tbl_room_keep AS
 COMMENT ON RULE tbl_room_keep ON public.tbl_room IS 'never delete big rooms';
 ```
 
-The **Enabled** box in the list runs `ALTER TABLE t DISABLE RULE name` / `ENABLE RULE name` at once. As with triggers, the **Enabled** box inside the dialog has no effect: a rule created with it unticked is enabled.
+The **Enabled** box in the list runs `ALTER TABLE t DISABLE RULE name` / `ENABLE RULE name` at once. `CREATE OR REPLACE RULE` keeps a rule's state, so editing a disabled rule leaves it disabled.
 
 ::: tip Prefer triggers to rules
 Rules interact surprisingly with volatile functions, `RETURNING`, `INSERT … ON CONFLICT` and multi-row statements, and an `ON SELECT` rule on a table is not allowed. For audit logging or validation use a trigger; keep rules for the simple "do nothing instead" case. On views, `INSTEAD OF` triggers or the automatic updatability of simple views are usually clearer than rules.

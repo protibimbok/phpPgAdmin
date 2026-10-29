@@ -110,6 +110,8 @@ export interface Constraint {
   condeferred?: boolean
   convalidated?: boolean
   consrc?: string
+  /** A primary key's or unique constraint's index is the one the table is clustered on. */
+  indisclustered?: boolean
 }
 
 export type ConstraintType = 'primary_key' | 'unique_constraint' | 'foreign_key' | 'check_constraint' | 'exclusion_constraint'

@@ -10,7 +10,7 @@ WHERE ns.nspname = {{schema|qtLiteral(conn)}}
 {% if name %}
     AND s.stxname = {{name|qtLiteral(conn)}}
 {% else %}
-    AND tn.nspname = {{(table_schema or schema)|qtLiteral(conn)}}
+    AND tn.nspname = {{(table_schema ?: schema)|qtLiteral(conn)}}
     AND t.relname = {{table|qtLiteral(conn)}}
 {% endif %}
 ORDER BY s.oid DESC LIMIT 1

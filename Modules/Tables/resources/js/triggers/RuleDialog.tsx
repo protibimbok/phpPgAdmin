@@ -52,7 +52,7 @@ export default function RuleDialog({ show, db, scid, parent, relOid, rule, onClo
   const collection = () => rulesOf(db, scid, parent, relOid)
 
   function data(): RuleData {
-    return { name, event, condition, do_instead: instead, statements: statements.trim() === '' ? 'NOTHING' : statements, comment, is_enable_rule: enabled ? 'O' : 'D' }
+    return { name, event, condition, do_instead: instead, statements: statements.trim() === '' ? 'NOTHING' : statements, comment, is_enable_rule: !enabled ? 'D' : rule && rule.is_enable_rule !== 'D' ? rule.is_enable_rule : 'O' }
   }
 
   async function save() {

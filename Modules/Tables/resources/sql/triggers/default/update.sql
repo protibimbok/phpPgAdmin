@@ -3,8 +3,13 @@ ALTER TRIGGER {{ conn|qtIdent(o_data.name) }} ON {{ conn|qtIdent(o_data.nspname,
     RENAME TO {{ conn|qtIdent(data.name) }};
 
 {% endif %}
-{% if ((data.tfunction is defined or data.is_row_trigger is defined or data.evnt_insert is defined or data.evnt_delete is defined or data.evnt_update is defined or data.fires is defined or data.is_constraint_trigger is defined or data.whenclause is defined) and (o_data.tfunction != data.tfunction or data.is_row_trigger != o_data.is_row_trigger or data.evnt_insert != o_data.evnt_insert or data.evnt_delete != o_data.evnt_delete or data.evnt_update != o_data.evnt_update or o_data.fires != data.fires or data.is_constraint_trigger != o_data.is_constraint_trigger or data.whenclause != o_data.whenclause))  %}
+{% if data.restate or ((data.tfunction is defined or data.is_row_trigger is defined or data.evnt_insert is defined or data.evnt_delete is defined or data.evnt_update is defined or data.fires is defined or data.is_constraint_trigger is defined or data.whenclause is defined) and (o_data.tfunction != data.tfunction or data.is_row_trigger != o_data.is_row_trigger or data.evnt_insert != o_data.evnt_insert or data.evnt_delete != o_data.evnt_delete or data.evnt_update != o_data.evnt_update or o_data.fires != data.fires or data.is_constraint_trigger != o_data.is_constraint_trigger or data.whenclause != o_data.whenclause))  %}
 {% set or_flag = false %}
+{### phpPgAdmin: a constraint trigger cannot be replaced, so it is dropped first ###}
+{% if data.recreate %}
+DROP TRIGGER IF EXISTS {{ conn|qtIdent(data.name) }} ON {{ conn|qtIdent(o_data.nspname, o_data.relname) }};
+
+{% endif %}
 {% if data.lanname == 'edbspl' or data.tfunction == 'Inline EDB-SPL' %}
 CREATE OR REPLACE TRIGGER {{ conn|qtIdent(data.name) }}
 {% else %}
@@ -24,10 +29,10 @@ CREATE{% if not data.is_constraint_trigger %} OR REPLACE{% endif %}{% if data.is
 {% endif %}
 
     ON {{ conn|qtIdent(data.schema, data.table) }}
-{% if data.tgdeferrable %}
+{% if data.tgdeferrable is defined %}{% if data.tgdeferrable %}
     DEFERRABLE{% if data.tginitdeferred %} INITIALLY DEFERRED{% endif %}
 
-{% elseif o_data.tgdeferrable %}
+{% endif %}{% elseif o_data.tgdeferrable %}
     DEFERRABLE{% if o_data.tginitdeferred %} INITIALLY DEFERRED{% endif %}
 
 {% endif %}{% if data.is_row_trigger is not defined %}
@@ -48,6 +53,12 @@ CREATE{% if not data.is_constraint_trigger %} OR REPLACE{% endif %}{% if data.is
 {% if data.description is not defined and o_data.description %}
 COMMENT ON TRIGGER {{ conn|qtIdent(data.name) }} ON {{ conn|qtIdent(o_data.nspname, o_data.relname) }}
     IS {{o_data.description|qtLiteral(conn)}};
+{% endif %}
+{### phpPgAdmin: the new definition is enabled; a trigger that was not keeps its state ###}
+{% if data.is_enable_trigger is not defined and o_data.is_enable_trigger != 'O' %}
+{% set enable_map = {'R':'ENABLE REPLICA', 'A':'ENABLE ALWAYS', 'O':'ENABLE', 'D':'DISABLE'} %}
+ALTER TABLE {{ conn|qtIdent(o_data.nspname, o_data.relname) }}
+    {{ enable_map[o_data.is_enable_trigger] }} TRIGGER {{ conn|qtIdent(data.name) }};
 {% endif %}
 {% endif %}
 {% if data.description is defined  and o_data.description != data.description %}

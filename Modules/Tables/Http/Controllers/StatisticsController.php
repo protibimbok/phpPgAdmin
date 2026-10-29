@@ -68,14 +68,27 @@ final class StatisticsController extends NodeController
         return Ddl::assemble([Ddl::header('Statistics', Quoting::ident((string) $data['schema'], (string) $data['name']), $drop), $ctx->render('create.sql', ['data' => $data])]);
     }
 
-    /** CREATE STATISTICS; the new object's node, found by name or, when the server named it, as the table's newest. */
+    /**
+     * CREATE STATISTICS; the new object's node, found by name or, when the server named it, as
+     * the table's newest. create.sql can only set the owner, target and comment of a named
+     * object, so an unnamed one gets them from ALTER STATISTICS under the name the server chose,
+     * in the same transaction.
+     */
     public function create(NodeContext $ctx, array $data): array
     {
         $data = $this->forCreate($ctx, $data);
-        $this->execute($ctx, $ctx->render('create.sql', ['data' => $data]));
-        $row = $ctx->conn->row($ctx->render('get_oid.sql', ['schema' => $data['schema'], 'name' => $data['name'] ?? null, 'table_schema' => $data['table_schema'], 'table' => $data['table']])) ?? throw $this->gone($ctx);
 
-        return $this->node($ctx, (int) $row['oid']);
+        $oid = $ctx->conn->transaction(function () use ($ctx, $data): int {
+            $this->execute($ctx, $ctx->render('create.sql', ['data' => $data]));
+            $row = $ctx->conn->row($ctx->render('get_oid.sql', ['schema' => $data['schema'], 'name' => $data['name'] ?? null, 'table_schema' => $data['table_schema'], 'table' => $data['table']])) ?? throw $this->gone($ctx);
+            if (!isset($data['name'])) {
+                $this->execute($ctx, $this->updateSql($ctx, (int) $row['oid'], array_intersect_key($data, array_flip(['owner', 'stattarget', 'comment']))));
+            }
+
+            return (int) $row['oid'];
+        });
+
+        return $this->node($ctx, $oid);
     }
 
     /** ALTER STATISTICS for a new name, owner, target or comment. */

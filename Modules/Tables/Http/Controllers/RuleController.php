@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPgAdmin\Modules\Tables\Http\Controllers;
 
 use League\Route\Http\Exception\BadRequestException;
+use PhpPgAdmin\Core\Database\Quoting;
 use PhpPgAdmin\Core\Nodes\Ddl;
 use PhpPgAdmin\Core\Nodes\NodeContext;
 
@@ -20,6 +21,9 @@ use PhpPgAdmin\Core\Nodes\NodeContext;
 final class RuleController extends TableChildController
 {
     private const array EVENTS = ['1' => 'SELECT', '2' => 'UPDATE', '3' => 'INSERT', '4' => 'DELETE'];
+
+    /** pg_rewrite.ev_enabled and the ALTER TABLE … RULE clause that sets it. */
+    private const array ENABLE_STATES = ['O' => 'ENABLE', 'D' => 'DISABLE', 'R' => 'ENABLE REPLICA', 'A' => 'ENABLE ALWAYS'];
 
     public function list(NodeContext $ctx): array
     {
@@ -105,8 +109,14 @@ final class RuleController extends TableChildController
         $data['name'] = $this->requireName($data);
         [$data['schema'], $data['view']] = $this->parentNames($ctx);
         $data = self::normalise($data);
+        $sql = $ctx->render('create.sql', ['data' => $data]);
+        // A new rule is enabled ('O'); any other state is an ALTER TABLE after it.
+        $state = self::ENABLE_STATES[(string) ($data['is_enable_rule'] ?? 'O')] ?? null;
+        if ($state !== null && $state !== 'ENABLE') {
+            $sql = rtrim($sql) . sprintf("\n\nALTER TABLE %s\n    %s RULE %s;\n", Quoting::ident((string) $data['schema'], (string) $data['view']), $state, Quoting::ident((string) $data['name']));
+        }
 
-        return $ctx->render('create.sql', ['data' => $data]);
+        return $sql;
     }
 
     /** update.sql against the rule as it stands; fields equal to the current value are dropped. */

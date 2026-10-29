@@ -43,10 +43,13 @@ final class TableController extends RelationController
     public function create(NodeContext $ctx, array $data): array
     {
         $created = TableSql::create($ctx, $data);
-        $this->execute($ctx, $created['sql']);
-        foreach ($created['indexes'] as $index) {
-            $this->execute($ctx, $index);
-        }
+        // All or nothing: a failing index or partition leaves no table behind.
+        $ctx->conn->transaction(function () use ($ctx, $created): void {
+            $this->execute($ctx, $created['sql']);
+            foreach ($created['indexes'] as $index) {
+                $this->execute($ctx, $index);
+            }
+        });
 
         return $this->node($ctx, $this->oidOf($ctx, $created['name']));
     }

@@ -124,9 +124,7 @@ ALTER TABLE public.t ALTER COLUMN flag TYPE integer USING flag::integer;
 A type change rewrites the table (except for widening a `varchar` or removing its length) and holds an `ACCESS EXCLUSIVE` lock while it runs, and it fails if a view uses the column.
 :::
 
-::: danger Changing a text column to a non-text type fails
-Changing a column that has a collation (any `text`, `varchar` or `char` column) to a type without one, such as `integer` or `date`, always fails with *collations are not supported by type integer*. The form keeps the old collation in the `ALTER COLUMN … TYPE integer COLLATE pg_catalog."default"` statement even when you empty the **Collation** field. Use the SQL tab for these changes (`ALTER TABLE t ALTER COLUMN c TYPE integer USING c::integer;`).
-:::
+Changing a column to a type without collations (`integer`, `date`, `boolean`) drops its collation: the statement has no `COLLATE` clause. A `text` or `varchar` column still needs the `USING` clause above for most such types, since PostgreSQL has no automatic cast from text to them.
 
 ::: info A_I on an existing column
 Ticking **A_I** on a column that already has a `nextval()` default (a `serial`) fails, because a column cannot have both; drop the default first (**Default** → **None**, save), then tick **A_I**. Unticking **A_I** drops the identity; the column keeps its values but gets no new ones.
@@ -146,7 +144,7 @@ Extended statistics tell the planner how columns relate (for example that `city`
 
 | Field | What it does |
 | --- | --- |
-| **Name** | The object's name. *Left blank, PostgreSQL 16 and later name the object* (but see the warning below). |
+| **Name** | The object's name. Left blank, PostgreSQL 16 and later name the object themselves (`tbl_room_id_qty_expr_stat`); the target and comment are then set with `ALTER STATISTICS` and `COMMENT ON STATISTICS` under that name. |
 | **Columns** | The table's columns to cover; Ctrl-click for several. At least two, or one column plus an expression. |
 | **Expressions** | Expressions in parentheses, separated by commas: `(lower(name)), (date_trunc('day', created_at))`. |
 | **Kinds** | `ndistinct`, `dependencies`, `mcv`. *None checked collects every kind.* |
@@ -161,10 +159,6 @@ CREATE STATISTICS public.tbl_room_stx
 ```
 
 When you edit an existing object, only **Name**, **Statistics target** and **Comment** can change (`ALTER STATISTICS … RENAME TO`, `SET STATISTICS`); the columns, expressions and kinds are shown read-only, since PostgreSQL cannot alter them. Drop and recreate the object to change those.
-
-::: warning Leave the name filled in
-With an empty **Name**, PostgreSQL creates the object under a generated name (`tbl_room_id_qty_expr_stat`), but the dialog then reports *operator does not exist: name = boolean*, stays open, and the comment is not saved. The object exists anyway: reload the page to see it. Give the object a name to avoid this.
-:::
 
 With a single column and no expression, the dialog answers *At least 2 columns must be specified for multi-column statistics.* (plain per-column statistics need no object).
 

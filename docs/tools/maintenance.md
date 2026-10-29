@@ -139,7 +139,7 @@ The **Operations** tab of a table has a **Table maintenance** card with phpMyAdm
 | **Vacuum table** | `VACUUM schema.table` |
 | **Vacuum and analyze table** | `VACUUM (ANALYZE) schema.table` |
 | **Reindex table** | `REINDEX TABLE schema.table` |
-| **Cluster the table on &lt;index&gt;** | `CLUSTER schema.table` — only when the table has been clustered on an index |
+| **Cluster the table on &lt;index&gt;** | `CLUSTER schema.table` — only when the table has been clustered on an index (a plain index, or a primary key's or unique constraint's) |
 
 A materialized view's Operations tab has the same links except **Cluster**. A partitioned table's
 **Partition maintenance** card runs **ANALYZE** or **VACUUM** on the partitions you tick the same way.
@@ -148,13 +148,6 @@ Each link opens the table's **SQL** tab with the statement and runs it at once. 
 `INFO` messages: type `VACUUM (VERBOSE) public.tools_m` there to see what the vacuum did.
 
 ![VACUUM (VERBOSE) run on the SQL page, with its INFO messages](/media/tools/maintenance-sql-verbose.png)
-
-::: warning No Cluster link for a table clustered on its primary key
-The **Cluster the table on …** link only appears when the clustered index is a plain index. A table
-clustered on its primary key or on a unique constraint's index (`CLUSTER t USING t_pkey`) gets no link,
-because those indexes are listed under constraints. Run `CLUSTER schema.table` on the SQL page, or the
-database-level **CLUSTER**, instead.
-:::
 
 ## Differences from phpMyAdmin and pgAdmin
 

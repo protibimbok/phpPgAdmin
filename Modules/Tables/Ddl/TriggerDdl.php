@@ -109,7 +109,13 @@ final class TriggerDdl
             throw new BadRequestException('A trigger needs at least one event.');
         }
 
-        return $ctx->renderFrom('triggers', 'create.sql', ['data' => $data]);
+        $sql = $ctx->renderFrom('triggers', 'create.sql', ['data' => $data]);
+        // A new trigger is enabled ('O'); any other state is an ALTER TABLE after it.
+        if (($data['is_enable_trigger'] ?? 'O') !== 'O') {
+            $sql .= "\n" . $ctx->renderFrom('triggers', 'enable_disable_trigger.sql', ['data' => $data]);
+        }
+
+        return $sql;
     }
 
     /**
@@ -145,7 +151,13 @@ final class TriggerDdl
             $data['evnt_update'] ??= $old['evnt_update'];
         }
         // A CREATE OR REPLACE restates the whole definition; a new one is written from the form.
-        if (array_intersect_key($data, array_flip(['fires', 'is_row_trigger', 'evnt_insert', 'evnt_update', 'evnt_delete', 'evnt_truncate', 'tfunction', 'tgargs', 'whenclause', 'columns', 'is_constraint_trigger'])) !== []) {
+        // A constraint trigger has no CREATE OR REPLACE (and its deferrability is part of its
+        // definition): it is dropped and created again, in the same batch.
+        $isConstraint = (bool) ($data['is_constraint_trigger'] ?? $old['is_constraint_trigger']) || (bool) $old['is_constraint_trigger'];
+        $definition = ['fires', 'is_row_trigger', 'evnt_insert', 'evnt_update', 'evnt_delete', 'evnt_truncate', 'tfunction', 'tgargs', 'whenclause', 'columns', 'is_constraint_trigger', ...($isConstraint ? ['tgdeferrable', 'tginitdeferred'] : [])];
+        if (array_intersect_key($data, array_flip($definition)) !== []) {
+            $data['restate'] = true;
+            $data['recreate'] = $isConstraint;
             foreach (['fires', 'is_row_trigger', 'evnt_insert', 'evnt_update', 'evnt_delete', 'evnt_truncate', 'tfunction', 'is_constraint_trigger'] as $key) {
                 $data[$key] ??= $old[$key];
             }

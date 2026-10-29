@@ -87,6 +87,7 @@
       "fts_parser": "محلّل بحث نصي",
       "fts_template": "قالب بحث نصي",
       "trigger_function": "دالة مشغّل",
+      "column_default": "قيمة افتراضية لعمود",
       "table": "جدول",
       "view": "عرض",
       "sequence": "تسلسل",

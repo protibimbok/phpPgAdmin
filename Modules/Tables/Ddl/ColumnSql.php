@@ -46,6 +46,7 @@ final class ColumnSql
         $column['schema'] = $schema;
         $column['table'] = $table;
         self::normaliseSerial($column, $old);
+        self::dropCollationForType($ctx, $column, $old);
 
         return $ctx->renderFrom('columns', 'update.sql', ['data' => $column, 'o_data' => $old]);
     }
@@ -142,6 +143,28 @@ final class ColumnSql
 
         foreach (['seqincrement', 'seqstart', 'seqmin', 'seqmax', 'seqcache', 'seqcycle', 'seqtypname'] as $key) {
             unset($column[$key]);
+        }
+    }
+
+    /**
+     * The update template repeats the column's collation after a new type; a type without
+     * collation support (integer, a date) rejects any COLLATE clause, so a column changing to
+     * one leaves its old collation behind.
+     *
+     * @param array<string, mixed> $column
+     * @param array<string, mixed> $old
+     */
+    private static function dropCollationForType(NodeContext $ctx, array &$column, array &$old): void
+    {
+        $cltype = $column['cltype'] ?? null;
+        if (!is_string($cltype) || $cltype === '' || $cltype === $old['cltype']) {
+            return;
+        }
+
+        $collatable = $ctx->conn->scalar('SELECT t.typcollation <> 0 FROM pg_catalog.pg_type t WHERE t.oid = pg_catalog.to_regtype($1)', [$cltype]);
+        if ($collatable === false || $collatable === 'f') {
+            unset($column['collspcname']);
+            $old['collspcname'] = '';
         }
     }
 

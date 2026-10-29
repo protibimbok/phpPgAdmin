@@ -12,7 +12,7 @@ The create form is phpMyAdmin's column definition form adapted to PostgreSQL: on
 4. Set the [table options](#table-options) under the grid if you need them.
 5. Click **Preview SQL** to see the statements, then **Save**.
 
-On success you get *Table … has been created.* and land on the new table's [Structure](/table/structure) tab. On an error the form stays as it is, with PostgreSQL's message in the corner; see the warning under [Table options](#table-options) about errors after the table was already created.
+On success you get *Table … has been created.* and land on the new table's [Structure](/table/structure) tab. On an error the form stays as it is, with PostgreSQL's message in the corner, and nothing is created: fix the field and **Save** again.
 
 ![The create form with four columns: an identity primary key, a varchar with UNIQUE, a numeric with a default and a text array with INDEX](/media/schema/tables-create-form.png)
 
@@ -116,9 +116,7 @@ CREATE INDEX
 
 The Preview SQL box has a fixed height and scrolls when the statement is longer.
 
-::: warning Saving is not one transaction
-`CREATE TABLE` runs first and the comments, owner change and separate indexes after it. If a later statement fails, the table already exists: for example an **INDEX** on a `json` column fails with *data type json has no default operator class for access method "btree"*, but the table is created without that index. The form stays open with the error, and a second **Save** fails with *relation … already exists*. Open the table from the tree and fix it there.
-:::
+Saving runs `CREATE TABLE`, the comments, owner change and separate indexes in one transaction. If any statement fails, none of them is kept: for example an **INDEX** on a `json` column fails with *data type json has no default operator class for access method "btree"*, and the table is not created either.
 
 ## What the form does not offer
 

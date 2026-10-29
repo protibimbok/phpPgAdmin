@@ -126,7 +126,7 @@ The **Table maintenance** card has links that open the table's SQL tab and run t
 | **Vacuum table** | `VACUUM "public"."books"` |
 | **Vacuum and analyze table** | `VACUUM (ANALYZE) "public"."books"` |
 | **Reindex table** | `REINDEX TABLE "public"."books"` |
-| **Cluster the table on …** | `CLUSTER "public"."books"`; only shown when an index is marked as the clustering index |
+| **Cluster the table on …** | `CLUSTER "public"."books"`; only shown when an index (a plain index, or a primary key's or unique constraint's) is marked as the clustering index |
 
 For `VACUUM FULL`, `VACUUM (VERBOSE)`, `REINDEX … CONCURRENTLY` and maintenance of several tables, use the [Maintenance](/tools/maintenance) tool.
 
@@ -189,9 +189,7 @@ Below the DDL, two cards show the table's entries in `pg_depend`:
 
 ![The Dependencies and Dependents cards of books](/media/table/ddl-dependencies.png)
 
-::: info Defaults and checks appear as their own entries
-The **Dependents** list has one row per column default and check constraint, labelled **Function** for defaults (the name column then shows the expression, such as `nextval('books_id_seq'::regclass)` or `0`) and listed twice for checks (once against the table, once against the column). These are the raw `pg_depend` rows.
-:::
+Column defaults and generated columns that call a function are listed as **Column default**, named by the column and its expression (`public.books.id DEFAULT nextval('books_id_seq'::regclass)`). An object that depends both on the table and on one of its columns, such as a check constraint or a trigger with a `WHEN` condition, is listed once.
 
 **Show create** on several tables at once is in the schema's [With selected](/schema/structure#with-selected) menu.
 

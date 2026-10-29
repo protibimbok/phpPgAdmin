@@ -86,7 +86,8 @@
       "fts_dictionary": "FTS dictionary",
       "fts_parser": "FTS parser",
       "fts_template": "FTS template",
-      "trigger_function": "Trigger function"
+      "trigger_function": "Trigger function",
+      "column_default": "Column default"
     }
   },
   "statistics": {

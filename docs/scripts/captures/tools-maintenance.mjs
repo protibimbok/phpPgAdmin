@@ -13,6 +13,8 @@ INSERT INTO public.tools_m SELECT g, md5(g::text) FROM generate_series(1, 5000) 
 DELETE FROM public.tools_m WHERE id % 2 = 0;
 CREATE INDEX tools_m_v ON public.tools_m (v);
 CLUSTER public.tools_m USING tools_m_v;
+CREATE TABLE public.tools_pk (id int PRIMARY KEY);
+CLUSTER public.tools_pk USING tools_pk_pkey;
 CREATE SCHEMA tools_s;
 CREATE TABLE tools_s.tools_a (id int PRIMARY KEY);
 CREATE TABLE tools_s.tools_b (id int PRIMARY KEY);`, 'tools_maint')
@@ -153,6 +155,15 @@ async function dismissAll(p) {
   check('Vacuum table opens the SQL page', /\/sql/.test(p.url()), p.url())
   const vacuumed = psql("SELECT vacuum_count > 0 FROM pg_stat_user_tables WHERE relname = 'tools_m'", 'tools_maint')
   check('the table was vacuumed', vacuumed === 't', vacuumed)
+  await c()
+}
+
+// A table clustered on its primary key gets the link too (the index is listed under constraints).
+{
+  const { page: p, close: c } = await open('/db/tools_maint/schema/public/table/tools_pk/operations')
+  await settle(p)
+  const links = await p.locator('#tbl_maintenance a').allTextContents()
+  check('Cluster link for a table clustered on its primary key', links.includes('Cluster the table on tools_pk_pkey'), links.join('|'))
   await c()
 }
 

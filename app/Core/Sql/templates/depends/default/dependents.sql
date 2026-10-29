@@ -30,7 +30,10 @@ SELECT DISTINCT dep.deptype, dep.classid, cl.relkind, ad.adbin, pg_get_expr(ad.a
     COALESCE(nsc.nspname, nso.nspname, nsp.nspname, nst.nspname, nsrw.nspname, colns.nspname, ftscns.nspname,
         ftsdns.nspname, ftspns.nspname, ftstns.nspname) AS nspname,
     CASE WHEN inhits.inhparent IS NOT NULL THEN '1' ELSE '0' END AS is_inherits,
-    CASE WHEN inhed.inhparent IS NOT NULL THEN '1' ELSE '0' END AS is_inherited
+    CASE WHEN inhed.inhparent IS NOT NULL THEN '1' ELSE '0' END AS is_inherited,
+    {### phpPgAdmin: the column a default or generation expression belongs to ###}
+    CASE WHEN ad.oid IS NOT NULL THEN pg_catalog.quote_ident(adns.nspname) || '.' || pg_catalog.quote_ident(adcl.relname) || '.' || pg_catalog.quote_ident(adatt.attname) END AS adcolumn,
+    adatt.attgenerated AS adgenerated
 FROM pg_catalog.pg_depend dep
 LEFT JOIN pg_catalog.pg_class cl ON dep.objid=cl.oid
 LEFT JOIN pg_catalog.pg_attribute att ON dep.objid=att.attrelid AND dep.objsubid=att.attnum
@@ -49,6 +52,9 @@ LEFT JOIN pg_catalog.pg_namespace nsrw ON clrw.relnamespace=nsrw.oid
 LEFT JOIN pg_catalog.pg_language la ON dep.objid=la.oid
 LEFT JOIN pg_catalog.pg_namespace ns ON dep.objid=ns.oid
 LEFT JOIN pg_catalog.pg_attrdef ad ON ad.oid=dep.objid
+LEFT JOIN pg_catalog.pg_attribute adatt ON adatt.attrelid=ad.adrelid AND adatt.attnum=ad.adnum
+LEFT JOIN pg_catalog.pg_class adcl ON adcl.oid=ad.adrelid
+LEFT JOIN pg_catalog.pg_namespace adns ON adns.oid=adcl.relnamespace
 LEFT JOIN pg_catalog.pg_foreign_server fs ON fs.oid=dep.objid
 LEFT JOIN pg_catalog.pg_foreign_data_wrapper fdw ON fdw.oid=dep.objid
 LEFT JOIN pg_catalog.pg_type prtyp ON prtyp.oid = pr.prorettype

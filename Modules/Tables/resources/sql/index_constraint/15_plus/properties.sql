@@ -16,6 +16,9 @@ SELECT cls.oid,
     condeferrable,
     condeferred,
     conislocal,
+    {### phpPgAdmin: for the structure page ###}
+    pg_catalog.pg_get_constraintdef(con.oid, true) AS definition,
+    idx.indisclustered,
     substring(pg_catalog.array_to_string(cls.reloptions, ',') from 'fillfactor=([0-9]*)') AS fillfactor
 FROM pg_catalog.pg_index idx
 JOIN pg_catalog.pg_class cls ON cls.oid=indexrelid

@@ -110,7 +110,8 @@ export default function TriggerDialog({ show, db, scid, parent, relOid, columns,
       tgoldtable: oldTable,
       tgnewtable: newTable,
       description: comment,
-      is_enable_trigger: enabled ? 'O' : 'D',
+      // Ticked keeps an ENABLE REPLICA or ALWAYS trigger as it is.
+      is_enable_trigger: !enabled ? 'D' : trigger && trigger.is_enable_trigger !== 'D' ? trigger.is_enable_trigger : 'O',
     }
   }
 

@@ -28,15 +28,19 @@ export default function TableOperations() {
   const navigate = useNavigate()
   const { data, error, reload } = useRequest(async () => {
     const { scid, tid } = await resolveTable(db, schema, table)
-    const [properties, options, keys, idx] = await Promise.all([
+    const [properties, options, keys, idx, primary, unique] = await Promise.all([
       tables(db, scid).properties(tid),
       tableOptions(db, scid),
       constraints(db, scid, tid, 'foreign_key').list() as Promise<ForeignKeyRow[]>,
       indexesOf(db, scid, tid).list(),
+      // The index list leaves out the indexes of constraints, which the table may be clustered on too.
+      constraints(db, scid, tid, 'primary_key').list(),
+      constraints(db, scid, tid, 'unique_constraint').list(),
     ])
     const parts: Partition[] = properties.is_partitioned ? await partitionsOf(db, scid, tid).list() : []
+    const clustered = [...idx, ...primary, ...unique].find((i) => i.indisclustered)?.name ?? null
 
-    return { scid, tid, properties, options, keys, clustered: idx.find((i) => i.indisclustered)?.name ?? null, partitions: parts }
+    return { scid, tid, properties, options, keys, clustered, partitions: parts }
   }, [db, schema, table])
   const [preview, setPreview] = useState<Preview>(null)
   const [confirm, setConfirm] = useState<{ sql: string; warning?: string; run: () => Promise<void>; boxes?: { key: string; label: string }[] } | null>(null)

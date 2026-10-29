@@ -26,7 +26,8 @@ use PhpPgAdmin\Core\Nodes\Options;
 final class TableSql
 {
     /**
-     * CREATE TABLE and what follows it, then one CREATE INDEX per "indexes" entry.
+     * CREATE TABLE and what follows it, then one CREATE INDEX per "indexes" entry (never
+     * CONCURRENTLY, so that all of it can run in one transaction).
      *
      * @return array{sql: string, indexes: list<string>, name: string, schema: string}
      */
@@ -76,6 +77,9 @@ final class TableSql
 
         $indexes = [];
         foreach ((array) ($data['indexes'] ?? []) as $index) {
+            // The table runs in one transaction with its indexes, which CONCURRENTLY cannot
+            // join; nobody else sees the new table before the commit anyway.
+            $index = [...(array) $index, 'isconcurrent' => false];
             $indexes[] = IndexSql::createSql($ctx, $data['schema'], $name, $index);
         }
 

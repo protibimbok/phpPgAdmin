@@ -113,9 +113,7 @@ The **Constraints** card lists the table's primary key, unique, foreign key, che
 
 ![The Constraints card of books: the primary key, a unique constraint, two foreign keys and two checks](/media/table/constraints-card.png)
 
-::: warning The Definition column is empty for keys and checks
-For primary key, unique and check constraints the **Definition** column stays empty; only foreign keys and exclusion constraints show theirs. Open **Edit** to see a check's expression, or the [Show create](/table/operations#show-create) tab for all of them.
-:::
+**Definition** is the constraint as `pg_get_constraintdef` writes it: `PRIMARY KEY (id)`, `UNIQUE (isbn)`, `CHECK (pages > 0)`, `FOREIGN KEY (author_id) REFERENCES authors(id)`.
 
 `NOT NULL` is not listed here (PostgreSQL 18 records it as a constraint too); it is the **Null** column of the column grid.
 

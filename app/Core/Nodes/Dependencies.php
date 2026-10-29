@@ -18,7 +18,7 @@ final class Dependencies
     private const string TEMPLATES = 'depends';
 
     /** The node whose icon a type without a node of its own takes. */
-    private const array ICON_OF = ['partition_table' => 'table', 'partition_index' => 'index', 'toast_table' => 'table'];
+    private const array ICON_OF = ['partition_table' => 'table', 'partition_index' => 'index', 'toast_table' => 'table', 'column_default' => 'column'];
 
     /** relkind codes; null means the row needs a closer look. */
     private const array STANDARD_TYPES = [
@@ -81,7 +81,20 @@ final class Dependencies
         $where ??= sprintf('WHERE dep.refobjid=%d::oid', $oid);
         $sql = Sql::render(self::TEMPLATES, 'dependents.sql', ['where_clause' => $where, 'object_id' => $oid], $conn->version());
 
-        return self::fetch($conn, $sql, $showSystemObjects);
+        // An object that depends on the object and on one of its columns (a check constraint,
+        // a trigger's WHEN, a rule) is one row; when one of those dependencies is auto, it goes
+        // with the object, so that is the restriction shown.
+        $result = [];
+        foreach (self::fetch($conn, $sql, $showSystemObjects) as $row) {
+            $key = $row['type'] . "\0" . $row['name'];
+            if (!isset($result[$key])) {
+                $result[$key] = $row;
+            } elseif ($row['field'] === 'auto') {
+                $result[$key]['field'] = 'auto';
+            }
+        }
+
+        return array_values($result);
     }
 
     /** @return list<array{type: string, name: string, field: string, icon: string|null}> */
@@ -121,12 +134,13 @@ final class Dependencies
                         }
                     }
                 } elseif ($typeCode[0] === 'A') {
-                    // A column default: only worth listing when it calls a function.
+                    // A column default: only worth listing when it calls a function. It is
+                    // named by its column, "public.t.c DEFAULT nextval(…)", not as a function.
                     if (!str_starts_with((string) ($row['adbin'] ?? ''), '{FUNCEXPR')) {
                         continue;
                     }
-                    $typeName = 'function';
-                    $prefix = (string) $row['adsrc'];
+                    $typeName = 'column_default';
+                    $prefix = trim(($row['adcolumn'] ?? '') . (($row['adgenerated'] ?? '') !== '' ? ' GENERATED ALWAYS AS (' . $row['adsrc'] . ')' : ' DEFAULT ' . $row['adsrc']));
                     $keepRef = false;
                 }
             } else {
