@@ -11,3 +11,5 @@ node_modules/
 tmp/
 .claude/skills/ui-compare
 __pycache__/
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/

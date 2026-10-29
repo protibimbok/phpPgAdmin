@@ -8,7 +8,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",
@@ -35,9 +38,11 @@
     "@vitejs/plugin-react": "^6.1.2",
     "laramod-vite-plugin": "^0.1.0",
     "laravel-vite-plugin": "^3.2.0",
+    "playwright-core": "^1.64.1",
     "postcss-rtlcss": "^6.0.0",
     "sass-embedded": "^1.106.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitepress": "^1.6.4"
   }
 }

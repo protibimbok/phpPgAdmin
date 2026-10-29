@@ -1,0 +1,174 @@
+# Status and monitoring
+
+The **Status** tab at server level (`/server/status`) shows what the server is doing, from
+PostgreSQL's own statistics views. A row of pills switches between its pages: **Server**,
+**Processes**, **Locks**, **Prepared transactions**, **Monitor** and **Logs**. The pages follow
+phpMyAdmin's Status pages; the data and actions are pgAdmin's dashboard. **Logs** has a page of its
+own: [Server logs](/server/logs).
+
+## Server
+
+**Server** (`/server/status`) summarises the cumulative counters of `pg_stat_database`, summed over
+every database:
+
+![The Server page: uptime, transactions, connections, rows, block I/O and other counters](/media/server/status-server.png)
+
+- The heading counts the transactions (committed plus rolled back) since the statistics were last
+  reset.
+- The line under it gives the uptime and start time (`pg_postmaster_start_time()`), and since when the
+  counters have been counting: the time of the oldest `stats_reset`, or *since the cluster was
+  created* when they were never reset.
+- **Transactions**, **Rows** (returned, fetched, inserted, updated, deleted) and **Other** (temporary
+  files and bytes, deadlocks, queries cancelled by recovery conflicts) give each counter and its
+  average **ø per hour** over that period.
+- **Block I/O** splits block reads into **Read from disk** and **Found in the buffer cache**, with the
+  share of each: the cache hit ratio.
+- **Connections** counts client sessions of `pg_stat_activity` by state (**Active**, **Idle**, and
+  the idle-in-transaction states when there are any) against `max_connections`; **Background
+  processes** are the server's own processes (checkpointer, WAL writer, autovacuum and so on), not
+  counted in the total. Hover **100.00%** of **Max. connections** for how many are reserved for
+  superusers.
+- On a standby a note says the server is in recovery.
+
+The page loads once; reload it (or switch pills) to refresh.
+
+::: info ø per hour after a restart
+When the counters were never reset, the averages divide by the time since the server *started*,
+while PostgreSQL keeps the counters across a clean restart. After a restart the per-hour figures are
+therefore too high until the counters are reset (`SELECT pg_stat_reset();` in each database).
+:::
+
+## Processes
+
+**Processes** (`/server/status/processes`) lists `pg_stat_activity`, like phpMyAdmin's process list
+with pgAdmin's Sessions panel.
+
+![The Processes page with a session sleeping in bookshop](/media/server/status-processes.png)
+
+The **Filters** card:
+
+| Control | What it does |
+|---|---|
+| **Show only active** | Only sessions whose state is `active`. Applied at once. |
+| **Show background processes** | Also list the server's own processes (checkpointer, walwriter, autovacuum launcher, I/O workers…). Off by default: only client backends are listed. |
+| database select | Only sessions connected to that database; **(every database)** lists all. Applied at once. |
+| **Refresh** | Reloads the list. |
+
+Columns: **PID**, **User** (links to the role), **Database** (links to it), **Application**
+(`application_name`), **Client** (address, or *local socket*), **Backend type**, **State**,
+**Wait event** (type and name), **Blocked by** (`pg_blocking_pids()`), **Started**
+(`backend_start`), **Time** (seconds the current statement has been running; 0 when not active) and
+**SQL query**. Click a column heading to sort by it; click again for descending order. The query is
+shown on one line, cut at 100 characters; the icon next to **SQL query** switches to
+**Show full queries** and back.
+
+A session waiting for a lock is highlighted, and **Blocked by** names the PID holding it:
+
+![A session waiting for a lock another session holds](/media/server/status-processes-blocked.png)
+
+### Cancel and terminate a session
+
+Each client session other than your own has two links:
+
+- **Cancel** runs `pg_cancel_backend(pid)`: the current statement fails with
+  *canceling statement due to user request*; the session stays connected.
+- **Terminate** runs `pg_terminate_backend(pid)`: the session is closed and its open transaction is
+  rolled back.
+
+Both ask first, showing the statement:
+
+![The confirmation before cancelling a query](/media/server/status-cancel-confirm.png)
+
+On success the message is *The query of process N has been cancelled.* or
+*Process N has been terminated.*, and the list reloads.
+
+::: warning Who may signal whom
+A superuser may cancel or terminate any session. Other roles may signal only sessions of roles they
+are a member of, or every non-superuser session when they are members of
+`pg_signal_backend`. Signalling a superuser's session without being one fails with
+*permission denied to cancel query*. If the process has already ended, the page says
+*Process N could not be signalled: it may have ended already.*
+:::
+
+### Auto refresh
+
+Under the list are phpMyAdmin's note about traffic, the **Refresh rate** select (2 seconds up to 20
+minutes, 5 seconds by default) and **Start auto refresh** / **Stop auto refresh**. While it runs the
+list reloads at that rate. The same controls are on the Locks page.
+
+::: info What a role that is not a superuser sees
+Without `pg_read_all_stats` (or `pg_monitor`), PostgreSQL hides the details of other roles'
+sessions. Those rows have no user, database or backend type, so they drop out of the default list and
+appear only with **Show background processes**, as *&lt;insufficient privilege&gt;*.
+:::
+
+## Locks
+
+**Locks** (`/server/status/locks`) lists `pg_locks`, pgAdmin's Locks panel.
+
+![The Locks page: one session holds an ACCESS EXCLUSIVE lock, another waits](/media/server/status-locks.png)
+
+- **Show only waiting locks** keeps the locks not granted yet (`granted = false`).
+- The database select limits the list to locks in one database.
+- Columns: **PID**, **Lock type**, **Database**, **Relation**, **Page**, **Tuple**, **Virtual XID**,
+  **Transaction ID**, **Class**, **Object ID**, **Sub-object**, **Virtual transaction**, **Mode**,
+  **Granted** and **Fast path**. A lock that is not granted is highlighted.
+
+The list includes the `AccessShareLock` on `pg_locks` taken by the query that reads it. To end a
+lock wait, cancel or terminate the holding session on the [Processes](#processes) page; its PID is in
+the waiting session's **Blocked by** column.
+
+## Prepared transactions
+
+**Prepared transactions** (`/server/status/prepared`) lists `pg_prepared_xacts`: transactions
+prepared for two-phase commit with `PREPARE TRANSACTION`, which survive a restart and keep their
+locks until someone commits or rolls them back.
+
+Columns: **Global ID**, **Database**, **Owner**, **Transaction** and **Prepared at**. The database
+select limits the list to one database. Each row has:
+
+- **Commit**, which runs `COMMIT PREPARED 'gid';`
+- **Rollback**, which runs `ROLLBACK PREPARED 'gid';`
+
+Both ask first. PostgreSQL requires you to be the role that prepared the transaction, or a
+superuser, and the statement cannot run inside a transaction block (phpPgAdmin runs it on its own).
+
+![The Prepared transactions page on a server with max_prepared_transactions = 0](/media/server/status-prepared.png)
+
+::: warning max_prepared_transactions must be above 0
+The default `max_prepared_transactions` is 0, and then `PREPARE TRANSACTION` fails with
+*prepared transactions are disabled*. The page says so above the (empty) list. Raise the setting
+under [Variables](/server/variables); it is a `postmaster` setting, so it takes effect after a
+server restart. phpPgAdmin cannot restart the server.
+:::
+
+## Monitor
+
+**Monitor** (`/server/status/monitor`) plots pgAdmin's dashboard charts live, sampled from
+`pg_stat_activity` and `pg_stat_database` at the refresh rate:
+
+| Chart | Series |
+|---|---|
+| **Sessions** | Total, Active, Idle |
+| **Transactions per second** | Transactions, Commits, Rollbacks |
+| **Tuples in per second** | Inserts, Updates, Deletes |
+| **Tuples out per second** | Fetched, Returned |
+| **Block I/O per second** | Reads, Hits |
+
+The legend shows the latest value of each series. A chart keeps the last 60 intervals (5 minutes at
+the default rate of 5 seconds). The per-second charts need two samples before they draw a line.
+
+<Clip src="server/status-monitor.mp4" caption="Settings: a 2-second refresh rate and two chart columns, then the charts filling while queries run, and Pause monitor" />
+
+- **Pause monitor** stops sampling; **Resume monitor** starts it again (the plotted points stay).
+- **Settings** opens the **Refresh rate** (2 seconds to 20 minutes), **Chart columns** (1 to 5) and
+  **Database** selects. Choosing a database limits every chart to it and starts the charts over.
+
+The charts sample only while the page is open; nothing is recorded in the background.
+
+## See also
+
+- [Server logs](/server/logs), the **Logs** pill.
+- [Variables](/server/variables) for `max_connections`, `max_prepared_transactions` and the
+  statistics settings (`track_activities`, `track_counts`).
+- [Databases](/server/databases#statistics): the same `pg_stat_database` counters per database.

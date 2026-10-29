@@ -1,0 +1,110 @@
+# Console
+
+The console is the bar fixed to the bottom of every page, as in phpMyAdmin. It unfolds into a small
+query box with your query history above it, and has cards for its options and your bookmarks. A
+query typed in the console runs on the SQL tab of the database you are in.
+
+![The open console: the toolbar with Bookmarks, Options, History and Clear, the history entries with one hovered showing Expand, Requery, Edit, Explain, Bookmark, Query failed and Database: bookshop, and the query box at the bottom](/media/sql/console.png)
+
+## Open, close and resize
+
+- Click **Console** at the left of the bar to open or close it. The browser remembers whether it was
+  open for the next page you load.
+- Drag the open toolbar (anywhere but its buttons) up or down to change the height. A drag below
+  32 px folds the console. The console never covers the top 25 px of the window.
+
+<Clip src="sql/console-resize.mp4" caption="Dragging the console's toolbar up makes room for the history; dragging it down again shrinks it. The height is saved as a setting." />
+
+The height is saved in your settings as **Console height** (`console.height`, 92 px by default) under
+[Settings → Features → Console](/server/settings), where you can also type it. Like your other
+settings it follows the role and server, not the browser.
+
+## Run a query
+
+1. Open the console and click in the box at the bottom (after `>`).
+2. Type the SQL. <kbd>Enter</kbd> starts a new line.
+3. Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (or <kbd>Enter</kbd> with
+   [Execute queries on Enter](#options) on).
+
+The console does not show results itself. It opens the **database-level** SQL tab of the database the
+current page belongs to — `/db/bookshop/sql` from any page inside `bookshop`, also from a table — and
+runs the query there, with the results in the usual [result boxes](/tools/sql#results). Outside a
+database (server pages) it uses the server-level SQL tab, which runs in the database you signed in to.
+
+::: warning No confirmation, default options
+A query from the console runs at once with the SQL tab's default options: each statement commits on
+its own, and a `DELETE`, `DROP` or `TRUNCATE` is **not** confirmed, whatever the **Confirm DROP
+queries** setting says. Text without a letter in it is ignored.
+:::
+
+::: info
+The console query runs against the database of the page, not the schema or table. Qualify names
+(`inventory.stock`) when the table is not in your `search_path`.
+:::
+
+## History
+
+**History** shows or hides your [query history](/tools/history-bookmarks#query-history): the newest 50
+statements you ran on this server, in every database, oldest at the top and newest directly above the
+box. A failed statement has a red `=` in front of it instead of `>`.
+
+Click an entry to expand it to its full text or collapse it to one line. Hover over it for its
+actions:
+
+| Action | What it does |
+| --- | --- |
+| **Expand** / **Collapse** | Shows the whole statement or its first line. |
+| **Requery** | Runs it again on the SQL tab of the database it ran in. |
+| **Edit** | Copies it into the console's box. |
+| **Explain** | For `SELECT`, `WITH`, `VALUES` and `TABLE` statements: runs it with `EXPLAIN` in front, in its database. An `EXPLAIN` statement is run as it is. |
+| **Bookmark** | Opens [Add bookmark](#bookmarks) with the statement and its database filled in. |
+
+The hover also shows **Query failed** for an error, **Database:** and **Queried time:** (in your
+browser's time zone).
+
+::: info The list is not live
+The history list is loaded when you first show it and again after a query runs from the console. A
+query run from the SQL tab's **Go**, the Browse grid or a macro does not appear until you run
+something from the console or reload the page.
+:::
+
+**Clear** deletes your whole query history on this server — every entry, not only the ones listed —
+and empties the list. It cannot be undone.
+
+## Options
+
+**Options** opens the console's settings, the same ones as
+[Settings → Features → Console](/server/settings). A change is saved at once for your role.
+
+![The console Options card: Always expand query messages, Show query history at start, Execute queries on Enter and insert new line with Shift+Enter, and Set default](/media/sql/console-options.png)
+
+| Option | What it does |
+| --- | --- |
+| **Always expand query messages** | Shows every history entry and bookmark in full instead of its first line. |
+| **Show query history at start** | Shows the history as soon as a page with the console opens. Off by default: the console then starts with only the box. |
+| **Execute queries on Enter and insert new line with Shift+Enter.** | Swaps the keys: <kbd>Enter</kbd> runs, <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs either way. The hint above the box follows it (**Press Enter to execute query**). |
+| **Set default** | Turns all three off. It does not reset the height. |
+
+Click **Options** at the top of the card, or outside it, to close it.
+
+## Bookmarks
+
+**Bookmarks** opens a card with all your [bookmarks](/tools/history-bookmarks#bookmarks) on this
+server, of every database: yours with a blue label, shared ones with a green label.
+
+![The console Bookmarks card with Add and Refresh, a private bookmark Books under 15 and a shared one Stock by warehouse](/media/sql/console-bookmarks.png)
+
+- Hover over a bookmark for **Expand**/**Collapse**, **Requery** (runs it in the bookmark's database),
+  **Edit** (copies it into the console's box) and **Delete**.
+- **Refresh** loads the list again, for example after you saved one on the SQL tab.
+- **Add** opens **Add bookmark** with the console box's text:
+
+![The Add bookmark card: Label, Target database (bookshop), Share this bookmark, OK, and the query box](/media/sql/console-add-bookmark.png)
+
+1. Type a **Label**.
+2. Check the **Target database**; it starts as the database of the current page. Any name is
+   accepted, also one that does not exist.
+3. Tick **Share this bookmark** to let every role on the server use (and delete) it.
+4. Edit the statement in the box if needed and click **OK**.
+
+A bookmark needs a label, a database and a statement; **OK** does nothing while one is empty.

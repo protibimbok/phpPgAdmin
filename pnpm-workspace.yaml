@@ -1,3 +1,5 @@
 # @parcel/watcher (via sass) ships prebuilt binaries; its install script only builds from source.
+# esbuild (via vitepress) installs its binary as an optional dependency; its script only re-checks it.
 allowBuilds:
   '@parcel/watcher': false
+  esbuild: false
