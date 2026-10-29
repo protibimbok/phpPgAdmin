@@ -296,15 +296,22 @@ final class SchemaComparer
 
     /**
      * The owner, privileges and comments the source's DDL sets and the target's lacks: what a
-     * table's or a sequence's ALTERs leave out.
+     * table's or a sequence's ALTERs leave out. A grant only the target has is revoked first,
+     * privilege for privilege, so the object ends with the source's privileges and no more.
      *
      * @return list<string>
      */
     private function otherStatements(string $sourceDdl, string $targetDdl): array
     {
         $target = $this->normalizer->statements($targetDdl, false);
+        $source = $this->normalizer->statements($sourceDdl, true);
         $statements = [];
-        foreach ($this->normalizer->statements($sourceDdl, true) as $statement) {
+        foreach ($target as $statement) {
+            if (!in_array($statement, $source, true) && preg_match('/^GRANT\s+(.+?)\s+ON\s+(.+)\s+TO\s+(.+?)(?:\s+WITH\s+GRANT\s+OPTION)?$/is', $statement, $m) === 1) {
+                $statements[] = sprintf('REVOKE %s ON %s FROM %s;', $m[1], $m[2], $m[3]);
+            }
+        }
+        foreach ($source as $statement) {
             if (preg_match('/^(ALTER\s.+\sOWNER\s+TO\s|GRANT\s|REVOKE\s)/is', $statement) === 1 && !in_array($statement, $target, true)) {
                 $statements[] = $statement . ';';
             }

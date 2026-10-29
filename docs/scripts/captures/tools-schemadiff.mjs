@@ -118,16 +118,15 @@ execFileSync('psql', [...PG, '-d', 'tools_diff', '-o', '/dev/null', '-f', schema
     check('a new comparison finds everything identical, no second sequence', left.length === 0 && psql("SELECT count(*) FROM pg_class WHERE relname = 'promotions_id_seq1'", 'tools_diff') === '0', JSON.stringify(left.map((r) => r.name)))
   }
   {
-    // The other way round, on a fresh copy: inventory_next's suppliers made in inventory. Only
-    // stock's privileges are left: the script grants what the source grants but revokes nothing.
+    // The other way round, on a fresh copy: inventory_next's suppliers made in inventory, and
+    // stock's grants (which only the target has) revoked.
     psql('DROP DATABASE IF EXISTS tools_diff2 WITH (FORCE)', 'postgres')
     psql('CREATE DATABASE tools_diff2', 'postgres')
     execFileSync('psql', [...PG, '-d', 'tools_diff2', '-o', '/dev/null', '-f', schemaSql], { stdio: 'ignore' })
     const reverse = { source: { database: 'bookshop', schema: 'inventory_next' }, target: { database: 'tools_diff2', schema: 'inventory' } }
     const { error, left } = await migrate(reverse, 'tools_diff2', 'reverse.sql')
     check('the reverse script runs clean', error === '', error.trim().split('\n').pop())
-    const ignoringGrants = (await api(p, 'POST', '/api/schema-diff/compare', { ...reverse, ignore_grants: true })).json.results.filter((r) => r.status !== 'identical')
-    check('then only privileges the target alone grants differ', left.every((r) => r.name === 'stock') && ignoringGrants.length === 0, JSON.stringify(left.map((r) => r.name)))
+    check('then everything is identical, the target-only grants revoked', left.length === 0, JSON.stringify(left.map((r) => r.name)))
     psql('DROP DATABASE IF EXISTS tools_diff2 WITH (FORCE)', 'postgres')
   }
 

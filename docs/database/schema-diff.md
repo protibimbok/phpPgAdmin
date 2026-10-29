@@ -52,7 +52,7 @@ How each kind of difference is written:
 | --- | --- |
 | Source only | the source's `CREATE`, written in the target schema |
 | Target only | `DROP … IF EXISTS` |
-| Different table | `ALTER TABLE`: columns added, dropped, retyped (`TYPE … USING col::type`), defaults, `NOT NULL`, identity, comments; constraints, indexes and triggers dropped and made again where they differ; the owner and grants the source sets |
+| Different table | `ALTER TABLE`: columns added, dropped, retyped (`TYPE … USING col::type`), defaults, `NOT NULL`, identity, comments; constraints, indexes and triggers dropped and made again where they differ; the owner and grants the source sets, and revokes for grants only the target has |
 | Different sequence | `ALTER SEQUENCE` for the increment, bounds, start, cache and cycle |
 | Different routine or view | `CREATE OR REPLACE` |
 | Anything else that differs | `DROP` and `CREATE` again |
@@ -84,11 +84,10 @@ would make a second sequence, `promotions_id_seq1`), and the `ALTER SEQUENCE …
 sequence to the column comes at the end of the script, once the table exists. If you untick the
 sequence and the target has none, the column stays `serial` and `CREATE TABLE` makes it.
 
-::: info Privileges only in the target stay
-The script grants what the source grants, but does not revoke privileges that only the target has.
-After running it, a table whose target has extra grants still shows as different; tick **Ignore
-grants/revokes** to compare without them, or revoke them yourself.
-:::
+Privileges end up as the source has them. For a table or sequence that differs, the script first
+revokes each grant only the target has (`REVOKE SELECT, UPDATE ON TABLE inventory.stock FROM
+bookshop_staff;`), privilege for privilege and column grants included, then makes the source's grants.
+With **Ignore grants/revokes** ticked, neither is in the script.
 
 ::: warning Unqualified references
 A foreign key added by the script is written as the catalog prints it, for example
