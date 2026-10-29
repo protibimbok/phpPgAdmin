@@ -7,7 +7,7 @@ import Icon from '@/components/Icon'
 import { formatSize } from '@/format'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError } from '@/notify'
-import { dismissProcess, getProcess, importOptions, listProcesses, startImport, stopProcess, type BackgroundProcess, type ImportOptions, type ImportScope, type ImportSettings, type ImportTarget } from '../api'
+import { dismissProcess, getProcess, importOptions, listProcesses, startImport, stopProcess, type BackgroundProcess, type CopyFormat, type CopySettings, type ImportOptions, type ImportScope, type ImportSettings, type ImportTarget } from '../api'
 
 const DEFAULTS: Omit<ImportSettings, 'charset'> = {
   format: 'sql',
@@ -37,28 +37,42 @@ const DEFAULTS: Omit<ImportSettings, 'charset'> = {
   verbose: false,
 }
 
+const COPY_FORMATS: CopyFormat[] = ['csv', 'text', 'binary']
+
+/** Each COPY format's options as the page starts, phpMyAdmin's CSV defaults and COPY's own. */
+const COPY_DEFAULTS: Record<CopyFormat, CopySettings> = {
+  csv: { replace: false, terminated: ',', enclosed: '"', escaped: '"', new_line: 'auto', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '' },
+  text: { replace: false, terminated: '\\t', enclosed: '', escaped: '', new_line: 'auto', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '\\N', default: '' },
+  binary: { replace: false, terminated: '', enclosed: '', escaped: '', new_line: '', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '' },
+}
+
 type Flag = { [K in keyof ImportSettings]: ImportSettings[K] extends boolean ? K : never }[keyof ImportSettings]
 
-/** The format a file's name suggests, as phpMyAdmin picks the plugin matching the extension. */
-function formatOf(name: string): ImportSettings['format'] | null {
+const isCopy = (format: ImportSettings['format']): format is CopyFormat => (COPY_FORMATS as string[]).includes(format)
+
+/** The format a file's name suggests, as phpMyAdmin picks the plugin matching the extension; a table's rows only on a table. */
+function formatOf(name: string, scope: ImportScope): ImportSettings['format'] | null {
   const base = name.toLowerCase().replace(/\.gz$/, '')
-  if (/\.(sql|txt|psql|pgsql)$/.test(base)) return 'sql'
+  if (/\.(sql|psql|pgsql)$/.test(base)) return 'sql'
   if (/\.(dump|backup|bak|custom|tar|pgdump)$/.test(base)) return 'archive'
+  if (scope === 'table' && /\.csv$/.test(base)) return 'csv'
+  if (scope === 'table' && /\.(tsv|copy)$/.test(base)) return 'text'
+  if (/\.txt$/.test(base)) return scope === 'table' ? 'text' : 'sql'
 
   return null
 }
 
 /**
- * The Import page of the server, a database and a schema, laid out like phpMyAdmin's
+ * The Import page of the server, a database, a schema and a table, laid out like phpMyAdmin's
  * import.twig: the file (uploaded, or from the upload directory) and its character set, other
- * options, the format (SQL, run by psql, or a pg_dump archive, restored by pg_restore) and its
- * options. The import runs in the background; its output shows above the form until it is
+ * options, the format (SQL, run by psql, a pg_dump archive, restored by pg_restore, or on a
+ * table its rows in CSV or COPY's text or binary format, loaded by COPY) and its options. The import runs in the background; its output shows above the form until it is
  * dismissed, so an import started before the page was left is there when it is opened again.
  */
 export default function Import({ scope }: { scope: ImportScope }) {
   const params = useParams()
-  const target: ImportTarget = scope === 'server' ? {} : scope === 'database' ? { database: params.db } : { database: params.db, schema: params.schema }
-  const { data: options, error } = useRequest(() => importOptions(target), [scope, params.db, params.schema])
+  const target: ImportTarget = scope === 'server' ? {} : scope === 'database' ? { database: params.db } : scope === 'schema' ? { database: params.db, schema: params.schema } : { database: params.db, schema: params.schema, table: params.table }
+  const { data: options, error } = useRequest(() => importOptions(target), [scope, params.db, params.schema, params.table])
 
   if (error) {
     return (
@@ -71,12 +85,13 @@ export default function Import({ scope }: { scope: ImportScope }) {
   }
   if (!options) return null
 
-  return <ImportForm key={`${scope}:${params.db}:${params.schema}`} scope={scope} target={target} options={options} />
+  return <ImportForm key={`${scope}:${params.db}:${params.schema}:${params.table}`} scope={scope} target={target} options={options} />
 }
 
 function ImportForm({ scope, target, options }: { scope: ImportScope; target: ImportTarget; options: ImportOptions }) {
   const { t } = useTranslation('import')
   const [settings, setSettings] = useState<ImportSettings>(() => ({ ...DEFAULTS, charset: options.encodings.includes('UTF8') ? 'UTF8' : '' }))
+  const [copy, setCopy] = useState<Record<CopyFormat, CopySettings>>(COPY_DEFAULTS)
   const [file, setFile] = useState<File | null>(null)
   const [source, setSource] = useState<'upload' | 'local'>('upload')
   const [upload, setUpload] = useState<{ loaded: number; total: number } | null>(null)
@@ -99,15 +114,22 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
 
   const set = <K extends keyof ImportSettings>(key: K, value: ImportSettings[K]) => setSettings((current) => ({ ...current, [key]: value }))
   const archive = settings.format === 'archive'
+  const copyFormat = isCopy(settings.format) ? settings.format : null
   const tools = options.tools
   const program = archive ? 'pg_restore' : 'psql'
   const toolsProblem =
-    tools === null ? t('tools.missing') : !(archive ? tools.pg_restore : tools.psql) ? t('tools.no_program', { program, directory: tools.directory }) : !archive && !tools.restricts ? t('tools.no_restrict', { version: tools.version }) : null
+    tools === null
+      ? t('tools.missing')
+      : !(archive ? tools.pg_restore : tools.psql)
+        ? t('tools.no_program', { program, directory: tools.directory })
+        : settings.format === 'sql' && !tools.restricts
+          ? t('tools.no_restrict', { version: tools.version })
+          : null
   const local = options.upload_dir !== null && (source === 'local' || options.upload_dir.files === null)
 
   function choose(chosen: File | null) {
     setFile(chosen)
-    const format = chosen ? formatOf(chosen.name) : null
+    const format = chosen ? formatOf(chosen.name, scope) : null
     if (format) set('format', format)
   }
 
@@ -127,8 +149,9 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
   /** The request: the target, the format and its options, and the file of the upload directory. */
   function request(): Record<string, unknown> {
     const { local_file, jobs, ...rest } = settings
+    const copyFields = copyFormat ? Object.fromEntries(Object.entries(copy[copyFormat]).map(([key, value]) => [`${copyFormat}_${key}`, value])) : {}
 
-    return { ...target, ...rest, jobs: Number(jobs) || 1, local_file: local ? local_file : '' }
+    return { ...target, ...rest, ...copyFields, jobs: Number(jobs) || 1, local_file: local ? local_file : '' }
   }
 
   function submit(e: FormEvent) {
@@ -156,6 +179,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
     server: t('title.server'),
     database: t('title.database', { name: target.database }),
     schema: t('title.schema', { name: target.schema }),
+    table: t('title.table', { name: target.table }),
   }[scope]
 
   const toggle = (key: Flag, label: ReactNode, children?: ReactNode) => (
@@ -212,7 +236,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
           value={settings.local_file}
           onChange={(e) => {
             set('local_file', e.target.value)
-            const format = formatOf(e.target.value)
+            const format = formatOf(e.target.value, scope)
             if (format) set('format', format)
           }}
         >
@@ -295,6 +319,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
                 ))}
               </select>
               {archive && <div className="form-text">{t('file.charset_archive')}</div>}
+              {settings.format === 'binary' && <div className="form-text">{t('file.charset_binary')}</div>}
             </div>
           </div>
 
@@ -317,8 +342,11 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
             <div className="card-header">{t('format.title')}</div>
             <div className="card-body">
               <select className="form-select" id="plugins" name="format" aria-label={t('format.aria')} value={settings.format} onChange={(e) => set('format', e.target.value as ImportSettings['format'])}>
-                <option value="sql">{t('format.sql')}</option>
+                {scope === 'table' && <option value="csv">{t('format.csv')}</option>}
+                {scope === 'table' && <option value="binary">{t('format.binary')}</option>}
+                {scope === 'table' && <option value="text">{t('format.text')}</option>}
                 <option value="archive">{t('format.archive')}</option>
+                <option value="sql">{t('format.sql')}</option>
               </select>
               <div id="import_notification"></div>
             </div>
@@ -327,7 +355,8 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
           <div className="card mb-3" id="format_specific_opts">
             <div className="card-header">{t('options.title')}</div>
             <div className="card-body">
-              {!archive && (
+              {copyFormat && options.table && <CopyOptionsList format={copyFormat} settings={copy[copyFormat]} table={options.table} onChange={(next) => setCopy((current) => ({ ...current, [copyFormat]: next }))} />}
+              {settings.format === 'sql' && (
                 <div id="sql_options" className="format_specific_options">
                   <div id="sql_general_opts">
                     <ul className="list-group">
@@ -358,6 +387,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
                       </li>
                       {scope === 'server' && <li className="list-group-item">{label('archive.creates_database')}</li>}
                       {scope === 'schema' && <li className="list-group-item">{label('archive.schema_only')}</li>}
+                      {scope === 'table' && <li className="list-group-item">{label('archive.table_only')}</li>}
                     </ul>
                   </div>
 
@@ -531,7 +561,7 @@ function ProcessView({ initial, onDismiss }: { initial: BackgroundProcess; onDis
 
   return (
     <div className="card mb-3" id={`import_process_${process.id}`}>
-      <div className="card-header">{t('process.title', { file, target: process.schema ?? process.database ?? t('process.server') })}</div>
+      <div className="card-header">{t('process.title', { file, target: process.table ?? process.schema ?? process.database ?? t('process.server') })}</div>
       <div className="card-body">
         <div className={`alert ${alert}`} role="alert">
           <Icon name={icon} /> {message}
@@ -560,6 +590,72 @@ function ProcessView({ initial, onDismiss }: { initial: BackgroundProcess; onDis
             {t('process.dismiss')}
           </button>
         )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The options of a table's rows in CSV or COPY's text or binary format, in the order of
+ * phpMyAdmin's CSV options (#csv_options), followed by the COPY options phpMyAdmin has no
+ * counterpart for: a header line, and the NULL and DEFAULT strings.
+ */
+function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFormat; settings: CopySettings; table: NonNullable<ImportOptions['table']>; onChange: (next: CopySettings) => void }) {
+  const { t } = useTranslation('import')
+  const set = <K extends keyof CopySettings>(key: K, value: CopySettings[K]) => onChange({ ...settings, [key]: value })
+  const label = (key: string) => <Trans t={t} i18nKey={key} components={{ code: <code />, i: <i /> }} />
+  const id = (field: string) => `${format}_${field}`
+  const binary = format === 'binary'
+
+  const toggle = (key: 'replace' | 'ignore' | 'col_names' | 'header_match', text: ReactNode, children?: ReactNode) => (
+    <li className="list-group-item">
+      <div className="form-check form-switch">
+        <input className="form-check-input" type="checkbox" role="switch" name={id(key)} id={`checkbox_${id(key)}`} checked={settings[key]} onChange={(e) => set(key, e.target.checked)} />
+        <label className="form-check-label" htmlFor={`checkbox_${id(key)}`}>
+          {text}
+        </label>
+      </div>
+      {children}
+    </li>
+  )
+  const text = (key: 'terminated' | 'enclosed' | 'escaped' | 'new_line' | 'columns' | 'null' | 'default', caption: ReactNode, props: { size?: number; maxLength?: number; help?: ReactNode } = {}) => (
+    <li className="list-group-item">
+      <label htmlFor={`text_${id(key)}`} className="form-label">
+        {caption}
+      </label>
+      <input className="form-control" type="text" name={id(key)} id={`text_${id(key)}`} size={props.size} maxLength={props.maxLength} value={settings[key]} onChange={(e) => set(key, e.target.value)} />
+      {props.help && <div className="form-text">{props.help}</div>}
+    </li>
+  )
+
+  return (
+    <div id={`${format}_options`} className="format_specific_options">
+      <div id={`${format}_general_opts`}>
+        <ul className="list-group">
+          {toggle('replace', label('copy.replace'), settings.replace && table.primary_key.length === 0 && <div className="form-text text-danger">{t('copy.no_primary_key')}</div>)}
+          {!binary && text('terminated', t('copy.terminated'), { size: 2 })}
+          {format === 'csv' && text('enclosed', t('copy.enclosed'), { size: 2, maxLength: 2 })}
+          {format === 'csv' && text('escaped', t('copy.escaped'), { size: 2, maxLength: 2 })}
+          {!binary && text('new_line', t('copy.new_line'), { size: 2 })}
+          <li className="list-group-item">
+            <label htmlFor={`number_${id('partial_import')}`} className="form-label">
+              {t('copy.partial_import')}
+            </label>
+            <input className="form-control" type="number" name={id('partial_import')} id={`number_${id('partial_import')}`} min={0} value={settings.partial_import} onChange={(e) => set('partial_import', e.target.value)} />
+          </li>
+          {text(
+            'columns',
+            <>
+              {t('copy.columns')} <Icon name="b_help" title={t('copy.columns_hint', { columns: table.columns.join(', ') })} />
+            </>,
+          )}
+          {!binary && table.on_error && toggle('ignore', label('copy.ignore'))}
+          {!binary &&
+            (format === 'csv' || table.text_header) &&
+            toggle('col_names', label('copy.col_names'), settings.col_names && table.header_match && <ul className="list-group">{toggle('header_match', label('copy.header_match'))}</ul>)}
+          {!binary && text('null', label('copy.null'), { help: t(`copy.null_help_${format}`) })}
+          {!binary && table.default && text('default', label('copy.default'))}
+        </ul>
       </div>
     </div>
   )

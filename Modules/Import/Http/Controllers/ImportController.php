@@ -12,6 +12,7 @@ use PhpPgAdmin\Core\Facades\Config;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\Process\BackgroundProcess;
 use PhpPgAdmin\Modules\Export\Dump\ClientTools;
+use PhpPgAdmin\Modules\Import\Restore\CopyCommand;
 use PhpPgAdmin\Modules\Import\Restore\FileFormat;
 use PhpPgAdmin\Modules\Import\Restore\ImportRequest;
 use PhpPgAdmin\Modules\Import\Restore\RestoreCommand;
@@ -22,12 +23,13 @@ use Psr\Http\Message\UploadedFileInterface;
 /**
  * The Import pages' backend: what a scope offers (GET /api/import/options), and the import
  * itself (POST /api/import), a file uploaded or taken from the upload directory and run by
- * psql or pg_restore in the background. The page follows it through /api/processes.
+ * psql or pg_restore in the background; a table's rows in CSV or COPY's formats are loaded by
+ * COPY through psql. The page follows it through /api/processes.
  */
 final class ImportController
 {
     /** The files of the upload directory offered for import, by extension. */
-    private const string LOCAL_FILES = '/\.(sql|dump|backup|custom|tar|pgdump)(\.gz)?$/i';
+    private const string LOCAL_FILES = '/\.(sql|dump|backup|custom|tar|pgdump|csv|tsv|txt|copy)(\.gz)?$/i';
 
     /** @return array<string, mixed> */
     public function options(ServerRequestInterface $request): array
@@ -36,14 +38,17 @@ final class ImportController
         $pool = ConnectionPool::from($request);
         $database = is_string($query['database'] ?? null) && $query['database'] !== '' ? $query['database'] : null;
         $schema = $database !== null && is_string($query['schema'] ?? null) && $query['schema'] !== '' ? $query['schema'] : null;
+        $table = $schema !== null && is_string($query['table'] ?? null) && $query['table'] !== '' ? $query['table'] : null;
         $conn = $database === null ? $pool->maintenance() : $pool->for($database);
         if ($schema !== null) {
             $this->checkSchema($conn, $schema);
         }
+        $relation = $table === null ? null : $this->relation($conn, (string) $schema, $table);
         $tools = ClientTools::locate();
+        $version = $conn->version();
 
         return [
-            'scope' => $database === null ? 'server' : ($schema === null ? 'database' : 'schema'),
+            'scope' => $database === null ? 'server' : ($schema === null ? 'database' : ($table === null ? 'schema' : 'table')),
             'encodings' => array_column($conn->rows("SELECT pg_encoding_to_char(i) AS name FROM generate_series(0, 63) AS i WHERE pg_encoding_to_char(i) <> '' ORDER BY 1"), 'name'),
             'max_upload' => self::maxUpload(),
             'upload_dir' => self::uploadDirectory(),
@@ -57,6 +62,15 @@ final class ImportController
                 'policies' => $tools->version >= 180000,
                 'statistics' => $tools->version >= 180000,
                 'table_access_method' => $tools->version >= 150000,
+            ],
+            // What COPY on the server takes, and the table it loads.
+            'table' => $relation === null ? null : [
+                'columns' => array_column(array_filter($relation['columns'], static fn (array $c): bool => !$c['generated']), 'name'),
+                'primary_key' => $relation['primary_key'],
+                'on_error' => $version >= 170000,
+                'default' => $version >= 160000,
+                'header_match' => $version >= 150000,
+                'text_header' => $version >= 150000,
             ],
         ];
     }
@@ -77,7 +91,7 @@ final class ImportController
         $pool = ConnectionPool::from($request);
 
         $tools = ClientTools::locate() ?? throw new ApiException(503, 'The PostgreSQL client programs were not found. Set PGADMIN_PG_BIN_DIR (config/tools.php) to their directory.');
-        $program = $import->format === 'sql' ? 'psql' : 'pg_restore';
+        $program = $import->format === 'archive' ? 'pg_restore' : 'psql';
         if (!is_executable($tools->path($program))) {
             throw new ApiException(503, sprintf('%s was not found in %s.', $program, $tools->directory));
         }
@@ -89,6 +103,7 @@ final class ImportController
         if ($import->schema !== null) {
             $this->checkSchema($conn, $import->schema);
         }
+        $relation = $import->table === null ? null : $this->relation($conn, (string) $import->schema, $import->table);
 
         $process = BackgroundProcess::prepare();
         try {
@@ -96,8 +111,15 @@ final class ImportController
             $format = FileFormat::of($path) ?? throw new ApiException(422, 'The file to import cannot be read.');
             $this->checkFormat($import, $format, $name);
 
-            $command = new RestoreCommand($import, $tools, $format, $conn->database());
-            $arguments = $command->arguments($path);
+            if ($import->copy !== null && $relation !== null) {
+                $command = new CopyCommand($import, $import->copy, $tools, (string) $import->schema, (string) $import->table, $relation['columns'], $relation['primary_key'], $conn->version());
+                $arguments = $command->arguments();
+                $input = $path;
+            } else {
+                $command = new RestoreCommand($import, $tools, $format, $conn->database());
+                $arguments = $command->arguments($path);
+                $input = $command->readsFile() ? null : $path;
+            }
             if (session_status() === PHP_SESSION_ACTIVE) {
                 session_write_close();
             }
@@ -105,9 +127,9 @@ final class ImportController
                 $command->program(),
                 $arguments,
                 $command->environment() + $pool->environment($conn->database()),
-                $command->readsFile() ? null : $path,
+                $input,
                 $temporary,
-                !$format->isArchive(),
+                $import->format === 'sql',
             );
         } catch (\Throwable $e) {
             $process->remove();
@@ -119,6 +141,7 @@ final class ImportController
             $process->id(),
             $import->database,
             $import->schema,
+            $import->table,
             'import',
             $name,
             // The command as the page shows it: the file by its name, and not psql's restrict key.
@@ -175,7 +198,16 @@ final class ImportController
     private function checkFormat(ImportRequest $import, FileFormat $format, string $name): void
     {
         if ($format->kind === 'zip') {
-            throw new ApiException(422, sprintf('"%s" is a zip file; an import reads SQL or a pg_dump archive, uncompressed or gzipped.', $name));
+            throw new ApiException(422, sprintf('"%s" is a zip file; an import reads SQL, a pg_dump archive or the rows of a table, uncompressed or gzipped.', $name));
+        }
+        if ($format->kind === 'binary' && $import->format !== 'binary') {
+            throw new ApiException(422, sprintf('"%s" holds rows in COPY\'s binary format: choose that format.', $name));
+        }
+        if ($import->format === 'binary' && $format->kind !== 'binary') {
+            throw new ApiException(422, sprintf('"%s" does not start with the signature of COPY\'s binary format.', $name));
+        }
+        if ($import->copy !== null && $format->isArchive()) {
+            throw new ApiException(422, sprintf('"%s" is a pg_dump %s archive, which pg_restore reads: choose the archive format.', $name, $format->kind));
         }
         if ($import->format === 'sql' && $format->isArchive()) {
             throw new ApiException(422, sprintf('"%s" is a pg_dump %s archive, which pg_restore reads: choose the archive format.', $name, $format->kind));
@@ -189,6 +221,32 @@ final class ImportController
         if ($format->isArchive() && $format->gzip && $import->jobs > 1) {
             throw new ApiException(422, 'pg_restore reads a gzipped archive from its input, which it cannot do with parallel jobs: decompress the file or restore with one job.');
         }
+    }
+
+    /**
+     * The table a COPY import loads (or pg_restore restores into): its columns, and its primary
+     * key's, for a duplicate key to be found by.
+     *
+     * @return array{columns: list<array{name: string, generated: bool, identity: string}>, primary_key: list<string>}
+     */
+    private function relation(Connection $conn, string $schema, string $table): array
+    {
+        $relation = $conn->row('SELECT c.oid, c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2', [$schema, $table])
+            ?? throw new NotFoundException(sprintf('There is no table "%s" in the schema "%s".', $table, $schema));
+        if (!in_array($relation['relkind'], ['r', 'p'], true)) {
+            throw new ApiException(422, sprintf('"%s" is not a table: rows are imported into a table.', $table));
+        }
+
+        return [
+            'columns' => array_map(static fn (array $row): array => ['name' => (string) $row['name'], 'generated' => (bool) $row['generated'], 'identity' => (string) $row['identity']], $conn->rows(
+                "SELECT attname AS name, attgenerated <> '' AS generated, attidentity AS identity FROM pg_attribute WHERE attrelid = \$1 AND attnum > 0 AND NOT attisdropped ORDER BY attnum",
+                [$relation['oid']],
+            )),
+            'primary_key' => array_column($conn->rows(
+                "SELECT a.attname FROM pg_constraint c CROSS JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS k(attnum, n) JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum WHERE c.conrelid = \$1 AND c.contype = 'p' ORDER BY k.n",
+                [$relation['oid']],
+            ), 'attname'),
+        ];
     }
 
     private function checkSchema(Connection $conn, string $schema): void

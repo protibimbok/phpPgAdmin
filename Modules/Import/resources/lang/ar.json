@@ -4,7 +4,8 @@
   "title": {
     "server": "الاستيراد إلى الخادم الحالي",
     "database": "الاستيراد إلى قاعدة البيانات \"{{name}}\"",
-    "schema": "الاستيراد إلى المخطط \"{{name}}\""
+    "schema": "الاستيراد إلى المخطط \"{{name}}\"",
+    "table": "الاستيراد إلى الجدول \"{{name}}\""
   },
   "tools": {
     "missing": "لم يُعثر على برامج عميل PostgreSQL في خادم الويب. اضبط PGADMIN_PG_BIN_DIR (config/tools.php) على مجلدها.",
@@ -27,7 +28,8 @@
     "charset": "ترميز الملف:",
     "charset_archive": "يسجّل الأرشيف الترميز الذي صُدِّر به، ويستخدمه pg_restore.",
     "none": "اختر ملفًا لاستيراده.",
-    "too_large": "الملف أكبر مما يقبله PHP في الرفع ({{size}})."
+    "too_large": "الملف أكبر مما يقبله PHP في الرفع ({{size}}).",
+    "charset_binary": "لا تحوي الصيغة الثنائية لـ COPY نصًا يُحوَّل، فلا يُستخدم الترميز."
   },
   "other": {
     "title": "خيارات أخرى",
@@ -38,7 +40,10 @@
     "title": "الصيغة",
     "aria": "صيغة الملف المراد استيراده",
     "sql": "SQL",
-    "archive": "أرشيف PostgreSQL مخصص أو tar (pg_restore)"
+    "archive": "أرشيف PostgreSQL مخصص أو tar (pg_restore)",
+    "csv": "CSV",
+    "text": "صيغة COPY النصية في PostgreSQL",
+    "binary": "صيغة COPY الثنائية في PostgreSQL"
   },
   "options": {
     "title": "خيارات خاصة بالصيغة:"
@@ -75,7 +80,8 @@
     "single_transaction": "الاستعادة كمعاملة واحدة (<code>--single-transaction</code>)",
     "exit_on_error": "التوقف عند أول خطأ (<code>--exit-on-error</code>)",
     "set_session_authorization": "استخدام <code>SET SESSION AUTHORIZATION</code> بدلًا من <code>ALTER OWNER</code>",
-    "verbose": "مخرجات مفصّلة"
+    "verbose": "مخرجات مفصّلة",
+    "table_only": "يُستعاد هذا الجدول وصفوفه فقط (<code>--table</code>)، دون فهارسه وقيوده ومشغّلاته."
   },
   "process": {
     "title": "استيراد {{file}} إلى {{target}}",
@@ -90,5 +96,23 @@
     "progress": "نسبة ما قُرئ من الملف",
     "stop": "إيقاف",
     "dismiss": "إغلاق"
+  },
+  "copy": {
+    "replace": "تحديث البيانات عند وجود مفاتيح مكررة أثناء الاستيراد (إضافة <code>ON CONFLICT … DO UPDATE</code>)",
+    "no_primary_key": "ليس للجدول مفتاح أساسي يُعرف به التكرار.",
+    "terminated": "الأعمدة مفصولة بـ:",
+    "enclosed": "الأعمدة محاطة بـ:",
+    "escaped": "الأعمدة مهربة بـ:",
+    "new_line": "الأسطر منتهية بـ:",
+    "partial_import": "عدد الصفوف المراد استيرادها (اختياري):",
+    "columns": "أسماء الأعمدة:",
+    "columns_hint": "إن لم تكن بيانات كل صف في الملف بترتيب أعمدة الجدول نفسه، فاذكر أسماء الأعمدة المقابلة هنا، مفصولة بفواصل ودون علامات اقتباس. ترتيب الجدول: {{columns}}",
+    "ignore": "تخطّي الصفوف التي فيها قيمة لا تُقرأ بنوع عمودها (<code>ON_ERROR ignore</code>)",
+    "col_names": "السطر الأول من الملف يحوي أسماء أعمدة الجدول <i>(إن لم يُحدَّد هذا، يصبح السطر الأول جزءًا من البيانات)</i>",
+    "header_match": "مطابقتها مع أسماء الأعمدة (<code>HEADER MATCH</code>)",
+    "null": "النص الذي يُقرأ NULL (<code>NULL</code>):",
+    "null_help_csv": "إن تُرك فارغًا، فالقيمة الفارغة غير المقتبسة NULL والمقتبسة (\"\") نص فارغ.",
+    "null_help_text": "\\N هو ما تعتمده صيغة COPY النصية.",
+    "default": "النص الذي يُقرأ القيمة الافتراضية للعمود (<code>DEFAULT</code>، اختياري):"
   }
 }

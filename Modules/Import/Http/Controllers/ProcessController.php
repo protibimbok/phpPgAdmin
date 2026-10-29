@@ -26,9 +26,10 @@ final class ProcessController
         $filtered = array_key_exists('database', $query);
         $database = is_string($query['database'] ?? null) && $query['database'] !== '' ? $query['database'] : null;
         $schema = is_string($query['schema'] ?? null) && $query['schema'] !== '' ? $query['schema'] : null;
+        $relation = is_string($query['table'] ?? null) && $query['table'] !== '' ? $query['table'] : null;
         $processes = $this->processes($request);
 
-        return ['processes' => array_map(static fn (array $row): array => self::describe($row, self::directory($row['id']), $processes), $processes->all($filtered, $database, $schema))];
+        return ['processes' => array_map(static fn (array $row): array => self::describe($row, self::directory($row['id']), $processes), $processes->all($filtered, $database, $schema, $relation))];
     }
 
     /** @return array{process: array<string, mixed>, output: array{text: string, offset: int, size: int}} */
@@ -75,7 +76,7 @@ final class ProcessController
      * A process as the page shows it: its row with the runner's status, which is written back
      * to the row when the process has ended.
      *
-     * @param array{id: string, database: string|null, schema: string|null, type: string, description: string, command: list<string>, started_at: string, ended_at: string|null, exit_code: int|null} $row
+     * @param array{id: string, database: string|null, schema: string|null, relation: string|null, type: string, description: string, command: list<string>, started_at: string, ended_at: string|null, exit_code: int|null} $row
      * @return array<string, mixed>
      */
     public static function describe(array $row, BackgroundProcess $directory, ?Processes $processes = null): array
@@ -92,6 +93,7 @@ final class ProcessController
             'description' => $row['description'],
             'database' => $row['database'],
             'schema' => $row['schema'],
+            'table' => $row['relation'],
             'command' => $row['command'],
             // A process whose directory is gone (removed by hand) can only be dismissed.
             'state' => $status['started_at'] === null && $row['ended_at'] !== null ? ($row['exit_code'] === 0 ? 'finished' : 'failed') : $status['state'],

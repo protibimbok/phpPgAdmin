@@ -59,7 +59,7 @@ final readonly class RestoreCommand
     {
         $r = $this->request;
         $options = [];
-        if ($r->scope === 'schema' && !$this->file->isArchive()) {
+        if (($r->scope === 'schema' || $r->scope === 'table') && !$this->file->isArchive()) {
             $options[] = '-c search_path=' . self::optionValue('"' . str_replace('"', '""', (string) $r->schema) . '"');
         }
         if (!$r->foreignKeyChecks) {
@@ -98,8 +98,12 @@ final readonly class RestoreCommand
             // The archive names its database: CREATE DATABASE from the maintenance database.
             $args[] = '--create';
         }
-        if ($r->scope === 'schema') {
+        if ($r->scope === 'schema' || $r->scope === 'table') {
             $args[] = '--schema=' . $r->schema;
+        }
+        if ($r->scope === 'table') {
+            // The table's definition and rows; its indexes, constraints and triggers are other entries.
+            $args[] = '--table=' . $r->table;
         }
         if ($r->contents === 'structure') {
             $args[] = '--schema-only';

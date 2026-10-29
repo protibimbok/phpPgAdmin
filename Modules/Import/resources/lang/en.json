@@ -4,7 +4,8 @@
   "title": {
     "server": "Importing into the current server",
     "database": "Importing into the database \"{{name}}\"",
-    "schema": "Importing into the schema \"{{name}}\""
+    "schema": "Importing into the schema \"{{name}}\"",
+    "table": "Importing into the table \"{{name}}\""
   },
   "tools": {
     "missing": "The PostgreSQL client programs were not found on the web server. Set PGADMIN_PG_BIN_DIR (config/tools.php) to their directory.",
@@ -27,7 +28,8 @@
     "charset": "Character set of the file:",
     "charset_archive": "An archive records the character set it was dumped in; pg_restore uses that one.",
     "none": "Choose a file to import.",
-    "too_large": "The file is larger than PHP accepts in an upload ({{size}})."
+    "too_large": "The file is larger than PHP accepts in an upload ({{size}}).",
+    "charset_binary": "COPY's binary format holds no text to convert; the character set is not used."
   },
   "other": {
     "title": "Other options",
@@ -38,7 +40,10 @@
     "title": "Format",
     "aria": "Format of the file to import",
     "sql": "SQL",
-    "archive": "PostgreSQL custom or tar archive (pg_restore)"
+    "archive": "PostgreSQL custom or tar archive (pg_restore)",
+    "csv": "CSV",
+    "text": "PostgreSQL COPY text format",
+    "binary": "PostgreSQL COPY binary format"
   },
   "options": {
     "title": "Format-specific options:"
@@ -75,7 +80,8 @@
     "single_transaction": "Restore as a single transaction (<code>--single-transaction</code>)",
     "exit_on_error": "Stop at the first error (<code>--exit-on-error</code>)",
     "set_session_authorization": "Use <code>SET SESSION AUTHORIZATION</code> instead of <code>ALTER OWNER</code>",
-    "verbose": "Verbose output"
+    "verbose": "Verbose output",
+    "table_only": "Only this table and its rows are restored (<code>--table</code>); its indexes, constraints and triggers are not."
   },
   "process": {
     "title": "Importing {{file}} into {{target}}",
@@ -90,5 +96,23 @@
     "progress": "Share of the file read",
     "stop": "Stop",
     "dismiss": "Dismiss"
+  },
+  "copy": {
+    "replace": "Update data when duplicate keys found on import (add <code>ON CONFLICT … DO UPDATE</code>)",
+    "no_primary_key": "The table has no primary key for a duplicate to be found by.",
+    "terminated": "Columns separated with:",
+    "enclosed": "Columns enclosed with:",
+    "escaped": "Columns escaped with:",
+    "new_line": "Lines terminated with:",
+    "partial_import": "Import these many number of rows (optional):",
+    "columns": "Column names:",
+    "columns_hint": "If the data in each row of the file is not in the same order as in the table, list the corresponding column names here. Column names must be separated by commas and not enclosed in quotations. The table's order: {{columns}}",
+    "ignore": "Skip the rows with a value that cannot be read as its column's type (<code>ON_ERROR ignore</code>)",
+    "col_names": "The first line of the file contains the table column names <i>(if this is unchecked, the first line will become part of the data)</i>",
+    "header_match": "Check them against the column names (<code>HEADER MATCH</code>)",
+    "null": "Text read as NULL (<code>NULL</code>):",
+    "null_help_csv": "Empty, an unquoted empty value is NULL and a quoted one (\"\") an empty string.",
+    "null_help_text": "\\N is COPY's text format's own.",
+    "default": "Text read as the column's default (<code>DEFAULT</code>, optional):"
   }
 }

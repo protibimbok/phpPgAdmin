@@ -1,12 +1,16 @@
 import { api, ApiError, type ApiErrorBody } from '@/api/request'
 
-export type ImportScope = 'server' | 'database' | 'schema'
+export type ImportScope = 'server' | 'database' | 'schema' | 'table'
 
-/** Where an import goes: the server, a database, or a schema of one. */
+/** Where an import goes: the server, a database, a schema of one, or a table. */
 export interface ImportTarget {
   database?: string
   schema?: string
+  table?: string
 }
+
+/** The formats COPY reads a table's rows in. */
+export type CopyFormat = 'csv' | 'text' | 'binary'
 
 export interface ImportOptions {
   scope: ImportScope
@@ -19,11 +23,29 @@ export interface ImportOptions {
   maintenance_db: string
   /** The client programs found, or null when there are none. */
   tools: { directory: string; version: string; psql: boolean; pg_restore: boolean; restricts: boolean; policies: boolean; statistics: boolean; table_access_method: boolean } | null
+  /** On a table: the columns COPY can fill, the primary key, and the COPY options the server has. */
+  table: { columns: string[]; primary_key: string[]; on_error: boolean; default: boolean; header_match: boolean; text_header: boolean } | null
+}
+
+/** One COPY format's options, sent as <format>_<field>. */
+export interface CopySettings {
+  replace: boolean
+  terminated: string
+  enclosed: string
+  escaped: string
+  new_line: string
+  partial_import: string
+  columns: string
+  ignore: boolean
+  col_names: boolean
+  header_match: boolean
+  null: string
+  default: string
 }
 
 /** The Import form's options, as POST /api/import reads them. */
 export interface ImportSettings {
-  format: 'sql' | 'archive'
+  format: 'sql' | 'archive' | CopyFormat
   charset: string
   local_file: string
   fk_checks: boolean
@@ -61,6 +83,7 @@ export interface BackgroundProcess {
   description: string
   database: string | null
   schema: string | null
+  table: string | null
   command: string[]
   state: ProcessState
   exit_code: number | null
@@ -123,7 +146,7 @@ export function startImport(options: Record<string, unknown>, file: File | null,
 }
 
 export function listProcesses(target: ImportTarget): Promise<BackgroundProcess[]> {
-  return api.get<{ processes: BackgroundProcess[] }>(`/api/processes?${new URLSearchParams({ database: target.database ?? '', schema: target.schema ?? '' })}`).then((r) => r.processes)
+  return api.get<{ processes: BackgroundProcess[] }>(`/api/processes?${new URLSearchParams({ database: target.database ?? '', schema: target.schema ?? '', table: target.table ?? '' })}`).then((r) => r.processes)
 }
 
 export function getProcess(id: string, offset: number): Promise<{ process: BackgroundProcess; output: ProcessOutput }> {

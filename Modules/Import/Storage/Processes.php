@@ -9,9 +9,9 @@ use PhpPgAdmin\Core\Facades\Storage;
 
 /**
  * A role's background processes on a server: the imports it started that have not been
- * dismissed. Another role, or the same role on another server, does not see them.
+ * dismissed, each with its target (a database, a schema, a table of it). Another role, or the same role on another server, does not see them.
  *
- * @phpstan-type Row array{id: string, database: string|null, schema: string|null, type: string, description: string, command: list<string>, started_at: string, ended_at: string|null, exit_code: int|null}
+ * @phpstan-type Row array{id: string, database: string|null, schema: string|null, relation: string|null, type: string, description: string, command: list<string>, started_at: string, ended_at: string|null, exit_code: int|null}
  */
 final class Processes
 {
@@ -28,17 +28,18 @@ final class Processes
     }
 
     /**
-     * The processes, newest first; with a target, those started on that database (and schema), or on the server.
+     * The processes, newest first; with a target, those started on that database (schema,
+     * table), or on the server.
      *
      * @return list<Row>
      */
-    public function all(bool $filtered = false, ?string $database = null, ?string $schema = null): array
+    public function all(bool $filtered = false, ?string $database = null, ?string $schema = null, ?string $relation = null): array
     {
         $sql = 'SELECT * FROM processes WHERE server = ? AND username = ?';
         $bindings = [$this->server, $this->username];
         if ($filtered) {
-            $sql .= ' AND database IS ? AND schema IS ?';
-            array_push($bindings, $database, $schema);
+            $sql .= ' AND database IS ? AND schema IS ? AND relation IS ?';
+            array_push($bindings, $database, $schema, $relation);
         }
         $statement = $this->db->prepare($sql . ' ORDER BY started_at DESC, rowid DESC');
         $statement->execute($bindings);
@@ -57,10 +58,10 @@ final class Processes
     }
 
     /** @param list<string> $command */
-    public function create(string $id, ?string $database, ?string $schema, string $type, string $description, array $command, string $startedAt): void
+    public function create(string $id, ?string $database, ?string $schema, ?string $relation, string $type, string $description, array $command, string $startedAt): void
     {
-        $this->db->prepare('INSERT INTO processes (id, server, username, database, schema, type, description, command, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-            ->execute([$id, $this->server, $this->username, $database, $schema, $type, $description, json_encode($command, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), $startedAt]);
+        $this->db->prepare('INSERT INTO processes (id, server, username, database, schema, relation, type, description, command, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            ->execute([$id, $this->server, $this->username, $database, $schema, $relation, $type, $description, json_encode($command, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), $startedAt]);
     }
 
     public function finish(string $id, string $endedAt, ?int $exitCode): void
@@ -89,6 +90,7 @@ final class Processes
             'id' => (string) $row['id'],
             'database' => $row['database'] === null ? null : (string) $row['database'],
             'schema' => $row['schema'] === null ? null : (string) $row['schema'],
+            'relation' => ($row['relation'] ?? null) === null ? null : (string) $row['relation'],
             'type' => (string) $row['type'],
             'description' => (string) $row['description'],
             'command' => is_array($command) ? array_map('strval', $command) : [],

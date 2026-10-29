@@ -7,13 +7,14 @@ namespace PhpPgAdmin\Modules\Import\Restore;
 use League\Route\Http\Exception\BadRequestException;
 
 /**
- * What the Import page asks for, checked: the scope (the server, a database, a schema), the
- * format (SQL run by psql, or a pg_dump archive restored by pg_restore), the file's character
- * set, and each format's options. A field left out takes its default, as the page shows it.
+ * What the Import page asks for, checked: the scope (the server, a database, a schema, a
+ * table), the format (SQL run by psql, a pg_dump archive restored by pg_restore, or a table's
+ * rows in CSV or COPY's text or binary format, loaded by COPY), the file's character set, and
+ * each format's options. A field left out takes its default, as the page shows it.
  */
 final readonly class ImportRequest
 {
-    public const array FORMATS = ['sql', 'archive'];
+    public const array FORMATS = ['sql', 'archive', ...CopyImport::FORMATS];
 
     /** pg_restore's options that leave something out when switched off, with the flag that does it. */
     public const array INCLUDE_FLAGS = [
@@ -68,6 +69,7 @@ final readonly class ImportRequest
         public string $scope,
         public ?string $database,
         public ?string $schema,
+        public ?string $table,
         public string $format,
         public ?string $charset,
         public ?string $localFile,
@@ -77,6 +79,8 @@ final readonly class ImportRequest
         public string $contents,
         public int $jobs,
         public array $flags,
+        /** The COPY options of a table's rows; null for SQL and archives. */
+        public ?CopyImport $copy,
     ) {
     }
 
@@ -88,9 +92,17 @@ final readonly class ImportRequest
         if ($schema !== null && $database === null) {
             throw new BadRequestException('A schema is imported into within a database.');
         }
+        $table = self::name($input, 'table');
+        if ($table !== null && $schema === null) {
+            throw new BadRequestException('A table is imported into within a schema.');
+        }
         $format = (string) ($input['format'] ?? 'sql');
         if (!in_array($format, self::FORMATS, true)) {
             throw new BadRequestException(sprintf('The format "%s" is not one the Import page offers.', $format));
+        }
+        $copy = in_array($format, CopyImport::FORMATS, true) ? CopyImport::fromArray($input, $format) : null;
+        if ($copy !== null && $table === null) {
+            throw new BadRequestException('Rows in CSV or COPY\'s formats are imported into a table.');
         }
         $contents = (string) ($input['contents'] ?? 'both');
         if (!in_array($contents, ['both', 'structure', 'data'], true)) {
@@ -114,9 +126,10 @@ final readonly class ImportRequest
         }
 
         return new self(
-            $database === null ? 'server' : ($schema === null ? 'database' : 'schema'),
+            $database === null ? 'server' : ($schema === null ? 'database' : ($table === null ? 'schema' : 'table')),
             $database,
             $schema,
+            $table,
             $format,
             $charset,
             self::name($input, 'local_file'),
@@ -126,6 +139,7 @@ final readonly class ImportRequest
             $contents,
             $jobs,
             $flags,
+            $copy,
         );
     }
 

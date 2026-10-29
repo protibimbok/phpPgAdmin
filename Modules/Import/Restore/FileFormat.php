@@ -6,13 +6,14 @@ namespace PhpPgAdmin\Modules\Import\Restore;
 
 /**
  * What a file to import holds, told from its first bytes as pg_restore tells its archives
- * apart: a custom archive starts with "PGDMP", a tar archive has "ustar" at offset 257, and
- * anything else is taken for SQL. A gzip file is looked into.
+ * apart: a custom archive starts with "PGDMP", a tar archive has "ustar" at offset 257, a file
+ * of COPY's binary format starts with its signature "PGCOPY\n\377\r\n\0", and anything else is
+ * taken for text (SQL, CSV or COPY's text format). A gzip file is looked into.
  */
 final readonly class FileFormat
 {
     private function __construct(
-        /** sql, custom, tar, or zip, which is not read */
+        /** sql (any text), custom, tar, binary (COPY), or zip, which is not read */
         public string $kind,
         public bool $gzip,
     ) {
@@ -37,6 +38,7 @@ final readonly class FileFormat
         return new self(match (true) {
             str_starts_with($head, 'PGDMP') => 'custom',
             substr($head, 257, 5) === 'ustar' => 'tar',
+            str_starts_with($head, "PGCOPY\n\xff\r\n\0") => 'binary',
             default => 'sql',
         }, $gzip);
     }
