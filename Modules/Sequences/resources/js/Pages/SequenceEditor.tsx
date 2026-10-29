@@ -6,6 +6,7 @@ import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import DependencyPanel from '@/components/DependencyPanel'
 import PreviewSql from '@/components/PreviewSql'
+import StatisticsPanel from '@/components/StatisticsPanel'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
@@ -232,6 +233,7 @@ export default function SequenceEditor({ mode }: { mode: 'create' | 'edit' }) {
         </div>
       </form>
 
+      {editing && data.seid > 0 && <StatisticsPanel load={() => sequences(db, data.scid).statistics(data.seid)} reloadKey={`${db}/${data.seid}`} />}
       {editing && data.seid > 0 && <DependencyPanel dependencies={() => sequences(db, data.scid).dependencies(data.seid)} dependents={() => sequences(db, data.scid).dependents(data.seid)} reloadKey={`${db}/${data.seid}`} />}
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />

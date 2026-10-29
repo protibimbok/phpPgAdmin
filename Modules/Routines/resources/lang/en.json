@@ -58,6 +58,7 @@
     "variable_value": "Value",
     "add_variable": "Add variable",
     "created": "Routine {{name}} has been created.",
-    "altered": "Routine {{name}} has been altered."
+    "altered": "Routine {{name}} has been altered.",
+    "no_statistics": "No calls have been counted: PostgreSQL counts a routine's calls only while track_functions is pl (or all, for SQL and C routines too)."
   }
 }

@@ -7,10 +7,11 @@ import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
+import { formatStatistic } from '@/components/StatisticsPanel'
 import { formatSize } from '@/format'
 import { urls } from '@/level'
 import { quoteIdent } from '@sql/js/sql'
-import { collationRemedy, createDatabase, databaseOptions, dropDatabase, listDatabases, type CollationRemedy, type Database, type NewDatabase } from '../api'
+import { collationRemedy, createDatabase, databaseOptions, databases as databaseNodes, dropDatabase, listDatabases, type CollationRemedy, type Database, type NewDatabase } from '../api'
 import CollationRefreshDialog from '../CollationRefreshDialog'
 
 /**
@@ -28,6 +29,11 @@ export default function Databases() {
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [dropping, setDropping] = useState<Database[] | null>(null)
   const [force, setForce] = useState(false)
+  // phpMyAdmin's "Enable statistics": pgAdmin's statistics of the databases, pg_stat_database's counters.
+  const [statisticsShown, setStatisticsShown] = useState(false)
+  const { data: statistics } = useRequest(() => (statisticsShown ? databaseNodes.statistics() : Promise.resolve(null)), [statisticsShown])
+  const statColumns = (statistics?.columns ?? []).filter((c) => c.name !== 'Database' && c.name !== 'Size')
+  const statsOf = (name: string) => statistics?.rows.find((r) => r.Database === name)
 
   const visible = useMemo(() => {
     const needle = filter.trim().toLowerCase()
@@ -143,6 +149,11 @@ export default function Databases() {
                 <th>{t('columns.encoding')}</th>
                 <th>{t('columns.collation')}</th>
                 <th className="text-end">{t('columns.size')}</th>
+                {statColumns.map((c) => (
+                  <th key={c.name} className="text-end">
+                    {c.name}
+                  </th>
+                ))}
                 <th>{t('columns.comment')}</th>
                 <th colSpan={1}>{t('columns.action')}</th>
               </tr>
@@ -184,6 +195,11 @@ export default function Databases() {
                       formatSize(database.size)
                     )}
                   </td>
+                  {statColumns.map((c) => (
+                    <td key={c.name} className="value text-end">
+                      {formatStatistic(c, statsOf(database.name)?.[c.name])}
+                    </td>
+                  ))}
                   <td>{database.comments}</td>
                   <td className="tool text-nowrap">
                     {database.datallowconn && (
@@ -209,6 +225,27 @@ export default function Databases() {
 
         <div className="fw-bold">{t('total', { count: visible.length })}</div>
       </form>
+
+      <div className="card mt-3">
+        <div className="card-body">
+          <div className="alert alert-info" role="alert">
+            <span className="text-nowrap">
+              <Icon name="s_notice" /> {t('statistics.note')}
+            </span>
+          </div>
+          <a
+            className="card-link"
+            href="#"
+            title={statisticsShown ? t('statistics.disable') : t('statistics.enable')}
+            onClick={(e) => {
+              e.preventDefault()
+              setStatisticsShown((shown) => !shown)
+            }}
+          >
+            {statisticsShown ? t('statistics.disable') : t('statistics.enable')}
+          </a>
+        </div>
+      </div>
 
       <ConfirmQuery
         show={dropping !== null}

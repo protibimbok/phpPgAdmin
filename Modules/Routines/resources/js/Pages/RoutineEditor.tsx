@@ -6,6 +6,7 @@ import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import DependencyPanel from '@/components/DependencyPanel'
 import PreviewSql from '@/components/PreviewSql'
+import StatisticsPanel from '@/components/StatisticsPanel'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
@@ -445,6 +446,7 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
         </div>
       </form>
 
+      {editing && <StatisticsPanel load={() => routines(db, data.scid, editKind).statistics(oid)} reloadKey={`${db}/${editKind}/${oid}`} empty={t('editor.no_statistics')} />}
       {editing && <DependencyPanel dependencies={() => routines(db, data.scid, editKind).dependencies(oid)} dependents={() => routines(db, data.scid, editKind).dependents(oid)} reloadKey={`${db}/${editKind}/${oid}`} />}
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />

@@ -88,5 +88,11 @@
       "fts_template": "FTS template",
       "trigger_function": "Trigger function"
     }
+  },
+  "statistics": {
+    "title": "Statistics",
+    "none": "No statistics have been gathered for it yet.",
+    "statistic": "Statistic",
+    "value": "Value"
   }
 }

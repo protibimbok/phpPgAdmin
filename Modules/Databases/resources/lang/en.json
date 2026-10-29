@@ -73,5 +73,10 @@
     "dropped_one": "{{count}} database has been dropped successfully.",
     "dropped_other": "{{count}} databases have been dropped successfully.",
     "none_selected": "No databases selected."
+  },
+  "statistics": {
+    "note": "Note: the statistics are pg_stat_database's counters, cumulative since they were last reset.",
+    "enable": "Enable statistics",
+    "disable": "Disable statistics"
   }
 }

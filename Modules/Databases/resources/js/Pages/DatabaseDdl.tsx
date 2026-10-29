@@ -3,9 +3,10 @@ import { useParams } from 'react-router'
 import { useRequest } from '@/api/useRequest'
 import DependencyPanel from '@/components/DependencyPanel'
 import SqlView from '@/components/SqlView'
+import StatisticsPanel from '@/components/StatisticsPanel'
 import { databases, databaseSql, resolveDatabase } from '../api'
 
-/** The DDL that recreates the database, as pgAdmin's "SQL" tab shows it, and its Dependencies and Dependents. */
+/** The DDL that recreates the database, as pgAdmin's "SQL" tab shows it, its Statistics, and its Dependencies and Dependents. */
 export default function DatabaseDdl() {
   const { t } = useTranslation('databases')
   const db = useParams().db ?? ''
@@ -24,6 +25,7 @@ export default function DatabaseDdl() {
   return (
     <>
       <SqlView sql={data.sql} title={t('ddl.title', { database: db })} />
+      <StatisticsPanel load={() => databases.statistics(data.did)} reloadKey={`${db}/${data.did}`} />
       <DependencyPanel dependencies={() => databases.dependencies(data.did)} dependents={() => databases.dependents(data.did)} reloadKey={`${db}/${data.did}`} />
     </>
   )
