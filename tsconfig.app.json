@@ -85,6 +85,9 @@
       "@schemadiff/*": [
         "./Modules/SchemaDiff/resources/*"
       ],
+      "@designer/*": [
+        "./Modules/Designer/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]

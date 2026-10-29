@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PhpPgAdmin\Modules\Auth\AuthModule;
 use PhpPgAdmin\Modules\Databases\DatabasesModule;
 use PhpPgAdmin\Modules\DbObjects\DbObjectsModule;
+use PhpPgAdmin\Modules\Designer\DesignerModule;
 use PhpPgAdmin\Modules\Export\ExportModule;
 use PhpPgAdmin\Modules\Frontend\FrontendModule;
 use PhpPgAdmin\Modules\I18n\I18nModule;
@@ -49,6 +50,7 @@ return [
     SearchModule::class,
     SettingsModule::class,
     SchemaDiffModule::class,
+    DesignerModule::class,
     SqlModule::class,
     FrontendModule::class,
 ];

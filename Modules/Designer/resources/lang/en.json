@@ -1,0 +1,62 @@
+{
+  "tab": "Designer",
+  "untitled": "Untitled",
+  "page_name": "Page name",
+  "page_saved": "The page {{name}} has been saved.",
+  "pages_deleted": "{{count}} page(s) deleted.",
+  "no_pages": "There are no saved pages for this database.",
+  "relation_created": "The relationship has been created.",
+  "relation_dropped": "The relationship {{name}} has been dropped.",
+  "drop_relation": "Delete the relationship {{name}}?",
+  "menu": {
+    "tables_list": "Show/Hide tables list",
+    "fullscreen": "View in fullscreen",
+    "exit_fullscreen": "Exit fullscreen",
+    "new_page": "New page",
+    "open_page": "Open page",
+    "save_page": "Save page",
+    "save_page_as": "Save page as",
+    "delete_pages": "Delete pages",
+    "create_table": "Create table",
+    "create_relation": "Create relationship",
+    "reload": "Reload",
+    "help": "Help",
+    "angular_direct": "Angular links / Direct links",
+    "grid": "Snap to grid",
+    "small_big_all": "Small/Big All",
+    "toggle_lines": "Toggle relationship lines",
+    "export": "Export schema",
+    "move_menu": "Move Menu"
+  },
+  "hint": {
+    "pick_ref": "Select referenced key",
+    "pick_fk": "Select Foreign Key for {{column}}"
+  },
+  "box": {
+    "toggle": "Show/hide columns",
+    "structure": "See table structure"
+  },
+  "list": {
+    "filter": "Filter tables",
+    "all": "All tables"
+  },
+  "relation": {
+    "foreign_key": "Foreign key",
+    "references": "References",
+    "on_delete": "ON DELETE",
+    "on_update": "ON UPDATE"
+  },
+  "export": {
+    "format": "Select Export Relational Type",
+    "svg": "SVG picture",
+    "png": "PNG picture",
+    "sql": "SQL (the tables' CREATE statements)"
+  },
+  "help": {
+    "intro": "The diagram shows the database's tables, views and foreign tables with a line for each foreign key.",
+    "drag": "Drag a box by its name; the small v folds it.",
+    "relation": "Create relationship: click the referenced key's column, then the foreign key's column, and choose the actions.",
+    "drop": "Click a relationship's line to delete it.",
+    "pages": "Save the layout as a page to come back to it; pages are kept per role and database."
+  }
+}

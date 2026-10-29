@@ -1,0 +1,132 @@
+// The Designer, after pmahomme's _designer.scss: the boxes with their gradient headers, the
+// field rows (NOT NULL ones tinted), the side menu of tools, the page name, the tables list.
+
+$designer-header: linear-gradient(#b8e6fa, #b8e6fa 6%, #cdf5fd 10%, #dbffff 10%, #9bd2f6 50%, #9bd2f6 100%);
+
+#designer {
+  position: relative;
+
+  #canvas {
+    background-color: #fff;
+    color: #000;
+  }
+}
+
+.designer_tab {
+  background-color: #fff;
+  color: #000;
+  border-collapse: collapse;
+  border: border-width('base') solid #aaa;
+  z-index: 1;
+  user-select: none;
+
+  .header {
+    background: $designer-header;
+  }
+
+  td {
+    padding: 0.1em 0.3em;
+  }
+}
+
+.tab_zag {
+  text-align: center;
+  cursor: move;
+  padding: 1px;
+  font-weight: bold;
+}
+
+.tab_field,
+.tab_field_3 {
+  color: #000;
+  cursor: default;
+
+  &:hover > td {
+    background-color: #cfc !important;
+  }
+}
+
+.tab_field > td {
+  background: #fff;
+}
+
+.tab_field_3 > td {
+  background-color: #ffe6e6 !important;
+}
+
+#designer .owner {
+  font-weight: normal;
+  color: #888;
+}
+
+.small_tab {
+  vertical-align: top;
+  background-color: #0064ea;
+  color: #fff;
+  cursor: default;
+  text-align: center;
+  font-weight: bold;
+  width: 1px;
+
+  &:hover {
+    background-color: #f96;
+  }
+}
+
+.small_tab_pref {
+  background: $designer-header;
+  text-align: center;
+  width: 1px;
+
+  &:hover {
+    background-color: #f96;
+  }
+}
+
+#designer .side-menu {
+  width: auto;
+  background: #efefef;
+  border: border-width('base') solid grey;
+  overflow: hidden;
+  z-index: 50;
+  padding: 2px;
+
+  a {
+    display: block;
+    line-height: 1em;
+    margin: 3px 1px;
+    border: border-width('base') dotted transparent;
+
+    &.M_butt:hover {
+      border: border-width('base') solid #09c;
+      background-color: #fe9;
+    }
+
+    &.M_butt_Selected_down {
+      border: border-width('base') solid #c0c0bb;
+      background-color: #9f9;
+    }
+  }
+}
+
+#designer #name-panel {
+  border-bottom: border-width('base') solid grey;
+  text-align: center;
+  background: #efefef;
+  width: 100%;
+  font-size: 1.2em;
+  padding: 5px;
+  font-weight: bold;
+}
+
+#designer #layer_menu {
+  background-color: #eaeef0;
+  border: border-width('base') solid #999;
+}
+
+#designer #designer_hint {
+  white-space: nowrap;
+  background-color: #9f9;
+  color: #000;
+  border: #0c6 solid border-width('base');
+}
