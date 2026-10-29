@@ -10,6 +10,7 @@ use PhpPgAdmin\Modules\Frontend\FrontendModule;
 use PhpPgAdmin\Modules\I18n\I18nModule;
 use PhpPgAdmin\Modules\Import\ImportModule;
 use PhpPgAdmin\Modules\Maintenance\MaintenanceModule;
+use PhpPgAdmin\Modules\SchemaDiff\SchemaDiffModule;
 use PhpPgAdmin\Modules\Search\SearchModule;
 use PhpPgAdmin\Modules\Settings\SettingsModule;
 use PhpPgAdmin\Modules\Replication\ReplicationModule;
@@ -47,6 +48,7 @@ return [
     MaintenanceModule::class,
     SearchModule::class,
     SettingsModule::class,
+    SchemaDiffModule::class,
     SqlModule::class,
     FrontendModule::class,
 ];

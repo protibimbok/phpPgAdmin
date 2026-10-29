@@ -1,0 +1,40 @@
+{
+  "tab": "Schema diff",
+  "title": "Schema diff",
+  "source": "Source",
+  "target": "Target",
+  "database": "Database",
+  "schema": "Schema",
+  "options": "Options",
+  "compare": "Compare",
+  "choose": "Choose the source and the target schema.",
+  "none_selected": "Select the objects to write the script for.",
+  "nothing_to_do": "-- Nothing to change.",
+  "nothing_shown": "No object has the statuses shown.",
+  "ignore": {
+    "ignore_owner": "Ignore owner",
+    "ignore_whitespace": "Ignore whitespace",
+    "ignore_tablespace": "Ignore tablespace",
+    "ignore_grants": "Ignore grants/revokes"
+  },
+  "results": "Comparison of {{source}} (source) with {{target}} (target)",
+  "status": {
+    "identical": "Identical",
+    "different": "Different",
+    "source_only": "Source only",
+    "target_only": "Target only"
+  },
+  "columns": {
+    "object": "Object",
+    "status": "Comparison result"
+  },
+  "generate": "Generate script",
+  "loading": "Loading…",
+  "ddl": {
+    "source_ddl": "Source",
+    "target_ddl": "Target",
+    "diff_ddl": "Difference"
+  },
+  "script_title": "Script that makes the target like the source",
+  "open_in_sql": "Open in the SQL page of {{database}}"
+}

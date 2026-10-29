@@ -1,0 +1,265 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PhpPgAdmin\Modules\SchemaDiff\Diff;
+
+use PhpPgAdmin\Core\Facades\Nodes;
+
+/**
+ * pgAdmin's schema diff between two schemas of the server, of one database or of two: each
+ * object of each type is identical, different, only in the source or only in the target, and
+ * for each the DDL that makes the target like the source. A table is altered (TableDiff), a
+ * sequence altered; a routine, a view or anything whose DDL says CREATE OR REPLACE is replaced;
+ * anything else that differs is dropped and created again, as pgAdmin does.
+ *
+ * @phpstan-type Result array{type: string, label: string, name: string, status: string, source_oid: int|null, target_oid: int|null}
+ */
+final class SchemaComparer
+{
+    public const string IDENTICAL = 'identical';
+    public const string DIFFERENT = 'different';
+    public const string SOURCE_ONLY = 'source_only';
+    public const string TARGET_ONLY = 'target_only';
+
+    /** The DROP a type takes when an object's DDL has no commented one to borrow. */
+    private const array KINDS = [
+        'collation' => 'COLLATION', 'type' => 'TYPE', 'domain' => 'DOMAIN', 'fts_parser' => 'TEXT SEARCH PARSER',
+        'fts_template' => 'TEXT SEARCH TEMPLATE', 'fts_dictionary' => 'TEXT SEARCH DICTIONARY', 'fts_configuration' => 'TEXT SEARCH CONFIGURATION',
+        'sequence' => 'SEQUENCE', 'function' => 'FUNCTION', 'procedure' => 'PROCEDURE', 'trigger_function' => 'FUNCTION',
+        'aggregate' => 'AGGREGATE', 'operator' => 'OPERATOR', 'table' => 'TABLE', 'foreign_table' => 'FOREIGN TABLE',
+        'view' => 'VIEW', 'mview' => 'MATERIALIZED VIEW',
+    ];
+
+    private readonly TableDiff $tables;
+
+    public function __construct(
+        private readonly SchemaSnapshot $source,
+        private readonly SchemaSnapshot $target,
+        private readonly DdlNormalizer $normalizer,
+    ) {
+        $this->tables = new TableDiff($normalizer);
+    }
+
+    /** @return list<Result> every object of both schemas, in the order a script creates them */
+    public function compare(): array
+    {
+        $results = [];
+        foreach (SchemaSnapshot::TYPES as $type) {
+            $sourceObjects = $this->source->objects($type);
+            $targetObjects = $this->target->objects($type);
+            if ($sourceObjects === null || $targetObjects === null) {
+                continue;
+            }
+            $label = Nodes::find($type)?->label ?? $type;
+            // A routine's name holds its arguments' types, which may name the schema.
+            $retargeted = [];
+            foreach ($sourceObjects as $name => $oid) {
+                $retargeted[$this->normalizer->retarget($name)] = $oid;
+            }
+            $names = array_unique([...array_keys($retargeted), ...array_keys($targetObjects)]);
+            sort($names, SORT_STRING);
+            foreach ($names as $name) {
+                $name = (string) $name;
+                $s = $retargeted[$name] ?? null;
+                $t = $targetObjects[$name] ?? null;
+                $status = match (true) {
+                    $t === null => self::SOURCE_ONLY,
+                    $s === null => self::TARGET_ONLY,
+                    $this->same($type, $s, $t) => self::IDENTICAL,
+                    default => self::DIFFERENT,
+                };
+                $results[] = ['type' => $type, 'label' => $label, 'name' => $name, 'status' => $status, 'source_oid' => $s, 'target_oid' => $t];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * An object's DDL on each side and the DDL that makes the target's like the source's.
+     *
+     * @return array{source_ddl: string, target_ddl: string, diff_ddl: string}
+     */
+    public function ddl(string $type, ?int $sourceOid, ?int $targetOid): array
+    {
+        $sourceDdl = $sourceOid === null ? '' : $this->source->ddl($type, $sourceOid);
+        $targetDdl = $targetOid === null ? '' : $this->target->ddl($type, $targetOid);
+
+        return ['source_ddl' => $sourceDdl, 'target_ddl' => $targetDdl, 'diff_ddl' => $this->diff($type, $sourceOid, $targetOid, $sourceDdl, $targetDdl)];
+    }
+
+    /**
+     * The script for the objects chosen: the drops of what is only in the target first, in the
+     * reverse of the creation order, then the rest in creation order.
+     *
+     * @param list<array{type: string, source_oid: int|null, target_oid: int|null}> $items
+     */
+    public function script(array $items): string
+    {
+        $rank = array_flip(SchemaSnapshot::TYPES);
+        $drops = array_values(array_filter($items, static fn (array $i): bool => $i['source_oid'] === null));
+        $rest = array_values(array_filter($items, static fn (array $i): bool => $i['source_oid'] !== null));
+        usort($drops, static fn (array $a, array $b): int => ($rank[$b['type']] ?? 0) <=> ($rank[$a['type']] ?? 0));
+        usort($rest, static fn (array $a, array $b): int => ($rank[$a['type']] ?? 0) <=> ($rank[$b['type']] ?? 0));
+        $rest = $this->tablesAfterReferenced($rest);
+
+        $parts = [];
+        foreach ([...$drops, ...$rest] as $item) {
+            $ddl = $this->ddl($item['type'], $item['source_oid'], $item['target_oid'])['diff_ddl'];
+            if (trim($ddl) !== '') {
+                $parts[] = $ddl;
+            }
+        }
+
+        return $parts === [] ? '' : "BEGIN;\n\n" . implode("\n\n", $parts) . "\n\nEND;";
+    }
+
+    /**
+     * The items with the source's tables reordered so that a table follows the tables its
+     * foreign keys reference, which a new table's CREATE names.
+     *
+     * @param list<array{type: string, source_oid: int|null, target_oid: int|null}> $items
+     * @return list<array{type: string, source_oid: int|null, target_oid: int|null}>
+     */
+    private function tablesAfterReferenced(array $items): array
+    {
+        $tables = array_values(array_filter($items, static fn (array $i): bool => $i['type'] === 'table'));
+        if (count($tables) < 2) {
+            return $items;
+        }
+        $oids = array_map(static fn (array $i): int => (int) $i['source_oid'], $tables);
+        $references = [];
+        foreach ($this->source->conn->rows("SELECT conrelid, confrelid FROM pg_catalog.pg_constraint WHERE contype = 'f' AND conrelid = ANY(\$1::oid[]) AND confrelid <> conrelid", ['{' . implode(',', $oids) . '}']) as $row) {
+            $references[(int) $row['conrelid']][] = (int) $row['confrelid'];
+        }
+        $ordered = [];
+        $visit = static function (int $oid, array $seen) use (&$visit, &$ordered, $references, $oids): void {
+            if (in_array($oid, $ordered, true) || in_array($oid, $seen, true)) {
+                return;
+            }
+            foreach ($references[$oid] ?? [] as $referenced) {
+                if (in_array($referenced, $oids, true)) {
+                    $visit($referenced, [...$seen, $oid]);
+                }
+            }
+            $ordered[] = $oid;
+        };
+        foreach ($oids as $oid) {
+            $visit($oid, []);
+        }
+        $byOid = array_column($tables, null, 'source_oid');
+        $sorted = array_map(static fn (int $oid): array => $byOid[$oid], $ordered);
+        $first = array_search('table', array_column($items, 'type'), true);
+        $others = array_values(array_filter($items, static fn (array $i): bool => $i['type'] !== 'table'));
+
+        return [...array_slice($others, 0, (int) $first), ...$sorted, ...array_slice($others, (int) $first)];
+    }
+
+    private function same(string $type, int $sourceOid, int $targetOid): bool
+    {
+        $source = $this->normalizer->normalize($this->source->ddl($type, $sourceOid), true);
+        $target = $this->normalizer->normalize($this->target->ddl($type, $targetOid), false);
+        if (in_array($type, ['table', 'foreign_table'], true)) {
+            // Columns are compared by name, as pgAdmin compares them: a column added to a
+            // table goes last, wherever the source has it.
+            return self::unordered($source) === self::unordered($target);
+        }
+
+        return $source === $target;
+    }
+
+    /** A CREATE TABLE with the lines between its parentheses (columns, constraints) sorted. */
+    private static function unordered(string $ddl): string
+    {
+        return (string) preg_replace_callback('/^(CREATE\s+(?:FOREIGN\s+)?TABLE[^\n]*\n\(\n)(.*?)(\n\))/ms', static function (array $m): string {
+            $lines = array_map(static fn (string $line): string => rtrim(trim($line), ','), explode("\n", $m[2]));
+            sort($lines, SORT_STRING);
+
+            return $m[1] . implode("\n", $lines) . $m[3];
+        }, $ddl);
+    }
+
+    private function diff(string $type, ?int $sourceOid, ?int $targetOid, string $sourceDdl, string $targetDdl): string
+    {
+        if ($sourceOid === null) {
+            return $this->dropOf($type, $targetDdl);
+        }
+        $create = DdlNormalizer::withoutHeader($this->normalizer->retarget($sourceDdl));
+        if ($targetOid === null) {
+            return $create;
+        }
+        if ($this->same($type, $sourceOid, $targetOid)) {
+            return '';
+        }
+
+        $statements = match ($type) {
+            'table' => $this->tables->statements($this->source->conn, $sourceOid, $this->target->conn, $targetOid, $this->targetName($type, $targetDdl)),
+            'sequence' => $this->sequence($sourceOid, $targetOid, $this->targetName($type, $targetDdl)),
+            default => null,
+        };
+        if ($statements !== null) {
+            return implode("\n", [...$statements, ...$this->otherStatements($sourceDdl, $targetDdl)]);
+        }
+        // A routine or a view is replaced in place; what has no CREATE OR REPLACE is made again.
+        if (preg_match('/^\s*CREATE\s+OR\s+REPLACE\s/im', $create) === 1 && $type !== 'mview') {
+            return $create;
+        }
+
+        return $this->dropOf($type, $targetDdl) . "\n\n" . $create;
+    }
+
+    /**
+     * The owner, privileges and comments the source's DDL sets and the target's lacks: what a
+     * table's or a sequence's ALTERs leave out.
+     *
+     * @return list<string>
+     */
+    private function otherStatements(string $sourceDdl, string $targetDdl): array
+    {
+        $target = $this->normalizer->statements($targetDdl, false);
+        $statements = [];
+        foreach ($this->normalizer->statements($sourceDdl, true) as $statement) {
+            if (preg_match('/^(ALTER\s.+\sOWNER\s+TO\s|GRANT\s|REVOKE\s)/is', $statement) === 1 && !in_array($statement, $target, true)) {
+                $statements[] = $statement . ';';
+            }
+        }
+
+        return $statements;
+    }
+
+    /** ALTER SEQUENCE for what differs among the type, increment, bounds, start, cache and cycle. */
+    private function sequence(int $sourceOid, int $targetOid, string $name): array
+    {
+        $read = static fn ($conn, int $oid): array => $conn->row('SELECT pg_catalog.format_type(seqtypid, NULL) AS type, seqincrement, seqmin, seqmax, seqstart, seqcache, seqcycle FROM pg_catalog.pg_sequence WHERE seqrelid = $1', [$oid]) ?? [];
+        $s = $read($this->source->conn, $sourceOid);
+        $t = $read($this->target->conn, $targetOid);
+        $clauses = [];
+        foreach (['type' => 'AS %s', 'seqincrement' => 'INCREMENT BY %s', 'seqmin' => 'MINVALUE %s', 'seqmax' => 'MAXVALUE %s', 'seqstart' => 'START WITH %s', 'seqcache' => 'CACHE %s'] as $key => $format) {
+            if (($s[$key] ?? null) !== ($t[$key] ?? null)) {
+                $clauses[] = sprintf($format, $s[$key]);
+            }
+        }
+        if (($s['seqcycle'] ?? null) !== ($t['seqcycle'] ?? null)) {
+            $clauses[] = $s['seqcycle'] ? 'CYCLE' : 'NO CYCLE';
+        }
+
+        return $clauses === [] ? [] : [sprintf('ALTER SEQUENCE %s %s;', $name, implode(' ', $clauses))];
+    }
+
+    /** The DROP an object's DDL holds in its header, or one written for its type and name. */
+    private function dropOf(string $type, string $ddl): string
+    {
+        return DdlNormalizer::dropStatement($ddl) ?? sprintf('DROP %s IF EXISTS %s;', self::KINDS[$type] ?? strtoupper($type), $this->targetName($type, $ddl));
+    }
+
+    /** The target object's qualified name, from its DDL header: "-- Table: app.t1". */
+    private function targetName(string $type, string $ddl): string
+    {
+        if (preg_match('/^--\s*[\w ]+:\s*(.+?)\s*$/m', $ddl, $m) === 1) {
+            return $m[1];
+        }
+
+        return $this->normalizer->targetSchemaIdent() . '.?';
+    }
+}

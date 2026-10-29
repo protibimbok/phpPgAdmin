@@ -1,0 +1,40 @@
+{
+  "tab": "مقارنة المخططات",
+  "title": "مقارنة المخططات",
+  "source": "المصدر",
+  "target": "الهدف",
+  "database": "قاعدة البيانات",
+  "schema": "المخطط",
+  "options": "الخيارات",
+  "compare": "مقارنة",
+  "choose": "اختر المخطط المصدر والمخطط الهدف.",
+  "none_selected": "حدّد الكائنات التي يُكتب لها السكربت.",
+  "nothing_to_do": "-- لا شيء يُغيَّر.",
+  "nothing_shown": "لا كائن بالحالات المعروضة.",
+  "ignore": {
+    "ignore_owner": "تجاهل المالك",
+    "ignore_whitespace": "تجاهل المسافات",
+    "ignore_tablespace": "تجاهل مساحة الجداول",
+    "ignore_grants": "تجاهل المنح والسحب"
+  },
+  "results": "مقارنة {{source}} (المصدر) مع {{target}} (الهدف)",
+  "status": {
+    "identical": "متطابق",
+    "different": "مختلف",
+    "source_only": "في المصدر فقط",
+    "target_only": "في الهدف فقط"
+  },
+  "columns": {
+    "object": "الكائن",
+    "status": "نتيجة المقارنة"
+  },
+  "generate": "توليد السكربت",
+  "loading": "جارٍ التحميل…",
+  "ddl": {
+    "source_ddl": "المصدر",
+    "target_ddl": "الهدف",
+    "diff_ddl": "الفرق"
+  },
+  "script_title": "سكربت يجعل الهدف مثل المصدر",
+  "open_in_sql": "فتح في صفحة SQL لـ {{database}}"
+}
