@@ -26,7 +26,11 @@
     "context": "Context",
     "event": "Event",
     "tags": "Tags",
-    "state": "State"
+    "state": "State",
+    "validator": "Validator",
+    "options": "Options",
+    "wrapper": "Foreign data wrapper",
+    "type": "Type"
   },
   "fields": {
     "name": "Name",
@@ -45,7 +49,12 @@
     "context": "Context",
     "event": "Event",
     "tags": "When tag in",
-    "state": "Enabled"
+    "state": "Enabled",
+    "options": "Options",
+    "wrapper": "Foreign data wrapper",
+    "type": "Type",
+    "server": "Foreign server",
+    "user": "User"
   },
   "extension": {
     "title": "Extensions",
@@ -93,5 +102,38 @@
       "R": "Replica",
       "A": "Always"
     }
+  },
+  "options": {
+    "option": "Option",
+    "value": "Value",
+    "add": "Add option",
+    "remove": "Remove"
+  },
+  "foreign_data_wrapper": {
+    "title": "Foreign data wrappers",
+    "none": "There are no foreign data wrappers in this database.",
+    "create": "Add foreign data wrapper",
+    "create_title": "Add foreign data wrapper",
+    "edit_title": "Edit foreign data wrapper {{name}}",
+    "no_function": "(none)"
+  },
+  "foreign_server": {
+    "title": "Foreign servers",
+    "none": "There are no foreign servers in this database.",
+    "create": "Add foreign server",
+    "create_title": "Add foreign server",
+    "edit_title": "Edit foreign server {{name}}",
+    "no_wrappers": "Add a foreign data wrapper first: a server belongs to one.",
+    "recreate_hint": "A new type drops the server and creates it again, which fails while user mappings or foreign tables use it.",
+    "options_hint": "What the wrapper connects with, such as host, port and dbname for postgres_fdw."
+  },
+  "user_mapping": {
+    "title": "User mappings",
+    "none": "There are no user mappings in this database.",
+    "create": "Add user mapping",
+    "create_title": "Add user mapping",
+    "edit_title": "Edit user mapping for {{name}}",
+    "no_servers": "Add a foreign server first: a user mapping belongs to one.",
+    "options_hint": "The role's credentials on the remote side, such as user and password for postgres_fdw."
   }
 }

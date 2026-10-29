@@ -72,18 +72,92 @@ export interface EventTriggerOptions {
   roles: string[]
 }
 
-export type ObjectKind = 'extension' | 'language' | 'cast' | 'event_trigger'
+export type ObjectKind = 'extension' | 'language' | 'cast' | 'event_trigger' | 'foreign_data_wrapper' | 'foreign_server' | 'user_mapping'
 
-export const COLLECTIONS: Record<ObjectKind, string> = { extension: 'extensions', language: 'languages', cast: 'casts', event_trigger: 'event_triggers' }
+export const COLLECTIONS: Record<'extension' | 'language' | 'cast' | 'event_trigger', string> = { extension: 'extensions', language: 'languages', cast: 'casts', event_trigger: 'event_triggers' }
 
 export const extensions = (db: string) => collection<Extension>(collectionUrl(db, 'extensions'))
 export const languages = (db: string) => collection<Language>(collectionUrl(db, 'languages'))
 export const casts = (db: string) => collection<Cast>(collectionUrl(db, 'casts'))
 export const eventTriggers = (db: string) => collection<EventTrigger>(collectionUrl(db, 'event_triggers'))
 
-export function objectCollection(db: string, kind: ObjectKind) {
-  return collection(collectionUrl(db, COLLECTIONS[kind]))
+/** The collection an object is in: its kind's, under its wrapper and server for the foreign ones. */
+export function objectCollection(db: string, kind: ObjectKind, parents: { fid?: number; fsid?: number } = {}) {
+  switch (kind) {
+    case 'foreign_data_wrapper':
+      return collection(collectionUrl(db, 'foreign_data_wrappers'))
+    case 'foreign_server':
+      return collection(collectionUrl(db, 'foreign_data_wrappers', parents.fid ?? 0, 'foreign_servers'))
+    case 'user_mapping':
+      return collection(collectionUrl(db, 'foreign_data_wrappers', parents.fid ?? 0, 'foreign_servers', parents.fsid ?? 0, 'user_mappings'))
+    default:
+      return collection(collectionUrl(db, COLLECTIONS[kind]))
+  }
 }
+
+export interface OptionPair {
+  option: string
+  value: string
+}
+
+export interface ForeignDataWrapper {
+  oid: number
+  name: string
+  /** The handler and the validator as "schema.function". */
+  fdwhan: string | null
+  fdwvalue: string | null
+  fdwoptions: OptionPair[]
+  fdwowner: string
+  description: string | null
+}
+
+export interface ForeignServer {
+  oid: number
+  name: string
+  fid: number
+  fdwname: string
+  fsrvtype: string | null
+  fsrvversion: string | null
+  fsrvoptions: OptionPair[]
+  fsrvowner: string
+  description: string | null
+}
+
+export interface UserMapping {
+  oid: number
+  /** The role, or "public" */
+  name: string
+  fid: number
+  fsid: number
+  srvname: string
+  umoptions: OptionPair[]
+}
+
+export interface ForeignDataWrapperOptions {
+  handlers: string[]
+  validators: string[]
+  roles: string[]
+}
+
+/**
+ * The foreign data wrappers, the servers of each, and the user mappings of each server, every
+ * object with the OIDs of the ones it is under.
+ */
+export async function foreignObjects(db: string): Promise<{ wrappers: ForeignDataWrapper[]; servers: ForeignServer[]; mappings: UserMapping[] }> {
+  const wrappers = await collection<ForeignDataWrapper>(collectionUrl(db, 'foreign_data_wrappers')).list()
+  const servers = (
+    await Promise.all(wrappers.map((w) => collection<Omit<ForeignServer, 'fid'>>(collectionUrl(db, 'foreign_data_wrappers', w.oid, 'foreign_servers')).list().then((rows) => rows.map((row) => ({ ...row, fid: w.oid })))))
+  ).flat()
+  const mappings = (
+    await Promise.all(servers.map((s) => collection<Omit<UserMapping, 'fid' | 'fsid' | 'srvname'>>(collectionUrl(db, 'foreign_data_wrappers', s.fid, 'foreign_servers', s.oid, 'user_mappings')).list().then((rows) => rows.map((row) => ({ ...row, fid: s.fid, fsid: s.oid, srvname: s.name })))))
+  ).flat()
+
+  return { wrappers, servers, mappings }
+}
+
+export const foreignDataWrapperOptions = (db: string) => api.get<ForeignDataWrapperOptions>(`${collectionUrl(db, 'foreign_data_wrappers')}/options`)
+export const foreignServerOptions = (db: string) => api.get<{ roles: string[] }>(`${collectionUrl(db, 'foreign_servers')}/options`)
+export const userMappingOptions = (db: string) => api.get<{ roles: string[] }>(`${collectionUrl(db, 'user_mappings')}/options`)
 
 export const extensionOptions = (db: string) => api.get<ExtensionOptions>(`${collectionUrl(db, 'extensions')}/options`)
 export const languageOptions = (db: string) => api.get<LanguageOptions>(`${collectionUrl(db, 'languages')}/options`)

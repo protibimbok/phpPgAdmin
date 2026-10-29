@@ -11,7 +11,10 @@ use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\CastController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\EventTriggerController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ExtensionController;
+use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ForeignDataWrapperController;
+use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ForeignServerController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\LanguageController;
+use PhpPgAdmin\Modules\DbObjects\Http\Controllers\UserMappingController;
 use Psr\Http\Message\ServerRequestInterface;
 
 // Beyond the node operations: the lists the editors offer.
@@ -35,5 +38,8 @@ Route::middleware(Authenticate::class)->group(function () use ($context): void {
 
         return (new CastController())->options($ctx, trim((string) ($query['srctyp'] ?? '')), trim((string) ($query['trgtyp'] ?? '')));
     })->setName('casts.options');
+    Route::get('/databases/{db}/foreign_data_wrappers/options', fn (ServerRequestInterface $request, array $args): array => (new ForeignDataWrapperController())->options($context($request, $args, 'foreign_data_wrapper')))->setName('foreign_data_wrappers.options');
+    Route::get('/databases/{db}/foreign_servers/options', fn (ServerRequestInterface $request, array $args): array => (new ForeignServerController())->options($context($request, $args, 'foreign_server')))->setName('foreign_servers.options');
+    Route::get('/databases/{db}/user_mappings/options', fn (ServerRequestInterface $request, array $args): array => (new UserMappingController())->options($context($request, $args, 'user_mapping')))->setName('user_mappings.options');
     Route::get('/databases/{db}/event_triggers/options', fn (ServerRequestInterface $request, array $args): array => (new EventTriggerController())->options($context($request, $args, 'event_trigger')))->setName('event_triggers.options');
 });

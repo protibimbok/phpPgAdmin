@@ -17,25 +17,41 @@ import {
   eventTriggers,
   extensionOptions,
   extensions,
+  foreignDataWrapperOptions,
+  foreignObjects,
+  foreignServerOptions,
   languageOptions,
   languages,
   objectCollection,
+  userMappingOptions,
   type Cast,
   type CastOptions,
   type EventTrigger,
   type EventTriggerOptions,
   type Extension,
   type ExtensionOptions,
+  type ForeignDataWrapper,
+  type ForeignDataWrapperOptions,
+  type ForeignServer,
   type Language,
   type LanguageOptions,
   type ObjectKind,
+  type UserMapping,
 } from '../api'
-import NodeDialog, { type Field, type Values } from '../dialogs/NodeDialog'
+import NodeDialog, { type Field, type OptionPair, type Values } from '../dialogs/NodeDialog'
 
-type Row = { oid: number; name: string }
+/** A listed object, with the OIDs of the wrapper and server it is under. */
+type Row = { oid: number; name: string; fid?: number; fsid?: number }
 
 /** An open editor: the kind, and the object (null for a new one). */
-type Editing = { kind: 'extension'; row: Extension | null } | { kind: 'language'; row: Language | null } | { kind: 'cast'; row: Cast | null } | { kind: 'event_trigger'; row: EventTrigger | null }
+type Editing =
+  | { kind: 'extension'; row: Extension | null }
+  | { kind: 'language'; row: Language | null }
+  | { kind: 'cast'; row: Cast | null }
+  | { kind: 'event_trigger'; row: EventTrigger | null }
+  | { kind: 'foreign_data_wrapper'; row: ForeignDataWrapper | null }
+  | { kind: 'foreign_server'; row: ForeignServer | null }
+  | { kind: 'user_mapping'; row: UserMapping | null }
 
 const STATES = ['O', 'D', 'R', 'A'] as const
 
@@ -50,7 +66,10 @@ export default function Objects() {
   const { t } = useTranslation('dbobjects')
   const { t: tApp } = useTranslation()
   const [search, setSearch] = useSearchParams()
-  const { data, error, reload } = useRequest(() => Promise.all([extensions(db).list(), languages(db).list(), casts(db).list(), eventTriggers(db).list()]).then(([e, l, c, et]) => ({ extensions: e, languages: l, casts: c, eventTriggers: et })), [db])
+  const { data, error, reload } = useRequest(
+    () => Promise.all([extensions(db).list(), languages(db).list(), casts(db).list(), eventTriggers(db).list(), foreignObjects(db)]).then(([e, l, c, et, f]) => ({ extensions: e, languages: l, casts: c, eventTriggers: et, ...f })),
+    [db],
+  )
   const [editing, setEditing] = useState<Editing | null>(null)
   const [exported, setExported] = useState<{ title: string; sql: string | null } | null>(null)
   const [confirm, setConfirm] = useState<{ sql: string[]; run: () => Promise<void> } | null>(null)
@@ -66,6 +85,9 @@ export default function Objects() {
     else if (kind === 'language') setEditing({ kind, row: find(data.languages) })
     else if (kind === 'cast') setEditing({ kind, row: find(data.casts) })
     else if (kind === 'event_trigger') setEditing({ kind, row: find(data.eventTriggers) })
+    else if (kind === 'foreign_data_wrapper') setEditing({ kind, row: find(data.wrappers) })
+    else if (kind === 'foreign_server') setEditing({ kind, row: find(data.servers) })
+    else if (kind === 'user_mapping') setEditing({ kind, row: find(data.mappings) })
     setSearch(
       (params) => {
         params.delete('open')
@@ -93,7 +115,7 @@ export default function Objects() {
 
   function exportSql(kind: ObjectKind, rows: Row[]) {
     setExported({ title: rows.length === 1 ? t('export_title', { name: rows[0].name }) : t('export_title_many'), sql: null })
-    Promise.all(rows.map((row) => objectCollection(db, kind).sql(row.oid))).then(
+    Promise.all(rows.map((row) => objectCollection(db, kind, row).sql(row.oid))).then(
       (parts) => setExported((current) => (current ? { ...current, sql: parts.join('\n\n') } : null)),
       (e: unknown) => {
         setExported(null)
@@ -108,7 +130,7 @@ export default function Objects() {
       sql: rows.map(statement),
       run: async () => {
         try {
-          for (const row of rows) await objectCollection(db, kind).remove(row.oid, cascadeRef.current)
+          for (const row of rows) await objectCollection(db, kind, row).remove(row.oid, cascadeRef.current)
           notifySuccess(rows.length === 1 ? t('dropped', { name: rows[0].name }) : t('dropped_many', { count: rows.length }))
         } catch (e) {
           notifyError(errorMessage(e))
@@ -129,6 +151,8 @@ export default function Objects() {
     onExport: (rows: Row[]) => exportSql(kind, rows),
   })
   const castName = (row: Cast) => `(${row.srctyp} AS ${row.trgtyp})`
+  const options = (pairs: OptionPair[]) => pairs.map((p) => `${p.option} '${p.value}'`).join(', ')
+  const mappingRole = (row: UserMapping) => (row.name === 'public' ? 'PUBLIC' : quoteIdent(row.name))
 
   return (
     <>
@@ -199,8 +223,58 @@ export default function Objects() {
         {...section('event_trigger')}
       />
 
+      <ObjectSection<ForeignDataWrapper>
+        id="foreign_data_wrappers"
+        icon="b_engine"
+        title={t('foreign_data_wrapper.title')}
+        rows={data.wrappers}
+        createIcon="b_engine"
+        onCreate={() => setEditing({ kind: 'foreign_data_wrapper', row: null })}
+        columns={[
+          { label: t('columns.handler'), render: (row) => <code>{row.fdwhan}</code> },
+          { label: t('columns.validator'), render: (row) => <code>{row.fdwvalue}</code> },
+          { label: t('columns.options'), render: (row) => options(row.fdwoptions) },
+          { label: t('columns.owner'), render: (row) => row.fdwowner },
+        ]}
+        onEdit={(row) => setEditing({ kind: 'foreign_data_wrapper', row })}
+        onDrop={(rows) => askDrop('foreign_data_wrapper', rows, (row) => `DROP FOREIGN DATA WRAPPER ${quoteIdent(row.name)};`)}
+        {...section('foreign_data_wrapper')}
+      />
+      <ObjectSection<ForeignServer>
+        id="foreign_servers"
+        icon="s_host"
+        title={t('foreign_server.title')}
+        rows={data.servers}
+        createIcon="s_host"
+        onCreate={() => (data.wrappers.length === 0 ? notifyError(t('foreign_server.no_wrappers')) : setEditing({ kind: 'foreign_server', row: null }))}
+        columns={[
+          { label: t('columns.wrapper'), render: (row) => row.fdwname },
+          { label: t('columns.type'), render: (row) => row.fsrvtype },
+          { label: t('columns.version'), render: (row) => row.fsrvversion },
+          { label: t('columns.options'), render: (row) => options(row.fsrvoptions) },
+          { label: t('columns.owner'), render: (row) => row.fsrvowner },
+        ]}
+        onEdit={(row) => setEditing({ kind: 'foreign_server', row })}
+        onDrop={(rows) => askDrop('foreign_server', rows, (row) => `DROP SERVER ${quoteIdent(row.name)};`)}
+        {...section('foreign_server')}
+      />
+      <ObjectSection<UserMapping & { role: string }>
+        id="user_mappings"
+        icon="user"
+        title={t('user_mapping.title')}
+        rows={data.mappings.map((row) => ({ ...row, role: row.name, name: `${row.name === 'public' ? 'PUBLIC' : row.name} @ ${row.srvname}` }))}
+        createIcon="b_usradd"
+        onCreate={() => (data.servers.length === 0 ? notifyError(t('user_mapping.no_servers')) : setEditing({ kind: 'user_mapping', row: null }))}
+        columns={[{ label: t('columns.options'), render: (row) => options(row.umoptions.map((p) => (p.option === 'password' ? { ...p, value: '••••' } : p))) }]}
+        onEdit={(row) => setEditing({ kind: 'user_mapping', row: { ...row, name: row.role } })}
+        onDrop={(rows) => askDrop('user_mapping', rows, (row) => `DROP USER MAPPING FOR ${mappingRole({ ...(row as UserMapping), name: (row as UserMapping & { role: string }).role })} SERVER ${quoteIdent((row as UserMapping).srvname)};`)}
+        {...section('user_mapping')}
+      />
+
       <ObjectEditor
         db={db}
+        wrappers={data.wrappers}
+        servers={data.servers}
         editing={editing}
         onClose={() => setEditing(null)}
         onSaved={() => {
@@ -238,12 +312,20 @@ export default function Objects() {
 /** The CASCADE box as last rendered, for the pending drop to read. */
 const cascadeRef: { current: boolean } = { current: false }
 
-type AllOptions = { extension?: ExtensionOptions; language?: LanguageOptions; cast?: CastOptions; event_trigger?: EventTriggerOptions }
+type AllOptions = {
+  extension?: ExtensionOptions
+  language?: LanguageOptions
+  cast?: CastOptions
+  event_trigger?: EventTriggerOptions
+  foreign_data_wrapper?: ForeignDataWrapperOptions
+  foreign_server?: { roles: string[] }
+  user_mapping?: { roles: string[] }
+}
 
 const list = (values: string[]) => values.map((value) => ({ value, label: value }))
 
 /** The dialog of the object being edited, its fields from pgAdmin's dialog for the kind. */
-function ObjectEditor({ db, editing, onClose, onSaved }: { db: string; editing: Editing | null; onClose: () => void; onSaved: () => void }) {
+function ObjectEditor({ db, wrappers, servers, editing, onClose, onSaved }: { db: string; wrappers: ForeignDataWrapper[]; servers: ForeignServer[]; editing: Editing | null; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation('dbobjects')
   const [options, setOptions] = useState<AllOptions>({})
   const [castFunctions, setCastFunctions] = useState<string[]>([])
@@ -252,7 +334,16 @@ function ObjectEditor({ db, editing, onClose, onSaved }: { db: string; editing: 
 
   useEffect(() => {
     if (!kind || options[kind]) return
-    const load: Promise<unknown> = kind === 'extension' ? extensionOptions(db) : kind === 'language' ? languageOptions(db) : kind === 'cast' ? castOptions(db) : eventTriggerOptions(db)
+    const loaders: Record<ObjectKind, () => Promise<unknown>> = {
+      extension: () => extensionOptions(db),
+      language: () => languageOptions(db),
+      cast: () => castOptions(db),
+      event_trigger: () => eventTriggerOptions(db),
+      foreign_data_wrapper: () => foreignDataWrapperOptions(db),
+      foreign_server: () => foreignServerOptions(db),
+      user_mapping: () => userMappingOptions(db),
+    }
+    const load = loaders[kind]()
     load.then(
       (value) => setOptions((current) => ({ ...current, [kind]: value })),
       (e: unknown) => notifyError(errorMessage(e)),
@@ -262,9 +353,21 @@ function ObjectEditor({ db, editing, onClose, onSaved }: { db: string; editing: 
   if (!editing) return <NodeDialog show={false} id="objectDialog" title="" fields={[]} initial={{}} save={async () => undefined} preview={async () => ''} savedMessage={() => ''} onClose={onClose} onSaved={onSaved} />
 
   const existing = editing.row !== null
-  const collection = objectCollection(db, editing.kind)
-  const save = (values: Values) => (existing ? collection.update(editing.row!.oid, values) : collection.create(values))
-  const preview = (values: Values) => collection.modifiedSql(values, editing.row?.oid)
+  /** A new server is made under the wrapper chosen, a new mapping under the server chosen ("fid:fsid"). */
+  const parents = (values: Values): { fid?: number; fsid?: number } => {
+    if (editing.row && 'fid' in editing.row) return { fid: editing.row.fid, fsid: 'fsid' in editing.row ? editing.row.fsid : undefined }
+    if (editing.kind === 'foreign_server') return { fid: Number(values.fid) }
+    if (editing.kind === 'user_mapping') {
+      const [fid, fsid] = String(values.server).split(':').map(Number)
+      return { fid, fsid }
+    }
+    return {}
+  }
+  const save = (values: Values) => {
+    const collection = objectCollection(db, editing.kind, parents(values))
+    return existing ? collection.update(editing.row!.oid, values) : collection.create(values)
+  }
+  const preview = (values: Values) => objectCollection(db, editing.kind, parents(values)).modifiedSql(values, editing.row?.oid)
   let fields: Field[] = []
   let initial: Values = {}
   let onValuesChange: ((values: Values) => void) | undefined
@@ -341,6 +444,43 @@ function ObjectEditor({ db, editing, onClose, onSaved }: { db: string; editing: 
       ]
       break
     }
+  }
+
+  if (editing.kind === 'foreign_data_wrapper') {
+    const o = options.foreign_data_wrapper
+    const row = editing.row
+    initial = { name: row?.name ?? '', fdwowner: row?.fdwowner ?? '', fdwhan: row?.fdwhan ?? '', fdwvalue: row?.fdwvalue ?? '', fdwoptions: row?.fdwoptions ?? [], description: row?.description ?? '' }
+    fields = [
+      { key: 'name', label: t('fields.name'), kind: 'text', required: true },
+      { key: 'fdwowner', label: t('fields.owner'), kind: 'select', options: list(o?.roles ?? []), empty: t('current_role') },
+      { key: 'fdwhan', label: t('fields.handler'), kind: 'select', options: list(o?.handlers ?? []), empty: t('foreign_data_wrapper.no_function') },
+      { key: 'fdwvalue', label: t('fields.validator'), kind: 'select', options: list(o?.validators ?? []), empty: t('foreign_data_wrapper.no_function') },
+      { key: 'fdwoptions', label: t('fields.options'), kind: 'options' },
+      { key: 'description', label: t('fields.comment'), kind: 'textarea' },
+    ]
+  } else if (editing.kind === 'foreign_server') {
+    const o = options.foreign_server
+    const row = editing.row
+    initial = { fid: String(row?.fid ?? wrappers[0]?.oid ?? ''), name: row?.name ?? '', fsrvowner: row?.fsrvowner ?? '', fsrvtype: row?.fsrvtype ?? '', fsrvversion: row?.fsrvversion ?? '', fsrvoptions: row?.fsrvoptions ?? [], description: row?.description ?? '' }
+    fields = [
+      { key: 'fid', label: t('fields.wrapper'), kind: 'select', options: wrappers.map((w) => ({ value: String(w.oid), label: w.name })), readOnly: existing, required: true },
+      { key: 'name', label: t('fields.name'), kind: 'text', required: true },
+      { key: 'fsrvowner', label: t('fields.owner'), kind: 'select', options: list(o?.roles ?? []), empty: t('current_role') },
+      { key: 'fsrvtype', label: t('fields.type'), kind: 'text', hint: existing ? t('foreign_server.recreate_hint') : undefined },
+      { key: 'fsrvversion', label: t('fields.version'), kind: 'text' },
+      { key: 'fsrvoptions', label: t('fields.options'), kind: 'options', hint: t('foreign_server.options_hint') },
+      { key: 'description', label: t('fields.comment'), kind: 'textarea' },
+    ]
+  } else if (editing.kind === 'user_mapping') {
+    const o = options.user_mapping
+    const row = editing.row
+    const first = servers[0]
+    initial = { server: row ? `${row.fid}:${row.fsid}` : first ? `${first.fid}:${first.oid}` : '', name: row ? (row.name === 'public' ? 'PUBLIC' : row.name) : 'CURRENT_USER', umoptions: row?.umoptions ?? [] }
+    fields = [
+      { key: 'server', label: t('fields.server'), kind: 'select', options: servers.map((s) => ({ value: `${s.fid}:${s.oid}`, label: `${s.name} (${s.fdwname})` })), readOnly: existing, required: true },
+      { key: 'name', label: t('fields.user'), kind: 'select', options: list(o?.roles ?? ['CURRENT_USER', 'PUBLIC']), readOnly: existing, required: true },
+      { key: 'umoptions', label: t('fields.options'), kind: 'options', hint: t('user_mapping.options_hint') },
+    ]
   }
 
   const title = existing ? t(`${editing.kind}.edit_title`, { name: editing.row?.name }) : t(`${editing.kind}.create_title`)
