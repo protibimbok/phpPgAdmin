@@ -105,12 +105,11 @@ SQL-standard body (no `AS`), which PostgreSQL parses at creation time and tracks
 **Language** lists the languages installed in the database (`plpgsql`, `sql`, `c`, `internal`, and
 any others you added on the database's [Languages](/database/objects) page).
 
-::: warning C functions cannot be created in the editor
-There are no fields for a C function's object file and link symbol. With **Language** `c` the
-editor generates `AS NULL, NULL` and ignores the definition, so the statement fails. Create C
-functions on the SQL tab:
-`CREATE FUNCTION f(int) RETURNS int AS '$libdir/mylib', 'f' LANGUAGE c STRICT;`.
-:::
+With **Language** `c` the **Definition** box is replaced by **Object file** (the shared library,
+for example `$libdir/mylib`) and **Link symbol** (the C function's name in it; left empty, it is
+the routine's name), as pgAdmin's dialog has them. **Go** writes them as
+`AS '$libdir/mylib', 'f'`, and editing a C function shows both. Creating a C function requires a
+superuser.
 
 ### Options
 
@@ -236,18 +235,12 @@ A routine without input parameters runs at once, without the dialog.
 Numbers and `true`/`false` are passed as typed; everything else becomes a literal cast to the
 parameter's type (`'2026-01-01'::date`). Tick **NULL** to pass `NULL`.
 
-::: warning Limits of the Execute dialog
-- **Empty boxes are not "use the default".** An empty value is sent as `''::type`, so a parameter
-  with a default fails (*invalid input syntax for type numeric: ""*) unless you fill it in. To use
-  defaults, edit the call on the SQL tab and leave the trailing arguments out.
-- **Procedures with OUT parameters fail.** The dialog leaves `OUT` parameters out of the `CALL`,
-  but a procedure's `OUT` parameters must be passed (as `NULL`), so you get
-  *procedure public.rtn_proc(integer) does not exist*. Run `CALL public.rtn_proc(21, NULL);` on the
-  SQL tab instead.
-- **VARIADIC parameters fail.** The array you type is passed as one argument without the
-  `VARIADIC` keyword (*function public.rtn_sum(integer[]) does not exist*). Run
-  `SELECT public.rtn_sum(1, 2, 3)` or `SELECT public.rtn_sum(VARIADIC '{1,2,3}')` instead.
-:::
+Leave a box empty to use the parameter's default (shown greyed in the box): trailing parameters
+left empty are left out of the call, and when one in the middle is left empty the ones after it
+are passed by name, `"public"."rtn_fn"(1, "c" => 'y'::text)`. A procedure's `OUT` parameters have
+no box and are passed as `NULL`, as `CALL` requires (`CALL "public"."rtn_proc"(21, NULL)`). The
+array of a `VARIADIC` parameter is passed with the `VARIADIC` keyword:
+`SELECT * FROM "public"."rtn_sum"(VARIADIC '{1,2,3}'::integer[])`.
 
 ### Procedures and transactions
 

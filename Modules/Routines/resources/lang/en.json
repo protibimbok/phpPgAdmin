@@ -42,6 +42,8 @@
     "return_type": "Return type",
     "returns_set": "Returns a set (SETOF)",
     "definition": "Definition",
+    "object_file": "Object file",
+    "link_symbol": "Link symbol",
     "language": "Language",
     "volatility": "Volatility",
     "strict": "Strict (returns NULL on NULL input)",

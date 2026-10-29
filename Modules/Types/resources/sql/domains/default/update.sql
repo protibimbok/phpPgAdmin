@@ -20,7 +20,7 @@ ALTER DOMAIN {{ conn|qtIdent(o_data.basensp, name) }}
 
 ALTER DOMAIN {{ conn|qtIdent(o_data.basensp, name) }}
     SET DEFAULT {{ data.typdefault }};
-{% elseif (data.typdefault == '' or data.typdefault == null) and data.typdefault != o_data.typdefault %}
+{% elseif data.typdefault is defined and (data.typdefault == '' or data.typdefault == null) and data.typdefault != o_data.typdefault %}{# phpPgAdmin: a default left out is unchanged #}
 
 ALTER DOMAIN {{ conn|qtIdent(o_data.basensp, name) }}
     DROP DEFAULT;

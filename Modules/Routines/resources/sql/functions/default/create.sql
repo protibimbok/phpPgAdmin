@@ -41,7 +41,7 @@ CREATE{% if query_type is defined %}{{' OR REPLACE'}}{% endif %} FUNCTION {{ con
 {% if data.is_pure_sql %}{{ data.prosrc }}
 {% else %}
 AS {% if data.lanname == 'c' %}
-{{ data.probin|qtLiteral(conn) }}, {{ data.prosrc_c|qtLiteral(conn) }}
+{{ data.probin|qtLiteral(conn) }}{% if data.prosrc_c %}, {{ data.prosrc_c|qtLiteral(conn) }}{% endif %}{# phpPgAdmin: the link symbol defaults to the name #}
 {% else %}
 $BODY${{ data.prosrc }}$BODY${% endif -%};
 {% endif -%}

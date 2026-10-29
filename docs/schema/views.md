@@ -80,7 +80,11 @@ What **Go** runs depends on the change:
   grants it had.
 - A **materialized view** whose definition changed is always dropped and recreated
   (`DROP MATERIALIZED VIEW IF EXISTS` then `CREATE MATERIALIZED VIEW`), even when only a column is
-  added.
+  added. The same statement batch then restores what the drop removed: the owner, comment,
+  tablespace, fillfactor and autovacuum settings, the grants and security labels, the column
+  comments and every index (with its comment), so the unique index that
+  [REFRESH … CONCURRENTLY](#refresh-a-materialized-view) needs survives. Saving the form with the
+  definition unchanged does not recreate it.
 
 ```sql
 -- Removing the price column from rtn_cheap_books:
@@ -99,21 +103,14 @@ GRANT ALL ON TABLE public.rtn_cheap_books TO postgres;
 
 Use **Preview SQL** before **Go** to see which path you are on.
 
-::: danger Recreating loses what depends on the view
+::: warning When recreating the view fails
 When the view has to be dropped, a view with dependents fails with
 *cannot drop view … because other objects depend on it*. Nothing is changed; drop or rewrite the
 dependent views first.
 
-Recreating a **materialized view** discards its indexes, including the unique index that
-[REFRESH … CONCURRENTLY](#refresh-a-materialized-view) needs. The owner, comment and fillfactor
-are re-applied; anything else the Preview SQL does not list is gone. Recreate the indexes
-afterwards, or change the definition yourself on the SQL tab.
-:::
-
-::: warning "Could not find the view" after a successful edit
-When an edit drops and recreates the view, the view gets a new internal ID and the form then
-reports *Could not find the view in the database. It may have been removed by another user.*
-The change **was** applied. Open the view again from the navigation panel to see it.
+If the new definition of a materialized view no longer has a column that one of its indexes or
+column comments uses, the save fails with *column "…" of relation "…" does not exist* and nothing
+is changed. Drop that index (or comment) first, then change the definition.
 :::
 
 The column names you gave when creating the view are not shown in the editor; the new definition

@@ -34,6 +34,9 @@ interface Form {
   returnsSet: boolean
   language: string
   definition: string
+  /** A C function's object file (probin) and link symbol (prosrc). */
+  objectFile: string
+  linkSymbol: string
   volatility: string
   strict: boolean
   securityDefiner: boolean
@@ -46,7 +49,7 @@ interface Form {
   variables: Variable[]
 }
 
-const EMPTY: Form = { name: '', kind: 'function', arguments: [], returnType: 'integer', returnsSet: false, language: 'plpgsql', definition: '', volatility: 'v', strict: false, securityDefiner: false, parallel: 'u', cost: '', rows: '', leakproof: false, owner: '', comment: '', variables: [] }
+const EMPTY: Form = { name: '', kind: 'function', arguments: [], returnType: 'integer', returnsSet: false, language: 'plpgsql', definition: '', objectFile: '', linkSymbol: '', volatility: 'v', strict: false, securityDefiner: false, parallel: 'u', cost: '', rows: '', leakproof: false, owner: '', comment: '', variables: [] }
 
 /** The form as an existing routine fills it. */
 function fromRoutine(routine: Routine, kind: RoutineKind): Form {
@@ -59,7 +62,9 @@ function fromRoutine(routine: Routine, kind: RoutineKind): Form {
     returnType: returnsSet ? routine.prorettypename.replace(/^SETOF\s+/i, '') : routine.prorettypename,
     returnsSet,
     language: routine.lanname,
-    definition: routine.prosrc.replace(/^\n/, '').replace(/\n$/, ''),
+    definition: routine.lanname === 'c' ? '' : routine.prosrc.replace(/^\n/, '').replace(/\n$/, ''),
+    objectFile: routine.probin ?? '',
+    linkSymbol: routine.lanname === 'c' ? (routine.prosrc_c ?? '') : '',
     volatility: routine.provolatile ?? 'v',
     strict: routine.proisstrict,
     securityDefiner: routine.prosecdef,
@@ -133,7 +138,8 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
       name: form.name,
       arguments: isTrigger ? [] : form.arguments.filter((a) => a.argtype.trim() !== ''),
       lanname: form.language,
-      prosrc: form.definition,
+      // A C function is an object file and a link symbol (AS 'obj_file', 'link_symbol').
+      ...(form.language === 'c' ? { probin: form.objectFile, prosrc_c: form.linkSymbol } : { prosrc: form.definition }),
       prosecdef: form.securityDefiner,
       funcowner: form.owner,
       description: form.comment,
@@ -299,12 +305,29 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
                     </td>
                   </tr>
                 )}
-                <tr>
-                  <td>{t('editor.definition')}</td>
-                  <td>
-                    <SqlEditor value={form.definition} onChange={(value) => set('definition', value)} ariaLabel={t('editor.definition')} className="routine-definition" />
-                  </td>
-                </tr>
+                {form.language === 'c' ? (
+                  <>
+                    <tr>
+                      <td>{t('editor.object_file')}</td>
+                      <td>
+                        <input type="text" name="item_probin" value={form.objectFile} onChange={(e) => set('objectFile', e.target.value)} placeholder="$libdir/…" required />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.link_symbol')}</td>
+                      <td>
+                        <input type="text" name="item_prosrc_c" value={form.linkSymbol} onChange={(e) => set('linkSymbol', e.target.value)} />
+                      </td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td>{t('editor.definition')}</td>
+                    <td>
+                      <SqlEditor value={form.definition} onChange={(value) => set('definition', value)} ariaLabel={t('editor.definition')} className="routine-definition" />
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td>{t('editor.language')}</td>
                   <td>

@@ -17,11 +17,8 @@ The columns are **Name**, **Current value**, **Increment**, **Minimum**, **Maxim
 Sequences behind `serial` and identity columns are listed too, for example `books_id_seq` owned by
 `books.id`.
 
-::: warning Large maximum values are rounded
-The list and the editor show `9223372036854776000` for a bigint sequence with the default maximum,
-which is really `9223372036854775807`. The browser rounds integers above 2⁵³. See the
-[editor warning](#edit-a-sequence) before saving such a sequence.
-:::
+The list and the editor show bigint values in full, for example the default maximum
+`9223372036854775807` of a bigint sequence.
 
 ## Create a sequence
 
@@ -76,14 +73,8 @@ form has the same fields, except **Start**, which is replaced by **Current value
 
 ![The editor of invoice_number: name, owner, comment, current value 1000, increment, bounds, cache, cycle, unlogged and owned-by fields, then the Statistics, Dependencies and Dependents panels](/media/schema/sequences-editor.png)
 
-::: danger Saving a bigint sequence with the default maximum fails
-Because the browser rounds the default maximum (see [above](#the-sequence-list)), saving any change
-to such a sequence also sends `MAXVALUE 9223372036854776000`, which PostgreSQL refuses with
-*value "9223372036854776000" is out of range for type bigint*. Nothing is changed. Before **Go**,
-put a lower **Maximum** that the browser can hold exactly, such as `9000000000000000000` (typing
-`9223372036854775807` is rounded again), or make the change on the SQL tab. Integer sequences
-(`serial`, maximum `2147483647`) are not affected.
-:::
+Only the fields you changed are sent as clauses: a bound you leave alone is not repeated in the
+`ALTER SEQUENCE`.
 
 ### Current value
 

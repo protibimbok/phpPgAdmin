@@ -82,9 +82,16 @@ abstract class FtsController extends NodeController
     /** The ALTERs for what the client's data changes. */
     public function update(NodeContext $ctx, int $oid, array $data): array
     {
+        $name = (string) $this->properties($ctx, $oid)['name'];
         $this->execute($ctx, $this->updateSql($ctx, $oid, $data));
 
-        return $this->node($ctx, $oid);
+        // A parser whose functions change is dropped and recreated with a new OID: found again by name.
+        if (isset($data['name']) && trim((string) $data['name']) !== '') {
+            $name = (string) $data['name'];
+        }
+        $row = $ctx->row('properties.sql', ['name' => $name, $this->idName() => null]) ?? throw $this->gone($ctx);
+
+        return $this->node($ctx, (int) $row['oid']);
     }
 
     /** DROP TEXT SEARCH …, CASCADE on request. */

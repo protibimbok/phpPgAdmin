@@ -28,7 +28,7 @@ These options are not in the forms; use the SQL tab for them:
 ### Other objects
 
 - **Views:** the create form has no `security_invoker`, `RECURSIVE` or storage options. There is no **Create view** link in the tree or on the schema page; views are created from query results or the create-view address ([Views](/schema/views#create-a-view)).
-- **Routines:** there are no fields for `WINDOW`, `SUPPORT` or a C function's object file. Aggregates and operators are read-only: you can view their DDL and drop them ([Functions and procedures](/schema/routines)).
+- **Routines:** there are no fields for `WINDOW` or `SUPPORT`. Aggregates and operators are read-only: you can view their DDL and drop them ([Functions and procedures](/schema/routines)).
 - **Sequences:** there are no data type or `RESTART` fields ([Sequences](/schema/sequences)).
 - **Collations:** there is no **Refresh version** button ([Types](/schema/types#collations)).
 - **Schemas:** the create-schema card has no comment field, and there is no copy-schema card ([Schemas](/database/schemas), [Schema operations](/schema/operations)).
@@ -64,7 +64,7 @@ A paged `SELECT` is wrapped in a subquery and run again for every page and for t
 - Enum labels cannot be removed, and new labels go at the end ([Enum types](/schema/types#enum-types)).
 - Changing a function's return type needs a drop and re-create. Changing an argument type creates a second function (an overload) instead of changing the existing one ([Edit a routine](/schema/routines#edit-a-routine)).
 - `CREATE INDEX CONCURRENTLY`, `VACUUM`, `ALTER SYSTEM` and the subscription statements cannot run inside a transaction.
-- Some edits drop and re-create the object: views, materialized views (which loses their indexes), domains when the base type changes, languages, event triggers and servers when certain fields change. Each page says which fields do this.
+- Some edits drop and re-create the object: views, materialized views (their indexes, grants and settings are re-created), domains when the base type changes, constraint triggers, languages, event triggers and servers when certain fields change. Each page says which fields do this.
 - `DROP … CASCADE` on a type or extension also drops the table columns that use it, with their data.
 
 ### Privileges and requirements

@@ -13,13 +13,14 @@ export interface Sequence {
   owned_column: string | null
   /** True for UNLOGGED. */
   relpersistence: boolean
-  current_value: string | number
+  /** The bigint definition values come as strings, to keep their digits above 2⁵³. */
+  current_value: string
   is_called: boolean
-  minimum: string | number
-  maximum: string | number
-  increment: string | number
-  start: string | number
-  cache: string | number
+  minimum: string
+  maximum: string
+  increment: string
+  start: string
+  cache: string
   cycled: boolean
   is_sys_obj: boolean
   securities?: { provider: string; label: string }[]

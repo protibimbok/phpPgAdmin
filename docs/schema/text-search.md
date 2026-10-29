@@ -124,9 +124,7 @@ Creating a parser or template requires a superuser. Name and comment changes run
 Changing one of the functions cannot be done with `ALTER`, so the hint says
 *Changing a function drops and recreates the object.*: the preview starts with a warning comment,
 `DROP TEXT SEARCH PARSER` (or `TEMPLATE`) and `CREATE`. The drop fails while a configuration (or
-dictionary) uses the object. After a successful recreate the dialog reports
-*Could not find the fts parser in the database. It may have been removed by another user.*, but the
-change was applied; reload the Types tab.
+dictionary) uses the object. The recreated object keeps its comment.
 
 Writing new parser or template functions means writing C. Most needs are met with a new dictionary
 or configuration on top of the built-in parser and templates.

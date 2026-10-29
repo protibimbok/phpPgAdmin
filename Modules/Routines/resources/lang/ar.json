@@ -42,6 +42,8 @@
     "return_type": "نوع الإرجاع",
     "returns_set": "يُرجع مجموعة (SETOF)",
     "definition": "التعريف",
+    "object_file": "ملف الكائن",
+    "link_symbol": "رمز الربط",
     "language": "اللغة",
     "volatility": "التقلب",
     "strict": "صارم (يُرجع NULL عند إدخال NULL)",

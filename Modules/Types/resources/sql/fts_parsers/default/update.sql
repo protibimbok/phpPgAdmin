@@ -32,6 +32,12 @@ CREATE TEXT SEARCH PARSER {{ conn|qtIdent(o_data.schema, name) }} (
     HEADLINE = {{ headline }}{% endif %}
 
 );
+{### phpPgAdmin: the recreated parser keeps its comment ###}
+{% if data.description is not defined and o_data.description %}
+
+COMMENT ON TEXT SEARCH PARSER {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}
+    IS {{ o_data.description|qtLiteral(conn) }};
+{% endif %}
 {% endif %}
 {% if data.description is defined and data.description != o_data.description %}
 COMMENT ON TEXT SEARCH PARSER {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}

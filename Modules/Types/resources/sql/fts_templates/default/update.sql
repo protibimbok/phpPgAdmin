@@ -27,6 +27,12 @@ CREATE TEXT SEARCH TEMPLATE {{ conn|qtIdent(o_data.schema, name) }} (
 {% if init and init != '-' %}    INIT = {{ init }},
 {% endif %}    LEXIZE = {{ data.tmpllexize is defined ? data.tmpllexize : o_data.tmpllexize }}
 );
+{### phpPgAdmin: the recreated template keeps its comment ###}
+{% if data.description is not defined and o_data.description %}
+
+COMMENT ON TEXT SEARCH TEMPLATE {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}
+    IS {{ o_data.description|qtLiteral(conn) }};
+{% endif %}
 {% endif %}
 {% if data.description is defined and data.description != o_data.description %}
 COMMENT ON TEXT SEARCH TEMPLATE {{conn|qtIdent(o_data.schema)}}.{{conn|qtIdent(name)}}

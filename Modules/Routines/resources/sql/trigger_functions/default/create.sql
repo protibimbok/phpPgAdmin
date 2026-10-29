@@ -23,7 +23,7 @@ CREATE{% if add_replace_clause %} OR REPLACE{% endif %} FUNCTION {{ conn|qtIdent
 {% endif %}
 
 AS {% if data.lanname == 'c' %}
-{{ data.probin|qtLiteral(conn) }}, {{ data.prosrc_c|qtLiteral(conn) }}
+{{ data.probin|qtLiteral(conn) }}{% if data.prosrc_c %}, {{ data.prosrc_c|qtLiteral(conn) }}{% endif %}{# phpPgAdmin: the link symbol defaults to the name #}
 {% else %}
 $BODY${{ data.prosrc }}$BODY${% endif -%};
 {% if data.funcowner %}

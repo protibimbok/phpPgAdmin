@@ -185,17 +185,15 @@ When editing:
 
 - Unticking **Not NULL** or clearing **Default** runs `DROP NOT NULL` / `DROP DEFAULT`.
 - Removing a constraint row runs `ALTER DOMAIN … DROP CONSTRAINT`.
+- Ticking **Validated** on a `NOT VALID` constraint runs
+  `ALTER DOMAIN public.rtn_pct VALIDATE CONSTRAINT rtn_pct_half;`, which checks the existing
+  columns of the domain and fails if a value breaks the constraint. Unticking it on a validated
+  constraint does nothing (PostgreSQL cannot mark a constraint not valid again).
 - Changing a constraint's **Check** drops it and adds it again with the new expression. The new
   version is validated, so it fails if a column of the domain holds a value that breaks it.
 - **Base type** changes, or a changed collation, drop and recreate the domain; the hint says
   *Changing the base type drops and recreates the domain.* The preview starts with a warning
   comment and `DROP DOMAIN`, which fails while any column uses the domain.
-
-::: warning Validating a NOT VALID constraint does nothing
-Ticking **Validated** on an existing `NOT VALID` constraint generates no SQL; **Go** reports
-success and the constraint stays unvalidated. Run
-`ALTER DOMAIN public.rtn_pct VALIDATE CONSTRAINT rtn_pct_half;` on the SQL tab.
-:::
 
 ## Collations
 

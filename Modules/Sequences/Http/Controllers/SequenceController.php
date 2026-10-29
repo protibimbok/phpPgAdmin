@@ -219,8 +219,10 @@ final class SequenceController extends RelationController
     private function withDefinition(NodeContext $ctx, array $row): array
     {
         $definition = $ctx->row('get_def.sql', ['data' => $row]) ?? [];
+        // The bigint values go out as strings: a JSON number loses digits above 2^53 in the browser.
         foreach (self::DEFINITION as $key => $column) {
-            $row[$key] = $definition[$column] ?? null;
+            $value = $definition[$column] ?? null;
+            $row[$key] = is_int($value) ? (string) $value : $value;
         }
         $row['is_called'] = $definition['is_called'] ?? null;
         $row['is_sys_obj'] = (int) $row['oid'] <= DatabaseController::LAST_SYSTEM_OID;

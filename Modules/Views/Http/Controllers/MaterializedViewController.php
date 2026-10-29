@@ -43,9 +43,11 @@ final class MaterializedViewController extends RelationController
     /** ALTER MATERIALIZED VIEW (or DROP and CREATE) for what the client's data changes. */
     public function update(NodeContext $ctx, int $oid, array $data): array
     {
-        $this->execute($ctx, ViewDdl::updateSql($ctx, $oid, $data, $this->properties($ctx, $oid), materialized: true));
+        $old = $this->properties($ctx, $oid);
+        $this->execute($ctx, ViewDdl::updateSql($ctx, $oid, $data, $old, materialized: true));
 
-        return $this->node($ctx, $oid);
+        // A definition change may drop and recreate the view, which gives it a new OID.
+        return $this->node($ctx, ViewDdl::oidAfterUpdate($ctx, $data, $old));
     }
 
     /** DROP MATERIALIZED VIEW, CASCADE on request. */

@@ -178,7 +178,15 @@ final class ViewDdl
             self::mergeVacuum($old, $data, 'vacuum_table');
             self::mergeVacuum($old, $data, 'vacuum_toast');
 
-            return $ctx->render('update.sql', ['data' => $data, 'o_data' => $old]);
+            // The same query reformatted is not a change: only a new one recreates the view.
+            $recreate = isset($data['definition']) && $data['definition'] !== '' && $data['definition'] !== rtrim(trim((string) $old['definition']), ';');
+            if (!$recreate) {
+                unset($data['definition']);
+            }
+
+            $sql = $ctx->render('update.sql', ['data' => $data, 'o_data' => $old]);
+
+            return $recreate ? Ddl::assemble([$sql, self::restoreMaterializedSql($ctx, $vid, $data, $old)]) : $sql;
         }
 
         $data['del_sql'] = false;
@@ -203,11 +211,74 @@ final class ViewDdl
     }
 
     /**
+     * What a materialized view loses when update.sql drops and recreates it for a new
+     * definition, re-created after it: its grants and security labels (unless the client sends
+     * its own), its autovacuum settings, its column comments and its indexes, all from the
+     * view as it stands. update.sql itself keeps the owner, comment, fillfactor, TOAST tuple
+     * target and tablespace. An index or comment on a column the new definition no longer has
+     * fails the whole statement, so nothing is lost silently.
+     *
+     * @param array<string, mixed> $data the client's data as updateSql prepared it
+     * @param array<string, mixed> $old the formatted properties (self::properties)
+     */
+    private static function restoreMaterializedSql(NodeContext $ctx, int $vid, array $data, array $old): string
+    {
+        $schema = (string) $data['schema'];
+        $name = (string) $data['name'];
+        $qualified = Quoting::ident($schema) . '.' . Quoting::ident($name);
+
+        $grants = ['name' => $name, 'schema' => $schema, 'datacl' => [], 'seclabels' => []];
+        if (!isset($data['datacl'])) {
+            $grants['datacl'] = Acl::toDb($old['datacl'] ?? [], self::ACL);
+        }
+        if (empty($data['seclabels'])) {
+            $grants['seclabels'] = $old['seclabels'] ?? [];
+        }
+        $parts = [$ctx->render('grant.sql', ['data' => $grants])];
+
+        // The storage settings update.sql does not carry over, less the ones the client changes.
+        $settings = [];
+        $skip = array_column([...$data['vacuum_data']['changed'], ...$data['vacuum_data']['reset']], 'name');
+        foreach (['' => 'reloptions', 'toast.' => 'toast_reloptions'] as $prefix => $key) {
+            foreach (Options::list($old[$key] ?? null) as $option) {
+                [$option, $value] = array_pad(explode('=', $option, 2), 2, '');
+                if (in_array($option, ['fillfactor', 'toast_tuple_target'], true)) {
+                    continue;
+                }
+                $custom = $prefix === '' ? 'autovacuum_custom' : 'toast_autovacuum';
+                $enabled = $prefix === '' ? 'autovacuum_enabled' : 'toast_autovacuum_enabled';
+                if ($option === 'autovacuum_enabled' ? isset($data[$enabled]) : (($data[$custom] ?? null) === false || in_array($prefix . $option, $skip, true))) {
+                    continue;
+                }
+                $settings[] = $prefix . $option . ' = ' . $value;
+            }
+        }
+        foreach ($data['vacuum_data']['changed'] as $item) {
+            $settings[] = $item['name'] . ' = ' . strtolower((string) $item['value']);
+        }
+        foreach (['autovacuum_enabled' => 'autovacuum_enabled', 'toast_autovacuum_enabled' => 'toast.autovacuum_enabled'] as $key => $option) {
+            if (in_array($data[$key] ?? null, ['t', 'f'], true)) {
+                $settings[] = $option . ' = ' . ($data[$key] === 't' ? 'true' : 'false');
+            }
+        }
+        if ($settings !== []) {
+            $parts[] = "ALTER MATERIALIZED VIEW IF EXISTS {$qualified} SET (\n    " . implode(",\n    ", array_unique($settings)) . "\n);";
+        }
+
+        $parts[] = self::columnsSql($ctx, $vid, $schema, $name);
+        foreach ($ctx->conn->rows($ctx->renderFrom('indexes', 'nodes.sql', ['tid' => $vid, 'show_sys_objects' => false])) as $index) {
+            $parts[] = IndexDdl::sql($ctx, $schema, $name, $vid, (int) $index['oid'], withHeader: false);
+        }
+
+        return Ddl::assemble($parts);
+    }
+
+    /**
      * The statements that give the view's columns their defaults and comments, and their
      * column-level grants: pgAdmin's get_columns_sql. Rendered after a definition change too,
-     * since CREATE OR REPLACE keeps neither.
+     * since CREATE OR REPLACE keeps neither. $table names the view when it is being renamed.
      */
-    public static function columnsSql(NodeContext $ctx, int $vid, string $schema): string
+    public static function columnsSql(NodeContext $ctx, int $vid, string $schema, ?string $table = null): string
     {
         $parts = [];
         $columns = $ctx->conn->rows($ctx->renderFrom('columns', 'properties.sql', ['tid' => $vid, 'show_sys_objects' => false]));
@@ -220,7 +291,7 @@ final class ViewDdl
                 'typnspname' => $column['typnspname'],
                 'defval' => null,
                 'description' => null,
-                'table' => $column['relname'],
+                'table' => $table ?? $column['relname'],
                 'schema' => $schema,
             ];
             $before = $column;
@@ -239,7 +310,7 @@ final class ViewDdl
             if (empty($column['attacl'])) {
                 continue;
             }
-            $data = ['name' => $column['name'], 'table' => $column['relname'], 'schema' => $schema];
+            $data = ['name' => $column['name'], 'table' => $table ?? $column['relname'], 'schema' => $schema];
             foreach ($ctx->conn->rows($ctx->renderFrom('columns', 'acl.sql', ['tid' => $vid, 'clid' => $column['attnum']])) as $acl) {
                 $data[$acl['deftype']][] = Acl::fromDb($acl);
             }
@@ -440,6 +511,22 @@ final class ViewDdl
         }
 
         return $value;
+    }
+
+    /**
+     * The view's OID after an update, looked up by its new name and schema as pgAdmin's update
+     * does (view_id.sql): a view that was dropped and recreated has a new one.
+     *
+     * @param array<string, mixed> $data
+     * @param array<string, mixed> $old the properties before the update
+     */
+    public static function oidAfterUpdate(NodeContext $ctx, array $data, array $old): int
+    {
+        $name = trim((string) ($data['name'] ?? '')) !== '' ? (string) $data['name'] : (string) $old['name'];
+        $schema = trim((string) ($data['schema'] ?? '')) !== '' ? (string) $data['schema'] : (string) $old['schema'];
+        $oid = $ctx->conn->scalar($ctx->render('view_id.sql', ['data' => ['name' => $name, 'schema' => $schema]]));
+
+        return (int) ($oid ?? throw new GoneException('Could not find the view in the database. It may have been removed by another user.'));
     }
 
     /** The name of the schema the route addresses. */

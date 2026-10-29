@@ -50,6 +50,10 @@ WITH(
 {% endif %}
 )
 {% endif %}
+{### phpPgAdmin: the recreated view stays in (or moves to) its tablespace ###}
+{% if data.spcname or o_data.spcname %}
+TABLESPACE {{ conn|qtIdent(data.spcname ? data.spcname : o_data.spcname) }}
+{% endif %}
  AS
 {{ def }}
 {% if data.with_data is defined %}
