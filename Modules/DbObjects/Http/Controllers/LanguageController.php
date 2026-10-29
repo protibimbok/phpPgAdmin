@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPgAdmin\Modules\DbObjects\Http\Controllers;
 
 use PhpPgAdmin\Core\Database\Quoting;
+use PhpPgAdmin\Core\Nodes\Acl;
 use PhpPgAdmin\Core\Nodes\Catalog;
 use PhpPgAdmin\Core\Nodes\Ddl;
 use PhpPgAdmin\Core\Nodes\NodeContext;
@@ -147,6 +148,8 @@ final class LanguageController extends NodeController
             $changes['trusted'] = false;
             $old['lanproc'] = '';
         }
+        // A recreated language starts with default privileges; the template grants the old ones again.
+        $old['lanacl'] = Acl::toDb(Acl::allFromDb($ctx->rows('acl.sql', ['lid' => $oid])), ['U']);
 
         return $ctx->render('update.sql', ['data' => $changes, 'o_data' => $old]);
     }

@@ -212,7 +212,16 @@ function OptionsInput({ id, pairs, readOnly, onChange }: { id: string; pairs: Op
               <input type="text" name={`${id}_option_${index}`} value={pair.option} onChange={(e) => update(index, { option: e.target.value })} readOnly={readOnly} />
             </td>
             <td>
-              <input type="text" name={`${id}_value_${index}`} value={pair.value} onChange={(e) => update(index, { value: e.target.value })} readOnly={readOnly} />
+              {/* A stored password comes back as a dummy; typing replaces it, leaving it keeps the stored one. */}
+              <input
+                type={pair.option === 'password' ? 'password' : 'text'}
+                autoComplete={pair.option === 'password' ? 'new-password' : undefined}
+                name={`${id}_value_${index}`}
+                value={pair.value}
+                onChange={(e) => update(index, { value: e.target.value })}
+                onFocus={pair.option === 'password' ? (e) => e.target.select() : undefined}
+                readOnly={readOnly}
+              />
             </td>
             <td>
               {!readOnly && (

@@ -2,19 +2,19 @@
 {% import 'macros/privilege.macros' as PRIVILEGE %}
 {% import 'macros/default_privilege.macros' as DEFAULT_PRIVILEGE %}
 {# Rename the schema #}
-{% if data.name and data.name != o_data.name %}
+{% if data.name and (data.name ~ '') is not same as(o_data.name ~ '') %}
 ALTER SCHEMA {{ conn|qtIdent(o_data.name) }}
     RENAME TO {{ conn|qtIdent(data.name) }};
 
 {% endif %}
 {# Change the owner #}
-{% if data.namespaceowner and data.namespaceowner != o_data.namespaceowner %}
+{% if data.namespaceowner and (data.namespaceowner ~ '') is not same as(o_data.namespaceowner ~ '') %}
 ALTER SCHEMA {{ conn|qtIdent(data.name) }}
     OWNER TO {{ conn|qtIdent(data.namespaceowner) }};
 
 {% endif %}
 {# Update the comments/description #}
-{% if data.description is defined and data.description != o_data.description %}
+{% if data.description is defined and (data.description ~ '') is not same as(o_data.description ~ '') %}
 COMMENT ON SCHEMA {{ conn|qtIdent(data.name) }}
     IS {{ data.description|qtLiteral(conn) }};
 

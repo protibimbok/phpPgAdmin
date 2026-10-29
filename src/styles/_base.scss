@@ -57,3 +57,9 @@ textarea {
   font-family: font-family('mono');
   font-size: 1.2em;
 }
+
+// pmahomme's _common.scss: $secondary is the light button grey, so text on it (a .badge.bg-secondary)
+// is dark instead of Bootstrap's white.
+.bg-secondary {
+  color: color('text-on-button');
+}

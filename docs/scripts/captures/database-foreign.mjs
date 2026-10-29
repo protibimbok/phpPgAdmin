@@ -5,7 +5,7 @@
 // drops dbo_scratch at the end.
 //   node docs/scripts/captures/database-foreign.mjs
 import { open, shot, done, settle, APP } from '../capture.mjs'
-import { psql, message, clearMessage, previewText, closeModal, openRetry, shotEl } from './database-lib.mjs'
+import { psql, message, clearMessage, previewText, closeModal, check, openRetry, shotEl } from './database-lib.mjs'
 
 const DB = 'dbo_scratch'
 if (psql(`SELECT count(*) FROM pg_database WHERE datname = '${DB}'`) === '0') psql(`CREATE DATABASE ${DB}`)
@@ -104,7 +104,9 @@ console.log('server add:', await saveDialog('foreign_server'), q(`SELECT srvtype
 // a bad option the validator rejects
 await rowAction('foreign_servers', 'dbo_bookshop', 'edit')
 await fillOptions(f('foreign_server', 'fsrvoptions'), [['host', 'localhost'], ['port', '5499'], ['dbname', 'bookshop'], ['nonsense', 'x']])
+const badStatus = page.waitForResponse((r) => r.request().method() === 'PUT' && r.url().includes('/foreign_servers/'))
 console.log('server bad option:', await saveDialog('foreign_server'))
+check('a rejected option is a 400, not a 500', (await badStatus).status() === 400)
 
 // ---------- User mapping
 await add('user_mappings')
@@ -117,7 +119,19 @@ console.log('mapping add:', await saveDialog('user_mapping'), q(`SELECT umoption
 await shotEl(page, 'database/user-mappings.png', '#user_mappings_section')
 console.log('mapping row:', await page.locator('#user_mappingsTable tbody tr').first().innerText())
 await rowAction('user_mappings', 'postgres', 'edit')
-console.log('mapping edit password field:', await page.locator(`[name="${f('user_mapping', 'umoptions').slice(1)}_value_1"]`).inputValue(), 'type', await page.locator(`[name="${f('user_mapping', 'umoptions').slice(1)}_value_1"]`).getAttribute('type'))
+const pwField = page.locator(`[name="${f('user_mapping', 'umoptions').slice(1)}_value_1"]`)
+check('the Edit dialog gets the password masked, in a password field', (await pwField.inputValue()) === 'xxxxxx' && (await pwField.getAttribute('type')) === 'password')
+// Saving with the dummy left in place keeps the stored password
+await page.fill(`[name="${f('user_mapping', 'umoptions').slice(1)}_value_0"]`, 'postgres2')
+console.log('mapping edit user preview:', await previewDialog('user_mapping'))
+console.log('mapping edit user:', await saveDialog('user_mapping'))
+check('the stored password is kept', q(`SELECT umoptions FROM pg_user_mappings WHERE srvname='dbo_bookshop'`) === '{user=postgres2,password=s3cret-docs}')
+await rowAction('user_mappings', 'postgres', 'export')
+await page.waitForTimeout(800)
+check('Export masks the password', (await page.locator('.modal.show .modal-body').innerText()).includes("password 'xxxxxx'"))
+await closeModal(page)
+await rowAction('user_mappings', 'postgres', 'edit')
+await page.fill(`[name="${f('user_mapping', 'umoptions').slice(1)}_value_0"]`, 'postgres')
 await page.locator(`${dialog('user_mapping')} button`, { hasText: 'Remove' }).nth(1).click()
 console.log('mapping remove password preview:', await previewDialog('user_mapping'))
 console.log('mapping remove password:', await saveDialog('user_mapping'), q(`SELECT umoptions FROM pg_user_mappings WHERE srvname='dbo_bookshop'`))
@@ -140,6 +154,7 @@ await rowAction('foreign_servers', 'dbo_bookshop', 'edit')
 await page.fill(f('foreign_server', 'fsrvversion'), '18.0')
 console.log('server version preview:', await previewDialog('foreign_server'))
 console.log('server version:', await saveDialog('foreign_server'))
+check('18 -> 18.0 is a change', q(`SELECT srvversion FROM pg_foreign_server WHERE srvname='dbo_bookshop'`) === '18.0')
 
 // ---------- Foreign tables tab (schema public of dbo_scratch)
 await goto(`/db/${DB}/schema/public/foreign-tables`)

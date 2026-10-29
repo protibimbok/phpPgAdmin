@@ -1,41 +1,41 @@
 {% import 'macros/privilege.macros' as PRIVILEGE %}
 {% if data %}
 {# ============= Update foreign data wrapper name ============= #}
-{% if data.name != o_data.name %}
+{% if (data.name ~ '') is not same as(o_data.name ~ '') %}
 ALTER FOREIGN DATA WRAPPER {{ conn|qtIdent(o_data.name) }}
     RENAME TO {{ conn|qtIdent(data.name) }};
 
 {% endif %}
 {# ============= Update foreign data wrapper owner ============= #}
-{% if data.fdwowner and data.fdwowner != o_data.fdwowner %}
+{% if data.fdwowner and (data.fdwowner ~ '') is not same as(o_data.fdwowner ~ '') %}
 ALTER FOREIGN DATA WRAPPER {{ conn|qtIdent(data.name) }}
     OWNER TO {{ conn|qtIdent(data.fdwowner) }};
 
 {% endif %}
 {# ============= Update foreign data wrapper validator ============= #}
-{% if data.fdwvalue and data.fdwvalue != o_data.fdwvalue %}
+{% if data.fdwvalue and (data.fdwvalue ~ '') is not same as(o_data.fdwvalue ~ '') %}
 ALTER FOREIGN DATA WRAPPER {{ conn|qtIdent(data.name) }}
     VALIDATOR {{ data.fdwvalue }};
 
 {% endif %}
-{% if (data.fdwvalue == '' or data.fdwvalue == null) and data.fdwvalue != o_data.fdwvalue %}
+{% if (data.fdwvalue == '' or data.fdwvalue == null) and (data.fdwvalue ~ '') is not same as(o_data.fdwvalue ~ '') %}
 ALTER FOREIGN DATA WRAPPER {{ conn|qtIdent(data.name) }}
     NO VALIDATOR;
 
 {% endif %}
 {# ============= Update foreign data wrapper handler ============= #}
-{% if data.fdwhan and data.fdwhan != o_data.fdwhan %}
+{% if data.fdwhan and (data.fdwhan ~ '') is not same as(o_data.fdwhan ~ '') %}
 ALTER FOREIGN DATA WRAPPER {{ conn|qtIdent(data.name) }}
     HANDLER {{ data.fdwhan }};
 
 {% endif %}
-{% if (data.fdwhan == '' or data.fdwhan == null) and data.fdwhan != o_data.fdwhan %}
+{% if (data.fdwhan == '' or data.fdwhan == null) and (data.fdwhan ~ '') is not same as(o_data.fdwhan ~ '') %}
 ALTER FOREIGN DATA WRAPPER {{ conn|qtIdent(data.name) }}
     NO HANDLER;
 
 {% endif %}
 {# ============= Update foreign data wrapper comments ============= #}
-{% if data.description is defined and data.description != o_data.description %}
+{% if data.description is defined and (data.description ~ '') is not same as(o_data.description ~ '') %}
 COMMENT ON FOREIGN DATA WRAPPER {{ conn|qtIdent(data.name) }}
     IS {{ data.description|qtLiteral(conn) }};
 

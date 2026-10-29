@@ -16,9 +16,14 @@ use PhpPgAdmin\Core\Nodes\NodeController;
  *
  * The client's data carries pgAdmin's field names: name (a role, CURRENT_USER or PUBLIC) and
  * umoptions as {option, value}.
+ *
+ * A password option never leaves the server: the client and the DDL get pgAdmin's dummy
+ * "xxxxxx" in its place, and an update that sends the dummy back keeps the stored password.
  */
 final class UserMappingController extends NodeController
 {
+    private const string MASK = 'xxxxxx';
+
     public function list(NodeContext $ctx): array
     {
         return array_map(self::decorate(...), $ctx->rows('properties.sql'));
@@ -36,7 +41,7 @@ final class UserMappingController extends NodeController
 
     public function properties(NodeContext $ctx, int $oid): array
     {
-        return self::decorate($ctx->row('properties.sql', ['fsid' => null, 'umid' => $oid]) ?? throw $this->gone($ctx));
+        return self::decorate($this->stored($ctx, $oid));
     }
 
     public function sql(NodeContext $ctx, int $oid): string
@@ -97,9 +102,22 @@ final class UserMappingController extends NodeController
         return ['name' => (string) $name];
     }
 
+    /** The catalog row with the options as stored, the password unmasked, for the statements. */
+    private function stored(NodeContext $ctx, int $oid): array
+    {
+        $row = $ctx->row('properties.sql', ['fsid' => null, 'umid' => $oid]) ?? throw $this->gone($ctx);
+        $row['umoptions'] = ForeignOptions::fromCatalog($row['umoptions']);
+
+        return $row;
+    }
+
+    /** A row as the client and the DDL show it, the options from the catalog with the password masked. */
     private static function decorate(array $row): array
     {
-        $row['umoptions'] = ForeignOptions::fromCatalog($row['umoptions']);
+        if (!is_array($row['umoptions'])) {
+            $row['umoptions'] = ForeignOptions::fromCatalog($row['umoptions']);
+        }
+        $row['umoptions'] = array_map(static fn (array $o): array => $o['option'] === 'password' ? ['option' => $o['option'], 'value' => self::MASK] : $o, $row['umoptions']);
 
         return $row;
     }
@@ -113,11 +131,14 @@ final class UserMappingController extends NodeController
     /** @param array<string, mixed> $data */
     private function updateSql(NodeContext $ctx, int $oid, array $data): string
     {
-        $old = $this->properties($ctx, $oid);
+        $old = $this->stored($ctx, $oid);
         if (!array_key_exists('umoptions', $data)) {
             return '';
         }
-        $diff = ForeignOptions::diff($old['umoptions'], ForeignOptions::fromClient($data['umoptions']), 'um');
+        // The dummy sent back for the password means it was left as it is.
+        $stored = array_column($old['umoptions'], 'value', 'option');
+        $new = array_map(static fn (array $o): array => $o['option'] === 'password' && $o['value'] === self::MASK && isset($stored['password']) ? ['option' => 'password', 'value' => $stored['password']] : $o, ForeignOptions::fromClient($data['umoptions']));
+        $diff = ForeignOptions::diff($old['umoptions'], $new, 'um');
 
         return $ctx->render('update.sql', [
             'data' => ['umoptions' => $diff],

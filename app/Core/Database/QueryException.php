@@ -64,6 +64,9 @@ final class QueryException extends RuntimeException
             $class === '42', $class === '22', $class === '0A' => 400,
             // undefined_file and duplicate_file: a path the client named (a tablespace location).
             $this->sqlstate === '58P01', $this->sqlstate === '58P02' => 400,
+            // fdw_error: mostly options a wrapper's validator rejects; HV00N is the remote server unreachable.
+            $this->sqlstate === 'HV00N' => 502,
+            $class === 'HV' => 400,
             $class === '23', $class === '55', $class === '40', $class === '2B' => 409,
             $class === '57' => 503,
             default => 500,

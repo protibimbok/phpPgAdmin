@@ -146,19 +146,19 @@ COMMENT ON LANGUAGE dbo_lang
     IS 'A scratch language for the docs';
 ```
 
-::: warning The function lists are broad
-**Handler function** lists the functions returning `language_handler`, but also
-`language_handler_in`, the type's input function, which fails with
-*function language_handler_in() does not exist*. **Inline function** lists every function taking an
-`internal` argument (over 60 on a bare database) and **Validator function** every function taking an
-`oid`. Pick the `…_call_handler`, `…_inline_handler` and `…_validator` functions of the language.
-:::
+Each function list offers only the signatures `CREATE LANGUAGE` accepts: **Handler function** the
+functions returning `language_handler` with no arguments, **Inline function** those returning `void`
+from one `internal` argument and **Validator function** those returning `void` from one `oid`.
+Built-in functions and operator-class support functions with the same signatures are left out, so
+on a bare database the lists hold the `…_call_handler`, `…_inline_handler` and `…_validator` of the
+installed languages.
 
 ::: danger Changing trust or functions drops the language
 `ALTER LANGUAGE` can only rename and change the owner. If you change **Trusted** or any of the three
 functions, the dialog's SQL starts with a warning and runs `DROP LANGUAGE … CASCADE` followed by
-`CREATE LANGUAGE`: every function written in the language is dropped. The language's comment is not
-recreated either. Read the Preview SQL before you click **Go**.
+`CREATE LANGUAGE`: every function written in the language is dropped. The new language gets the old
+owner, comment and (for a trusted language) `USAGE` grants back. Read the Preview SQL before you
+click **Go**.
 :::
 
 ::: info Trusted and untrusted
@@ -261,7 +261,8 @@ Change **Enabled** in the Edit dialog:
 ::: danger Changing event, function or tags recreates the trigger
 Renaming and changing the owner, comment or state are `ALTER`s. Changing **Event**, **Function** or
 **When tag in** makes the dialog run `DROP EVENT TRIGGER IF EXISTS` and `CREATE EVENT TRIGGER` (the
-Preview SQL starts with a warning). The comment is not carried over to the new trigger.
+Preview SQL starts with a warning). The owner, comment and state (disabled, replica or always) are
+set again on the new trigger.
 :::
 
 ::: warning Scope and ownership

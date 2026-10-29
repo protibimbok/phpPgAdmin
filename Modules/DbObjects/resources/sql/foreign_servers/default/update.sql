@@ -1,6 +1,6 @@
 {% import 'macros/privilege.macros' as PRIVILEGE %}
 {% if data %}
-{% if (data.fsrvtype is defined and data.fsrvtype != o_data.fsrvtype) or (data.fdwname is defined and data.fdwname != o_data.fdwname) %}
+{% if (data.fsrvtype is defined and (data.fsrvtype ~ '') is not same as(o_data.fsrvtype ~ '')) or (data.fdwname is defined and (data.fdwname ~ '') is not same as(o_data.fdwname ~ '')) %}
 {% set fsrvtype = o_data.fsrvtype %}
 {% set fdwname = o_data.fdwname %}
 {% set fsrvversion = o_data.fsrvversion %}
@@ -31,29 +31,35 @@ CREATE SERVER {{ conn|qtIdent(o_data.name) }}{% if fsrvtype %}
 
 ALTER SERVER {{ conn|qtIdent(o_data.name) }}
     OWNER TO {{ conn|qtIdent(o_data.fsrvowner) }};
+{# The new server has no comment of its own: re-apply the old one. #}
+{% if data.description is not defined and o_data.description %}
+
+COMMENT ON SERVER {{ conn|qtIdent(o_data.name) }}
+    IS {{ o_data.description|qtLiteral(conn) }};
+{% endif %}
 
 {% else %}
 {# ============= Update foreign server name ============= #}
-{% if data.name != o_data.name %}
+{% if (data.name ~ '') is not same as(o_data.name ~ '') %}
 ALTER SERVER {{ conn|qtIdent(o_data.name) }}
     RENAME TO {{ conn|qtIdent(data.name) }};
 
 {% endif %}
 {% endif %}
 {# ============= Update foreign server owner ============= #}
-{% if data.fsrvowner and data.fsrvowner != o_data.fsrvowner %}
+{% if data.fsrvowner and (data.fsrvowner ~ '') is not same as(o_data.fsrvowner ~ '') %}
 ALTER SERVER {{ conn|qtIdent(data.name) }}
     OWNER TO {{ conn|qtIdent(data.fsrvowner) }};
 
 {% endif %}
 {# ============= Update foreign server version ============= #}
-{% if data.fsrvversion is defined and data.fsrvversion is not null and data.fsrvversion != o_data.fsrvversion %}
+{% if data.fsrvversion is defined and data.fsrvversion is not null and (data.fsrvversion ~ '') is not same as(o_data.fsrvversion ~ '') %}
 ALTER SERVER {{ conn|qtIdent(data.name) }}
     VERSION {{ data.fsrvversion|qtLiteral(conn) }};
 
 {% endif %}
 {# ============= Update foreign server comments ============= #}
-{% if data.description is defined and data.description != o_data.description %}
+{% if data.description is defined and (data.description ~ '') is not same as(o_data.description ~ '') %}
 COMMENT ON SERVER {{ conn|qtIdent(data.name) }}
     IS {{ data.description|qtLiteral(conn) }};
 

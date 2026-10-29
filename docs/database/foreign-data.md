@@ -102,7 +102,8 @@ CREATE SERVER dbo_bookshop
 PostgreSQL cannot alter a server's type, so a new **Type** makes the dialog run `DROP SERVER` and
 `CREATE SERVER` (the Preview SQL starts with a warning). The drop has no CASCADE, so it fails with
 *cannot drop server … because other objects depend on it* while user mappings or foreign tables use
-the server, and nothing changes. **Version**, owner, options, name and comment are plain `ALTER`s.
+the server, and nothing changes. The new server keeps the options, owner and comment. **Version**,
+owner, options, name and comment are plain `ALTER`s.
 :::
 
 Dropping a server that has mappings or tables also fails without **CASCADE**; with it, the user
@@ -131,13 +132,13 @@ one. The list names each mapping `role @ server`:
 
 ![The User mappings list: postgres @ dbo_bookshop with user 'postgres', password masked](/media/database/user-mappings.png)
 
-::: warning Passwords are masked in the list only
-The list shows a `password` option as `••••`, but the **Edit** dialog shows it in a plain text
-field and **Export** writes it into the `CREATE USER MAPPING` statement in clear text. PostgreSQL
-itself shows mapping options to the mapped role, the server's owner (if it has `USAGE`) and
-superusers, so anyone who can open the dialog could also read them with
-`SELECT * FROM pg_user_mappings`. Mind who looks at your screen, and don't paste exports with
-passwords into tickets.
+::: info Passwords stay on the server
+A `password` option never reaches the browser: the list shows it as `••••`, the **Edit** dialog
+shows `xxxxxx` in a password field and **Export** writes `password 'xxxxxx'`. Leave the field as it
+is to keep the stored password, or type a new one to replace it. PostgreSQL itself still shows
+mapping options to the mapped role, the server's owner (if it has `USAGE`) and superusers through
+`SELECT * FROM pg_user_mappings`, and an exported mapping needs its real password filled in before
+it is run elsewhere.
 :::
 
 ::: info postgres_fdw and passwords
@@ -257,5 +258,3 @@ The rows come from `bookshop` at query time. To import every table of a remote s
   wizard.
 - `IMPORT FOREIGN SCHEMA`, foreign-table constraints (`CHECK`), partitions of a partitioned table
   that are foreign tables, and security labels have no form.
-- **Version** changes between values that are numerically equal (`18` → `18.0`) are not detected
-  and run nothing.

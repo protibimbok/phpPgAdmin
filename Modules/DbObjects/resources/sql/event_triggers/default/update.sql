@@ -1,8 +1,8 @@
 {% import 'macros/security.macros' as SECLABEL %}
 {% if data %}
-{% if (data.eventfunname and data.eventfunname != o_data.eventfunname) or
-  (data.eventname and data.eventname != o_data.eventname) or
-  (data.when and data.when != o_data.when) %}
+{% if (data.eventfunname and (data.eventfunname ~ '') is not same as(o_data.eventfunname ~ '')) or
+  (data.eventname and (data.eventname ~ '') is not same as(o_data.eventname ~ '')) or
+  (data.when and (data.when ~ '') is not same as(o_data.when ~ '')) %}
 -- WARNING:
 -- We have found the difference in either of Trigger Function, Event or WHEN
 -- so we need to drop the existing event trigger first and re-create it.
@@ -16,15 +16,32 @@ CREATE EVENT TRIGGER {{ data.name ? conn|qtIdent(data.name) : conn|qtIdent(o_dat
 
 ALTER EVENT TRIGGER {{ data.name ? conn|qtIdent(data.name) : conn|qtIdent(o_data.name) }}
     OWNER TO {{ conn|qtIdent(o_data.eventowner) }};
+{# The new trigger is enabled and has no comment: re-apply the old state and comment. #}
+{% if data.enabled is not defined and o_data.enabled != "O" %}
+
+ALTER EVENT TRIGGER {{ data.name ? conn|qtIdent(data.name) : conn|qtIdent(o_data.name) }}
+{% if o_data.enabled == "D" %}
+    DISABLE;
+{% elseif o_data.enabled == "R" %}
+    ENABLE REPLICA;
+{% elseif o_data.enabled == "A" %}
+    ENABLE ALWAYS;
+{% endif %}
+{% endif %}
+{% if data.comment is not defined and o_data.comment %}
+
+COMMENT ON EVENT TRIGGER {{ data.name ? conn|qtIdent(data.name) : conn|qtIdent(o_data.name) }}
+    IS {{ o_data.comment|qtLiteral(conn) }};
+{% endif %}
 {% else %}
 
-{% if data.name and data.name != o_data.name %}
+{% if data.name and (data.name ~ '') is not same as(o_data.name ~ '') %}
 ALTER EVENT TRIGGER {{ conn|qtIdent(o_data.name) }}
     RENAME TO {{ conn|qtIdent(data.name) }};
 {% endif %}
 {% endif %}
 
-{% if data.comment is defined and data.comment != o_data.comment %}
+{% if data.comment is defined and (data.comment ~ '') is not same as(o_data.comment ~ '') %}
 COMMENT ON EVENT TRIGGER {{ conn|qtIdent(data.name) }}
     IS {{ data.comment|qtLiteral(conn) }};
 {% endif %}
@@ -66,7 +83,7 @@ ALTER EVENT TRIGGER {{ conn|qtIdent(data.name) }}
 {% endif %}
 {% endif %}
 
-{% if data.eventowner and data.eventowner != o_data.eventowner %}
+{% if data.eventowner and (data.eventowner ~ '') is not same as(o_data.eventowner ~ '') %}
 ALTER EVENT TRIGGER {{ conn|qtIdent(data.name) }}
     OWNER TO {{ conn|qtIdent(data.eventowner) }};
 {% endif %}

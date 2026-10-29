@@ -2,7 +2,7 @@
 {% import 'macros/schemas/privilege.macros' as PRIVILEGE %}
 {% if data %}
 {% set name = o_data.name %}
-{% if data.name %}{% if data.name != o_data.name %}
+{% if data.name %}{% if (data.name ~ '') is not same as(o_data.name ~ '') %}
 ALTER FOREIGN TABLE IF EXISTS {{ conn|qtIdent(o_data.basensp, o_data.name) }}
     RENAME TO {{ conn|qtIdent(data.name) }};
 
@@ -109,7 +109,7 @@ ALTER FOREIGN TABLE IF EXISTS {{ conn|qtIdent(o_data.basensp, name) }}
 {{ SECLABEL.SET(conn, 'FOREIGN TABLE', name, r.provider, r.label, o_data.basensp) }}
 {% endfor %}
 {% endif -%}
-{% if data.description is defined and data.description != o_data.description%}
+{% if data.description is defined and (data.description ~ '') is not same as(o_data.description ~ '')%}
 COMMENT ON FOREIGN TABLE {{ conn|qtIdent(o_data.basensp, name) }}
     IS {{ data.description|qtLiteral(conn) }};
 

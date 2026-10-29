@@ -2,7 +2,7 @@
 {% import 'macros/security.macros' as SECLABEL %}
 {% if data %}
 {# ============= Check for Schema Diff Tool ============= #}
-{% if (data.trusted and data.trusted != o_data.trusted) or (data.lanproc and data.lanproc != o_data.lanproc) or (data.laninl and data.laninl != o_data.laninl) or (data.lanval and data.lanval != o_data.lanval) %}
+{% if (data.trusted and data.trusted != o_data.trusted) or (data.lanproc and (data.lanproc ~ '') is not same as(o_data.lanproc ~ '')) or (data.laninl and (data.laninl ~ '') is not same as(o_data.laninl ~ '')) or (data.lanval and (data.lanval ~ '') is not same as(o_data.lanval ~ '')) %}
 -- WARNING:
 -- We have found the difference in either of TRUSTED, HANDLER, INLINE or VALIDATOR,
 -- so we need to drop the existing language first and re-create it.
@@ -25,19 +25,32 @@ CREATE{% if tmp_trusted %} TRUSTED{% endif %} PROCEDURAL LANGUAGE {{ conn|qtIden
 
 ALTER LANGUAGE {{ conn|qtIdent(o_data.name) }}
     OWNER TO {{ conn|qtIdent(o_data.lanowner) }};
+{# The new language has no comment or privileges of its own: re-apply the old ones. #}
+{% if data.description is not defined and o_data.description %}
+
+COMMENT ON LANGUAGE {{ conn|qtIdent(o_data.name) }}
+    IS {{ o_data.description|qtLiteral(conn) }};
+{% endif %}
+{% if o_data.lanacl and tmp_trusted %}
+
+REVOKE ALL ON LANGUAGE {{ conn|qtIdent(o_data.name) }} FROM PUBLIC;
+{% for priv in o_data.lanacl %}
+{{ PRIVILEGE.APPLY(conn, 'LANGUAGE', priv.grantee, o_data.name, priv.without_grant, priv.with_grant) }}
+{% endfor %}
+{% endif %}
 {% endif %}
 {# ============= Update language name ============= #}
-{% if data.name != o_data.name %}
+{% if (data.name ~ '') is not same as(o_data.name ~ '') %}
 ALTER LANGUAGE {{ conn|qtIdent(o_data.name) }}
     RENAME TO {{ conn|qtIdent(data.name) }};
 {% endif %}
 {# ============= Update language user ============= #}
-{% if data.lanowner and data.lanowner != o_data.lanowner %}
+{% if data.lanowner and (data.lanowner ~ '') is not same as(o_data.lanowner ~ '') %}
 ALTER LANGUAGE {{ conn|qtIdent(data.name) }}
     OWNER TO {{ conn|qtIdent(data.lanowner) }};
 {% endif %}
 {# ============= Update language comments ============= #}
-{% if data.description is defined and data.description != o_data.description %}
+{% if data.description is defined and (data.description ~ '') is not same as(o_data.description ~ '') %}
 COMMENT ON LANGUAGE {{ conn|qtIdent(data.name) }}
     IS {{ data.description|qtLiteral(conn) }};
 {% endif %}

@@ -1,5 +1,5 @@
 {% if data %}
-{% if action == "rename_database" %} {% if data.old_name != data.name %}
+{% if action == "rename_database" %} {% if (data.old_name ~ '') is not same as(data.name ~ '') %}
 ALTER DATABASE {{ conn|qtIdent(data.old_name) }} RENAME TO {{ conn|qtIdent(data.name) }};
 {% endif %}
 {# Change the owner #}
