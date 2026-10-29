@@ -7,6 +7,7 @@ export const QUERY_HISTORY_MAX = 'sql.query_history_max'
 export const CONSOLE_ALWAYS_EXPAND = 'console.always_expand'
 export const CONSOLE_START_HISTORY = 'console.start_history'
 export const CONSOLE_ENTER_EXECUTES = 'console.enter_executes'
+export const CONSOLE_HEIGHT = 'console.height'
 
 registerPreferenceGroups([
   { page: 'features', id: 'general', label: 'settings:groups.general', description: 'settings:groups.general_help' },
@@ -20,6 +21,7 @@ registerPreferences([
   { key: CONSOLE_ALWAYS_EXPAND, type: 'boolean', default: false, page: 'features', group: 'console', label: 'settings:console.always_expand', description: 'settings:console.always_expand_help' },
   { key: CONSOLE_START_HISTORY, type: 'boolean', default: false, page: 'features', group: 'console', label: 'settings:console.start_history', description: 'settings:console.start_history_help' },
   { key: CONSOLE_ENTER_EXECUTES, type: 'boolean', default: false, page: 'features', group: 'console', label: 'settings:console.enter_executes', description: 'settings:console.enter_executes_help' },
+  { key: CONSOLE_HEIGHT, type: 'number', default: 92, min: 32, page: 'features', group: 'console', label: 'settings:console.height', description: 'settings:console.height_help' },
   { key: QUERY_HISTORY_MAX, type: 'number', default: 500, min: 1, max: 500, page: 'sql', group: 'queries', label: 'settings:sql.query_history_max', description: 'settings:sql.query_history_max_help' },
   { key: MAX_ROWS, type: 'number', default: 25, min: 1, page: 'main-panel', group: 'browse', label: 'settings:main.max_rows', description: 'settings:main.max_rows_help' },
 ])

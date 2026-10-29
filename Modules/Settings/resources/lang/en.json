@@ -65,7 +65,9 @@
     "start_history": "Show query history at start",
     "start_history_help": "Open the console on the query history.",
     "enter_executes": "Execute queries on Enter and insert new line with Shift+Enter",
-    "enter_executes_help": "Otherwise Ctrl+Enter runs the query and Enter starts a new line."
+    "enter_executes_help": "Otherwise Ctrl+Enter runs the query and Enter starts a new line.",
+    "height": "Console height",
+    "height_help": "The height of the open console in pixels; drag its toolbar to change it."
   },
   "sql": {
     "query_history_max": "Query history length",

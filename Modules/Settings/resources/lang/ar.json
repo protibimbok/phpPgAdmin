@@ -65,7 +65,9 @@
     "start_history": "إظهار سجل الاستعلامات عند البدء",
     "start_history_help": "فتح وحدة التحكم على سجل الاستعلامات.",
     "enter_executes": "تنفيذ الاستعلامات بـ Enter وإدراج سطر جديد بـ Shift+Enter",
-    "enter_executes_help": "وإلا فإن Ctrl+Enter ينفّذ الاستعلام وEnter يبدأ سطرًا جديدًا."
+    "enter_executes_help": "وإلا فإن Ctrl+Enter ينفّذ الاستعلام وEnter يبدأ سطرًا جديدًا.",
+    "height": "ارتفاع وحدة التحكم",
+    "height_help": "ارتفاع وحدة التحكم المفتوحة بالبكسل؛ اسحب شريط أدواتها لتغييره."
   },
   "sql": {
     "query_history_max": "طول سجل الاستعلامات",

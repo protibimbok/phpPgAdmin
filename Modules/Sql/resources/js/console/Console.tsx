@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '@/api/request'
@@ -8,7 +8,7 @@ import { urls, useLevel } from '@/level'
 import { preference, savePreferences, usePreference } from '@/preferences'
 import { clearHistory, createBookmark, deleteBookmark, listBookmarks, listHistory, type Bookmark, type HistoryEntry } from '../api'
 import SqlEditor, { type SqlEditorHandle } from '../editor/SqlEditor'
-import { CONSOLE_ALWAYS_EXPAND, CONSOLE_ENTER_EXECUTES, CONSOLE_START_HISTORY } from '../preferences'
+import { CONSOLE_ALWAYS_EXPAND, CONSOLE_ENTER_EXECUTES, CONSOLE_HEIGHT, CONSOLE_START_HISTORY } from '../preferences'
 
 /** phpMyAdmin's console settings (Config\Settings\Console), the role's settings on the Features page. */
 interface Options {
@@ -32,6 +32,9 @@ interface Message {
 }
 
 type Card = 'options' | 'bookmarks' | 'add' | null
+
+/** Below this height a drag folds the console, as phpMyAdmin's resizer does. */
+const MIN_HEIGHT = 32
 
 const isSelect = (sql: string) => /^\s*(SELECT|WITH|VALUES|TABLE|EXPLAIN)\b/i.test(sql)
 
@@ -62,6 +65,10 @@ export default function Console() {
     const value = typeof next === 'function' ? next(options) : next
     savePreferences({ [CONSOLE_ALWAYS_EXPAND]: value.alwaysExpand, [CONSOLE_START_HISTORY]: value.startHistory, [CONSOLE_ENTER_EXECUTES]: value.enterExecutes }).catch((e: unknown) => notifyError(errorMessage(e)))
   }
+  const savedHeight = usePreference<number>(CONSOLE_HEIGHT)
+  const [dragHeight, setDragHeight] = useState<number | null>(null)
+  // The open console never covers the page's top 25px, as Console.show() keeps it.
+  const height = dragHeight ?? Math.max(MIN_HEIGHT, Math.min(savedHeight, window.innerHeight - 25))
   const [card, setCard] = useState<Card>(null)
   const [query, setQuery] = useState('')
   const [history, setHistory] = useState<HistoryEntry[] | null>(null)
@@ -110,6 +117,41 @@ export default function Console() {
       .map((entry) => ({ key: `h${entry.id}`, sql: entry.sql, database: entry.database, failed: entry.status === 'error', time: entry.started_at }))
       .filter((m) => !cleared.has(m.key))
   }, [history, historyShown, cleared])
+
+  /**
+   * phpMyAdmin's ConsoleResizer: dragging the open toolbar (not its buttons) sets the height of
+   * the messages, a drag below the least height folds the console, and the height is kept.
+   */
+  function startResize(e: ReactMouseEvent<HTMLDivElement>) {
+    if (!open || e.button !== 0 || e.target !== e.currentTarget || !content.current) return
+    e.preventDefault()
+    const startY = e.clientY
+    const startHeight = content.current.offsetHeight
+    let result = startHeight
+    const move = (event: MouseEvent) => {
+      result = startHeight + startY - Math.max(35, event.clientY)
+      const box = content.current
+      const atBottom = box !== null && box.scrollTop + box.clientHeight + 16 >= box.scrollHeight
+      setDragHeight(Math.max(MIN_HEIGHT, result))
+      if (atBottom) requestAnimationFrame(() => content.current && (content.current.scrollTop = content.current.scrollHeight))
+    }
+    const up = () => {
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseup', up)
+      if (result <= MIN_HEIGHT) {
+        setDragHeight(null)
+        setOpen(false)
+      } else if (result === startHeight) {
+        setDragHeight(null)
+      } else {
+        savePreferences({ [CONSOLE_HEIGHT]: Math.round(result) })
+          .catch((err: unknown) => notifyError(errorMessage(err)))
+          .finally(() => setDragHeight(null))
+      }
+    }
+    document.addEventListener('mousemove', move)
+    document.addEventListener('mouseup', up)
+  }
 
   /** Run a statement on the SQL page of the database it belongs to, or of the one the page is at. */
   function execute(sql: string, database: string | null = level.db ?? null) {
@@ -219,7 +261,7 @@ export default function Console() {
   return (
     <div id="pma_console_container" className="d-print-none">
       <div id="pma_console">
-        <div className={`toolbar${open ? '' : ' collapsed'}`}>
+        <div className={`toolbar${open ? '' : ' collapsed'}`} onMouseDown={startResize}>
           <div className="switch_button console_switch" onClick={() => setOpen((o) => !o)}>
             <Icon name="console" /> <span>{t('console.title')}</span>
           </div>
@@ -245,7 +287,7 @@ export default function Console() {
 
         {open && (
           <>
-            <div className="content" ref={content}>
+            <div className="content" ref={content} style={{ height }}>
               <div className="console_message_container">
                 <div className="message welcome">
                   <span>{options.enterExecutes ? t('console.press_enter') : t('console.press_ctrl_enter')}</span>
