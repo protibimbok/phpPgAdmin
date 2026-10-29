@@ -78,14 +78,16 @@ the tables its foreign keys reference), foreign tables, views and materialized v
 **Open in the SQL page of bookshop** puts the script into the target database's
 [SQL page](/tools/sql) query box. It is not run: read it, and click **Go** there when you are sure.
 
-::: danger The script for a table only in the source fails
-For a table with a `serial` column that exists only in the source (`promotions` here), the script
-creates the sequence first and then runs `ALTER SEQUENCE … OWNED BY inventory_next.promotions.id`
-before `CREATE TABLE inventory_next.promotions`, which stops with *relation "inventory_next.promotions"
-does not exist* and rolls back the whole transaction. Moving that `ALTER SEQUENCE … OWNED BY` after the
-`CREATE TABLE` lets it run, but the table's `serial` column then makes a second sequence
-(`promotions_id_seq1`) for its default. Untick the sequence and let `CREATE TABLE` make it, or edit the
-script before running it.
+A table only in the source is made with its sequences in order: the sequence is created first, the
+table's `serial` column is written as its type with a `DEFAULT nextval(…)` of that sequence (a `serial`
+would make a second sequence, `promotions_id_seq1`), and the `ALTER SEQUENCE … OWNED BY` that ties the
+sequence to the column comes at the end of the script, once the table exists. If you untick the
+sequence and the target has none, the column stays `serial` and `CREATE TABLE` makes it.
+
+::: info Privileges only in the target stay
+The script grants what the source grants, but does not revoke privileges that only the target has.
+After running it, a table whose target has extra grants still shows as different; tick **Ignore
+grants/revokes** to compare without them, or revoke them yourself.
 :::
 
 ::: warning Unqualified references
@@ -97,8 +99,9 @@ script. On the SQL page `public` is on the path; check the script if you run it 
 ::: tip Try it on copies
 To see a script applied without touching the real schemas, copy them first: for example
 `pg_dump -s -d bookshop | psql -d scratch` and compare the two schemas in `scratch`. That is how the
-script above was checked: after moving the `OWNED BY` by hand it ran, and a new comparison showed every
-object identical except the stray `promotions_id_seq1`.
+script above was checked: it ran clean, and a new comparison showed every object identical. The other
+way round (`inventory_next` into a copy of `inventory`) runs clean too, and leaves only `stock`'s extra
+grants.
 :::
 
 ## What is compared

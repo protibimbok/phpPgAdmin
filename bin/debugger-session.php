@@ -12,13 +12,19 @@ declare(strict_types=1);
  * on a Unix socket only this user can open, run on the proxy (pldbg_step_into, pldbg_continue,
  * pldbg_set_breakpoint, pldbg_get_variables…), and are answered with the session's state:
  * where it stopped, the source, the stack, the variables, the breakpoints, the messages, and in
- * the end the call's result or error. It ends when the page stops it, when the call ends and
- * the page has read the result, or after half an hour without a command.
+ * the end the call's result or error. Lines are numbered as the routine editor shows the
+ * source: without the line break PostgreSQL keeps after "AS $$". It ends when the page stops
+ * it (also from its tab being closed), when the call ends and the page has read the result,
+ * when the page's heartbeat (the file "heartbeat", touched every half minute while the page is
+ * open) has stopped for HEARTBEAT_LIMIT, or, for a client that sends none, after half an hour
+ * without a command.
  *
  *     php bin/debugger-session.php <directory holding debug.json>
  */
 
 const IDLE_LIMIT = 1800;
+/** A background tab's timers may run only once a minute: a few missed heartbeats are allowed. */
+const HEARTBEAT_LIMIT = 180;
 const RESULT_ROWS = 1000;
 
 $directory = $argv[1] ?? '';
@@ -55,7 +61,13 @@ chmod($job['socket'], 0600);
 file_put_contents($directory . '/ready', '1');
 
 $lastCommand = time();
-while (!$stopping && time() - $lastCommand < IDLE_LIMIT && !$session->done()) {
+$alive = static function () use (&$lastCommand, $directory): bool {
+    clearstatcache(true, $directory . '/heartbeat');
+    $heartbeat = @filemtime($directory . '/heartbeat');
+
+    return $heartbeat === false ? time() - $lastCommand < IDLE_LIMIT : time() - max($lastCommand, $heartbeat) < HEARTBEAT_LIMIT;
+};
+while (!$stopping && $alive() && !$session->done()) {
     $session->poll();
     $read = [$server];
     $write = $except = null;
@@ -72,7 +84,13 @@ while (!$stopping && time() - $lastCommand < IDLE_LIMIT && !$session->done()) {
     try {
         $reply = $session->handle(is_array($command) ? $command : []);
     } catch (Throwable $e) {
-        $reply = ['error' => $e->getMessage()] + $session->state();
+        try {
+            $reply = ['error' => $e->getMessage()] + $session->state();
+        } catch (Throwable) {
+            // The proxy has lost the target ("select() failed waiting for target"): the call is over.
+            $session->fail($e->getMessage());
+            $reply = $session->state();
+        }
     }
     fwrite($client, json_encode($reply, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n");
     fclose($client);
@@ -97,7 +115,7 @@ final class DebugSession
     /** @var array{func: int, line: int, name: string}|null */
     private ?array $frame = null;
 
-    /** @var array<int, string> */
+    /** @var array<int, string> each routine's source as pldbg_get_source gives it */
     private array $sources = [];
 
     /** @var list<string> */
@@ -205,14 +223,14 @@ final class DebugSession
                 $this->run('pldbg_' . $name);
                 break;
             case 'set_breakpoint':
-                $this->proxyQuery(sprintf('SELECT pldbg_set_breakpoint(%d, %d, %d)', $h, $func, $line));
+                $this->proxyQuery(sprintf('SELECT pldbg_set_breakpoint(%d, %d, %d)', $h, $func, $line + $this->offset($func)));
                 break;
             case 'drop_breakpoint':
-                $this->proxyQuery(sprintf('SELECT pldbg_drop_breakpoint(%d, %d, %d)', $h, $func, $line));
+                $this->proxyQuery(sprintf('SELECT pldbg_drop_breakpoint(%d, %d, %d)', $h, $func, $line + $this->offset($func)));
                 break;
             case 'clear_breakpoints':
                 foreach ($this->breakpoints() as $bp) {
-                    $this->proxyQuery(sprintf('SELECT pldbg_drop_breakpoint(%d, %d, %d)', $h, $bp['func'], $bp['line']));
+                    $this->proxyQuery(sprintf('SELECT pldbg_drop_breakpoint(%d, %d, %d)', $h, $bp['func'], $bp['line'] + $this->offset($bp['func'])));
                 }
                 break;
             case 'deposit':
@@ -221,7 +239,7 @@ final class DebugSession
             case 'select_frame':
                 $frame = pg_fetch_assoc($this->proxyQuery(sprintf('SELECT * FROM pldbg_select_frame(%d, %d)', $h, (int) ($command['level'] ?? 0))));
                 if ($frame !== false) {
-                    $this->frame = ['func' => (int) $frame['func'], 'line' => (int) $frame['linenumber'], 'name' => (string) $frame['targetname']];
+                    $this->frame = $this->frame($frame);
                 }
                 break;
         }
@@ -235,9 +253,10 @@ final class DebugSession
         $state = ['status' => $this->status, 'messages' => $this->messages, 'result' => $this->result, 'error' => $this->error, 'frame' => $this->frame];
         if ($this->status === 'paused' && $this->handle !== null && $this->frame !== null) {
             $func = $this->frame['func'];
-            $this->sources[$func] ??= (string) pg_fetch_result($this->proxyQuery(sprintf('SELECT pldbg_get_source(%d, %d)', $this->handle, $func)), 0, 0);
-            $state['source'] = $this->sources[$func];
-            $state['stack'] = array_map(static fn (array $r): array => ['level' => (int) $r['level'], 'name' => (string) $r['targetname'], 'func' => (int) $r['func'], 'line' => (int) $r['linenumber'], 'args' => (string) $r['args']], pg_fetch_all($this->proxyQuery(sprintf('SELECT * FROM pldbg_get_stack(%d)', $this->handle))) ?: []);
+            // As the routine editor shows it: without the line breaks after "AS $$" and before the closing "$$".
+            $source = substr($this->source($func), $this->offset($func));
+            $state['source'] = str_ends_with($source, "\n") ? substr($source, 0, -1) : $source;
+            $state['stack'] = array_map(fn (array $r): array => ['level' => (int) $r['level'], 'name' => (string) $r['targetname'], 'func' => (int) $r['func'], 'line' => (int) $r['linenumber'] - $this->offset((int) $r['func']), 'args' => (string) $r['args']], pg_fetch_all($this->proxyQuery(sprintf('SELECT * FROM pldbg_get_stack(%d)', $this->handle))) ?: []);
             $state['variables'] = array_map(static fn (array $r): array => ['name' => (string) $r['name'], 'class' => (string) $r['varclass'], 'type' => (string) $r['type'], 'value' => $r['value'], 'const' => $r['isconst'] === 't', 'not_null' => $r['isnotnull'] === 't'], pg_fetch_all($this->proxyQuery(sprintf('SELECT v.*, pg_catalog.format_type(v.dtype, NULL) AS type FROM pldbg_get_variables(%d) v', $this->handle))) ?: []);
             $state['breakpoints'] = $this->breakpoints();
         }
@@ -279,7 +298,7 @@ final class DebugSession
 
             return;
         }
-        $this->frame = ['func' => (int) $row['func'], 'line' => (int) $row['linenumber'], 'name' => (string) $row['targetname']];
+        $this->frame = $this->frame($row);
         $this->status = 'paused';
         $this->notices();
     }
@@ -292,13 +311,40 @@ final class DebugSession
             throw new RuntimeException('The debugger did not report where the call stopped.');
         }
 
-        return ['func' => (int) $row['func'], 'line' => (int) $row['linenumber'], 'name' => (string) $row['targetname']];
+        return $this->frame($row);
+    }
+
+    /**
+     * Where a step, a breakpoint or a frame selection stopped. pldebugger gives that line one
+     * past the source line of the statement (its stack and breakpoints count the source's own).
+     *
+     * @param array<string, mixed> $row
+     * @return array{func: int, line: int, name: string}
+     */
+    private function frame(array $row): array
+    {
+        $func = (int) $row['func'];
+
+        return ['func' => $func, 'line' => (int) $row['linenumber'] - 1 - $this->offset($func), 'name' => (string) $row['targetname']];
+    }
+
+    private function source(int $func): string
+    {
+        return $this->sources[$func] ??= (string) pg_fetch_result($this->proxyQuery(sprintf('SELECT pldbg_get_source(%d, %d)', (int) $this->handle, $func)), 0, 0);
+    }
+
+    /** 1 for a source that starts with the line break after "AS $$", which the routine editor leaves out; pldebugger counts it. */
+    private function offset(int $func): int
+    {
+        return str_starts_with($this->source($func), "\n") ? 1 : 0;
     }
 
     /** @return list<array{func: int, line: int}> */
     private function breakpoints(): array
     {
-        return array_values(array_filter(array_map(static fn (array $r): array => ['func' => (int) $r['func'], 'line' => (int) $r['linenumber']], pg_fetch_all($this->proxyQuery(sprintf('SELECT * FROM pldbg_get_breakpoints(%d)', (int) $this->handle))) ?: []), static fn (array $b): bool => $b['line'] > 0));
+        $rows = array_filter(pg_fetch_all($this->proxyQuery(sprintf('SELECT * FROM pldbg_get_breakpoints(%d)', (int) $this->handle))) ?: [], static fn (array $r): bool => (int) $r['linenumber'] > 0);
+
+        return array_values(array_map(fn (array $r): array => ['func' => (int) $r['func'], 'line' => (int) $r['linenumber'] - $this->offset((int) $r['func'])], $rows));
     }
 
     private function wait(): void

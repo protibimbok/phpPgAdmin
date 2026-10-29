@@ -81,6 +81,8 @@ final class SchemaSnapshot
         $key = $type . '/' . $oid;
         if (!isset($this->ddl[$key])) {
             $ctx = $this->context($type) ?? throw new NotFoundException(sprintf('This server has no %s objects.', $type));
+            // With the route ids its own SQL tab has: a table's policies and rules resolve it from "tid".
+            $ctx = new NodeContext($ctx->node, $ctx->registry, $ctx->pool, $ctx->conn, $ctx->database, [...$ctx->ids, $ctx->node->idParam => $oid], $ctx->request);
             $this->ddl[$key] = $this->controller($ctx)->sql($ctx, $oid);
         }
 

@@ -94,19 +94,42 @@ execFileSync('psql', [...PG, '-d', 'tools_diff', '-o', '/dev/null', '-f', schema
   const request = { source: { database: 'tools_diff', schema: 'inventory' }, target: { database: 'tools_diff', schema: 'inventory_next' } }
   const crossDb = await api(p, 'POST', '/api/schema-diff/compare', { source: { database: 'bookshop', schema: 'inventory' }, target: { database: 'tools_diff', schema: 'inventory' } })
   check('two databases of the server can be compared', crossDb.status === 200 && crossDb.json.results.every((r) => r.status === 'identical'), JSON.stringify(crossDb.json?.results?.filter((r) => r.status !== 'identical')))
-  const results = (await api(p, 'POST', '/api/schema-diff/compare', request)).json.results
-  const items = results.filter((r) => r.status !== 'identical')
-  const generated = (await api(p, 'POST', '/api/schema-diff/script', { ...request, items })).json.script
-  const file = path.join(dir, 'migration.sql')
-  fs.writeFileSync(file, generated)
-  let error = ''
-  try {
-    execFileSync('psql', [...PG, '-v', 'ON_ERROR_STOP=1', '-d', 'tools_diff', '-f', file], { stdio: ['ignore', 'ignore', 'pipe'] })
-  } catch (e) {
-    error = String(e.stderr)
+  // Applies the script for every object that differs, then compares again.
+  const migrate = async (req, db, name) => {
+    const items = (await api(p, 'POST', '/api/schema-diff/compare', req)).json.results.filter((r) => r.status !== 'identical')
+    const generated = (await api(p, 'POST', '/api/schema-diff/script', { ...req, items })).json.script
+    const file = path.join(dir, name)
+    fs.writeFileSync(file, generated)
+    let error = ''
+    try {
+      execFileSync('psql', [...PG, '-v', 'ON_ERROR_STOP=1', '-d', db, '-f', file], { stdio: ['ignore', 'ignore', 'pipe'] })
+    } catch (e) {
+      error = String(e.stderr)
+    }
+    const left = (await api(p, 'POST', '/api/schema-diff/compare', req)).json.results.filter((r) => r.status !== 'identical')
+    return { generated, error, left }
   }
-  // Known bug: the sequence of a table only in the source is created and OWNED BY the table before the table exists.
-  check('the script stops at ALTER SEQUENCE … OWNED BY before its table exists (known bug)', /relation "inventory_next\.promotions" does not exist/.test(error), error.trim().split('\n').pop())
+  {
+    const { generated, error, left } = await migrate(request, 'tools_diff', 'migration.sql')
+    const table = generated.indexOf('CREATE TABLE IF NOT EXISTS inventory_next.promotions')
+    check('a new serial column takes its DEFAULT from the sequence the script creates', /id integer DEFAULT nextval\('inventory_next\.promotions_id_seq'::regclass\) NOT NULL/.test(generated) && !/\bserial\b/.test(generated))
+    check('the sequence is OWNED BY its column after the table is made', table > 0 && generated.indexOf('OWNED BY inventory_next.promotions.id') > table)
+    check('the script runs clean on the copy', error === '', error.trim().split('\n').pop())
+    check('a new comparison finds everything identical, no second sequence', left.length === 0 && psql("SELECT count(*) FROM pg_class WHERE relname = 'promotions_id_seq1'", 'tools_diff') === '0', JSON.stringify(left.map((r) => r.name)))
+  }
+  {
+    // The other way round, on a fresh copy: inventory_next's suppliers made in inventory. Only
+    // stock's privileges are left: the script grants what the source grants but revokes nothing.
+    psql('DROP DATABASE IF EXISTS tools_diff2 WITH (FORCE)', 'postgres')
+    psql('CREATE DATABASE tools_diff2', 'postgres')
+    execFileSync('psql', [...PG, '-d', 'tools_diff2', '-o', '/dev/null', '-f', schemaSql], { stdio: 'ignore' })
+    const reverse = { source: { database: 'bookshop', schema: 'inventory_next' }, target: { database: 'tools_diff2', schema: 'inventory' } }
+    const { error, left } = await migrate(reverse, 'tools_diff2', 'reverse.sql')
+    check('the reverse script runs clean', error === '', error.trim().split('\n').pop())
+    const ignoringGrants = (await api(p, 'POST', '/api/schema-diff/compare', { ...reverse, ignore_grants: true })).json.results.filter((r) => r.status !== 'identical')
+    check('then only privileges the target alone grants differ', left.every((r) => r.name === 'stock') && ignoringGrants.length === 0, JSON.stringify(left.map((r) => r.name)))
+    psql('DROP DATABASE IF EXISTS tools_diff2 WITH (FORCE)', 'postgres')
+  }
 
   // Whitespace: a routine that differs only in its layout.
   psql("CREATE FUNCTION inventory.tools_ws() RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE FUNCTION inventory_next.tools_ws() RETURNS int LANGUAGE sql AS 'SELECT   1'", 'tools_diff')

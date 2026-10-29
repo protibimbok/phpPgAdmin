@@ -182,7 +182,8 @@ final class DesignerController
             if ($node === null) {
                 continue;
             }
-            $ctx = new NodeContext($node, Nodes::registry(), $pool, $conn, $conn->database(), ['scid' => (int) $row['relnamespace']], $request);
+            // The route ids a table's own SQL tab has: its policies and rules resolve their table from "tid" (a view's from "vid").
+            $ctx = new NodeContext($node, Nodes::registry(), $pool, $conn, $conn->database(), ['scid' => (int) $row['relnamespace'], $node->idParam => $oid], $request);
             $parts[] = (new ($node->controller)())->sql($ctx, $oid);
         }
 

@@ -51,6 +51,8 @@ await shot(page, 'database/designer-tables-list.png', { selector: '#layer_menu',
 await page.uncheck('[id="designer_show_public.reviews"]')
 const hidden = (await page.locator(box('public.reviews')).count()) === 0
 check('unticking a table in the list hides its box', hidden)
+await page.check('[id="designer_show_public.reviews"]')
+check('ticking it again shows the box', (await page.locator(box('public.reviews')).count()) === 1)
 await page.click(menu('showdesignerpanel'))
 
 // Help.
@@ -143,18 +145,7 @@ await page.click('.modal .btn-danger')
 check('clicking a line drops its relationship', /has been dropped/.test(await notice(page)) && psql("SELECT count(*) FROM pg_constraint WHERE conrelid = 'public.tools_child'::regclass AND contype = 'f'") === '0')
 await clearNotices(page)
 
-// Export: SVG, PNG and SQL downloads.
-// Known bug: the SQL export fails while a table with a row security policy (reviews) is shown.
-await page.click(menu('exportPages'))
-await page.selectOption('.modal #plugins', 'sql')
-await page.click('.modal .btn-primary')
-const rls = await notice(page)
-check('SQL export with reviews shown fails on its policy (known bug)', /row security policy/.test(rls), rls)
-await clearNotices(page)
-await page.click('.modal .btn-close')
-await page.click(menu('showdesignerpanel'))
-await page.uncheck('[id="designer_show_public.reviews"]')
-await page.click(menu('showdesignerpanel'))
+// Export: SVG, PNG and SQL downloads, with every box shown (reviews and its row security policy too).
 for (const [format, ext] of [['svg', 'svg'], ['png', 'png'], ['sql', 'sql']]) {
   await page.click(menu('exportPages'))
   await page.selectOption('.modal #plugins', format)
@@ -163,7 +154,7 @@ for (const [format, ext] of [['svg', 'svg'], ['png', 'png'], ['sql', 'sql']]) {
   const file = path.join(dir, dl.suggestedFilename())
   await dl.saveAs(file)
   const bytes = fs.readFileSync(file)
-  const ok = { svg: () => bytes.toString().startsWith('<svg') || bytes.toString().includes('<svg'), png: () => bytes.subarray(1, 4).toString() === 'PNG', sql: () => /CREATE TABLE IF NOT EXISTS public\.books/.test(bytes.toString()) && bytes.toString().indexOf('CREATE TABLE IF NOT EXISTS public.authors') < bytes.toString().indexOf('CREATE TABLE IF NOT EXISTS public.books') }[format]()
+  const ok = { svg: () => bytes.toString().startsWith('<svg') || bytes.toString().includes('<svg'), png: () => bytes.subarray(1, 4).toString() === 'PNG', sql: () => /CREATE TABLE IF NOT EXISTS public\.books/.test(bytes.toString()) && /CREATE POLICY \S+\s+ON public\.reviews/.test(bytes.toString()) && bytes.toString().indexOf('CREATE TABLE IF NOT EXISTS public.authors') < bytes.toString().indexOf('CREATE TABLE IF NOT EXISTS public.books') }[format]()
   check(`Export schema as ${format}: ${dl.suggestedFilename()}`, ok && dl.suggestedFilename() === `bookshop-Untitled.${ext}`, bytes.length)
   await page.waitForTimeout(300)
 }

@@ -19,10 +19,12 @@ use Psr\Http\Message\ServerRequestInterface;
  * pgAdmin's direct debugging of a PL/pgSQL function or procedure. Whether the database can
  * (GET …/debugger/status), the routine and its arguments (GET …/debugger/{oid}), a session
  * started with the arguments' values (POST …/debugger/{oid}/sessions), and the session driven
- * (POST /api/debugger/sessions/{id}) and stopped (DELETE). A session is bin/debugger-session.php
- * in the background, holding the call and the debugger's connection between the requests; the
- * requests reach it on its socket. Only the PHP session that started a debugging session can
- * drive it.
+ * (POST /api/debugger/sessions/{id}) and stopped (DELETE, or POST …/stop from the page's
+ * beacon when its tab is closed). A session is bin/debugger-session.php in the background,
+ * holding the call and the debugger's connection between the requests; the requests reach it
+ * on its socket. While the page is open it sends a heartbeat (POST …/heartbeat), and a session
+ * whose page has gone quiet ends on its own. Only the PHP session that started a debugging
+ * session can drive it.
  */
 final class DebuggerController
 {
@@ -109,6 +111,26 @@ final class DebuggerController
         }
 
         return self::send($process, ['command' => $command] + array_intersect_key($body, array_flip(['line', 'func', 'name', 'value', 'level'])));
+    }
+
+    /**
+     * The page is still open: the session's heartbeat file is touched. It does not go through
+     * the session's socket, which a long step keeps busy.
+     *
+     * @return array{ok: true}
+     */
+    public function heartbeat(ServerRequestInterface $request, array $args): array
+    {
+        $process = $this->owned((string) $args['id']);
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        if ($process->status()['state'] !== 'running') {
+            throw new ApiException(410, 'The debugging session has ended.');
+        }
+        touch($process->directory . '/heartbeat');
+
+        return ['ok' => true];
     }
 
     /** @return array{ok: true} the call aborted and the session ended */

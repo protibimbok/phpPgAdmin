@@ -59,7 +59,7 @@ arguments can take their defaults…*).
 The call stops at its first statement. The page shows the toolbar, the call, the routine's source with
 the current line highlighted, and the tabs.
 
-![A paused session: the breakpoint on line 9, the current line, and the local variables](/media/tools/debugger-session.png)
+![A paused session: the breakpoint on line 8, the current line, and the local variables](/media/tools/debugger-session.png)
 
 | Button | pldebugger | What it does |
 | --- | --- | --- |
@@ -69,15 +69,16 @@ the current line highlighted, and the tabs.
 | **Clear all breakpoints** | `pldbg_drop_breakpoint` for each | |
 | **Stop** | `pldbg_abort_target` | aborts the call and ends the session; becomes **Close** once the call has ended |
 
-The status next to the toolbar says *Paused at line 9 of apply_discount(numeric,numeric)*, *Running…*,
+The status next to the toolbar says *Paused at line 8 of apply_discount(numeric,numeric)*, *Running…*,
 *The call has ended.* or *The call ended with an error.* The buttons are greyed while a command runs and
 once the call has ended.
 
 ::: info Line numbers
-The debugger numbers the source as PostgreSQL does, counting the line break right after `$$`: line 1 is
-empty, and every line is one more than in the routine editor (`RETURN result;` is line 8 in the editor,
-line 9 here). The numbers match those of PostgreSQL's error context, such as
-*PL/pgSQL function apply_discount(numeric,numeric) line 6 at RAISE*.
+The source, the status, the breakpoints and the **Stack** tab number the lines as the routine editor
+does: line 1 is `DECLARE`, and `RETURN result;` is line 8 in both. PostgreSQL's own error context counts
+the line break right after `$$` as line 1, so its numbers are one higher than these for a body that
+starts on a new line: *PL/pgSQL function apply_discount(numeric,numeric) line 6 at RAISE* is
+`RAISE EXCEPTION …` on line 5 here.
 :::
 
 ### Breakpoints
@@ -102,10 +103,8 @@ before `RETURN` made the call return `1.23`.
 
 ![The Stack tab of a paused call](/media/tools/debugger-stack.png)
 
-::: warning The Stack tab shows the line one less
-The **Stack** tab shows each frame's line one less than the line the call is paused at (here *line 8*
-while the source highlights line 9, `RETURN result;`). The highlighted line and the status are right.
-:::
+The **Stack** tab shows each frame's line, the same as the status for the current frame (here *line 8*,
+`RETURN result;`).
 
 ### The end of the call
 
@@ -132,9 +131,16 @@ server's user can open, and only the browser session that started it may drive i
 
 - Leaving the page within phpPgAdmin (a link, a tab, **Back to the routine**) stops the session and
   aborts the call.
-- Closing the browser tab or window does not: the session and its paused call stay on the server until
-  they have had no command for 30 minutes. A paused call keeps its transaction open, with the locks it
-  has taken, so click **Stop** before closing the tab.
+- Closing or reloading the browser tab or window stops it too: the page sends the stop as it goes away
+  (`navigator.sendBeacon`).
+- If the page cannot say so (the browser crashes, the computer sleeps or loses its network), the session
+  ends on its own: an open page sends a heartbeat every 30 seconds, and a session that has heard neither
+  a heartbeat nor a command for 3 minutes aborts its call. Until then a paused call keeps its
+  transaction open, with the locks it has taken. A client of the API that sends no heartbeat has
+  30 minutes between commands.
+- A paused call can also hold up `DROP DATABASE` of any database on the server: PostgreSQL waits for
+  every backend to acknowledge it, and a backend waiting inside pldebugger does not until the call goes
+  on or is stopped.
 - A step that runs longer than 120 seconds (a long loop to the next breakpoint) gives up waiting in the
   page with *The debugging session did not answer.*; the session itself goes on.
 

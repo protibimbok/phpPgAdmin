@@ -51,3 +51,12 @@ export const debugTarget = (database: string, oid: number) => api.get<{ target: 
 export const startDebugging = (database: string, oid: number, args: ArgumentValue[]) => api.post<{ id: string; call: string; state: DebugState }>(`${db(database)}/${oid}/sessions`, { args })
 export const debugCommand = (id: string, command: string, extra: Record<string, unknown> = {}) => api.post<DebugState>(`/api/debugger/sessions/${id}`, { command, ...extra })
 export const stopDebugging = (id: string) => api.delete<{ ok: true }>(`/api/debugger/sessions/${id}`)
+export const debugHeartbeat = (id: string) => api.post<{ ok: true }>(`/api/debugger/sessions/${id}/heartbeat`)
+
+/** Stops a session while the page goes away (its tab closed, a reload): a beacon outlives the page, a fetch may not. */
+export function stopDebuggingOnLeave(id: string): void {
+  const url = `/api/debugger/sessions/${id}/stop`
+  if (!navigator.sendBeacon?.(url)) {
+    void fetch(url, { method: 'POST', credentials: 'same-origin', keepalive: true }).catch(() => undefined)
+  }
+}

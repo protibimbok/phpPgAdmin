@@ -12,4 +12,7 @@ Route::middleware(Authenticate::class)->controller(DebuggerController::class)->g
     Route::post('/databases/{db}/debugger/{oid:number}/sessions', 'start')->setName('debugger.start');
     Route::post('/debugger/sessions/{id:[0-9a-f]{24}}', 'command')->setName('debugger.command');
     Route::delete('/debugger/sessions/{id:[0-9a-f]{24}}', 'stop')->setName('debugger.stop');
+    // navigator.sendBeacon can only POST: the page's stop when its tab is closed.
+    Route::post('/debugger/sessions/{id:[0-9a-f]{24}}/stop', 'stop')->setName('debugger.stop.beacon');
+    Route::post('/debugger/sessions/{id:[0-9a-f]{24}}/heartbeat', 'heartbeat')->setName('debugger.heartbeat');
 });

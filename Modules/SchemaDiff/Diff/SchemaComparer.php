@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\SchemaDiff\Diff;
 
+use PhpPgAdmin\Core\Database\Quoting;
 use PhpPgAdmin\Core\Facades\Nodes;
 
 /**
@@ -32,6 +33,15 @@ final class SchemaComparer
     ];
 
     private readonly TableDiff $tables;
+
+    /**
+     * The source's sequences the script being written creates, by name; null outside a script,
+     * where each object's DDL is shown on its own and every sequence only in the source is
+     * taken to be created with it.
+     *
+     * @var array<string, true>|null
+     */
+    private ?array $creating = null;
 
     public function __construct(
         private readonly SchemaSnapshot $source,
@@ -104,13 +114,35 @@ final class SchemaComparer
         usort($rest, static fn (array $a, array $b): int => ($rank[$a['type']] ?? 0) <=> ($rank[$b['type']] ?? 0));
         $rest = $this->tablesAfterReferenced($rest);
 
-        $parts = [];
-        foreach ([...$drops, ...$rest] as $item) {
-            $ddl = $this->ddl($item['type'], $item['source_oid'], $item['target_oid'])['diff_ddl'];
-            if (trim($ddl) !== '') {
-                $parts[] = $ddl;
+        $sequences = array_flip($this->source->objects('sequence') ?? []);
+        $this->creating = [];
+        foreach ($rest as $item) {
+            if ($item['type'] === 'sequence' && $item['target_oid'] === null && isset($sequences[$item['source_oid']])) {
+                $this->creating[$this->normalizer->retarget((string) $sequences[$item['source_oid']])] = true;
             }
         }
+
+        // A new sequence's OWNED BY names a column its table may not have yet: it goes last.
+        $parts = [];
+        $ownedBy = [];
+        try {
+            foreach ([...$drops, ...$rest] as $item) {
+                $ddl = $this->ddl($item['type'], $item['source_oid'], $item['target_oid'])['diff_ddl'];
+                if ($item['type'] === 'sequence') {
+                    $ddl = (string) preg_replace_callback('/^ALTER\s+SEQUENCE\s+[^;]*?\sOWNED\s+BY\s[^;]*;\n*/mi', static function (array $m) use (&$ownedBy): string {
+                        $ownedBy[] = rtrim($m[0]);
+
+                        return '';
+                    }, $ddl);
+                }
+                if (trim($ddl) !== '') {
+                    $parts[] = trim($ddl);
+                }
+            }
+        } finally {
+            $this->creating = null;
+        }
+        array_push($parts, ...$ownedBy);
 
         return $parts === [] ? '' : "BEGIN;\n\n" . implode("\n\n", $parts) . "\n\nEND;";
     }
@@ -187,7 +219,7 @@ final class SchemaComparer
         }
         $create = DdlNormalizer::withoutHeader($this->normalizer->retarget($sourceDdl));
         if ($targetOid === null) {
-            return $create;
+            return $type === 'table' ? $this->withSequenceDefaults($sourceOid, $create) : $create;
         }
         if ($this->same($type, $sourceOid, $targetOid)) {
             return '';
@@ -207,6 +239,59 @@ final class SchemaComparer
         }
 
         return $this->dropOf($type, $targetDdl) . "\n\n" . $create;
+    }
+
+    /**
+     * A new table's CREATE with each serial column written as its type and a DEFAULT nextval()
+     * of the sequence the script creates (or the target has), as pgAdmin's schema diff does: a
+     * serial would make a second sequence (name_seq1) beside it. The sequence is then made the
+     * column's with OWNED BY after the table, by the sequence's own DDL or, for one the target
+     * already has, here.
+     */
+    private function withSequenceDefaults(int $sourceOid, string $create): string
+    {
+        $columns = $this->source->conn->rows(<<<'SQL'
+            SELECT a.attname, pg_catalog.format_type(a.atttypid, NULL) AS type, s.relname AS sequence
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+            JOIN pg_catalog.pg_depend dep ON dep.refclassid = 'pg_catalog.pg_class'::regclass AND dep.refobjid = a.attrelid AND dep.refobjsubid = a.attnum
+                AND dep.classid = 'pg_catalog.pg_class'::regclass AND dep.deptype = 'a'
+            JOIN pg_catalog.pg_class s ON s.oid = dep.objid AND s.relkind = 'S'
+            WHERE a.attrelid = $1 AND a.attidentity = '' AND NOT a.attisdropped
+                AND pg_catalog.pg_get_expr(d.adbin, d.adrelid) LIKE 'nextval(%'
+                AND pg_catalog.format_type(a.atttypid, NULL) IN ('integer', 'smallint', 'bigint')
+            SQL, [$sourceOid]);
+        if ($columns === []) {
+            return $create;
+        }
+
+        $inTarget = $this->target->objects('sequence') ?? [];
+        $inSource = $this->source->objects('sequence') ?? [];
+        $schema = $this->normalizer->targetSchemaIdent();
+        $table = $this->targetTableName($create);
+        $ownedBy = [];
+        foreach ($columns as $column) {
+            $sequence = (string) $column['sequence'];
+            $exists = isset($inTarget[$sequence]);
+            $created = !$exists && ($this->creating === null ? isset($inSource[$sequence]) : isset($this->creating[$sequence]));
+            if (!$exists && !$created) {
+                continue; // serial makes it
+            }
+            $name = Quoting::ident((string) $column['attname']);
+            $default = sprintf('DEFAULT nextval(%s::regclass)', Quoting::literal($schema . '.' . Quoting::ident($sequence)));
+            $create = (string) preg_replace('/^(\s+' . preg_quote($name, '/') . ')\s+(?:small|big)?serial\b/m', '$1 ' . $column['type'] . ' ' . addcslashes($default, '\\$'), $create, 1);
+            if (!$created && $table !== null) {
+                $ownedBy[] = sprintf("ALTER SEQUENCE %s.%s\n    OWNED BY %s.%s;", $schema, Quoting::ident($sequence), $table, $name);
+            }
+        }
+
+        return $ownedBy === [] ? $create : rtrim($create) . "\n\n" . implode("\n\n", $ownedBy);
+    }
+
+    /** The table a CREATE TABLE makes: "app.t1". */
+    private function targetTableName(string $create): ?string
+    {
+        return preg_match('/^CREATE\s+(?:UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\S+)/mi', $create, $m) === 1 ? $m[1] : null;
     }
 
     /**

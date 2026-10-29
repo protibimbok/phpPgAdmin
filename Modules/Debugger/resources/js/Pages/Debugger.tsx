@@ -6,9 +6,12 @@ import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import { urls } from '@/level'
 import { notifyError } from '@/notify'
-import { debugCommand, debugTarget, startDebugging, stopDebugging, type ArgumentValue, type DebugState, type DebugTarget } from '../api'
+import { debugCommand, debugHeartbeat, debugTarget, startDebugging, stopDebugging, stopDebuggingOnLeave, type ArgumentValue, type DebugState, type DebugTarget } from '../api'
 
 type Tab = 'parameters' | 'locals' | 'messages' | 'results' | 'stack'
+
+/** How often an open page tells its session it is still there (the session gives up after three minutes of silence). */
+const HEARTBEAT_MS = 30000
 
 /**
  * pgAdmin's debugger for a PL/pgSQL function or procedure, direct debugging: the arguments
@@ -24,13 +27,31 @@ export default function Debugger() {
   const [session, setSession] = useState<{ id: string; call: string; state: DebugState } | null>(null)
   const sessionId = useRef<string | null>(null)
 
-  // A session left behind when the page is left is stopped.
-  useEffect(
-    () => () => {
+  // A session left behind when the page is left is stopped: on leaving it within the app, and
+  // on closing or reloading the tab, where only a beacon still gets through.
+  useEffect(() => {
+    const leave = () => {
+      if (!sessionId.current) return
+      stopDebuggingOnLeave(sessionId.current)
+      sessionId.current = null
+      setSession(null)
+    }
+    window.addEventListener('pagehide', leave)
+    return () => {
+      window.removeEventListener('pagehide', leave)
       if (sessionId.current) void stopDebugging(sessionId.current).catch(() => undefined)
-    },
-    [],
-  )
+    }
+  }, [])
+
+  // While the session lives, the page's heartbeat keeps it.
+  const liveId = session?.id
+  useEffect(() => {
+    if (!liveId) return
+    const beat = () => void debugHeartbeat(liveId).catch(() => undefined)
+    beat()
+    const timer = window.setInterval(beat, HEARTBEAT_MS)
+    return () => window.clearInterval(timer)
+  }, [liveId])
 
   if (error) {
     return (
@@ -162,8 +183,8 @@ function Session({ target, session, onState, onStopped }: { target: DebugTarget;
   const state = session.state
   const paused = state.status === 'paused'
   const lines = (state.source ?? '').split('\n')
-  // pldebugger counts a statement's line one past the source line it is on.
-  const current = state.frame ? state.frame.line - 1 : -1
+  // The session numbers the lines as the routine editor does.
+  const current = state.frame ? state.frame.line : -1
   const func = state.frame?.func ?? target.oid
   const breakpoints = new Set((state.breakpoints ?? []).filter((b) => b.func === func).map((b) => b.line))
   const currentLine = useRef<HTMLTableRowElement>(null)
@@ -347,7 +368,7 @@ function Session({ target, session, onState, onStopped }: { target: DebugTarget;
                   {(state.stack ?? []).map((f) => (
                     <tr key={f.level} style={{ cursor: 'pointer' }} onClick={() => void send('select_frame', { level: f.level })}>
                       <td>{f.name}</td>
-                      <td>{t('stack.line', { line: f.line - 1 })}</td>
+                      <td>{t('stack.line', { line: f.line })}</td>
                       <td>
                         <code>{f.args}</code>
                       </td>

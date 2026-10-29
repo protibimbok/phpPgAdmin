@@ -138,15 +138,9 @@ Click a relationship's line. A confirmation shows `ALTER TABLE … DROP CONSTRAI
 | --- | --- |
 | **SVG picture** | the diagram as drawn, with its boxes and lines (`bookshop-Untitled.svg`) |
 | **PNG picture** | the same, rendered to PNG |
-| **SQL (the tables' CREATE statements)** | the DDL of each relation shown, as its SQL tab writes it, the referenced tables before those that reference them |
+| **SQL (the tables' CREATE statements)** | the DDL of each relation shown, as its SQL tab writes it (indexes, row security policies, triggers and rules included), the referenced tables before those that reference them |
 
 The file is named after the database and the page (`bookshop-tools_page.png`).
-
-::: warning SQL export fails on a table with a row security policy
-While a table with a policy is shown — `public.reviews` in bookshop — **SQL** fails with *Could not find
-the row security policy in the database. It may have been removed by another user.* Untick that table in
-the tables list and export again. The table's own SQL tab writes its policy without trouble.
-:::
 
 ## Differences from phpMyAdmin
 

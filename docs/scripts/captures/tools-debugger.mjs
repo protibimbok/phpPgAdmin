@@ -31,19 +31,20 @@ const idle = (page) => page.waitForFunction(() => !document.querySelector('#btn-
   await page.click('#debug_start')
   await page.waitForSelector('#debugger_toolbar')
   await settle(page)
-  check('the call stops at its first statement', /Paused at line 5 of apply_discount/.test(await status(page)), await status(page))
+  check('the call stops at its first statement', /Paused at line 4 of apply_discount/.test(await status(page)), await status(page))
+  check('the source is numbered as the routine editor numbers it: line 1 is DECLARE', /^1\s+DECLARE/.test(await page.locator('#debugger_source tr').first().innerText()))
   check('the call is written with the values cast to their types', (await page.locator('#debugger p code').first().innerText()) === "SELECT * FROM public.apply_discount('80'::numeric)")
 
   // Step over, a breakpoint on RETURN, Continue to it.
   await page.click('#btn-step-over')
   await idle(page)
-  check('Step over goes to the next statement', /line 8/.test(await status(page)), await status(page))
-  await page.click(gutter(9))
+  check('Step over goes to the next statement', /line 7/.test(await status(page)) && /^7\s+result :=/.test(await page.locator('#debugger_source tr.table-warning').innerText()), await status(page))
+  await page.click(gutter(8))
   await idle(page)
-  check('a click in the gutter sets a breakpoint', (await page.locator(`${gutter(9)} [aria-label=Breakpoint]`).count()) === 1)
+  check('a click in the gutter sets a breakpoint', (await page.locator(`${gutter(8)} [aria-label=Breakpoint]`).count()) === 1)
   await page.click('#btn-continue')
   await idle(page)
-  check('Continue stops at the breakpoint', /line 9/.test(await status(page)), await status(page))
+  check('Continue stops at the breakpoint', /line 8/.test(await status(page)) && /\b8\s+RETURN result;/.test(await page.locator('#debugger_source tr.table-warning').innerText()), await status(page))
   await tab(page, 'locals')
   await settle(page)
   const locals = await page.locator('#debugger_locals').innerText()
@@ -59,8 +60,7 @@ const idle = (page) => page.waitForFunction(() => !document.querySelector('#btn-
   await settle(page)
   const stack = await page.locator('#debugger_stack').innerText()
   check('Stack lists the frame with its arguments', /apply_discount\(numeric,numeric\)\s+line \d+\s+price=80, percent=10/.test(stack), stack)
-  // Known bug: the Stack tab takes one off a line number pldebugger already gives as the source's.
-  check('Stack shows the line one less than where the call is paused (known bug)', /line 8/.test(stack), stack)
+  check('Stack shows the line the call is paused at, as the status does', /line 8\b/.test(stack), stack)
   await shot(page, 'tools/debugger-stack.png', { selector: '#debugger .nav-tabs + .card', pad: 4 })
 
   // Step over off the end: the result comes back once pldebugger lets the call go.
@@ -108,6 +108,24 @@ const idle = (page) => page.waitForFunction(() => !document.querySelector('#btn-
   await page.waitForTimeout(1500)
   const left = psql("SELECT count(*) FROM pg_stat_activity WHERE query LIKE '%apply_discount(''10''%' AND pid <> pg_backend_pid()")
   check('Stop ends the target session', left === '0', left)
+
+  // Closing the tab (here a reload) stops the session with a beacon.
+  const sessions = () => psql("SELECT count(*) FROM pg_stat_activity WHERE application_name = 'phpPgAdmin debugger'")
+  const baseline = Number(sessions())
+  await page.fill('input[name=arg_0]', '10')
+  const beat = page.waitForRequest((r) => /\/heartbeat$/.test(r.url()), { timeout: 10000 }).then(() => true, () => false)
+  await page.click('#debug_start')
+  await page.waitForSelector('#debugger_toolbar')
+  const heartbeat = await beat
+  check('an open session sends a heartbeat', heartbeat)
+  const running = sessions()
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  let gone = sessions()
+  for (let i = 0; i < 30 && Number(gone) !== baseline; i++) {
+    await page.waitForTimeout(300)
+    gone = sessions()
+  }
+  check('leaving the page by closing or reloading its tab ends the session', Number(running) === baseline + 2 && Number(gone) === baseline, `${running} → ${gone}`)
   await close()
 }
 
@@ -141,7 +159,7 @@ await record('tools/debugger-session.mp4', `${base}/debug`, async (page) => {
   await page.click('#btn-step-over')
   await idle(page)
   await page.waitForTimeout(1300)
-  await page.click(gutter(9))
+  await page.click(gutter(8))
   await idle(page)
   await page.waitForTimeout(1300)
   await page.click('#btn-continue')
