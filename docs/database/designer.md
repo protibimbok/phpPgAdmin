@@ -89,9 +89,9 @@ Pages are kept in phpPgAdmin's own SQLite storage (`designer_pages`), per role, 
 not in the database, unlike phpMyAdmin's `pma__pdf_pages`, so creating pages needs no write access to the
 database. A relation dropped since the page was saved is left out when the page is opened.
 
-::: warning Drop does not ask again
-**Drop** in **Delete pages** deletes the ticked pages immediately. Deleting the page that is open keeps
-its layout on screen as an unsaved, untitled page.
+::: info Drop is the confirmation
+As in phpMyAdmin, ticking pages and clicking **Drop** in **Delete pages** deletes them without a second
+question. Deleting the page that is open keeps its layout on screen as an unsaved, untitled page.
 :::
 
 ## Relationships

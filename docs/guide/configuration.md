@@ -137,7 +137,7 @@ These are `php.ini` (or FPM pool) settings, not phpPgAdmin's:
 |---|---|
 | `upload_max_filesize`, `post_max_size` | The largest file the Import pages accept as an upload; the page shows the limit. Use `PGADMIN_UPLOAD_DIR` for larger files. |
 | `session.gc_maxlifetime` | How long an idle sign-in lasts. PHP's default is 1440 seconds (24 minutes). See [Signing in](/guide/signing-in#passwords-and-sessions). |
-| `session.cookie_httponly`, `session.cookie_secure`, `session.cookie_samesite` | phpPgAdmin uses PHP's session cookie (`PHPSESSID`) with PHP's settings. PHP's defaults leave it readable by JavaScript and sent over plain HTTP. Set `session.cookie_httponly = 1`, and on HTTPS `session.cookie_secure = 1`. |
+| `session.cookie_secure` | phpPgAdmin's session cookie (`PHPSESSID`) is always `HttpOnly` and `SameSite=Lax`, and `Secure` when the request comes over HTTPS. When HTTPS ends at a proxy in front of phpPgAdmin, PHP sees plain HTTP: set `session.cookie_secure = 1` so the cookie is still marked `Secure`. |
 | `session.save_path` | Where sessions, which hold the signed-in role's password, are stored. Keep it private to the PHP user. |
 | `disable_functions` | Must not include `proc_open` or `exec`. |
 | nginx `fastcgi_read_timeout`, Apache `ProxyTimeout`, FPM `request_terminate_timeout` | A query on the SQL tab runs inside one request. With nginx's default of 60 seconds, `SELECT pg_sleep(65)` came back as **504 Gateway Time-out**. Raise the timeout if you run long statements from the browser. |

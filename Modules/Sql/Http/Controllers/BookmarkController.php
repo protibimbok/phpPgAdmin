@@ -59,14 +59,6 @@ final class BookmarkController
         return ['history' => $this->historyOf($request)->all((int) ($query['limit'] ?? 100), is_string($database) && $database !== '' ? $database : null)];
     }
 
-    /** @return array{ok: true} */
-    public function clearHistory(ServerRequestInterface $request): array
-    {
-        $this->historyOf($request)->clear();
-
-        return ['ok' => true];
-    }
-
     private function bookmarks(ServerRequestInterface $request): Bookmarks
     {
         return Bookmarks::for(Authenticate::sessionServer()?->key() ?? '', ConnectionPool::from($request)->username());

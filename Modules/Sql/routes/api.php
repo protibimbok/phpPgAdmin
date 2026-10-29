@@ -27,7 +27,6 @@ Route::middleware(Authenticate::class)->prefix('query')->controller(BookmarkCont
     Route::post('/bookmarks', 'store')->setName('sql.bookmarks.store');
     Route::delete('/bookmarks/{id:number}', 'destroy')->setName('sql.bookmarks.destroy');
     Route::get('/history', 'history')->setName('sql.history');
-    Route::delete('/history', 'clearHistory')->setName('sql.history.clear');
 });
 
 // Query macros: the role's named statements with their shortcut keys, per server.

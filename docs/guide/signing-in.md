@@ -112,7 +112,7 @@ Use **Log out** in the navigation panel's header (the door icon next to **Home**
 - **Several tabs share one session.** Signing in to another server in one tab signs every tab of that browser in to it.
 
 ::: warning Protect the session store
-Because sessions hold passwords, anyone who can read PHP's session files can read them. Keep `session.save_path` private to the PHP user, and set `session.cookie_httponly = 1` (and `session.cookie_secure = 1` on HTTPS): with PHP's defaults the `PHPSESSID` cookie is readable by JavaScript. See [PHP settings that matter](/guide/configuration#php-settings-that-matter).
+Because sessions hold passwords, anyone who can read PHP's session files can read them. Keep `session.save_path` private to the PHP user. The `PHPSESSID` cookie is `HttpOnly` and `SameSite=Lax`, and `Secure` over HTTPS (behind a proxy that ends HTTPS, set `session.cookie_secure = 1`). See [PHP settings that matter](/guide/configuration#php-settings-that-matter).
 :::
 
 ### When the session expires

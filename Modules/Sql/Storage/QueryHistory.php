@@ -48,12 +48,6 @@ final class QueryHistory
         return array_map(static fn (array $row): array => [...$row, 'id' => (int) $row['id'], 'affected_rows' => $row['affected_rows'] === null ? null : (int) $row['affected_rows'], 'duration_ms' => $row['duration_ms'] === null ? null : (float) $row['duration_ms']], $statement->fetchAll());
     }
 
-    /** Forget every entry of this role on this server. */
-    public function clear(): void
-    {
-        $this->db->prepare('DELETE FROM query_history WHERE server = ? AND username = ?')->execute([$this->server, $this->username]);
-    }
-
     public function record(string $database, string $sql, string $status, ?int $affectedRows, ?float $durationMs, ?string $message, string $startedAt): void
     {
         $this->db->prepare(<<<'SQL'

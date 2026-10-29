@@ -176,6 +176,10 @@ final class RoutineDdl
                 $data['dependsonextensions'] = (array) ($data['dependsonextensions'] ?? []);
             }
         }
+        // Rows is only set for a set-returning function; the catalog keeps 0 where the form has none.
+        if (($data['prorows'] ?? null) === '' && (string) ($old['prorows'] ?? '0') === '0') {
+            unset($data['prorows']);
+        }
         // Fields equal to the current value are no change; the client may send the whole form.
         foreach (['lanname', 'prosrc', 'probin', 'prosrc_c', 'proisstrict', 'prosecdef', 'proleakproof', 'procost', 'prorows', 'prosupportfunc', 'prorettypename', 'provolatile', 'proparallel', 'funcowner', 'description'] as $key) {
             if (array_key_exists($key, $data) && self::same($data[$key], $old[$key] ?? null)) {
@@ -275,7 +279,8 @@ final class RoutineDdl
 
     /**
      * The statement that calls the routine, with a placeholder per argument: pgAdmin's
-     * select_sql / exec_sql scripts. "SELECT s.f(\n\t<a integer>,\n\t<b text>\n)" or "CALL …".
+     * select_sql / exec_sql scripts. "SELECT s.f(\n\t<a integer>,\n\t<b text>\n)" or "CALL …",
+     * a procedure's OUT arguments passed as NULL.
      *
      * @param array<string, mixed> $properties the formatted properties
      */
@@ -283,10 +288,15 @@ final class RoutineDdl
     {
         $args = [];
         foreach ((array) ($properties['arguments'] ?? []) as $arg) {
+            $label = trim(implode(' ', array_filter([$arg['argname'] ?? '', $arg['argtype'] ?? ''])));
             if (($arg['argmode'] ?? 'IN') === 'OUT') {
+                // A function's OUT arguments are its result; CALL takes a procedure's (PostgreSQL 14+) as NULL.
+                if ($kind === 'procedure') {
+                    $args[] = "\n\tNULL /* OUT " . $label . ' */';
+                }
                 continue;
             }
-            $args[] = "\n\t<" . trim(implode(' ', array_filter([$arg['argname'] ?? '', $arg['argtype'] ?? '']))) . '>';
+            $args[] = "\n\t<" . $label . '>';
         }
         $name = Quoting::ident($schema, (string) $properties['name']) . '(' . implode(',', $args) . ($args === [] ? '' : "\n") . ')';
 

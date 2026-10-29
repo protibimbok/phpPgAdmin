@@ -366,10 +366,6 @@ export function listHistory(limit = 100, database?: string): Promise<HistoryEntr
   return api.get<{ history: HistoryEntry[] }>(`/api/query/history?${params}`).then((r) => r.history)
 }
 
-export function clearHistory(): Promise<void> {
-  return api.delete<{ ok: true }>('/api/query/history').then(() => undefined)
-}
-
 /** The relations of a database by schema, with their column names, for the editor's completions. */
 export interface Catalog {
   schemas: { name: string; relations: { name: string; columns: string[] }[] }[]
