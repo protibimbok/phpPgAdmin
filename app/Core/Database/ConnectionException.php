@@ -40,10 +40,18 @@ final class ConnectionException extends RuntimeException
         return $this->databaseUnavailable;
     }
 
-    /** The HTTP status that fits the failure: 401 for rejected credentials, 503 for everything else. */
+    /**
+     * The HTTP status that fits the failure: 401 when the role or password itself is turned down
+     * (the client takes it as the end of the session), 403 when the server refuses this
+     * connection only (pg_hba.conf, the role's connection limit), 503 for everything else.
+     */
     public function httpStatus(): int
     {
-        return $this->credentialsRejected ? 401 : 503;
+        if (!$this->credentialsRejected) {
+            return 503;
+        }
+
+        return preg_match('/no pg_hba\.conf entry|too many connections for role/i', $this->getMessage()) === 1 ? 403 : 401;
     }
 
     /** Strip ext-pgsql's "pg_connect(): Unable to connect to PostgreSQL server: " framing. */

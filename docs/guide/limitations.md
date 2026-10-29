@@ -78,5 +78,4 @@ A paged `SELECT` is wrapped in a subquery and run again for every page and for t
 
 ### Sessions
 
-- When the PHP session expires, pages show **Unauthorized** until you reload; you are not sent to the login page ([Signing in](/guide/signing-in#when-the-session-expires)).
 - `localhost` and `127.0.0.1` are separate saved servers, each with its own settings and history ([Saved servers](/guide/signing-in#saved-servers)).

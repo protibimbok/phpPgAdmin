@@ -5,7 +5,12 @@
   "go": "Go",
   "saved": "Configuration has been saved.",
   "nothing": "There are no settings on this page.",
-  "invalid_number": "{{name}}: enter a whole number from {{min}} to {{max}}.",
+  "invalid_number": {
+    "range": "{{name}}: enter a whole number from {{min}} to {{max}}.",
+    "min": "{{name}}: enter a whole number of at least {{min}}.",
+    "max": "{{name}}: enter a whole number of at most {{max}}.",
+    "any": "{{name}}: enter a whole number."
+  },
   "restore_default": "Restore default value",
   "pages": {
     "manage": "Manage your settings",

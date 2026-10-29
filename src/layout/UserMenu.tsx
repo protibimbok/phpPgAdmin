@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import Icon from '@/components/Icon'
 import { useSession } from '@/session'
 
-const DOCS_URL = 'https://github.com/protibimbok/phpPgAdmin#readme'
+const DOCS_URL = 'https://protibimbok.github.io/phpPgAdmin/'
 const POSTGRESQL_DOCS_URL = 'https://www.postgresql.org/docs/'
 
 /**

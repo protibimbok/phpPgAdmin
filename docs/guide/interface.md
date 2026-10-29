@@ -26,7 +26,7 @@ Under the logo (which links to the server home page) are four icons:
 |---|---|
 | **Home** | Opens the [server home page](#the-server-home-page). |
 | **Log out** | Signs you out. See [Logging out](/guide/signing-in#logging-out). |
-| **phpPgAdmin documentation** | Opens the project's page on GitHub in a new tab. |
+| **phpPgAdmin documentation** | Opens this documentation in a new tab. |
 | **PostgreSQL documentation** | Opens postgresql.org/docs in a new tab. |
 
 ### The navigation tree
@@ -131,7 +131,7 @@ Results and errors of what you do appear in a box at the top of the page, as php
 
 Information and success messages disappear after five seconds; errors stay until you click them or the next message replaces them. Clicking any message dismisses it. Only one message is shown at a time.
 
-Errors from PostgreSQL are shown with the server's own message.
+Errors from PostgreSQL are shown with the server's own message, followed by its **DETAIL:** and **HINT:** lines when it sent them, as psql prints them. For example, a role without `CREATEROLE` that tries to add a role sees *permission denied to create role* and *DETAIL: Only roles with the CREATEROLE attribute may create roles.*
 
 ### Controls that are not built yet
 
@@ -217,14 +217,10 @@ Text that comes from the server rather than the translation files stays in Engli
 | **Appearance settings** | **Language**: the [language picker](#language-and-right-to-left). There is no theme choice; phpPgAdmin has one theme. |
 | **Database server** | **Server:** host:port and "via TCP/IP" or "via UNIX socket"; **Server type:** PostgreSQL; **Server connection:** whether SSL is used; **Server version:**; **User:** the role you are signed in as; **Server charset:** the server encoding. |
 | **Web server** | The web server software (as PHP reports it); **Database client version:** the libpq version; **PHP extension:** pgsql, with a link to its manual; **PHP version:**. |
-| **phpPgAdmin** | **Version information:**, and links to the project's documentation, homepage, contributions, support (issues), list of changes and license on GitHub. |
-
-::: warning Some links on the phpPgAdmin card
-**List of changes** and **License** point at a `main` branch and a `LICENSE` file, while the repository's branch is `master` and has no license file, so these two links lead to a GitHub "not found" page. **Documentation** opens the repository's front page, which has no README. **Version information** shows `0.1.0-dev` in the 0.1.0 release.
-:::
+| **phpPgAdmin** | **Version information:**, and links to this documentation, the project's homepage, contributions (pull requests), support (issues) and list of changes (commits) on GitHub, and the MIT license text. |
 
 ## Addresses that do not exist
 
 An address that matches no page shows **There is no page at this address.** with a **Back to the start** link. An address naming a database that does not exist shows PostgreSQL's connection error instead, such as `FATAL: database "no_such_db" does not exist`.
 
-If your sign-in has expired, pages show **Unauthorized**; reload to sign in again. See [When the session expires](/guide/signing-in#when-the-session-expires).
+If your sign-in has expired, the next page or action brings up the login form; signing in again opens the same page. See [When the session expires](/guide/signing-in#when-the-session-expires).

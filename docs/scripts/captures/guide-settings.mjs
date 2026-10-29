@@ -65,7 +65,7 @@ log('confirm off: dialog shown =', await page.locator('#confirm_dialog').isVisib
 log('prefs:', prefs())
 
 // --- Main panel: Number of rows -----------------------------------------------------------
-log('invalid number:', await apply('main-panel', 'browse', { 'main_max_rows': 0 }), '| browser says:', await page.$eval('#main_max_rows', (e) => e.validationMessage))
+log('invalid number:', await apply('main-panel', 'browse', { 'main_max_rows': 0 }))
 log('empty number:', await apply('main-panel', 'browse', { 'main_max_rows': '' }))
 log('apply max rows 5:', await apply('main-panel', 'browse', { 'main_max_rows': 5 }))
 await runSql('SELECT generate_series(1, 40) AS n')
@@ -75,7 +75,7 @@ log('max rows 5: grid rows =', await page.locator('table.table_results tbody tr'
 log('apply history 2:', await apply('sql', 'queries', { 'sql_query_history_max': 2 }))
 for (const n of [1, 2, 3]) await runSql(`SELECT ${n}`)
 log('history rows kept =', sqlite(`SELECT count(*) FROM query_history WHERE username = '${ROLE}'`))
-log('invalid history 501:', await apply('sql', 'queries', { 'sql_query_history_max': 501 }), '| browser says:', await page.$eval('#sql_query_history_max', (e) => e.validationMessage))
+log('invalid history 501:', await apply('sql', 'queries', { 'sql_query_history_max': 501 }))
 
 // --- Navigation panel ----------------------------------------------------------------------
 log('apply tree limits:', await apply('navigation', 'tree', { 'navigation_first_level_items': 1, 'navigation_max_items': 2, 'navigation_filter_minimum': 2 }))

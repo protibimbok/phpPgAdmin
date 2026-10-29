@@ -169,16 +169,17 @@ git push origin v0.1.0
 
 The job:
 
-1. Sets up PHP 8.3 (with `pgsql`, `pdo_sqlite` and Composer 2), pnpm and Node 22.
-2. Runs `composer install` (with dev dependencies, so `artisan` can answer the Vite plugin), `pnpm install --frozen-lockfile` and `pnpm build`.
-3. Runs `composer install --no-dev --optimize-autoloader`.
-4. Copies `app bin bootstrap config Modules public vendor composer.json` into `phpPgAdmin-X.Y.Z/` with `rsync`. It leaves out `Modules/*/resources/js`, `scss` and `img` (they are bundled into `public/dist`) and `public/hot`. Module `resources/lang` and `resources/sql` are kept, because PHP reads them at runtime. It adds an empty `storage/`.
-5. Zips the folder and attaches `phpPgAdmin-X.Y.Z.zip` to a GitHub release with generated notes.
+1. Checks that the tag matches `App::VERSION` and the `package.json` version.
+2. Sets up PHP 8.3 (with `pgsql`, `pdo_sqlite` and Composer 2), pnpm and Node 22.
+3. Runs `composer install` (with dev dependencies, so `artisan` can answer the Vite plugin), `pnpm install --frozen-lockfile` and `pnpm build`.
+4. Runs `composer install --no-dev --optimize-autoloader`.
+5. Copies `.htaccess app bin bootstrap config Modules public vendor composer.json` into `phpPgAdmin-X.Y.Z/` with `rsync`. It leaves out `Modules/*/resources/js`, `scss` and `img` (they are bundled into `public/dist`) and `public/hot`. Module `resources/lang` and `resources/sql` are kept, because PHP reads them at runtime. It adds an empty `storage/`.
+6. Zips the folder and attaches `phpPgAdmin-X.Y.Z.zip` to a GitHub release with generated notes.
 
-The version shown in `package.json` (`0.1.0`) and `App::VERSION` (`0.1.0-dev`) are not derived from the tag. Update them by hand before tagging.
+The version in `package.json` and `App::VERSION` in `app/App.php` (shown on the server home page) are not derived from the tag. Update both by hand before tagging: the job's first step fails when either differs from the tag.
 
-::: warning The release zip has no root `.htaccess`
-The rsync list does not include the project root's `.htaccess`, only `public/.htaccess`. A release unpacked under an Apache document root that points at the project root (not at `public/`) gets no rewrite to `public/`: the app does not load at `/`, and `config/`, `storage/` and `vendor/` are reachable by URL unless the vhost denies them. Point the document root at `public/`, or copy `.htaccess` from the repository. The zip has no `src/`, `artisan`, `package.json` or `docs/` either, so you cannot rebuild assets from a release. Use a git checkout for that.
+::: tip What the zip leaves out
+The zip has no `src/`, `artisan`, `package.json` or `docs/`, so you cannot rebuild assets from a release. Use a git checkout for that.
 :::
 
 ## Docs deployment

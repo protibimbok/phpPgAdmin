@@ -68,13 +68,15 @@ log('unknown page:', (await page.locator('#page_content').textContent()).trim())
 await page.goto(`${APP}/db/no_such_db`); await settle(page, 1200)
 log('unknown database:', (await page.locator('#page_content').textContent()).trim().slice(0, 200))
 
-// Expired session: the session cookie goes, the page keeps running and its requests fail.
+// Expired session: the session cookie goes; the next request brings the login form back at the
+// same address, and signing in again opens that page.
 await page.goto(`${APP}/db/bookshop`); await settle(page)
 await context.clearCookies({ name: 'PHPSESSID' })
 await page.click('#topmenu a:has-text("Operations")'); await settle(page, 1200)
-log('expired session page:', (await page.locator('#page_content').textContent()).trim().slice(0, 120))
-await page.reload(); await settle(page)
-log('after reload login form:', await page.locator('#login_form').count())
+log('expired session: login form =', await page.locator('#login_form').count(), '| message:', await page.locator('#loginform .alert').allTextContents(), '| url:', page.url().replace(APP, ''))
+await page.fill('#input_password', process.env.DOCS_PG_PASSWORD ?? '')
+await page.click('#input_go'); await page.waitForSelector('#pma_navigation', { timeout: 20000 }); await settle(page)
+log('signed in again at:', page.url().replace(APP, ''))
 
 await close()
 await done()

@@ -9,7 +9,6 @@ phpPgAdmin is a PHP 8.3 application with no framework. It is built from a few Co
 ```text
  browser ──► public/index.php ──► App::create() ──► Kernel::boot() ──► Router::dispatch()
    ▲                                                                       │
-   │                                   middleware: AddAuthHeader (global)  │
    │                                   StartSession ─ SetLocale ─ ParseJsonBody ─ Authenticate
    │                                                                       ▼
    │   JSON  ◄── ApiStrategy ◄── controller / NodeDispatcher ──► ConnectionPool ──► PostgreSQL
@@ -122,10 +121,6 @@ The kernel boots on every request. There is no route cache: about 700 routes are
 
 The `api` group does not authenticate by itself. Each module wraps the routes that need a signed-in role in `Route::middleware(Authenticate::class)->group(…)`. The login, server list and locale routes are left outside it on purpose.
 
-::: info AddAuthHeader
-The Auth module also registers `AddAuthHeader` as a global middleware. It is a leftover example of `ProvidesGlobalMiddlewares` and adds `X-Auth-Module: enabled` to every response. It has no other effect.
-:::
-
 ::: warning The session stays locked for the whole request
 PHP's file sessions are locked from `session_start()` until the script ends, and `StartSession` never closes the session early. Two requests from the same browser therefore run one after the other. The long-running controllers (query, export, import, maintenance, debugger) call `session_write_close()` themselves before the slow part. Do the same in any new endpoint that can take more than a moment.
 :::
@@ -139,9 +134,9 @@ Errors become JSON bodies that always have `status_code` and `reason_phrase`:
 | Thrown | Status | Body |
 |---|---|---|
 | league/route HTTP exceptions (`BadRequestException`, `NotFoundException`, `GoneException`, …) | the exception's | the message is in `reason_phrase` |
-| `QueryException` (a PostgreSQL error) | by SQLSTATE: `42501` → 403; classes `42`, `22`, `0A` → 400; `23`, `55`, `40`, `2B` → 409; `57` → 503; anything else → 500 | `message`, plus `sqlstate`, `detail`, `hint`, `position` when the server sent them |
+| `QueryException` (a PostgreSQL error) | by SQLSTATE: `42501` → 403; classes `42`, `22`, `0A` → 400; `58P01`, `58P02` (a file path the client named) → 400; `HV00N` (remote server unreachable) → 502, other `HV` (foreign data wrapper errors) → 400; `23`, `55`, `40`, `2B` → 409; `57` → 503; anything else → 500 | `message`, plus `sqlstate`, `detail`, `hint`, `position` when the server sent them |
 | `ApiException($status, $message, $fields)` | as given | `message` plus your own fields (the frontend reads a `remedy` field, for example) |
-| `ConnectionException` | 401 when the server turned the role or password down; 503 for anything else (unreachable server, missing database, no CONNECT privilege) | `message` (libpq's text) |
+| `ConnectionException` | 401 when the server turned the role or password down (the client then shows the login page); 403 when it refused only this connection (no `pg_hba.conf` entry, the role's connection limit); 503 for anything else (unreachable server, missing database, no CONNECT privilege) | `message` (libpq's text) |
 | anything else | 500 | only `status_code` and `reason_phrase`, unless `APP_DEBUG=true`, which adds `exception`, `message` and `trace` |
 
 The frontend's `ApiError` reads `message` first and falls back to `reason_phrase`, so either way of reporting a message reaches the user.

@@ -121,13 +121,10 @@ await api.post('/api/…', { name })          // body sent as JSON
 - It sends cookies (`credentials: 'same-origin'`), `Accept: application/json`, and `Content-Type: application/json` when there is a body.
 - A non-2xx response throws `ApiError` with `status`, `message` (the body's `message`, else `reason_phrase`), `sqlstate`, `detail`, `hint`, `position` and `remedy`.
 - A 204 resolves to `undefined`.
-- `errorMessage(e)` gives a displayable string for any thrown value.
+- `errorMessage(e)` gives a displayable string for any thrown value. For a PostgreSQL error (an `ApiError` with a `sqlstate`) the server's detail and hint follow the message on lines of their own, as `DETAIL:  …` and `HINT:  …`, the way psql prints them. The notification box keeps the line breaks.
+- A 401 calls the handler registered with `onUnauthorized()`. While someone is signed in, `App` registers one that shows the login page again at the same address, with **Your session has expired. Please log in again.**; after signing in, the same page opens. The login page's own 401s (a rejected password, `/api/auth/me` before signing in) reach no handler. The `ApiError` is still thrown, so the page's own `catch` runs as before.
 
 Encode database and object names with `encodeURIComponent` when you build URLs. The PHP side decodes `{db}` with `rawurldecode`.
-
-::: warning No global handling of an expired session
-`ApiError.unauthorized` is `true` for a 401, but nothing acts on it. When the PHP session expires, calls fail with "Unauthorized" in the page's error box or a notification, and the login page only comes back on the next full page load. Handle `unauthorized` in a page if it matters there.
-:::
 
 `useRequest(load, deps)` loads data in a component:
 

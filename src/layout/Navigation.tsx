@@ -10,7 +10,7 @@ import TreeControls from './tree/TreeControls'
 import { bindTreeState } from './tree/treeState'
 
 const DEFAULT_WIDTH = 240
-const DOCS_URL = 'https://github.com/protibimbok/phpPgAdmin#readme'
+const DOCS_URL = 'https://protibimbok.github.io/phpPgAdmin/'
 const POSTGRESQL_DOCS_URL = 'https://www.postgresql.org/docs/'
 
 /**

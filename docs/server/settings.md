@@ -34,7 +34,7 @@ Each page has a tab per group of settings. Each row has the setting's name, a li
 ![The Navigation panel page with Maximum items on first level 1, Maximum items in branch 2 and Minimum number of items to display the filter box 2, each with a Restore default value icon, and Apply and Reset buttons](/media/guide/settings-navigation.png)
 
 ::: tip Numbers out of range
-The browser checks number fields before anything is saved: a value below the minimum or above the maximum is refused with the browser's own message ("Value must be greater than or equal to 1."), and nothing is applied. An empty number field is refused by phpPgAdmin with "Number of rows: enter a whole number from 1 to ." (the end of the message is blank when the setting has no maximum).
+**Apply** checks the number fields before anything is saved, as phpMyAdmin's settings forms do. An empty field, a fraction, or a value outside the setting's limits is refused with a message that names the setting and its limits, such as "Number of rows: enter a whole number of at least 1." or "Query history length: enter a whole number from 1 to 500.", the tab with that field is opened, and nothing is applied.
 :::
 
 If you change a console option from the console's own **Options** card, or resize the console, an open Settings page shows the new values as long as you have not started editing it.

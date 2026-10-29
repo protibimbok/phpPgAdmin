@@ -40,15 +40,12 @@ The zip holds:
 | `public/` | The document root: `index.php`, the built assets in `dist/`, favicons, and an `.htaccess` for Apache. |
 | `vendor/` | Composer's dependencies and autoloader. |
 | `storage/` | Empty. phpPgAdmin creates its SQLite database here the first time it runs. |
+| `.htaccess` | For Apache when the document root has to be the project root: it serves `public/` without `/public` in the URLs. See [Web server](#web-server). |
 
 1. Unpack the zip where the web server can read it, for example `/var/www/phppgadmin`.
 2. Make `storage/` writable by the web server's user (see [Writable storage](#writable-storage)).
 3. Point the web server at `public/` (see [Web server](#web-server)).
 4. Open the site and [sign in](/guide/signing-in).
-
-::: warning The root .htaccess is not in the zip
-The zip contains `public/.htaccess` but not the `.htaccess` in the project root, which lets Apache serve the project root without `/public` in the URLs. If your Apache document root has to be the project root, copy that file from the [repository](https://github.com/protibimbok/phpPgAdmin/blob/master/.htaccess) next to `public/`. With the document root at `public/` you do not need it.
-:::
 
 ## From source
 

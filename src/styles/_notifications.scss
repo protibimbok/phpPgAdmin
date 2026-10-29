@@ -31,6 +31,8 @@
 
     .alert {
       box-shadow: shadow('notification');
+      // A server error's DETAIL and HINT come on lines of their own.
+      white-space: pre-line;
     }
   }
 }

@@ -94,7 +94,9 @@ function SettingsForm({ page }: { page: string }) {
       const value = values[def.key]
       if (def.type === 'number' && (typeof value !== 'number' || !Number.isInteger(value) || (def.min !== undefined && value < def.min) || (def.max !== undefined && value > def.max))) {
         setTab(def.group)
-        return notifyError(t('invalid_number', { name: tAny(def.label), min: def.min ?? '', max: def.max ?? '' }))
+        const bounds = def.min !== undefined ? (def.max !== undefined ? 'range' : 'min') : def.max !== undefined ? 'max' : 'any'
+
+        return notifyError(t(`invalid_number.${bounds}`, { name: tAny(def.label), min: def.min, max: def.max }))
       }
     }
     setBusy(true)
@@ -110,7 +112,8 @@ function SettingsForm({ page }: { page: string }) {
   }
 
   return (
-    <form className="config-form" onSubmit={(e) => void apply(e)}>
+    // The checks are Apply's own, as phpMyAdmin's form validation is, not the browser's.
+    <form className="config-form" noValidate onSubmit={(e) => void apply(e)}>
       <ul className="nav nav-tabs" id="configFormDisplayTab" role="tablist">
         {groups.map((g) => (
           <li className="nav-item" role="presentation" key={g.id}>

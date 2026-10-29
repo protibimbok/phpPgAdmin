@@ -34,8 +34,8 @@ export function dropGuideUser() {
 }
 
 /**
- * Signs in on the login page as `user`. The server is picked first: picking a saved server
- * fills the username in with the role that last used it, so the username is typed after.
+ * Signs in on the login page as `user`. The server is picked first, then the username typed over
+ * the one the login page filled in from the saved server.
  */
 export async function loginAs(page, user = ROLE, password = process.env.GUIDE_PASSWORD ?? '') {
   await page.waitForSelector('#input_username')

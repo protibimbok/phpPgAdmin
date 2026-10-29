@@ -14,6 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The version is written by hand in two places; refuse to release a tag that matches neither.
+      - name: Check version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          grep -q "VERSION = '$tag';" app/App.php || { echo "App::VERSION is not $tag"; exit 1; }
+          [ "$(node -p "require('./package.json').version")" = "$tag" ] || { echo "package.json version is not $tag"; exit 1; }
+
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
@@ -45,7 +52,7 @@ jobs:
             --exclude='/Modules/*/resources/scss/' \
             --exclude='/Modules/*/resources/img/' \
             --exclude='/public/hot' \
-            app bin bootstrap config Modules public vendor composer.json \
+            .htaccess app bin bootstrap config Modules public vendor composer.json \
             "build/$name/"
           mkdir -p "build/$name/storage"
           touch "build/$name/storage/.gitkeep"

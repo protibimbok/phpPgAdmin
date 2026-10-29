@@ -17,15 +17,11 @@ The role needs the `LOGIN` attribute and the `CONNECT` privilege on at least one
 
 ## Saved servers
 
-Every server a login succeeds against is saved in phpPgAdmin's storage and offered under **Server choice:** next time, the most recently used first, with the role that used it last filled in as the username. **Other server…** at the end of the list resets the Advanced fields to the [configured default server](/guide/configuration#default-server).
+Every server a login succeeds against is saved in phpPgAdmin's storage and offered under **Server choice:** next time, the most recently used first, with the role that used it last filled in as the username. Choosing another saved server fills in its role the same way, unless you have typed a username yourself, which is kept. **Other server…** at the end of the list resets the Advanced fields to the [configured default server](/guide/configuration#default-server).
 
 **Server choice:** only appears once at least one server has been saved. Before that, the form signs in to the default server, or to what you enter under Advanced.
 
 A saved server is identified by its host and port. Signing in to it again with a different SSL mode or maintenance database updates the saved entry. A failed login saves nothing.
-
-::: warning Pick the server before you type the username
-Choosing a saved server in **Server choice:** replaces the username with the role that last signed in to that server. Choose the server first, then type the username.
-:::
 
 ::: warning Saved servers are shared and visible before sign-in
 Saved servers belong to the installation, not to a person. Everyone who opens the login page sees the same list, including the last username used on each server, and the list is also available without signing in at `/api/auth/servers`. No passwords are saved.
@@ -121,4 +117,4 @@ Because sessions hold passwords, anyone who can read PHP's session files can rea
 
 ### When the session expires
 
-phpPgAdmin does not notice an expired session until the next request. The page you are on stays open; the next action that loads data shows **Unauthorized** in place of the page, or as an error notification, and the navigation tree stops loading. Reload the page to get the login form; after signing in you are back on the same page.
+phpPgAdmin notices an expired session at the next request. The page you are on stays open until then; the next action that loads data brings up the login form, with **Your session has expired. Please log in again.** above it, at the same address. After signing in you are back on the page you were on, as when you open a bookmarked address while signed out. Changes you had not yet sent from a form on that page are lost.

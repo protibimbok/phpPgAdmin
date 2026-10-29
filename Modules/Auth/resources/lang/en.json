@@ -15,6 +15,7 @@
     "maintenance_db": "Maintenance database:",
     "maintenance_db_help": "The database to connect to first. Leave empty to try postgres, template1 and the role's own database.",
     "submit": "Log in",
+    "session_expired": "Your session has expired. Please log in again.",
     "failed": "Login failed"
   },
   "errors": {

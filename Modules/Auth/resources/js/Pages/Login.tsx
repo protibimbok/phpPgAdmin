@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import i18n from '@/i18n'
 import LocaleSelect from '@/i18n/LocaleSelect'
@@ -9,6 +9,8 @@ import '../../scss/login.scss'
 interface LoginProps {
   /** Called with the user once the credentials were accepted. */
   onLogin: (user: User) => void
+  /** The session ran out under a signed-in page, which the form then says, as phpMyAdmin does. */
+  expired?: boolean
 }
 
 /** The "Server choice" option for a server entered by hand. */
@@ -39,10 +41,12 @@ function sameServer(fields: ServerFields, server: Server): boolean {
  * picked, as phpMyAdmin offers its configured servers, and an "Advanced" section opens the
  * host, port, SSL mode and maintenance database for any other server.
  */
-export default function Login({ onLogin }: LoginProps) {
+export default function Login({ onLogin, expired = false }: LoginProps) {
   const { t } = useTranslation('auth')
   const { t: tApp } = useTranslation()
   const [username, setUsername] = useState('')
+  // Whether the username in the field was typed rather than filled in from a saved server.
+  const typedUsername = useRef(false)
   const [password, setPassword] = useState('')
   const [servers, setServers] = useState<SavedServer[]>([])
   const [fallback, setFallback] = useState<Server | null>(null)
@@ -76,7 +80,8 @@ export default function Login({ onLogin }: LoginProps) {
     const saved = servers.find((candidate) => String(candidate.id) === value)
     const server = saved ?? fallback
     if (server) setFields(fieldsOf(server))
-    if (saved?.last_username) setUsername(saved.last_username)
+    // A saved server's role fills the field only while it holds no username of the user's own.
+    if (saved?.last_username && !typedUsername.current) setUsername(saved.last_username)
   }
 
   function edit<K extends keyof ServerFields>(key: K, value: ServerFields[K]) {
@@ -131,10 +136,16 @@ export default function Login({ onLogin }: LoginProps) {
           <div className="alert alert-danger">{t('noscript')}</div>
         </noscript>
 
-        {error && (
+        {error ? (
           <div className="alert alert-danger" role="alert">
             {error}
           </div>
+        ) : (
+          expired && (
+            <div className="alert alert-danger" role="alert">
+              {t('login.session_expired')}
+            </div>
+          )
         )}
 
         <div className="card mb-4">
@@ -173,7 +184,10 @@ export default function Login({ onLogin }: LoginProps) {
                     name="username"
                     className="form-control"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => {
+                      typedUsername.current = e.target.value !== ''
+                      setUsername(e.target.value)
+                    }}
                     autoComplete="username"
                     spellCheck={false}
                     autoFocus

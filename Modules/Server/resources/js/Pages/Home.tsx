@@ -5,14 +5,17 @@ import LocaleSelect from '@/i18n/LocaleSelect'
 import { getServerInfo, type ServerInfo } from '../api'
 
 const REPOSITORY = 'https://github.com/protibimbok/phpPgAdmin'
+const DOCUMENTATION = 'https://protibimbok.github.io/phpPgAdmin/'
+// composer.json declares MIT; the repository has no LICENSE file to link to.
+const LICENSE = 'https://opensource.org/license/mit'
 
 const LINKS = [
-  { key: 'documentation', href: `${REPOSITORY}#readme` },
+  { key: 'documentation', href: DOCUMENTATION },
   { key: 'official_homepage', href: REPOSITORY },
   { key: 'contribute', href: `${REPOSITORY}/pulls` },
   { key: 'get_support', href: `${REPOSITORY}/issues` },
-  { key: 'list_of_changes', href: `${REPOSITORY}/commits/main` },
-  { key: 'license', href: `${REPOSITORY}/blob/main/LICENSE` },
+  { key: 'list_of_changes', href: `${REPOSITORY}/commits/master` },
+  { key: 'license', href: LICENSE },
 ] as const
 
 /**
