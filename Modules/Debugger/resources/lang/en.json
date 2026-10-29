@@ -1,0 +1,53 @@
+{
+  "title": "Debugging {{name}}",
+  "back": "Back to the routine",
+  "debug": "Debug",
+  "again": "Debug again",
+  "breakpoint": "Breakpoint",
+  "not_paused": "The call is not paused.",
+  "no_messages": "No messages.",
+  "no_result": "No result yet.",
+  "arguments": {
+    "title": "Arguments",
+    "none": "The routine takes no arguments.",
+    "name": "Name",
+    "type": "Type",
+    "null": "Null?",
+    "expression": "Expression?",
+    "value": "Value",
+    "use_default": "Use default?",
+    "default": "Default"
+  },
+  "toolbar": {
+    "step_into": "Step into",
+    "step_over": "Step over",
+    "continue": "Continue",
+    "toggle_breakpoint": "Toggle breakpoint",
+    "clear_breakpoints": "Clear all breakpoints",
+    "stop": "Stop",
+    "close": "Close"
+  },
+  "status": {
+    "paused": "Paused at line {{line}} of {{name}}",
+    "running": "Running…",
+    "finished": "The call has ended.",
+    "failed": "The call ended with an error."
+  },
+  "tabs": {
+    "parameters": "Parameters",
+    "locals": "Local variables",
+    "messages": "Messages",
+    "results": "Results",
+    "stack": "Stack"
+  },
+  "vars": {
+    "name": "Name",
+    "type": "Type",
+    "value": "Value",
+    "edit": "Change",
+    "new_value": "New value of {{name}}:"
+  },
+  "stack": {
+    "line": "line {{line}}"
+  }
+}

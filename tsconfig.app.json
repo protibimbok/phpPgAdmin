@@ -88,6 +88,9 @@
       "@designer/*": [
         "./Modules/Designer/resources/*"
       ],
+      "@debugger/*": [
+        "./Modules/Debugger/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]

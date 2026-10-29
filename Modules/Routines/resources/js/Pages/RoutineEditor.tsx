@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
@@ -10,6 +10,7 @@ import StatisticsPanel from '@/components/StatisticsPanel'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
+import { debuggerStatus } from '@debugger/js/api'
 import SqlEditor from '@sql/js/editor/SqlEditor'
 import { createRoutine, KIND_LABELS, KINDS, resolveSchema, routineModifiedSql, routineOptions, routines, updateRoutine, type Argument, type Routine, type RoutineData, type RoutineKind, type Variable } from '../api'
 
@@ -97,6 +98,8 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
   const [form, setForm] = useState<Form>(EMPTY)
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [saving, setSaving] = useState(false)
+  // pgAdmin's Debug, offered where the database has the debugger.
+  const { data: debugging } = useRequest(() => (mode === 'edit' ? debuggerStatus(db).catch(() => null) : Promise.resolve(null)), [db, mode])
 
   useEffect(() => {
     if (!data) return
@@ -187,6 +190,13 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
       <h2>
         <Icon name="b_routines" /> {editing ? t('editor.edit_title', { name: data.routine!.signature }) : t('editor.create_title')}
       </h2>
+      {editing && debugging?.available && form.language === 'plpgsql' && (editKind === 'function' || editKind === 'procedure') && (
+        <p>
+          <Link id="debug_routine" to={`${urls.schema(db, schema)}/routines/${editKind}/${oid}/debug`}>
+            <Icon name="b_nextpage" /> {t('editor.debug')}
+          </Link>
+        </p>
+      )}
       <form className="rte_form" onSubmit={save}>
         <div className="card">
           <div className="card-header">{t('editor.details')}</div>

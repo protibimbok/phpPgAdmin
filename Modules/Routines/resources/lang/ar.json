@@ -59,6 +59,7 @@
     "add_variable": "إضافة متغير",
     "created": "تم إنشاء الإجراء {{name}}.",
     "altered": "تم تعديل الإجراء {{name}}.",
-    "no_statistics": "لم تُحصَ أي استدعاءات: يحصي PostgreSQL استدعاءات الإجراء فقط ما دام track_functions مضبوطًا على pl (أو all لإجراءات SQL وC أيضًا)."
+    "no_statistics": "لم تُحصَ أي استدعاءات: يحصي PostgreSQL استدعاءات الإجراء فقط ما دام track_functions مضبوطًا على pl (أو all لإجراءات SQL وC أيضًا).",
+    "debug": "تصحيح"
   }
 }

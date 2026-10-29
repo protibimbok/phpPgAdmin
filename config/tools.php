@@ -34,4 +34,18 @@ return [
 
     'php_binary' => getenv('PGADMIN_PHP_BINARY') ?: null,
 
+    /*
+    |--------------------------------------------------------------------------
+    | PL/pgSQL Debugger
+    |--------------------------------------------------------------------------
+    |
+    | Whether a PL/pgSQL function or procedure offers Debug. It takes the
+    | pldbgapi extension (EDB's pldebugger) in the database and
+    | shared_preload_libraries = 'plugin_debugger' on the server; without them
+    | the Debug button does not appear. Switch it off with PGADMIN_DEBUGGER=0.
+    |
+    */
+
+    'debugger' => getenv('PGADMIN_DEBUGGER') !== '0',
+
 ];

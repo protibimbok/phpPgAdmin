@@ -180,7 +180,8 @@ final readonly class BackgroundProcess
         return is_dir('/proc/' . $pid);
     }
 
-    private static function php(): string
+    /** The PHP CLI that runs the background scripts. */
+    public static function php(): string
     {
         $configured = Config::get('tools.php_binary');
         if (is_string($configured) && $configured !== '') {

@@ -1,0 +1,53 @@
+{
+  "title": "تصحيح {{name}}",
+  "back": "العودة إلى الإجراء",
+  "debug": "تصحيح",
+  "again": "التصحيح مرة أخرى",
+  "breakpoint": "نقطة توقف",
+  "not_paused": "الاستدعاء غير متوقف.",
+  "no_messages": "لا رسائل.",
+  "no_result": "لا نتيجة بعد.",
+  "arguments": {
+    "title": "الوسائط",
+    "none": "لا يأخذ الإجراء وسائط.",
+    "name": "الاسم",
+    "type": "النوع",
+    "null": "فارغ؟",
+    "expression": "تعبير؟",
+    "value": "القيمة",
+    "use_default": "استخدام الافتراضي؟",
+    "default": "الافتراضي"
+  },
+  "toolbar": {
+    "step_into": "الدخول خطوة",
+    "step_over": "تخطي خطوة",
+    "continue": "متابعة",
+    "toggle_breakpoint": "تبديل نقطة التوقف",
+    "clear_breakpoints": "مسح كل نقاط التوقف",
+    "stop": "إيقاف",
+    "close": "إغلاق"
+  },
+  "status": {
+    "paused": "متوقف عند السطر {{line}} من {{name}}",
+    "running": "قيد التشغيل…",
+    "finished": "انتهى الاستدعاء.",
+    "failed": "انتهى الاستدعاء بخطأ."
+  },
+  "tabs": {
+    "parameters": "المعاملات",
+    "locals": "المتغيرات المحلية",
+    "messages": "الرسائل",
+    "results": "النتائج",
+    "stack": "المكدس"
+  },
+  "vars": {
+    "name": "الاسم",
+    "type": "النوع",
+    "value": "القيمة",
+    "edit": "تغيير",
+    "new_value": "القيمة الجديدة لـ {{name}}:"
+  },
+  "stack": {
+    "line": "السطر {{line}}"
+  }
+}
