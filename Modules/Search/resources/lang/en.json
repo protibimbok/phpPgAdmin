@@ -1,0 +1,42 @@
+{
+  "tab": "Search",
+  "go": "Go",
+  "data": {
+    "title": "Search in database",
+    "words": "Words or values to search for (wildcard: \"%\"):",
+    "find": "Find:",
+    "type_1": "at least one of the words",
+    "type_2": "all of the words",
+    "type_3": "the exact phrase as substring",
+    "type_4": "the exact phrase as whole field",
+    "type_5": "as regular expression",
+    "words_hint": "Words are separated by a space character (\" \").",
+    "regex_docs": "Documentation",
+    "inside_tables": "Inside tables:",
+    "select_all": "Select all",
+    "unselect_all": "Unselect all",
+    "inside_column": "Inside column:",
+    "no_text": "Enter the words or values to search for.",
+    "no_tables": "Select at least one table to search in.",
+    "results": "Search results for \"<em>{{text}}</em>\" {{how}}:",
+    "matches_one": "{{count}} match in <strong>{{table}}</strong>",
+    "matches_other": "{{count}} matches in <strong>{{table}}</strong>",
+    "total_one": "<strong>Total:</strong> <em>{{count}}</em> match",
+    "total_other": "<strong>Total:</strong> <em>{{count}}</em> matches",
+    "browse": "Browse",
+    "delete": "Delete"
+  },
+  "objects": {
+    "title": "Search objects",
+    "name": "Name contains (at least three characters, wildcard: \"%\"):",
+    "type": "Type of object:",
+    "all_types": "All types",
+    "system": "Include system objects",
+    "too_short": "Enter at least three characters of the name.",
+    "results_one": "{{count}} object found for \"{{text}}\":",
+    "results_other": "{{count}} objects found for \"{{text}}\":",
+    "col_name": "Object name",
+    "col_type": "Type",
+    "col_path": "Path"
+  }
+}

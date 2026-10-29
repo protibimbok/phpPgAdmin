@@ -73,6 +73,9 @@
       "@maintenance/*": [
         "./Modules/Maintenance/resources/*"
       ],
+      "@search/*": [
+        "./Modules/Search/resources/*"
+      ],
       "@sql/*": [
         "./Modules/Sql/resources/*"
       ]

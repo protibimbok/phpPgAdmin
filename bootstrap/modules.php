@@ -9,6 +9,7 @@ use PhpPgAdmin\Modules\Frontend\FrontendModule;
 use PhpPgAdmin\Modules\I18n\I18nModule;
 use PhpPgAdmin\Modules\Import\ImportModule;
 use PhpPgAdmin\Modules\Maintenance\MaintenanceModule;
+use PhpPgAdmin\Modules\Search\SearchModule;
 use PhpPgAdmin\Modules\Replication\ReplicationModule;
 use PhpPgAdmin\Modules\Roles\RolesModule;
 use PhpPgAdmin\Modules\Routines\RoutinesModule;
@@ -41,6 +42,7 @@ return [
     ExportModule::class,
     ImportModule::class,
     MaintenanceModule::class,
+    SearchModule::class,
     SqlModule::class,
     FrontendModule::class,
 ];
