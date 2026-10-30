@@ -78,6 +78,7 @@ export default defineConfig({
             { text: 'Schemas', link: '/database/schemas' },
             { text: 'Database operations', link: '/database/operations' },
             { text: 'Search', link: '/database/search' },
+            { text: 'Multi-table query', link: '/database/query' },
             { text: 'Extensions and other objects', link: '/database/objects' },
             { text: 'Foreign data', link: '/database/foreign-data' },
             { text: 'Designer', link: '/database/designer' },

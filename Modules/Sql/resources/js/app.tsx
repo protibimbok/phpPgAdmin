@@ -5,6 +5,7 @@ import Change from './Pages/Change'
 import FindReplace from './Pages/FindReplace'
 import Chart from './Pages/Chart'
 import GisVisualization from './Pages/GisVisualization'
+import MultiTableQuery from './Pages/MultiTableQuery'
 import Search from './Pages/Search'
 import SqlPage from './Pages/Sql'
 import ZoomSearch from './Pages/ZoomSearch'
@@ -52,4 +53,13 @@ registerModule({
   ],
   // The console sits at the bottom of every page.
   fills: <Console />,
+})
+
+// phpMyAdmin's database "Query" tab (its multi-table query), after Search: the Search module
+// sorts at 21.
+registerModule({
+  id: 'sql-query',
+  order: 22,
+  menuFilter: (menu) => insertAfter(menu, { label: 'search:tab', level: 'database' }, { label: 'sql:mtq.tab', icon: 's_db', path: '/db/:db/query', level: 'database' }),
+  routes: [{ path: 'db/:db/query', element: <MultiTableQuery /> }],
 })
