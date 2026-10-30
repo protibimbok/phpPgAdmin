@@ -45,19 +45,27 @@ final class XmlToCopy
         $rows = 0;
         $previous = libxml_use_internal_errors(true);
         try {
-            while (@$reader->read()) {
+            // next() already moves to the following sibling, which may be the next row when no
+            // whitespace separates them; the loop must not read() past it then.
+            $moved = false;
+            while ($moved || @$reader->read()) {
+                $moved = false;
                 if ($reader->nodeType !== XMLReader::ELEMENT || $reader->namespaceURI !== '') {
                     continue;
                 }
                 $element = $reader->localName;
                 if ($element === 'header' && $reader->depth === 1) {
-                    $node = $reader->expand();
+                    // expand() fails on a malformed subtree; the error is reported after the loop.
+                    $node = @$reader->expand();
+                    if ($node === false) {
+                        break;
+                    }
                     foreach ($node?->childNodes ?? [] as $child) {
                         if ($child instanceof DOMElement && $child->localName === 'column') {
                             $header[] = $child->getAttribute('name');
                         }
                     }
-                    $reader->next();
+                    $moved = @$reader->next();
                     continue;
                 }
 
@@ -67,17 +75,20 @@ final class XmlToCopy
                     continue;
                 }
                 if ($element === 'table' && $reader->getAttribute('name') !== $table) {
-                    $reader->next();
+                    $moved = @$reader->next();
                     continue;
                 }
-                $node = $reader->expand();
+                $node = @$reader->expand();
+                if ($node === false) {
+                    break;
+                }
                 $values = [];
                 foreach ($node?->childNodes ?? [] as $child) {
                     if ($child instanceof DOMElement && $child->localName === 'column') {
                         $values[$child->getAttribute('name')] = $child->getAttribute('null') === 'null' ? null : $child->textContent;
                     }
                 }
-                $reader->next();
+                $moved = @$reader->next();
 
                 if ($columns === null) {
                     $columns = $header !== [] ? $header : array_map('strval', array_keys($values));
