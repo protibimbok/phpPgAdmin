@@ -293,3 +293,10 @@ div.null_div {
   color: color('text-strong');
   background: color('surface-bar');
 }
+
+// A column's comment under its name in the grid header (comment_for_row.twig).
+.tblcomment {
+  font-size: 70%;
+  font-weight: normal;
+  color: #009;
+}

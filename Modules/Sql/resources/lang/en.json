@@ -51,7 +51,8 @@
     "detail": "Detail:",
     "hint": "Hint:",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "explain_analyze": "Explain analyze"
   },
   "grid": {
     "begin": "Begin",
@@ -172,7 +173,8 @@
     "set_default": "Set default",
     "always_expand": "Always expand query messages",
     "start_history": "Show query history at start",
-    "enter_executes": "Execute queries on Enter and insert new line with Shift+Enter."
+    "enter_executes": "Execute queries on Enter and insert new line with Shift+Enter.",
+    "explain_analyze": "Explain analyze"
   },
   "fields": {
     "binary_do_not_edit": "Binary - do not edit",

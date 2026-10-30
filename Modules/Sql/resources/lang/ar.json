@@ -63,7 +63,8 @@
     "detail": "التفاصيل:",
     "hint": "تلميح:",
     "copy": "نسخ",
-    "copied": "تم النسخ"
+    "copied": "تم النسخ",
+    "explain_analyze": "شرح مع التحليل"
   },
   "grid": {
     "begin": "البداية",
@@ -184,7 +185,8 @@
     "set_default": "تعيين الافتراضي",
     "always_expand": "توسيع رسائل الاستعلام دائمًا",
     "start_history": "إظهار سجل الاستعلامات عند البدء",
-    "enter_executes": "تنفيذ الاستعلامات بـ Enter وإدراج سطر جديد بـ Shift+Enter."
+    "enter_executes": "تنفيذ الاستعلامات بـ Enter وإدراج سطر جديد بـ Shift+Enter.",
+    "explain_analyze": "شرح مع التحليل"
   },
   "fields": {
     "binary_do_not_edit": "ثنائي - لا تُحرِّر",

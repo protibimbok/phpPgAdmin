@@ -33,6 +33,7 @@ final class ColumnMetadata
                COALESCE(a.attnum = ANY ((SELECT i.indkey FROM pg_catalog.pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary)::int2[]), false) AS pk,
                pg_catalog.format_type(a.atttypid, a.atttypmod) AS type,
                pg_catalog.pg_get_expr(d.adbin, d.adrelid) AS "default",
+               pg_catalog.col_description(a.attrelid, a.attnum) AS comment,
                (SELECT pg_catalog.json_build_object('schema', fn.nspname, 'table', fc.relname, 'column', fa.attname)::text
                   FROM pg_catalog.pg_constraint con
                   JOIN pg_catalog.pg_class fc ON fc.oid = con.confrelid
@@ -71,6 +72,7 @@ final class ColumnMetadata
             'default' => null,
             'foreign_key' => null,
             'enum_values' => null,
+            'comment' => null,
         ], $columns);
 
         $enums = self::enumValues($conn, array_values(array_unique(array_map(static fn (Column $c): int => $c->typeOid, $columns))));
@@ -113,6 +115,7 @@ final class ColumnMetadata
             $column['type'] = (string) $attribute['type'];
             $column['default'] = $attribute['default'] === null ? null : (string) $attribute['default'];
             $column['foreign_key'] = is_string($attribute['foreign_key']) ? json_decode($attribute['foreign_key'], true) : null;
+            $column['comment'] = $attribute['comment'] === null ? null : (string) $attribute['comment'];
             $column['editable'] = !$column['is_generated'];
             $seen[$column['attnum']][] = $i;
         }

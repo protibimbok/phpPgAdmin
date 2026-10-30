@@ -23,6 +23,8 @@ export interface ResultColumn {
   enum_values: string[] | null
   /** The column a foreign key on this column points at. */
   foreign_key: ForeignKey | null
+  /** The column's comment, when it is a table's own column and has one. */
+  comment?: string | null
 }
 
 /** The column a foreign key points at. */

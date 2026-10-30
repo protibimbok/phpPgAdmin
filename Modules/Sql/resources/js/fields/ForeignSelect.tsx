@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
+import { preference } from '@/preferences'
 import { notAvailable } from '@/unbuilt'
 import { foreignValues, type ForeignKey, type ForeignValues } from '../api'
+import { LIMIT_CHARS } from '../preferences'
 
 export interface ForeignSelectProps {
   db: string
@@ -17,9 +19,6 @@ export interface ForeignSelectProps {
   /** What the control is read out as: the column's name. */
   label?: string
 }
-
-/** phpMyAdmin's LimitChars: how much of a long description an option shows. */
-const LIMIT_CHARS = 50
 
 export function useForeignValues(db: string, key: ForeignKey | null | undefined): ForeignValues | undefined {
   const { data } = useRequest(() => (key ? foreignValues(db, key) : Promise.resolve(undefined)), [db, key?.schema, key?.table, key?.column])
@@ -63,7 +62,9 @@ export function foreignOptions(data: ForeignValues | undefined) {
     </option>,
   ]
   if (!data) return options
-  const shown = (text: string | null) => (text === null ? '' : text.length > LIMIT_CHARS ? `${text.slice(0, LIMIT_CHARS)}...` : text)
+  // phpMyAdmin's LimitChars: how much of a long description an option shows.
+  const limit = preference<number>(LIMIT_CHARS)
+  const shown = (text: string | null) => (text === null ? '' : text.length > limit ? `${text.slice(0, limit)}...` : text)
   const nbsp = ' '
 
   for (const [i, { key, display }] of data.values.entries()) {

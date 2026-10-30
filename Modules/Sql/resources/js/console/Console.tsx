@@ -243,6 +243,11 @@ export default function Console() {
                   {t('console.explain')}
                 </span>
               )}
+              {isSelect(message.sql) && !/^\s*EXPLAIN\b/i.test(message.sql) && !/\b(INSERT|UPDATE|DELETE|MERGE)\b/i.test(message.sql) && (
+                <span className="action explain_analyze" onClick={() => execute(`EXPLAIN (ANALYZE, BUFFERS) ${message.sql}`, message.database)}>
+                  {t('console.explain_analyze')}
+                </span>
+              )}
               <span className="action bookmark" onClick={() => openAdd(message.sql, message.database)}>
                 {t('console.bookmark')}
               </span>

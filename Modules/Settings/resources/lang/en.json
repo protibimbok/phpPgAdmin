@@ -80,7 +80,11 @@
   },
   "main": {
     "max_rows": "Number of rows",
-    "max_rows_help": "Number of rows displayed when browsing a result set. If the result set contains more rows, \"Previous\" and \"Next\" links will be shown."
+    "max_rows_help": "Number of rows displayed when browsing a result set. If the result set contains more rows, \"Previous\" and \"Next\" links will be shown.",
+    "limit_chars": "Limit column characters",
+    "limit_chars_help": "Maximum number of characters shown in any non-numeric column on browse view.",
+    "show_comments": "Show column comments",
+    "show_comments_help": "Show the comment of a table's column under its name in the results grid."
   },
   "navigation": {
     "first_level_items": "Maximum items on first level",

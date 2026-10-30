@@ -143,6 +143,23 @@ export default function ResultMessage({ result, edit, onExplain, onRefresh, onRu
             &nbsp;]
           </>
         )}
+        {/* ANALYZE runs the statement, so only one that reads: no INSERT, UPDATE, DELETE or MERGE in a WITH. */}
+        {onExplain && isSelect && !explained && !/\b(INSERT|UPDATE|DELETE|MERGE)\b/i.test(result.sql) && (
+          <>
+            {' '}
+            [&nbsp;
+            <a
+              href="#explain-analyze"
+              onClick={(e) => {
+                e.preventDefault()
+                onExplain(`EXPLAIN (ANALYZE, BUFFERS) ${result.sql}`)
+              }}
+            >
+              {t('message.explain_analyze')}
+            </a>
+            &nbsp;]
+          </>
+        )}
         {onRefresh && (isSelect || explained) && (
           <>
             {' '}

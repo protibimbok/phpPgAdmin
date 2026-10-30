@@ -7,7 +7,7 @@ import type { Order, ResultColumn, RowsResult } from '../api'
 import DateTimeInput from '../fields/DateTimeInput'
 import { useForeignValues, foreignOptions } from '../fields/ForeignSelect'
 import { dateFieldClass, dateKind, fieldKind, fractionDigits, hasTimeZone, padFraction } from '../fields/kinds'
-import { MAX_ROWS } from '../preferences'
+import { LIMIT_CHARS, MAX_ROWS, SHOW_BROWSE_COMMENTS } from '../preferences'
 import { isBinaryType, isNumericType } from '../sql'
 import { notAvailable as browseForeign } from '@/unbuilt'
 
@@ -25,7 +25,7 @@ export const ROWS_OPTIONS = [25, 50, 100, 250, 500]
 export const defaultMaxRows = (): number => preference<number>(MAX_ROWS)
 
 /** phpMyAdmin's LimitChars: how much of a long text a cell shows in "Partial texts" mode. */
-const LIMIT_CHARS = 50
+const limitChars = (): number => preference<number>(LIMIT_CHARS)
 
 export interface SortKey {
   label: string
@@ -86,6 +86,7 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
   const [filter, setFilter] = useState('')
   const [extraOpen, setExtraOpen] = useState(false)
   const [fullTexts, setFullTexts] = useState(false)
+  const showComments = preference<boolean>(SHOW_BROWSE_COMMENTS)
   const [showBinary, setShowBinary] = useState(false)
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [editing, setEditing] = useState<Editing | null>(null)
@@ -401,6 +402,7 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                       ) : (
                         column.name
                       )}
+                      {showComments && column.comment && <ColumnComment comment={column.comment} />}
                     </th>
                   )
                 })}
@@ -518,6 +520,20 @@ interface CellProps {
  * datetimefield (never wrapped), enum, relation for a foreign key, hex for a binary, text with
  * pre_wrap for the rest of the strings and text-nowrap for numbers.
  */
+/** phpMyAdmin's comment_for_row.twig: a column's comment under its name, cut at LimitChars. */
+function ColumnComment({ comment }: { comment: string }) {
+  const limit = limitChars()
+
+  return (
+    <>
+      <br />
+      <span className="tblcomment" title={comment}>
+        {comment.length > limit ? `${comment.slice(0, limit)}…` : comment}
+      </span>
+    </>
+  )
+}
+
 function cellClasses(column: ResultColumn, numeric: boolean, fullTexts: boolean): string {
   const kind = fieldKind(column)
   const classes: string[] = []
@@ -560,8 +576,9 @@ function Cell({ value, column, numeric, fullTexts, showBinary, onDoubleClick }: 
     )
   }
 
-  const truncated = !fullTexts && value.length > LIMIT_CHARS
-  const shown = truncated ? `${value.slice(0, LIMIT_CHARS)}...` : value
+  const limit = limitChars()
+  const truncated = !fullTexts && value.length > limit
+  const shown = truncated ? `${value.slice(0, limit)}...` : value
 
   return (
     <td
