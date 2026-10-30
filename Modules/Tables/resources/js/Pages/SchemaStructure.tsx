@@ -15,7 +15,8 @@ import { notAvailable } from '@/unbuilt'
 import { formatSize } from '@/format'
 import { urls, type RelationKind } from '@/level'
 import { qualifiedName } from '@sql/js/sql'
-import { countRows, dropTable, materializedViews, resolveSchema, tables, truncateTable, views, type Table, type View } from '../api'
+import { copyTables, countRows, dropTable, materializedViews, resolveSchema, tableOptions, tables, truncateTable, updateTable, views, type Table, type View } from '../api'
+import BulkTableDialog, { copiedPrefix, replacedPrefix, type BulkAction, type BulkValues } from '../BulkTableDialog'
 
 interface Row {
   oid: number
@@ -76,6 +77,8 @@ export default function SchemaStructure() {
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [confirm, setConfirm] = useState<{ sql: string[]; warning: string; run: () => Promise<void> } | null>(null)
   const [showCreate, setShowCreate] = useState<string | null>(null)
+  const [bulk, setBulk] = useState<{ action: BulkAction; rows: Row[] } | null>(null)
+  const [bulkSchemas, setBulkSchemas] = useState<string[]>([])
   const allRows = data?.rows ?? []
   const filtered = useMemo(() => {
     const needle = filter.trim().toLowerCase()
@@ -187,6 +190,45 @@ export default function SchemaStructure() {
     )
   }
 
+  /** phpMyAdmin's Copy table and Prefix actions: their form in the bulk action modal first. */
+  function askBulk(action: BulkAction, selected: Row[]) {
+    // Only tables are copied; the prefix actions rename views and materialized views too.
+    const targets = action === 'copy_tbl' || action === 'copy_tbl_change_prefix' ? selected.filter((row) => row.kind === 'table') : selected
+    if (targets.length === 0) return notify(t('schema_structure.none_selected'), 'error')
+    if (action === 'copy_tbl') {
+      setBulkSchemas([schema])
+      tableOptions(db, scid).then(
+        (options) => setBulkSchemas(options.schemas),
+        () => undefined,
+      )
+    }
+    setBulk({ action, rows: targets })
+  }
+
+  async function runBulk(action: BulkAction, values: BulkValues) {
+    const targets = bulk?.rows ?? []
+    setBulk(null)
+    const rename = (row: Row, name: string) =>
+      row.kind === 'table' ? updateTable(db, scid, row.oid, { name }) : row.kind === 'view' ? views(db, scid).update(row.oid, { name }) : materializedViews(db, scid).update(row.oid, { name })
+    try {
+      if (action === 'copy_tbl') {
+        await copyTables(db, scid, targets.map((row) => ({ oid: row.oid, name: row.name })), { schema: values.schema, what: values.what, drop_if_exists: values.drop_if_exists, add_constraints: values.add_constraints })
+      } else if (action === 'copy_tbl_change_prefix') {
+        await copyTables(db, scid, targets.map((row) => ({ oid: row.oid, name: copiedPrefix(row.name, values.from, values.to) })), { what: 'data', add_constraints: true })
+      } else {
+        for (const row of targets) {
+          const name = action === 'add_prefix_tbl' ? values.prefix + row.name : replacedPrefix(row.name, values.from, values.to)
+          if (name !== row.name) await rename(row, name)
+        }
+      }
+      notifySuccess(tApp('query_executed'))
+    } catch (e) {
+      notifyError(errorMessage(e))
+    } finally {
+      changed()
+    }
+  }
+
   function withSelected(action: string) {
     const selected = rows.filter((row) => checked.has(keyOf(row)))
     const names = selected.filter((row) => row.kind === 'table').map((row) => qualifiedName(schema, row.name))
@@ -204,6 +246,11 @@ export default function SchemaStructure() {
         return askDrop(selected)
       case 'analyze_tbl':
         return names.length === 0 ? notify(t('schema_structure.none_selected'), 'error') : navigate(`${urls.schema(db, schema)}/sql?${new URLSearchParams({ sql: `ANALYZE ${names.join(', ')}`, run: '1' })}`)
+      case 'copy_tbl':
+      case 'add_prefix_tbl':
+      case 'replace_prefix_tbl':
+      case 'copy_tbl_change_prefix':
+        return askBulk(action, selected)
       case 'vacuum_tbl':
         return names.length === 0 ? notify(t('schema_structure.none_selected'), 'error') : navigate(`${urls.schema(db, schema)}/sql?${new URLSearchParams({ sql: `VACUUM ${names.join(', ')}`, run: '1' })}`)
       default:
@@ -358,6 +405,7 @@ export default function SchemaStructure() {
       <label htmlFor="tablesForm_checkall">{tApp('check_all')}</label>
       <select name="submit_mult" className="my-0" style={{ marginInline: '3em' }} aria-label={tApp('with_selected')} value="" onChange={(e) => withSelected(e.target.value)}>
         <option value="">{tApp('with_selected')}</option>
+        <option value="copy_tbl">{t('schema_structure.with_selected.copy')}</option>
         <option value="show_create">{t('schema_structure.with_selected.show_create')}</option>
         <option value="export">{t('schema_structure.with_selected.export')}</option>
         <option value="print">{t('schema_structure.with_selected.print')}</option>
@@ -365,6 +413,11 @@ export default function SchemaStructure() {
         <option value="drop_tbl">{t('schema_structure.with_selected.drop')}</option>
         <option value="analyze_tbl">{t('schema_structure.with_selected.analyze')}</option>
         <option value="vacuum_tbl">{t('schema_structure.with_selected.vacuum')}</option>
+        <optgroup label={t('schema_structure.with_selected.prefix')}>
+          <option value="add_prefix_tbl">{t('schema_structure.with_selected.add_prefix')}</option>
+          <option value="replace_prefix_tbl">{t('schema_structure.with_selected.replace_prefix')}</option>
+          <option value="copy_tbl_change_prefix">{t('schema_structure.with_selected.copy_prefix')}</option>
+        </optgroup>
       </select>
     </div>
     </form>
@@ -383,6 +436,7 @@ export default function SchemaStructure() {
     <CreateTableCard />
 
     <ConfirmQuery show={confirm !== null} sql={confirm?.sql ?? ''} warning={confirm?.warning} onClose={() => setConfirm(null)} onConfirm={() => { const pending = confirm; setConfirm(null); if (pending) void pending.run() }} />
+    <BulkTableDialog action={bulk?.action ?? null} schemas={bulkSchemas} schema={schema} onClose={() => setBulk(null)} onContinue={(action, values) => void runBulk(action, values)} />
     <Modal show={showCreate !== null} title={t('schema_structure.show_create_title')} size="lg" onClose={() => setShowCreate(null)}>
       {showCreate === '' ? tApp('loading') : <SqlView sql={showCreate ?? ''} />}
     </Modal>

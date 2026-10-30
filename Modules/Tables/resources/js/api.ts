@@ -518,6 +518,14 @@ export function copyTable(db: string, scid: number, tid: number, options: CopyTa
   return api.post<{ sql: string }>(`${collectionUrl(db, 'schemas', scid, 'tables')}/${tid}/copy${preview ? '?preview=1' : ''}`, options).then((r) => r.sql)
 }
 
+/**
+ * Copy several tables of the schema in one transaction, each under the name given; foreign keys
+ * between them point at the copies. With preview, only the statements come back.
+ */
+export function copyTables(db: string, scid: number, list: { oid: number; name: string }[], options: Omit<CopyTableOptions, 'name'>, preview = false): Promise<string> {
+  return api.post<{ sql: string }>(`${collectionUrl(db, 'schemas', scid, 'tables')}/copy${preview ? '?preview=1' : ''}`, { ...options, tables: list }).then((r) => r.sql)
+}
+
 /** The structure page's constraint rows with the properties the editors need. */
 export interface ForeignKeyRow extends Constraint {
   confupdtype: string

@@ -389,7 +389,12 @@
       "empty": "Empty",
       "drop": "Drop",
       "analyze": "Analyze table",
-      "vacuum": "Vacuum table"
+      "vacuum": "Vacuum table",
+      "copy": "Copy table",
+      "prefix": "Prefix",
+      "add_prefix": "Add prefix to table",
+      "replace_prefix": "Replace table prefix",
+      "copy_prefix": "Copy table with prefix"
     },
     "view_dropped": "View {{name}} has been dropped.",
     "dropped_one": "{{count}} table has been dropped.",
@@ -397,7 +402,18 @@
     "emptied_one": "{{count}} table has been emptied.",
     "emptied_other": "{{count}} tables have been emptied.",
     "none_selected": "No table selected.",
-    "show_create_title": "CREATE statements"
+    "show_create_title": "CREATE statements",
+    "bulk": {
+      "copy_tbl_title": "Copy tables to",
+      "add_prefix_tbl_title": "Add table prefix",
+      "replace_prefix_tbl_title": "Replace table with prefix",
+      "copy_tbl_change_prefix_title": "Copy table with prefix",
+      "schema": "Schema:",
+      "options": "Options:",
+      "add_prefix": "Add prefix",
+      "from": "From",
+      "to": "To"
+    }
   },
   "triggers": {
     "tab": "Triggers",

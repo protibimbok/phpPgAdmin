@@ -108,6 +108,17 @@ Route::middleware(Authenticate::class)->group(function () use ($context, $flag):
         'sql' => (new TableController())->resetStatistics($context($request, $args), (int) $args['tid']),
     ])->setName('tables.reset_stats');
 
+    // Several tables at once, in one transaction; ?preview=1 returns the statements without running them.
+    Route::post('/databases/{db}/schemas/{scid:number}/tables/copy', function (ServerRequestInterface $request, array $args) use ($context): array {
+        $ctx = $context($request, $args);
+        $sql = (new TableController())->copyManySql($ctx, $ctx->input());
+        if (!$ctx->flag('preview') && NodeController::hasStatements($sql)) {
+            $ctx->conn->queryMulti($sql);
+        }
+
+        return ['ok' => true, 'sql' => $sql];
+    })->setName('tables.copy_many');
+
     // ?preview=1 returns the statements without running them.
     Route::post('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/copy', function (ServerRequestInterface $request, array $args) use ($context): array {
         $ctx = $context($request, $args);

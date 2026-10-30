@@ -81,6 +81,7 @@ Tick rows (or **Check all**) and pick an action from **With selected:**.
 
 | Action | What it does |
 | --- | --- |
+| **Copy table** | Asks for the target **Schema** of this database and the options of a table's [Copy table to](/table/operations#copying-a-table): **Structure and data**, **Structure only** or **Data only**, **Add DROP TABLE**, **Add constraints** (foreign keys). Each selected table is copied under its own name. Views are skipped. |
 | **Show create** | Opens a dialog with the `CREATE` statements of the selected tables, views and materialized views, the same DDL as each one's [Show create](/table/operations#show-create) tab. |
 | **Export** | Opens the schema's [Export](/tools/export) tab with those relations pre-selected. |
 | **Print** | Prints the page (the browser's print dialog; the action columns are hidden in print). |
@@ -88,11 +89,14 @@ Tick rows (or **Check all**) and pick an action from **With selected:**.
 | **Drop** | One confirmation listing every `DROP` statement, then runs them one by one. |
 | **Analyze table** | Opens the SQL tab and runs `ANALYZE` on the selected tables. |
 | **Vacuum table** | Opens the SQL tab and runs `VACUUM` on the selected tables. |
+| **Add prefix to table** | Asks for a prefix and renames each selected relation to the prefix followed by its name. |
+| **Replace table prefix** | Asks for **From** and **To**. A name that starts with **From** gets **To** in its place; the other names stay as they are. |
+| **Copy table with prefix** | Asks for **From** and **To** and copies each selected table, structure and data with its foreign keys, to **To** followed by the name with as many leading characters cut as **From** has, as phpMyAdmin does (the name need not start with **From**). |
 
 With nothing ticked, each action answers *No table selected.*
 
 ::: info How the bulk actions run
-**Empty** and **Drop** run one statement at a time, not in a single transaction. If the third of five drops fails, the first two are already gone and the error is shown. **Analyze table** and **Vacuum table** only include tables: views and materialized views you ticked are left out of the statement.
+**Empty**, **Drop**, **Copy table** and the prefix actions run one table at a time, not in a single transaction. If the third of five drops fails, the first two are already gone and the error is shown. **Analyze table** and **Vacuum table** only include tables: views and materialized views you ticked are left out of the statement.
 :::
 
 The **Print** link under the list prints the page as well.
@@ -117,4 +121,5 @@ Under a schema, the tree groups objects in containers: **Tables**, **Statistics*
 | **Engine**, **Collation**, **Overhead** columns | Not shown: PostgreSQL has no per-table engine (all tables use the `heap` access method), collation is per column, and dead space is a [VACUUM](/tools/maintenance) matter. |
 | **Rows** exact for MyISAM, estimate for InnoDB | Always an estimate until you click it. |
 | With selected → **Optimize**, **Repair**, **Check** | **Analyze table** and **Vacuum table**; the others have no PostgreSQL counterpart. |
-| With selected → **Copy table with prefix**, **Replace table prefix** | Not available. Rename tables one at a time on [Operations](/table/operations#table-options). |
+| With selected → **Copy table** to another database | Copies to another schema of the same database: PostgreSQL cannot copy a table between databases in one statement. Use [Export](/tools/export) and [Import](/tools/import) for that. |
+| With selected → **Adjust privileges**, **Add AUTO INCREMENT value** in the copy dialog | Not offered. The copy keeps its own grants (none but the owner's); a SERIAL column's new sequence is moved past the copied rows. |

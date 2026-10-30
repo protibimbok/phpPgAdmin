@@ -161,6 +161,58 @@ final class TableController extends RelationController
     }
 
     /**
+     * The copy of several tables of the schema, phpMyAdmin's With selected → Copy table and Copy
+     * table with prefix: "tables" lists {oid, name} (the name of the copy), the other options are
+     * copySql's. The tables are copied first and their foreign keys added after, so a key between
+     * two of the copied tables points at the copy of the table it referenced, whatever the order.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function copyManySql(NodeContext $ctx, array $data): string
+    {
+        $list = is_array($data['tables'] ?? null) ? $data['tables'] : [];
+        if ($list === []) {
+            throw new BadRequestException('Could not find the required parameter (tables).');
+        }
+        $what = (string) ($data['what'] ?? 'data');
+        $copies = [];
+        foreach ($list as $entry) {
+            $oid = (int) (is_array($entry) ? ($entry['oid'] ?? 0) : 0);
+            $source = parent::properties($ctx, $oid);
+            $name = trim((string) ($entry['name'] ?? '')) ?: (string) $source['name'];
+            $copies[$oid] = ['source' => $source, 'name' => $name];
+        }
+        $schema = trim((string) ($data['schema'] ?? ''));
+
+        $parts = [];
+        foreach ($copies as $oid => $copy) {
+            $parts[] = $this->copySql($ctx, $oid, ['name' => $copy['name'], 'schema' => $schema, 'add_constraints' => false] + $data);
+        }
+        if (!empty($data['add_constraints']) && $what !== 'dataonly') {
+            // Where each copied table went, by its source schema and name.
+            $moved = [];
+            foreach ($copies as $copy) {
+                $moved[$copy['source']['schema'] . "\0" . $copy['source']['name']] = [$schema ?: (string) $copy['source']['schema'], $copy['name']];
+            }
+            foreach ($copies as $oid => $copy) {
+                foreach (Constraints::foreignKeys($ctx, $oid) as $fk) {
+                    $target = $moved[$fk['remote_schema'] . "\0" . $fk['remote_table']] ?? null;
+                    if ($target !== null) {
+                        [$fk['remote_schema'], $fk['remote_table']] = $target;
+                        foreach ($fk['columns'] as &$column) {
+                            $column['references_table_name'] = $target[0] . '.' . $target[1];
+                        }
+                        unset($column);
+                    }
+                    $parts[] = ConstraintSql::createSql($ctx, 'foreign_key', $schema ?: (string) $copy['source']['schema'], $copy['name'], [...$fk, 'name' => null, 'comment' => null, 'autoindex' => false]);
+                }
+            }
+        }
+
+        return Ddl::assemble($parts);
+    }
+
+    /**
      * The columns whose default draws on a sequence the table owns: SERIAL columns.
      *
      * @return list<array{attname: string, typname: string}>

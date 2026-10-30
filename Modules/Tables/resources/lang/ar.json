@@ -389,7 +389,12 @@
       "empty": "إفراغ",
       "drop": "حذف",
       "analyze": "تحليل الجدول",
-      "vacuum": "تفريغ الجدول"
+      "vacuum": "تفريغ الجدول",
+      "copy": "نسخ الجدول",
+      "prefix": "البادئة",
+      "add_prefix": "إضافة بادئة للجدول",
+      "replace_prefix": "استبدال بادئة الجدول",
+      "copy_prefix": "نسخ الجدول مع بادئة"
     },
     "view_dropped": "تم حذف العرض {{name}}.",
     "dropped_zero": "لم يُحذف أي جدول.",
@@ -405,7 +410,18 @@
     "emptied_many": "تم إفراغ {{count}} جدولًا.",
     "emptied_other": "تم إفراغ {{count}} جدول.",
     "none_selected": "لم يتم تحديد أي جدول.",
-    "show_create_title": "عبارات CREATE"
+    "show_create_title": "عبارات CREATE",
+    "bulk": {
+      "copy_tbl_title": "نسخ الجداول إلى",
+      "add_prefix_tbl_title": "إضافة بادئة للجدول",
+      "replace_prefix_tbl_title": "استبدال الجدول ببادئة",
+      "copy_tbl_change_prefix_title": "نسخ الجدول مع بادئة",
+      "schema": "المخطط:",
+      "options": "الخيارات:",
+      "add_prefix": "إضافة بادئة",
+      "from": "من",
+      "to": "إلى"
+    }
   },
   "triggers": {
     "tab": "المشغّلات",
