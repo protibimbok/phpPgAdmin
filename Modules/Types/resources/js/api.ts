@@ -2,7 +2,7 @@ import { api } from '@/api/request'
 import { collection, collectionUrl, resolve, type TreeNode } from '@/nodes/client'
 
 /** What the editor creates: pgAdmin's typtype codes plus the domain node. */
-export type TypeKind = 'c' | 'e' | 'r' | 'd'
+export type TypeKind = 'c' | 'e' | 'r' | 'd' | 'b' | 'p'
 
 /** A composite member as pgAdmin's dialog lists it. */
 export interface Member {
@@ -46,6 +46,24 @@ export interface PgType {
   rngmultirangetype?: string | null
   typinput?: string
   typoutput?: string
+  /** A base type's settings, as pgAdmin's properties.sql names them. */
+  typreceive?: string | null
+  typsend?: string | null
+  typmodin?: string | null
+  typmodout?: string | null
+  typanalyze?: string | null
+  typsubscript?: string | null
+  typlen?: number
+  typbyval?: boolean
+  /** 'c', 's', 'i' or 'd' */
+  typalign?: string
+  /** 'p', 'e', 'm' or 'x' */
+  typstorage?: string
+  typcategory?: string
+  typispreferred?: boolean
+  typdefault?: string | null
+  element?: string | null
+  typdelim?: string
   typacl?: unknown[]
   seclabels?: { provider: string; label: string }[]
 }
@@ -116,6 +134,12 @@ export interface TypeOptions {
   opclasses: string[]
   roles: string[]
   schemas: string[]
+  /** The functions a base type's input, output, receive, send and analyze may be (CREATE TYPE … INPUT = …). */
+  functions: string[]
+  typmodin: string[]
+  typmodout: string[]
+  /** server_version_num: SUBSCRIPT needs 14. */
+  version: number
 }
 
 export function typeOptions(db: string, scid: number, subtype = ''): Promise<TypeOptions> {
@@ -127,7 +151,7 @@ export function typeOptions(db: string, scid: number, subtype = ''): Promise<Typ
 /** What CREATE TYPE and ALTER TYPE take, by pgAdmin's field names (types/create.sql, update.sql). */
 export interface TypeData {
   name?: string
-  typtype?: 'c' | 'e' | 'r'
+  typtype?: 'c' | 'e' | 'r' | 'b' | 'p'
   typeowner?: string
   description?: string
   composite?: Member[]
@@ -138,6 +162,25 @@ export interface TypeData {
   rngcanonical?: string
   rngsubdiff?: string
   rngmultirangetype?: string
+  typinput?: string
+  typoutput?: string
+  typreceive?: string
+  typsend?: string
+  typmodin?: string
+  typmodout?: string
+  typanalyze?: string
+  typsubscript?: string
+  typlen?: string
+  typbyval?: boolean
+  typalign?: string
+  typstorage?: string
+  typlike?: string
+  typcategory?: string
+  typispreferred?: boolean
+  typdefault?: string
+  element?: string
+  typdelim?: string
+  is_collatable?: boolean
 }
 
 /** What CREATE DOMAIN and ALTER DOMAIN take (domains/create.sql, update.sql). */

@@ -32,14 +32,81 @@ interface Form {
   notNull: boolean
   collation: string
   constraints: DomainConstraint[]
+  base: BaseForm
 }
 
-const EMPTY: Form = { kind: 'c', name: '', owner: '', comment: '', members: [{ member_name: '', type: 'text', tlength: null, precision: null, collation: '' }], labels: [{ label: '' }], subtype: '', opclass: '', rangeCollation: '', canonical: '', subdiff: '', multirange: '', baseType: 'text', length: '', precision: '', defaultValue: '', notNull: false, collation: '', constraints: [] }
+/** A base type's settings: CREATE TYPE name (INPUT = …, OUTPUT = …, …). */
+interface BaseForm {
+  input: string
+  output: string
+  receive: string
+  send: string
+  typmodIn: string
+  typmodOut: string
+  analyze: string
+  subscript: string
+  internalLength: string
+  byValue: boolean
+  alignment: string
+  storage: string
+  like: string
+  category: string
+  preferred: boolean
+  defaultValue: string
+  element: string
+  delimiter: string
+  collatable: boolean
+}
+
+const EMPTY_BASE: BaseForm = { input: '', output: '', receive: '', send: '', typmodIn: '', typmodOut: '', analyze: '', subscript: '', internalLength: '', byValue: false, alignment: '', storage: '', like: '', category: '', preferred: false, defaultValue: '', element: '', delimiter: '', collatable: false }
+
+const EMPTY: Form = { kind: 'c', name: '', owner: '', comment: '', members: [{ member_name: '', type: 'text', tlength: null, precision: null, collation: '' }], labels: [{ label: '' }], subtype: '', opclass: '', rangeCollation: '', canonical: '', subdiff: '', multirange: '', baseType: 'text', length: '', precision: '', defaultValue: '', notNull: false, collation: '', constraints: [], base: EMPTY_BASE }
+
+const KINDS = ['c', 'e', 'r', 'd', 'b', 'p'] as const
+
+/** pgAdmin's alignment, storage and category choices for a base type. */
+const ALIGNMENTS = [
+  { value: 'c', label: 'char' },
+  { value: 's', label: 'int2' },
+  { value: 'i', label: 'int4' },
+  { value: 'd', label: 'double' },
+]
+const STORAGES = [
+  { value: 'p', label: 'PLAIN' },
+  { value: 'e', label: 'EXTERNAL' },
+  { value: 'm', label: 'MAIN' },
+  { value: 'x', label: 'EXTENDED' },
+]
+const CATEGORIES = ['A', 'B', 'C', 'D', 'E', 'G', 'I', 'N', 'P', 'S', 'T', 'U', 'V', 'X'] as const
+
+function fromBase(type: PgType): BaseForm {
+  return {
+    input: type.typinput ?? '',
+    output: type.typoutput ?? '',
+    receive: type.typreceive ?? '',
+    send: type.typsend ?? '',
+    typmodIn: type.typmodin ?? '',
+    typmodOut: type.typmodout ?? '',
+    analyze: type.typanalyze ?? '',
+    subscript: type.typsubscript ?? '',
+    internalLength: type.typlen === undefined || type.typlen === null ? '' : String(type.typlen),
+    byValue: Boolean(type.typbyval),
+    alignment: type.typalign ?? '',
+    storage: type.typstorage ?? '',
+    like: '',
+    category: type.typcategory ?? '',
+    preferred: Boolean(type.typispreferred),
+    defaultValue: type.typdefault ?? '',
+    element: type.element ?? '',
+    delimiter: type.typdelim ?? '',
+    collatable: type.is_collatable,
+  }
+}
 
 function fromType(type: PgType): Form {
   return {
     ...EMPTY,
-    kind: (['c', 'e', 'r'].includes(type.typtype) ? type.typtype : 'c') as TypeKind,
+    kind: (['c', 'e', 'r', 'b', 'p'].includes(type.typtype) ? type.typtype : 'c') as TypeKind,
     name: type.name,
     owner: type.typeowner,
     comment: type.description ?? '',
@@ -51,6 +118,7 @@ function fromType(type: PgType): Form {
     canonical: type.rngcanonical ?? '',
     subdiff: type.rngsubdiff ?? '',
     multirange: type.rngmultirangetype ?? '',
+    base: type.typtype === 'b' ? fromBase(type) : EMPTY_BASE,
   }
 }
 
@@ -77,8 +145,10 @@ function fromDomain(domain: Domain): Form {
  * pgAdmin's dialog: the members of a composite type (name, type, length, scale, collation),
  * the labels of an enum, a range's subtype, operator class, collation, canonical and subtype
  * diff functions and multirange name, a domain's base type, length, scale, default, NOT NULL,
- * collation and check constraints. Go creates or alters the type; Preview SQL shows the
- * statements.
+ * collation and check constraints, a base type's functions and storage settings (pgAdmin's
+ * "External" kind; once created only the receive, send, typmod, analyze, subscript functions and
+ * the storage change), and a shell type, the name alone. Go creates or alters the type; Preview
+ * SQL shows the statements.
  */
 export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
   const { t } = useTranslation('types')
@@ -111,7 +181,7 @@ export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
     else if (data.domain) setForm(fromDomain(data.domain))
     else {
       const requested = search.get('kind')
-      setForm({ ...EMPTY, kind: (['c', 'e', 'r', 'd'].includes(requested ?? '') ? requested : 'c') as TypeKind })
+      setForm({ ...EMPTY, kind: ((KINDS as readonly string[]).includes(requested ?? '') ? requested : 'c') as TypeKind })
     }
   }, [data, search])
 
@@ -143,6 +213,31 @@ export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
     const base: TypeData = { name: form.name, typeowner: form.owner, description: form.comment }
     if (form.kind === 'c') return { ...base, typtype: 'c', composite: form.members.filter((m) => m.member_name.trim() !== '') }
     if (form.kind === 'e') return { ...base, typtype: 'e', enum: form.labels.filter((l) => l.label.trim() !== '') }
+    if (form.kind === 'p') return { ...base, typtype: 'p' }
+    if (form.kind === 'b') {
+      const b = form.base
+      // Once created, only what ALTER TYPE … SET (…) changes is sent.
+      const alterable = { typreceive: b.receive, typsend: b.send, typmodin: b.typmodIn, typmodout: b.typmodOut, typanalyze: b.analyze, typstorage: b.storage, ...(options.version >= 140000 ? { typsubscript: b.subscript } : {}) }
+      if (editing) return { ...base, typtype: 'b', ...alterable }
+
+      return {
+        ...base,
+        typtype: 'b',
+        typinput: b.input,
+        typoutput: b.output,
+        ...alterable,
+        typlen: b.internalLength,
+        typbyval: b.byValue,
+        typalign: b.alignment,
+        typlike: b.like,
+        typcategory: b.category,
+        typispreferred: b.preferred,
+        typdefault: b.defaultValue,
+        element: b.element,
+        typdelim: b.delimiter,
+        is_collatable: b.collatable,
+      }
+    }
 
     return { ...base, typtype: 'r', typname: form.subtype, opcname: form.opclass, collname: form.rangeCollation, rngcanonical: form.canonical, rngsubdiff: form.subdiff, rngmultirangetype: form.multirange }
   }
@@ -191,6 +286,16 @@ export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
     )
   }
 
+  const setBase = <K extends keyof BaseForm>(key: K, value: BaseForm[K]) => setForm((f) => ({ ...f, base: { ...f.base, [key]: value } }))
+  /** A base type's function field: typed or picked from the functions of the database. */
+  const functionField = (key: 'input' | 'output' | 'receive' | 'send' | 'typmodIn' | 'typmodOut' | 'analyze' | 'subscript', label: string, list: string, required = false, locked = false) => (
+    <tr key={key}>
+      <td>{label}</td>
+      <td>
+        <input type="text" size={40} name={`item_base_${key}`} list={list} value={form.base[key]} onChange={(e) => setBase(key, e.target.value)} required={required} disabled={locked} />
+      </td>
+    </tr>
+  )
   const updateMember = (index: number, patch: Partial<Member>) => set('members', form.members.map((m, i) => (i === index ? { ...m, ...patch } : m)))
   const updateConstraint = (index: number, patch: Partial<DomainConstraint>) => set('constraints', form.constraints.map((c, i) => (i === index ? { ...c, ...patch } : c)))
   const typeName = (type: { name: string; schema: string }) => (type.schema === 'pg_catalog' || type.schema === 'public' ? type.name : `${type.schema}.${type.name}`)
@@ -219,7 +324,7 @@ export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
                       <div className="fw-bold">{t(`kinds.${form.kind}`)}</div>
                     ) : (
                       <select name="item_kind" value={form.kind} onChange={(e) => set('kind', e.target.value as TypeKind)}>
-                        {(['c', 'e', 'r', 'd'] as const).map((kind) => (
+                        {KINDS.map((kind) => (
                           <option key={kind} value={kind}>
                             {t(`kinds.${kind}`)}
                           </option>
@@ -383,6 +488,119 @@ export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
                   </>
                 )}
 
+                {form.kind === 'b' && (
+                  <>
+                    {functionField('input', t('editor.base.input'), 'type_functions', true, editing)}
+                    {functionField('output', t('editor.base.output'), 'type_functions', true, editing)}
+                    {functionField('receive', t('editor.base.receive'), 'type_functions')}
+                    {functionField('send', t('editor.base.send'), 'type_functions')}
+                    {functionField('typmodIn', t('editor.base.typmod_in'), 'type_typmodin')}
+                    {functionField('typmodOut', t('editor.base.typmod_out'), 'type_typmodout')}
+                    {functionField('analyze', t('editor.base.analyze'), 'type_functions')}
+                    {options.version >= 140000 && functionField('subscript', t('editor.base.subscript'), 'type_functions')}
+                    <tr>
+                      <td>{t('editor.base.internal_length')}</td>
+                      <td>
+                        <input type="number" min={-2} name="item_base_internallength" value={form.base.internalLength} onChange={(e) => setBase('internalLength', e.target.value)} disabled={editing} placeholder="-1" />
+                        <div className="form-text">{t('editor.base.internal_length_hint')}</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.base.by_value')}</td>
+                      <td>
+                        <input type="checkbox" name="item_base_byvalue" checked={form.base.byValue} onChange={(e) => setBase('byValue', e.target.checked)} disabled={editing} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.base.alignment')}</td>
+                      <td>
+                        <select name="item_base_alignment" value={form.base.alignment} onChange={(e) => setBase('alignment', e.target.value)} disabled={editing}>
+                          <option value="" />
+                          {ALIGNMENTS.map((a) => (
+                            <option key={a.value} value={a.value}>
+                              {a.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.base.storage')}</td>
+                      <td>
+                        <select name="item_base_storage" value={form.base.storage} onChange={(e) => setBase('storage', e.target.value)}>
+                          <option value="" />
+                          {STORAGES.map((s) => (
+                            <option key={s.value} value={s.value}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                    {!editing && (
+                      <tr>
+                        <td>{t('editor.base.like')}</td>
+                        <td>
+                          <input type="text" name="item_base_like" list="type_names" value={form.base.like} onChange={(e) => setBase('like', e.target.value)} />
+                          <div className="form-text">{t('editor.base.like_hint')}</div>
+                        </td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td>{t('editor.base.category')}</td>
+                      <td>
+                        <select name="item_base_category" value={form.base.category} onChange={(e) => setBase('category', e.target.value)} disabled={editing}>
+                          <option value="" />
+                          {[...new Set([...CATEGORIES, form.base.category])].filter(Boolean).map((c) => (
+                            <option key={c} value={c}>
+                              {c} – {t(`editor.categories.${c}`, { defaultValue: c })}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.base.preferred')}</td>
+                      <td>
+                        <input type="checkbox" name="item_base_preferred" checked={form.base.preferred} onChange={(e) => setBase('preferred', e.target.checked)} disabled={editing} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.default')}</td>
+                      <td>
+                        <input type="text" name="item_base_default" value={form.base.defaultValue} onChange={(e) => setBase('defaultValue', e.target.value)} disabled={editing} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.base.element')}</td>
+                      <td>
+                        <input type="text" name="item_base_element" list="type_names" value={form.base.element} onChange={(e) => setBase('element', e.target.value)} disabled={editing} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.base.delimiter')}</td>
+                      <td>
+                        <input type="text" name="item_base_delimiter" maxLength={1} size={2} value={form.base.delimiter} onChange={(e) => setBase('delimiter', e.target.value)} disabled={editing} placeholder="," />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.base.collatable')}</td>
+                      <td>
+                        <input type="checkbox" name="item_base_collatable" checked={form.base.collatable} onChange={(e) => setBase('collatable', e.target.checked)} disabled={editing} />
+                      </td>
+                    </tr>
+                  </>
+                )}
+
+                {form.kind === 'p' && (
+                  <tr>
+                    <td />
+                    <td>
+                      <div className="form-text">{t('editor.shell_hint')}</div>
+                    </td>
+                  </tr>
+                )}
+
                 {form.kind === 'd' && (
                   <>
                     <tr>
@@ -469,6 +687,25 @@ export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
                 <option key={`${type.schema}.${type.name}`} value={typeName(type)} />
               ))}
             </datalist>
+            {form.kind === 'b' && (
+              <>
+                <datalist id="type_functions">
+                  {options.functions.map((f) => (
+                    <option key={f} value={f} />
+                  ))}
+                </datalist>
+                <datalist id="type_typmodin">
+                  {options.typmodin.map((f) => (
+                    <option key={f} value={f} />
+                  ))}
+                </datalist>
+                <datalist id="type_typmodout">
+                  {options.typmodout.map((f) => (
+                    <option key={f} value={f} />
+                  ))}
+                </datalist>
+              </>
+            )}
             <datalist id="collation_names">
               {options.collations.map((c) => (
                 <option key={c} value={c} />

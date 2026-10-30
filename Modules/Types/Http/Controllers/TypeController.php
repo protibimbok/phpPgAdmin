@@ -34,6 +34,18 @@ final class TypeController extends NodeController
 
     private const array ALIGN = ['c' => 'char', 's' => 'int2', 'i' => 'int4', 'd' => 'double'];
 
+    /** A base type's functions ALTER TYPE … SET (…) can change. */
+    private const array ALTERABLE_FUNCTIONS = ['typreceive', 'typsend', 'typmodin', 'typmodout', 'typanalyze', 'typsubscript'];
+
+    /** A base type's functions, as CREATE TYPE names them. */
+    private const array BASE_FUNCTIONS = ['typinput', 'typoutput', ...self::ALTERABLE_FUNCTIONS];
+
+    /** A function name the templates write as it is: name or schema.name, plain or quoted. */
+    private const string FUNCTION_NAME = '/^(?:"(?:[^"]|"")+"|[\p{L}_][\p{L}\p{N}_$]*)(?:\.(?:"(?:[^"]|"")+"|[\p{L}_][\p{L}\p{N}_$]*))?$/u';
+
+    /** A type name the templates write as it is (ELEMENT, LIKE): identifiers, dots, spaces, quotes, brackets. */
+    private const string TYPE_NAME = '/^[\p{L}\p{N}_$ ."\[\]]+$/u';
+
     /** @return array<string, mixed> */
     private function vars(NodeContext $ctx, ?int $oid = null): array
     {
@@ -152,6 +164,10 @@ final class TypeController extends NodeController
             'opclasses' => $subtype === '' ? [] : array_column($ctx->conn->rows($ctx->render('get_subtypes.sql', ['subtype_opclass' => true, 'data' => ['typname' => $subtype]])), 'opcname'),
             'roles' => Catalog::roles($ctx->conn),
             'schemas' => Catalog::schemas($ctx->conn),
+            'functions' => array_column($ctx->conn->rows($ctx->render('get_external_functions.sql', ['extfunc' => true])), 'func'),
+            'typmodin' => array_column($ctx->conn->rows($ctx->render('get_external_functions.sql', ['typemodin' => true])), 'func'),
+            'typmodout' => array_column($ctx->conn->rows($ctx->render('get_external_functions.sql', ['typemodout' => true])), 'func'),
+            'version' => $ctx->version(),
         ];
     }
 
@@ -200,6 +216,9 @@ final class TypeController extends NodeController
             if (array_key_exists($key, $data) && (string) ($data[$key] ?? '') === (string) ($old[$key] ?? '')) {
                 unset($data[$key]);
             }
+        }
+        if (($old['typtype'] ?? '') === 'b') {
+            $data = $this->alterableBaseSettings($data, $old);
         }
         if (isset($data['typtype']) && $data['typtype'] === $old['typtype'] && !isset($data['typname']) && !isset($data['collname']) && !isset($data['typinput']) && !isset($data['typoutput'])) {
             unset($data['typtype']);
@@ -254,6 +273,9 @@ final class TypeController extends NodeController
         }
         if ($kind === 'b' && (trim((string) ($data['typinput'] ?? '')) === '' || trim((string) ($data['typoutput'] ?? '')) === '')) {
             throw new BadRequestException('External types require both input and output conversion functions.');
+        }
+        if ($kind === 'b') {
+            $data = $this->baseSettings($data);
         }
         $data['schema'] = (string) ($ctx->conn->scalar('SELECT nspname FROM pg_catalog.pg_namespace WHERE oid = $1', [$ctx->id('scid')]) ?? throw $this->notFound('Could not find the schema.'));
         foreach (['typeowner', 'description', 'collname', 'opcname', 'rngcanonical', 'rngsubdiff', 'rngmultirangetype'] as $key) {
@@ -497,6 +519,104 @@ final class TypeController extends NodeController
         return [...$labels, ...array_map(static fn (array $e): array => ['label' => $e['label']], (array) ($changes['added'] ?? []))];
     }
 
+    /**
+     * A new base type's settings, checked: the empty ones left out, the function and type
+     * names (written into the statement as they are) checked, the codes known, the flags as
+     * CREATE TYPE writes them.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function baseSettings(array $data): array
+    {
+        foreach ([...self::BASE_FUNCTIONS, 'typlen', 'typalign', 'typstorage', 'typlike', 'typcategory', 'typdefault', 'element', 'typdelim'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $data[$key] = trim((string) ($data[$key] ?? ''));
+                if ($data[$key] === '') {
+                    unset($data[$key]);
+                }
+            }
+        }
+        foreach (self::BASE_FUNCTIONS as $key) {
+            if (isset($data[$key])) {
+                $this->checkFunctionName((string) $data[$key]);
+            }
+        }
+        foreach (['typlike', 'element'] as $key) {
+            if (isset($data[$key]) && preg_match(self::TYPE_NAME, (string) $data[$key]) !== 1) {
+                throw new BadRequestException(sprintf('"%s" is not a data type.', $data[$key]));
+            }
+        }
+        if (isset($data['typlen']) && filter_var($data['typlen'], FILTER_VALIDATE_INT, ['options' => ['min_range' => -2]]) === false) {
+            throw new BadRequestException('The internal length is a number of bytes, or -1 for a variable-length type.');
+        }
+        if (isset($data['typalign']) && !isset(self::ALIGN[$data['typalign']])) {
+            throw new BadRequestException(sprintf('"%s" is not an alignment.', $data['typalign']));
+        }
+        if (isset($data['typstorage']) && !isset(self::STORAGE[$data['typstorage']])) {
+            throw new BadRequestException(sprintf('"%s" is not a storage.', $data['typstorage']));
+        }
+        if (isset($data['typcategory']) && preg_match('/^[A-Z]$/', (string) $data['typcategory']) !== 1) {
+            throw new BadRequestException('The category is one upper-case ASCII letter.');
+        }
+        if (isset($data['typdelim']) && mb_strlen((string) $data['typdelim']) !== 1) {
+            throw new BadRequestException('The delimiter is a single character.');
+        }
+        foreach (['typbyval', 'typispreferred', 'is_collatable'] as $key) {
+            $data[$key] = filter_var($data[$key] ?? false, FILTER_VALIDATE_BOOL) ? 'true' : null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * An existing base type's receive, send, typmod, analyze and subscript functions and
+     * storage, as update.sql's ALTER TYPE … SET (…) takes them: the unchanged ones left out, a
+     * function cleared as NONE.
+     *
+     * @param array<string, mixed> $data
+     * @param array<string, mixed> $old the properties, with the storage as a word
+     * @return array<string, mixed>
+     */
+    private function alterableBaseSettings(array $data, array $old): array
+    {
+        foreach (self::ALTERABLE_FUNCTIONS as $key) {
+            if (!array_key_exists($key, $data)) {
+                continue;
+            }
+            $value = trim((string) ($data[$key] ?? ''));
+            $was = (string) ($old[$key] ?? '');
+            if ($value === $was || ($value === '' && $was === '-')) {
+                unset($data[$key]);
+                continue;
+            }
+            if ($value !== '') {
+                $this->checkFunctionName($value);
+            }
+            $data[$key] = $value === '' ? 'NONE' : $value;
+        }
+        if (array_key_exists('typstorage', $data)) {
+            $code = (string) ($data['typstorage'] ?? '');
+            if ($code === '' || (self::STORAGE[$code] ?? null) === $old['typstorage']) {
+                unset($data['typstorage']);
+            } elseif (!isset(self::STORAGE[$code])) {
+                throw new BadRequestException(sprintf('"%s" is not a storage.', $code));
+            }
+        }
+        foreach (['typinput', 'typoutput'] as $key) {
+            unset($data[$key]);
+        }
+
+        return $data;
+    }
+
+    private function checkFunctionName(string $name): void
+    {
+        if (preg_match(self::FUNCTION_NAME, $name) !== 1) {
+            throw new BadRequestException(sprintf('"%s" is not a function name.', $name));
+        }
+    }
+
     /** pgAdmin's _convert_for_sql: the storage and alignment codes as the words CREATE TYPE takes. */
     private function convertForSql(array $data): array
     {
@@ -505,6 +625,12 @@ final class TypeController extends NodeController
         }
         if (isset($data['typalign']) && isset(self::ALIGN[$data['typalign']])) {
             $data['typalign'] = self::ALIGN[$data['typalign']];
+        }
+        // A flag CREATE TYPE writes as PREFERRED = true, COLLATABLE = true.
+        foreach (['typispreferred', 'is_collatable'] as $key) {
+            if (($data[$key] ?? null) === true) {
+                $data[$key] = 'true';
+            }
         }
 
         return $data;

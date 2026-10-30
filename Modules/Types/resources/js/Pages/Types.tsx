@@ -18,8 +18,8 @@ import CollationDialog from '../dialogs/CollationDialog'
 import OpclassDialog from '../dialogs/OpclassDialog'
 import TextSearchDialog from '../dialogs/TextSearchDialog'
 
-/** The kinds the editor can open; the others (base, shell, multirange) are shown and dropped only. */
-const EDITABLE = new Set(['c', 'e', 'r', 'd'])
+/** The kinds the editor can open; a multirange is made with its range and only shown and dropped. */
+const EDITABLE = new Set(['c', 'e', 'r', 'd', 'b', 'p'])
 
 /**
  * The schema's "Types" page, laid out like phpMyAdmin's Routines page (MySQL has no types):

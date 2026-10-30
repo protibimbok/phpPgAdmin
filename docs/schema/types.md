@@ -25,13 +25,12 @@ The kinds are:
 | **Range** | `range of numeric` | yes (limited, see [Range](#range-types)) |
 | **Domain** | base type and checks: `character(13) CHECK (VALUE ~ '^[0-9]{13}$'::text)` | yes |
 | **Multirange** | its name | no |
-| **Base** | its name | no |
-| **Shell** | its name | no |
+| **Base** | its name | yes (limited, see [Base types](#base-types)) |
+| **Shell** | its name | yes (name, owner, comment) |
 
-Base and shell types (typically installed by extensions, such as `citext`, `gtrgm` or
-`gbtreekey*`) and the multirange type PostgreSQL creates with each range type are listed, exported
-and dropped only. Creating a base type needs C input/output functions; do it on the
-[SQL tab](/tools/sql) with `CREATE TYPE name;` (a shell) and `CREATE TYPE name (INPUT = …, OUTPUT = …)`.
+The multirange type PostgreSQL creates with each range type is listed, exported and dropped only.
+Base types usually come from extensions (`citext`, `gtrgm`, `gbtreekey*`); the editor also
+creates them, see [Base types](#base-types).
 
 Above the list: **Check all** with bulk **Export** and **Drop**, the filter box, and
 **Create new type**. The Collations and Full text search lists below have their own check-all,
@@ -57,8 +56,8 @@ as well as functions and views that use it. Check the type's **Dependents** pane
 
 ## Create a type
 
-**Create new type** opens `…/types/create`; add `?kind=e`, `?kind=r` or `?kind=d` to start with an
-enum, range or domain. Every kind has **Type name**, **Kind** (fixed when editing), **Owner** and
+**Create new type** opens `…/types/create`; add `?kind=e`, `?kind=r`, `?kind=d`, `?kind=b` or
+`?kind=p` to start with an enum, range, domain, base or shell type. Every kind has **Type name**, **Kind** (fixed when editing), **Owner** and
 **Comment**. **Preview SQL** shows the statements; **Go** runs them and returns to the list with
 *Type … has been created.* An existing type's editor (`…/types/type/<name>/edit` or
 `…/types/domain/<name>/edit`) also shows **Dependencies** and **Dependents** under the form.
@@ -155,6 +154,55 @@ fields are read-only with the hint
 owner and comment can change. The constructor functions (`rtn_intrange(integer, integer)` and the
 multirange ones) appear on the [Routines](/schema/routines) tab and are dropped with the type.
 :::
+
+### Base types
+
+A base type (pgAdmin's "External" kind) is defined by its functions: **Input function** and
+**Output function** are required, the others optional. Each function field suggests the
+database's functions; the typmod fields suggest the functions of the right signature.
+
+| Field | Clause |
+|---|---|
+| **Input function**, **Output function** | `INPUT`, `OUTPUT` |
+| **Receive function**, **Send function** | `RECEIVE`, `SEND` (the binary format) |
+| **Typmod in function**, **Typmod out function** | `TYPMOD_IN`, `TYPMOD_OUT` |
+| **Analyze function** | `ANALYZE` |
+| **Subscript function** | `SUBSCRIPT` (PostgreSQL 14+) |
+| **Internal length** | `INTERNALLENGTH`: bytes, or `-1` for a variable-length type |
+| **Passed by value** | `PASSEDBYVALUE` |
+| **Alignment**, **Storage** | `ALIGNMENT` (`char`, `int2`, `int4`, `double`), `STORAGE` (`PLAIN`, `EXTERNAL`, `MAIN`, `EXTENDED`) |
+| **Like type** | `LIKE`: copies the internal length, passed by value, alignment and storage of another type |
+| **Category**, **Preferred** | `CATEGORY` (`U` for user-defined types, …), `PREFERRED` |
+| **Default** | `DEFAULT` |
+| **Element type**, **Delimiter** | `ELEMENT` (the type is an array of it), `DELIMITER` |
+| **Collatable** | `COLLATABLE = true` |
+
+The input function must return the new type and the output function take it, so a base type is
+made in three steps: a **Shell** type (the kind with no other field, `CREATE TYPE name;`), then
+the functions (in C, or `LANGUAGE internal` for a built-in one), then the base type with the
+shell's name, which fills it in:
+
+```sql
+CREATE TYPE public.myint;
+
+CREATE FUNCTION public.myint_in(cstring) RETURNS public.myint
+    AS 'int4in' LANGUAGE internal IMMUTABLE STRICT;
+CREATE FUNCTION public.myint_out(public.myint) RETURNS cstring
+    AS 'int4out' LANGUAGE internal IMMUTABLE STRICT;
+
+CREATE TYPE public.myint
+(
+    INPUT = public.myint_in,
+    OUTPUT = public.myint_out,
+    INTERNALLENGTH = 4,
+    PASSEDBYVALUE,
+    ALIGNMENT = int4
+);
+```
+
+Creating a base type needs a superuser. Once it exists, only the receive, send, typmod, analyze
+and subscript functions and the storage change (`ALTER TYPE … SET (…)`, a cleared function
+becomes `NONE`); the other fields are shown read-only.
 
 ### Domains
 
