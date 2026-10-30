@@ -323,6 +323,25 @@ Statements that cannot run in a transaction block (`VACUUM`, `CREATE DATABASE`,
 `CREATE INDEX CONCURRENTLY`, `ALTER SYSTEM`) fail under both options.
 :::
 
+### Connection (New connection, SET ROLE)
+
+Under **Auto commit**, *Connected as postgres* names the role the page's session runs as, after
+pgAdmin's query tool connection bar. **New connection…** (pgAdmin's *New Connection*) starts the
+session again:
+
+- **Username** and **Password**: another role of the same server; empty for yours.
+- **Role**: a role to become, as `SET ROLE` does (sent as the startup option `-c role=…`); empty for
+  none. A role that does not exist, or that the user cannot become, is refused (*There is no role
+  "x" on this server.*).
+
+Both are checked on a connection of their own first; a wrong password says so in the dialog without
+ending your sign-in. The bar then reads *Connected as app_user (role reporting)*, with **Back to
+postgres** to return. The old session ends, so what was open in it is rolled back (the page asks
+first when a transaction is open), and `SET`, temporary tables and `LISTEN`s go with it. The password
+is passed to the session's process in its environment and kept nowhere else; if that session ends
+(after three idle minutes without the page, for instance), the next run connects as your own role
+again and says so. The history of what the page runs stays under your own role.
+
 ### Notifications (LISTEN and NOTIFY)
 
 Since the page's runs share the session's connection, `LISTEN channel` stays in effect after the run,

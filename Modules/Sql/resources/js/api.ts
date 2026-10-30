@@ -126,8 +126,15 @@ export interface QuerySession {
 }
 
 /** Start a query tool session on a database, or (null) on the one the login landed in. */
-export function startQuerySession(db: string | null): Promise<QuerySession> {
-  return api.post<QuerySession>('/api/query/sessions', db === null ? {} : { database: db })
+/** pgAdmin's "New connection": another role of the server (with its password), and a role to SET ROLE to. */
+export interface SessionConnection {
+  username?: string
+  password?: string
+  role?: string
+}
+
+export function startQuerySession(db: string | null, connection: SessionConnection = {}): Promise<QuerySession & { connection?: { username: string; role: string | null } }> {
+  return api.post('/api/query/sessions', { ...(db === null ? {} : { database: db }), ...connection })
 }
 
 /** Run a batch in a session; "autocommit" false leaves the transaction it opens open. */

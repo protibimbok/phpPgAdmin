@@ -6,7 +6,12 @@ namespace PhpPgAdmin\Modules\Sql\Http\Controllers;
 
 use League\Route\Http\Exception\BadRequestException;
 use League\Route\Http\Exception\NotFoundException;
+use PhpPgAdmin\Core\Database\ConnectionException;
 use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Core\Database\Connector;
+use PhpPgAdmin\Core\Database\Credentials;
+use PhpPgAdmin\Core\Database\QueryException;
+use PhpPgAdmin\Core\Database\Server;
 use PhpPgAdmin\Core\Facades\Config;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\Process\BackgroundProcess;
@@ -36,6 +41,10 @@ final class QuerySessionController
 
     /**
      * Start a session on a database ("database" in the body; the one the login landed in without).
+     * pgAdmin's "New connection" of the query tool: "username" and "password" connect it as
+     * another role of the same server, "role" makes it SET ROLE (the startup option -c role=…).
+     * Both are checked on a connection of their own first; the password is handed to the
+     * session's process in its environment only.
      *
      * @return array{id: string, database: string, transaction: string, backend_pid: int}
      */
@@ -51,6 +60,8 @@ final class QuerySessionController
         $conn = $database === '' ? $pool->maintenance() : $pool->for($database);
         $database = $conn->database();
 
+        [$environment, $connection, $postSql] = $this->connection($pool, $database, $body);
+
         $this->forgetEnded();
         $owner = $this->owner($pool);
         $sessions = (array) ($_SESSION[self::SESSIONS] ?? []);
@@ -62,9 +73,9 @@ final class QuerySessionController
 
         $process = BackgroundProcess::prepare();
         $socket = self::socket($process->id());
-        file_put_contents($process->directory . '/session.json', json_encode(['database' => $database, 'socket' => $socket, 'post_connection_sql' => $pool->connector()->server->postConnectionSql($pool->username())] + $owner, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        file_put_contents($process->directory . '/session.json', json_encode(['database' => $database, 'socket' => $socket, 'post_connection_sql' => $postSql] + $owner, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
         try {
-            $process->start(BackgroundProcess::php(), [dirname(__DIR__, 4) . '/bin/query-session.php', $process->directory], $pool->environment($database));
+            $process->start(BackgroundProcess::php(), [dirname(__DIR__, 4) . '/bin/query-session.php', $process->directory], $environment);
             for ($wait = 0; $wait < 200 && !is_file($process->directory . '/ready'); $wait++) {
                 if ($process->status()['state'] !== 'running') {
                     break;
@@ -80,10 +91,61 @@ final class QuerySessionController
             $process->remove();
             throw $e;
         }
-        $sessions[$process->id()] = ['database' => $database] + $owner;
+        $sessions[$process->id()] = ['database' => $database, 'connection' => $connection] + $owner;
         $_SESSION[self::SESSIONS] = $sessions;
 
-        return ['id' => $process->id(), 'database' => $database] + self::send($process, ['command' => 'status'], 10);
+        return ['id' => $process->id(), 'database' => $database, 'connection' => $connection] + self::send($process, ['command' => 'status'], 10);
+    }
+
+    /**
+     * The environment the session's process connects with, the user and role it is for, and
+     * its post-connection SQL: the signed-in role's, or another role's of the same server.
+     *
+     * @param array<string, mixed> $body
+     * @return array{0: array<string, string>, 1: array{username: string, role: string|null}, 2: string|null}
+     */
+    private function connection(ConnectionPool $pool, string $database, array $body): array
+    {
+        $server = $pool->connector()->server;
+        $username = trim((string) ($body['username'] ?? ''));
+        $role = trim((string) ($body['role'] ?? ''));
+        $other = $username !== '' && $username !== $pool->username();
+        $environment = $pool->environment($database);
+        if (!$other && $role === '') {
+            return [$environment, ['username' => $pool->username(), 'role' => null], $server->postConnectionSql($pool->username())];
+        }
+        $username = $other ? $username : $pool->username();
+        if ($other) {
+            $credentials = new Credentials($username, (string) ($body['password'] ?? ''), $database);
+            $environment = $pool->connector()->environment($credentials, $database);
+            try {
+                $test = $pool->connector()->connect($credentials, $database);
+            } catch (ConnectionException $e) {
+                // Not 401: that would end the page's own sign-in.
+                throw new ApiException($e->credentialsRejected() ? 403 : 503, $e->responseMessage());
+            }
+        } else {
+            $test = $pool->for($database);
+        }
+        if ($role !== '') {
+            try {
+                $member = $test->scalar("SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = \$1) THEN pg_catalog.pg_has_role(session_user, \$1, 'MEMBER') END", [$role]);
+            } catch (QueryException $e) {
+                throw new BadRequestException($e->getMessage());
+            } finally {
+                if ($other) {
+                    $test->close();
+                }
+            }
+            if ($member !== true) {
+                throw new BadRequestException($member === null ? sprintf('There is no role "%s" on this server.', $role) : sprintf('%s cannot SET ROLE to "%s".', $username, $role));
+            }
+            $environment = Connector::withStartupOptions($environment, Server::startupOption('role', $role));
+        } elseif ($other) {
+            $test->close();
+        }
+
+        return [$environment, ['username' => $username, 'role' => $role === '' ? null : $role], $server->postConnectionSql($username)];
     }
 
     /**

@@ -431,5 +431,19 @@
     "event": "Event",
     "pid": "Process ID",
     "payload": "Payload"
+  },
+  "connection": {
+    "label": "Connected as",
+    "role": "role {{role}}",
+    "new": "New connection…",
+    "own": "Back to {{username}}",
+    "title": "New connection",
+    "username": "Username",
+    "password": "Password",
+    "role_field": "Role",
+    "help": "The page's session starts again: as another role of this server with its password (empty for yours), and with SET ROLE to the role given. What is open in the old session is rolled back.",
+    "connected": "The session is connected as {{username}}.",
+    "rollback_first": "A transaction is open in the session. Roll it back and connect again?",
+    "reverted": "The query tool session ended; the next run connects as your own role again."
   }
 }

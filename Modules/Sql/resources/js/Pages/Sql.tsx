@@ -17,6 +17,7 @@ import { createBookmark, createMacro, deleteBookmark, fetchCatalog, listBookmark
 import SqlEditor, { type SqlEditorHandle } from '../editor/SqlEditor'
 import MacrosDialog, { nextMacroName } from '../macros/MacrosDialog'
 import MacrosMenu, { macroKeyOf } from '../macros/MacrosMenu'
+import ConnectionControl from '../editor/ConnectionControl'
 import NotificationsCard from '../results/NotificationsCard'
 import QueryResults from '../results/QueryResults'
 import { defaultMaxRows, type GridNav } from '../results/ResultsGrid'
@@ -618,6 +619,9 @@ function SqlPageAt() {
                       {t('session.autocommit')}
                     </label>
                   </div>
+                </div>
+                <div className="col-12">
+                  <ConnectionControl db={db} />
                 </div>
                 <div className="col-12">
                   <input className="btn btn-secondary" type="button" id="button_run_statement" value={t('buttons.run_statement')} title={t('buttons.run_statement_title')} onClick={runStatement} />
