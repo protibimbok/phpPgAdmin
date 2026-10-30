@@ -14,7 +14,16 @@ for (const kind of KINDS) {
   })
 }
 
-// Every routine container opens the Routines page; an aggregate or operator, having no editor, does too.
+// An aggregate or operator opens its dialog on the Routines page.
+for (const kind of ['aggregate', 'operator']) {
+  registerNodeLink(kind, (node, { db, ancestors }) => {
+    const schema = schemaOf(ancestors)
+
+    return db === null || schema === undefined ? '#' : `${urls.schema(db, schema)}/routines?edit=${kind}:${node.oid}`
+  })
+}
+
+// Every routine, aggregate and operator container opens the Routines page.
 for (const kind of [...KINDS, 'aggregate', 'operator']) {
   registerContainerLink(kind, ({ db, ancestors }) => {
     const schema = schemaOf(ancestors)

@@ -6,7 +6,7 @@ FROM pg_catalog.pg_aggregate ag
   LEFT OUTER JOIN pg_catalog.pg_proc pr ON pr.oid = ag.aggfnoid
   LEFT OUTER JOIN pg_catalog.pg_type tt on tt.oid=aggtranstype
   LEFT OUTER JOIN pg_catalog.pg_type tf on tf.oid=prorettype
-  LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=aggfnoid::oid AND des.classoid='pg_aggregate'::regclass)
+  LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=aggfnoid::oid AND des.classoid='pg_proc'::regclass)
 {% if scid %}
   WHERE pronamespace = {{scid}}::oid
 {% elseif agid %}

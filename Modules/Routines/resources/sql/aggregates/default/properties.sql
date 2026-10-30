@@ -22,15 +22,13 @@ SELECT aggfnoid::oid as oid, proname as name, ns.nspname as schema,
     WHEN ag.aggmfinalmodify = 'w' THEN 'READ_WRITE'
     ELSE 'unknown' END as moving_final_func_modify,
   agginitval as initial_val, aggminitval as moving_initial_val,
-  op.oprname as sort_oper, aggfinalextra as final_extra_param, aggmfinalextra as moving_final_extra_param,
+  CASE WHEN op.oid IS NULL THEN NULL WHEN op.oprnamespace = 'pg_catalog'::regnamespace THEN op.oprname
+    ELSE 'OPERATOR(' || pg_catalog.quote_ident(opns.nspname) || '.' || op.oprname || ')' END as sort_oper,
+  CASE pr.proparallel WHEN 's' THEN 'SAFE' WHEN 'r' THEN 'RESTRICTED' ELSE NULL END as parallel, aggfinalextra as final_extra_param, aggmfinalextra as moving_final_extra_param,
   aggtransspace as state_data_size, aggmtransspace as moving_state_data_size,
-  CASE WHEN (tt.typlen = -1 AND tt.typelem != 0) THEN
-    (SELECT at.typname FROM pg_catalog.pg_type at WHERE at.oid = tt.typelem) || '[]'
-  ELSE tt.typname END as state_type,
+  pg_catalog.format_type(tt.oid, NULL) as state_type,
   pg_catalog.format_type(tf.oid, NULL) as final_type,
-  CASE WHEN (tm.typlen = -1 AND tm.typelem != 0) THEN
-    (SELECT at.typname FROM pg_catalog.pg_type at WHERE at.oid = tm.typelem) || '[]'
-  ELSE tm.typname END as moving_state_type,
+  pg_catalog.format_type(tm.oid, NULL) as moving_state_type,
   description
 FROM pg_catalog.pg_aggregate ag
   LEFT OUTER JOIN pg_catalog.pg_proc pr ON pr.oid = ag.aggfnoid
@@ -39,7 +37,8 @@ FROM pg_catalog.pg_aggregate ag
   LEFT OUTER JOIN pg_catalog.pg_type tf on tf.oid=prorettype
   LEFT OUTER JOIN pg_catalog.pg_type tm on tm.oid=aggmtranstype
   LEFT OUTER JOIN pg_catalog.pg_operator op on op.oid = ag.aggsortop
-  LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=aggfnoid::oid AND des.classoid='pg_aggregate'::regclass)
+  LEFT OUTER JOIN pg_catalog.pg_namespace opns on opns.oid = op.oprnamespace
+  LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=aggfnoid::oid AND des.classoid='pg_proc'::regclass)
 WHERE pronamespace = {{scid}}::oid
 {% if agid %}    AND ag.aggfnoid = {{agid}}::oid {% endif %}
 ORDER BY name;

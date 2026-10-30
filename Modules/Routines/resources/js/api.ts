@@ -152,14 +152,75 @@ export interface Aggregate {
   kind: string
   state_func: string | null
   state_type: string
+  state_data_size: number | null
   final_func: string | null
   final_type: string
+  final_extra_param: boolean
+  final_func_modify: string | null
   combine_func: string | null
-  moving_state_func: string | null
+  serialization_func: string | null
+  deserialization_func: string | null
   initial_val: string | null
+  moving_state_func: string | null
+  moving_inverse_func: string | null
+  moving_state_type: string | null
+  moving_state_data_size: number | null
+  moving_final_func: string | null
+  moving_final_extra_param: boolean
+  moving_final_func_modify: string | null
+  moving_initial_val: string | null
   sort_oper: string | null
+  /** 'SAFE', 'RESTRICTED' or null (UNSAFE). */
+  parallel: string | null
   description: string | null
   is_sys_obj: boolean
+}
+
+/** What CREATE AGGREGATE and its ALTERs take; a blank field is an absent clause. */
+export interface AggregateData {
+  name: string
+  schema?: string
+  owner: string
+  description: string
+  kind: string
+  input_types: string
+  state_func: string
+  state_type: string
+  state_data_size: string
+  final_func: string
+  final_extra_param: boolean
+  final_func_modify: string
+  combine_func: string
+  serialization_func: string
+  deserialization_func: string
+  initial_val: string
+  moving_state_func: string
+  moving_inverse_func: string
+  moving_state_type: string
+  moving_state_data_size: string
+  moving_final_func: string
+  moving_final_extra_param: boolean
+  moving_final_func_modify: string
+  moving_initial_val: string
+  sort_oper: string
+  parallel: string
+}
+
+/** What CREATE OPERATOR and its ALTERs take; a blank operand type is NONE. */
+export interface OperatorData {
+  name: string
+  schema?: string
+  owner: string
+  description: string
+  operproc: string
+  lefttype: string
+  righttype: string
+  commutator: string
+  negator: string
+  restrproc: string
+  joinproc: string
+  support_hash: boolean
+  support_merge: boolean
 }
 
 /** An operator as pgAdmin's operators/properties.sql describes it. */

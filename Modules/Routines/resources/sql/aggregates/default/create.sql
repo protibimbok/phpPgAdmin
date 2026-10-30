@@ -1,6 +1,6 @@
-{# CREATE AGGREGATE; an initial condition of '0' is a value, not an absence #}
+{# CREATE AGGREGATE (CREATE OR REPLACE when the definition of an existing one changes); an initial condition of '0' is a value, not an absence #}
 {% if data %}
-CREATE OR REPLACE AGGREGATE {{conn|qtIdent(data.schema, data.name)}}({% if data.input_types %}{{data.input_types}}{% endif %}) (
+CREATE {% if replace %}OR REPLACE {% endif %}AGGREGATE {{conn|qtIdent(data.schema, data.name)}}({% if data.input_types %}{{data.input_types}}{% else %}*{% endif %}) (
     SFUNC = {{data.state_func}},
     STYPE = {{data.state_type}}{% if data.state_data_size %},
     SSPACE = {{data.state_data_size}}{% endif %}{% if data.final_func %},
@@ -19,7 +19,9 @@ CREATE OR REPLACE AGGREGATE {{conn|qtIdent(data.schema, data.name)}}({% if data.
     MFINALFUNC_EXTRA{% endif %}{% if data.moving_final_func_modify %},
     MFINALFUNC_MODIFY = {{data.moving_final_func_modify}}{% endif %}{% if data.moving_initial_val is not null and data.moving_initial_val != '' %},
     MINITCOND = {{ data.moving_initial_val|qtLiteral(conn) }}{% endif %}{% if data.sort_oper %},
-    SORTOP = {{data.sort_oper}}{% endif %}
+    SORTOP = {{data.sort_oper}}{% endif %}{% if data.parallel %},
+    PARALLEL = {{data.parallel}}{% endif %}{% if data.kind == 'hypothetical-set' %},
+    HYPOTHETICAL{% endif %}
 
 );
 {% endif %}
