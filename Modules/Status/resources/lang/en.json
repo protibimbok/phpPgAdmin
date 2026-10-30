@@ -8,7 +8,8 @@
     "locks": "Locks",
     "prepared": "Prepared transactions",
     "monitor": "Monitor",
-    "logs": "Logs"
+    "logs": "Logs",
+    "jobs": "Background jobs"
   },
   "rate": {
     "label": "Refresh rate",
@@ -192,6 +193,38 @@
         "slru_written": "Number of SLRU buffers written during checkpoints and restartpoints.",
         "stats_reset": "Time at which the checkpointer's statistics were last reset."
       }
+    }
+  },
+  "jobs": {
+    "all_types": "(every type)",
+    "action": "Action",
+    "view": "View output",
+    "stop": "Stop",
+    "dismiss": "Dismiss",
+    "stopping": "Stopping {{description}}.",
+    "none": "There are no background jobs.",
+    "server": "the server",
+    "output_title": "Output of {{description}}",
+    "types": {
+      "import": "Import",
+      "maintenance": "Maintenance"
+    },
+    "states": {
+      "running": "Running",
+      "finished": "Finished",
+      "failed": "Failed",
+      "killed": "Stopped",
+      "lost": "Lost"
+    },
+    "columns": {
+      "type": "Type",
+      "description": "Description",
+      "target": "Target",
+      "state": "State",
+      "started": "Started",
+      "finished": "Finished",
+      "duration": "Duration",
+      "errors": "Errors"
     }
   },
   "monitor": {

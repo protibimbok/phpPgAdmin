@@ -282,7 +282,9 @@ The card of an import shows:
 The runner (`bin/process-runner.php`) is detached from the web request. The import goes on when you
 leave or reload the page, and its card is there again when you come back to the same Import tab: cards
 are listed per level (the server, a database, a schema, a table) for your role on this server. A
-finished import's card stays until you **Dismiss** it, which deletes its output.
+finished import's card stays until you **Dismiss** it, which deletes its output. Every job, of every
+level, is also listed under [Status » Background jobs](/server/status#background-jobs), linked under
+the cards.
 
 **Stop** sends the program `SIGINT`, which `psql` and `pg_restore` answer by cancelling the statement on
 the server (*canceling statement due to user request*), and `SIGTERM` five seconds later if it is still

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { errorMessage, type ApiError } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
@@ -278,6 +278,12 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
       {processes.map((process) => (
         <ProcessView key={process.id} initial={process} onDismiss={() => setProcesses((list) => list.filter((entry) => entry.id !== process.id))} />
       ))}
+
+      <p id="all_jobs">
+        <Link to="/server/status/jobs">
+          <Icon name="s_status" /> {t('process.all_jobs')}
+        </Link>
+      </p>
 
       <div id="importmain">
         <form id="import_file_form" method="post" encType="multipart/form-data" name="import" onSubmit={submit}>

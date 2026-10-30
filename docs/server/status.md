@@ -2,8 +2,8 @@
 
 The **Status** tab at server level (`/server/status`) shows what the server is doing, from
 PostgreSQL's own statistics views. A row of pills switches between its pages: **Server**,
-**Processes**, **Query statistics**, **Counters**, **Locks**, **Prepared transactions**, **Monitor**
-and **Logs**. The pages follow
+**Processes**, **Query statistics**, **Counters**, **Locks**, **Prepared transactions**, **Monitor**,
+**Logs** and **Background jobs**. The pages follow
 phpMyAdmin's Status pages; the data and actions are pgAdmin's dashboard. **Logs** has a page of its
 own: [Server logs](/server/logs).
 
@@ -234,6 +234,30 @@ the default rate of 5 seconds). The per-second charts need two samples before th
   **Database** selects. Choosing a database limits every chart to it and starts the charts over.
 
 The charts sample only while the page is open; nothing is recorded in the background.
+
+## Background jobs
+
+**Background jobs** (`/server/status/jobs`) is pgAdmin's Processes panel: every background process
+you started on this server, newest first, whichever page started it: [imports](/tools/import#the-background-process)
+of the server, a database, a schema or a table, and [maintenance](/tools/maintenance) commands
+(VACUUM, ANALYZE, REINDEX, CLUSTER of a database or schema). The Import page links to it.
+
+Columns: **Type** (Import or Maintenance), **Description** (the file imported, or the command),
+**Target** (the server, or the database, schema and table, each a link), **State** (Running,
+Finished, Failed with the exit code, Stopped, or Lost when the runner went away without reporting),
+**Started**, **Finished**, **Duration** (counting while it runs) and **Errors** (error lines the
+program printed). The type select limits the list to one type. While a job runs the list reloads
+every two seconds.
+
+Each row has:
+
+- **View output**: the job's card in a dialog, as the Import page shows it: its state, progress,
+  command and output, followed live while it runs, with **Stop** or **Dismiss**;
+- **Stop**, while it runs: the same as the card's Stop (`SIGINT`, then `SIGTERM`);
+- **Dismiss**, once it ended: removes it from every list and deletes its output.
+
+Jobs are your role's on this server: another role, or the same role on another server, does not see
+them.
 
 ## See also
 

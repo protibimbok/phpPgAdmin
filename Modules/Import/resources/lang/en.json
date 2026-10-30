@@ -105,7 +105,8 @@
     "maintenance_failed": "{{file}} failed (exit code {{code}}).",
     "maintenance_failed_errors": "{{file}} failed (exit code {{code}}). Errors reported: {{errors}}.",
     "maintenance_killed": "{{file}} was stopped.",
-    "maintenance_lost": "{{file}} ended without reporting how."
+    "maintenance_lost": "{{file}} ended without reporting how.",
+    "all_jobs": "Every background job (imports and maintenance) is listed under Status » Background jobs."
   },
   "copy": {
     "replace": "Update data when duplicate keys found on import (add <code>ON CONFLICT … DO UPDATE</code>)",

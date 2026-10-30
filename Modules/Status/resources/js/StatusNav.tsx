@@ -14,6 +14,7 @@ const PAGES = [
   { key: 'prepared', path: '/server/status/prepared' },
   { key: 'monitor', path: '/server/status/monitor' },
   { key: 'logs', path: '/server/status/logs' },
+  { key: 'jobs', path: '/server/status/jobs' },
 ] as const
 
 /**

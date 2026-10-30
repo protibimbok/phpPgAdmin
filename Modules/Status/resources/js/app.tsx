@@ -1,5 +1,6 @@
 import { insertAfter, insertBefore, registerModule } from '@/modular'
 import Counters from './Pages/Counters'
+import Jobs from './Pages/Jobs'
 import Locks from './Pages/Locks'
 import Logs from './Pages/Logs'
 import Monitor from './Pages/Monitor'
@@ -32,6 +33,7 @@ registerModule({
     { path: 'server/status/prepared', element: <Prepared /> },
     { path: 'server/status/monitor', element: <Monitor /> },
     { path: 'server/status/logs', element: <Logs /> },
+    { path: 'server/status/jobs', element: <Jobs /> },
     { path: 'server/variables', element: <Variables /> },
     { path: 'db/:db/processes', element: <Processes /> },
     { path: 'db/:db/locks', element: <Locks /> },

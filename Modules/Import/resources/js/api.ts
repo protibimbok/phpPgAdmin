@@ -150,6 +150,11 @@ export function listProcesses(target: ImportTarget, type: string): Promise<Backg
   return api.get<{ processes: BackgroundProcess[] }>(`/api/processes?${new URLSearchParams({ database: target.database ?? '', schema: target.schema ?? '', table: target.table ?? '', type })}`).then((r) => r.processes)
 }
 
+/** Every process of the role on this server, whatever its target, newest first; of one type when given. */
+export function listAllProcesses(type?: string): Promise<BackgroundProcess[]> {
+  return api.get<{ processes: BackgroundProcess[] }>(`/api/processes${type ? `?${new URLSearchParams({ type })}` : ''}`).then((r) => r.processes)
+}
+
 export function getProcess(id: string, offset: number): Promise<{ process: BackgroundProcess; output: ProcessOutput }> {
   return api.get(`/api/processes/${id}?offset=${offset}`)
 }

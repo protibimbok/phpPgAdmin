@@ -105,7 +105,8 @@
     "maintenance_failed": "فشل {{file}} (رمز الخروج {{code}}).",
     "maintenance_failed_errors": "فشل {{file}} (رمز الخروج {{code}}). الأخطاء المبلّغ عنها: {{errors}}.",
     "maintenance_killed": "أُوقف {{file}}.",
-    "maintenance_lost": "انتهى {{file}} دون أن يبلّغ عن نتيجته."
+    "maintenance_lost": "انتهى {{file}} دون أن يبلّغ عن نتيجته.",
+    "all_jobs": "كل المهام في الخلفية (الاستيراد والصيانة) مدرجة في الحالة » المهام في الخلفية."
   },
   "copy": {
     "replace": "تحديث البيانات عند وجود مفاتيح مكررة أثناء الاستيراد (إضافة <code>ON CONFLICT … DO UPDATE</code>)",

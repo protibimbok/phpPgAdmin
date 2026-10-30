@@ -8,7 +8,8 @@
     "locks": "الأقفال",
     "prepared": "المعاملات المُعدّة",
     "monitor": "المراقب",
-    "logs": "السجلات"
+    "logs": "السجلات",
+    "jobs": "المهام في الخلفية"
   },
   "rate": {
     "label": "معدل التحديث",
@@ -200,6 +201,38 @@
         "slru_written": "عدد مخازن SLRU المكتوبة أثناء نقاط التحقق وإعادة التشغيل.",
         "stats_reset": "وقت آخر إعادة تعيين لإحصائيات نقاط التحقق."
       }
+    }
+  },
+  "jobs": {
+    "all_types": "(كل الأنواع)",
+    "action": "إجراء",
+    "view": "عرض المخرجات",
+    "stop": "إيقاف",
+    "dismiss": "إخفاء",
+    "stopping": "جارٍ إيقاف {{description}}.",
+    "none": "لا توجد مهام في الخلفية.",
+    "server": "الخادم",
+    "output_title": "مخرجات {{description}}",
+    "types": {
+      "import": "استيراد",
+      "maintenance": "صيانة"
+    },
+    "states": {
+      "running": "قيد التشغيل",
+      "finished": "انتهت",
+      "failed": "فشلت",
+      "killed": "أُوقفت",
+      "lost": "مفقودة"
+    },
+    "columns": {
+      "type": "النوع",
+      "description": "الوصف",
+      "target": "الهدف",
+      "state": "الحالة",
+      "started": "بدأت",
+      "finished": "انتهت",
+      "duration": "المدة",
+      "errors": "الأخطاء"
     }
   },
   "monitor": {
