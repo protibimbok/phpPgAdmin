@@ -1,0 +1,152 @@
+// The query plan card (pgAdmin's explain panel): the drawing, its node details panel, the
+// Analysis table's severity colours and the text plan. pgAdmin draws the plan in its own
+// panel; phpMyAdmin has none, so the card, pills, tables and buttons stay Bootstrap's.
+@use '@/styles/tokens' as *;
+
+.explain-plan {
+  .explain-canvas {
+    position: relative;
+    overflow: auto;
+    max-height: 70vh;
+    border: border-width('base') solid color('border');
+  }
+
+  .explain-svg {
+    display: block;
+  }
+
+  .explain-surface {
+    fill: color('surface');
+  }
+
+  .explain-arrow {
+    stroke: color('text');
+  }
+
+  .explain-arrowhead {
+    fill: color('text');
+  }
+
+  .explain-label {
+    fill: color('text');
+  }
+
+  .explain-subplan {
+    fill: color('text-muted');
+    fill-opacity: 0.2;
+    stroke: color('text');
+    stroke-width: 1.2;
+  }
+
+  .explain-subplan-name {
+    fill: color('danger-text');
+  }
+
+  .explain-icon {
+    cursor: pointer;
+  }
+
+  // The backdrop of a node's icon: none below 10% of the query, then pgAdmin's three severities.
+  .explain-shade {
+    fill: transparent;
+    stroke: none;
+
+    &.explain-sev2 {
+      fill: color('explain-sev2-bg');
+    }
+
+    &.explain-sev3 {
+      fill: color('explain-sev3-bg');
+    }
+
+    &.explain-sev4 {
+      fill: color('explain-sev4-bg');
+    }
+
+    &.explain-selected {
+      stroke: color('focus');
+      stroke-width: 2;
+    }
+  }
+
+  // pgAdmin's details card: on the right of the drawing, scrolling on its own.
+  .explain-details {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    bottom: 0.25rem;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    max-width: 300px;
+    margin-top: 0;
+    word-break: break-all;
+
+    .card-header {
+      position: static;
+      width: auto;
+      margin: 0;
+    }
+
+    .card-body {
+      overflow: auto;
+      padding-top: 0.5rem;
+    }
+
+    td {
+      white-space: pre-wrap;
+    }
+  }
+
+  .explain-analysis {
+    .explain-collapsible {
+      cursor: pointer;
+    }
+
+    .explain-collapsed {
+      border-bottom: 2px dashed color('link');
+    }
+
+    .explain-extra {
+      margin: 0;
+      font-size: 0.9em;
+      opacity: 0.8;
+    }
+  }
+
+  td.explain-sev2 {
+    --bs-table-bg-state: #{color('explain-sev2-bg')};
+    --bs-table-color-state: #{color('explain-sev2-text')};
+
+    background-color: color('explain-sev2-bg');
+    color: color('explain-sev2-text');
+  }
+
+  td.explain-sev3 {
+    --bs-table-bg-state: #{color('explain-sev3-bg')};
+    --bs-table-color-state: #{color('explain-sev3-text')};
+
+    background-color: color('explain-sev3-bg');
+    color: color('explain-sev3-text');
+  }
+
+  td.explain-sev4 {
+    --bs-table-bg-state: #{color('explain-sev4-bg')};
+    --bs-table-color-state: #{color('explain-sev4-text')};
+
+    background-color: color('explain-sev4-bg');
+    color: color('explain-sev4-text');
+  }
+
+  .explain-relation td {
+    --bs-table-bg-state: #{color('surface-row')};
+
+    background-color: color('surface-row');
+  }
+
+  .explain-text,
+  .explain-pre {
+    white-space: pre-wrap;
+  }
+}

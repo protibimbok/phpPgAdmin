@@ -189,4 +189,4 @@ The **Query results operations** card (**Print**, **Copy to clipboard**, **Expor
 **Create view**) and the **Bookmark this SQL query** card work as on the
 SQL tab; see [Results](/tools/sql#results) and [Bookmarks](/tools/history-bookmarks#bookmark-a-query).
 The message's **Edit** and **Edit inline** links open the table's SQL tab with the statement;
-**Explain SQL** runs `EXPLAIN` there; **Refresh** reloads the page of rows.
+**Explain SQL** and **Explain analyze** run the statement there and show its [query plan](/tools/sql#explain); **Refresh** reloads the page of rows.

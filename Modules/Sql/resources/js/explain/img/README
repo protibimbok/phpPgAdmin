@@ -1,0 +1,6 @@
+The ex_*.svg plan node icons in this directory are copied unchanged from pgAdmin 4
+(web/pgadmin/misc/static/explain/img) and are used under pgAdmin's PostgreSQL licence,
+reproduced in full in LICENSE.pgadmin4:
+
+  Copyright (C) 2013 - 2026, The pgAdmin Development Team
+  This software is released under the PostgreSQL Licence

@@ -84,6 +84,13 @@ $colors: (
   'chart-6': #953579,
   'chart-7': #4b5de4,
   'chart-8': #d8b83f,
+  // the query plan: pgAdmin's explain severities 2 to 4 (Theme/light.js otherVars.explain)
+  'explain-sev2-bg': #fe8,
+  'explain-sev2-text': #222,
+  'explain-sev3-bg': #e80,
+  'explain-sev3-text': #fff,
+  'explain-sev4-bg': #800,
+  'explain-sev4-text': #fff,
 );
 
 // Button faces are gradients; each is (top, bottom).

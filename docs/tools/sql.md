@@ -138,8 +138,8 @@ The links under a message:
 | --- | --- |
 | **Edit inline** | Turns the statement into a text box with **Go** and **Cancel**; **Go** runs the edited text as a new query. |
 | **Edit** | Puts the statement back in the query box and scrolls up. From the Browse page it opens the table's SQL tab with the statement. |
-| **Explain SQL** | For `SELECT`, `WITH`, `VALUES` and `TABLE` statements: runs `EXPLAIN` on it. On an `EXPLAIN` result it reads **Skip Explain SQL** and runs the statement without `EXPLAIN`. |
-| **Explain analyze** | For the same statements, unless they write through a `WITH` clause: runs `EXPLAIN (ANALYZE, BUFFERS)`, which executes the statement. |
+| **Explain SQL** | For `SELECT`, `WITH`, `VALUES` and `TABLE` statements: runs `EXPLAIN (FORMAT JSON, …)` on it and shows the [query plan](#explain). On an `EXPLAIN` result it reads **Skip Explain SQL** and runs the statement without `EXPLAIN`. |
+| **Explain analyze** | For the same statements, unless they write through a `WITH` clause: the same with `ANALYZE`, which executes the statement. |
 | **Refresh** | Runs the statement again with the same page and order; under a batch, that statement alone. |
 
 Below a row-returning statement come the [results grid](/table/browse) — the same
@@ -293,17 +293,53 @@ near ":"*. The statement shown in the results is the one with the values filled 
 
 ## EXPLAIN
 
-**Explain SQL** under a SELECT runs plain `EXPLAIN` (estimates only; the query is not executed). The
-plan comes back as rows of one **QUERY PLAN** column. Switch the grid's **Extra options** to
-**Full texts** to see the lines whole, with their indentation.
+**Explain SQL** under a SELECT runs `EXPLAIN (FORMAT JSON, …)` on it (estimates only; the query is
+not executed) and shows the plan in a **Query plan** card under the statement's message, as
+pgAdmin's query tool shows it. **Explain analyze** does the same with `ANALYZE`, which executes the
+statement and adds the actual times, rows and loops. Both use the options last chosen on a plan
+card (see below); with the defaults they run
+
+```sql
+EXPLAIN (FORMAT JSON, VERBOSE, SUMMARY) SELECT …
+EXPLAIN (FORMAT JSON, ANALYZE, VERBOSE, BUFFERS) SELECT …
+```
+
+![The Query plan card of a three-table join after Explain analyze: the Graphical, Analysis, Statistics and Text pills, the zoom and download buttons, the plan drawn right to left from three Seq Scans through two Hash nodes and two Hash Inner Joins to the Sort, the Sort's icon shaded orange, and the explain options with the Explain and Explain analyze buttons in the footer](/media/sql/explain-plan.png)
+
+The card has four views:
+
+| View | What it shows |
+| --- | --- |
+| **Graphical** | The plan drawn right to left: the top node on the right, each node's inputs a column further left, with pgAdmin's node icons and the relation or index under each. The arrows grow wider with the rows a node hands up (the actual rows of every loop after `ANALYZE`, the planned rows otherwise). An icon's backdrop is shaded by the node's own share of the query: of the time after `ANALYZE`, of the total cost otherwise; none up to 10%, yellow up to 50%, orange up to 90%, dark red above. Subplans are framed. Hovering a node lists all its properties; a click opens them in a panel on the right (**×** closes it). **Zoom in**, **Zoom to original** and **Zoom out** scale the drawing; a plan wider than the card starts scaled to fit. **SVG** and **PNG** download the drawing (`explain_plan_<time>.svg` / `.png`, icons included), **JSON** the plan as the server returned it. |
+| **Analysis** | A row per node in plan order, indented by depth, with its cost and actual figures and its conditions (filter, index, hash and join conditions, rows removed, hash buckets and memory). After `ANALYZE`: **Exclusive** time (the node alone) and **Inclusive** time (with its inputs), **Rows X** (by how many times the estimate was off, ↑ over, ↓ under), **Actual** and **Plan** rows and **Loops**. The time and estimate cells take the same colours as the drawing: yellow, orange and dark red for over 10%, 50% and 90% of the query, or for estimates off by more than 10, 100 and 1000 times. Clicking a row with inputs folds them. |
+| **Statistics** | **Statistics per Node Type** (how many of each, with their time and share of the query after `ANALYZE`) and **Statistics per Relation** (the scans of each table, and under it each kind of scan with its share of the table's time). Below them the run's own figures when the plan has them: planning buffers, **Planning Time**, triggers, JIT, **Execution Time** and the changed settings. |
+| **Text** | The plan as PostgreSQL's text format lays it out, written from the JSON. |
+
+The card's footer holds pgAdmin's explain options: **Buffers**, **Costs**, **Generic Plan**
+(PostgreSQL 16 and later), **Memory** (17 and later), **Settings**, **Summary**, **Timing**,
+**Verbose**, **Wal** and **Serialize** (17 and later: None, Text or Binary). As in pgAdmin,
+Buffers, Timing, Wal and Serialize apply to **Explain analyze** only and Generic Plan to
+**Explain** only. **Explain** and **Explain analyze** run the statement again with them; the
+browser keeps the choice for the next plan and for the links under every result. An option that
+PostgreSQL turns on by itself (Costs, and Timing, Summary and, from 18, Buffers under `ANALYZE`) is
+written out as `COSTS false` and so on when it is unticked.
+
+An `EXPLAIN (FORMAT JSON) …` typed in the query box gets the same card. Below the card the result's
+grid still shows its one **QUERY PLAN** cell, with **Copy to clipboard** in its operations card.
+
+`ANALYZE` executes the statement, writes included. **Explain analyze** is therefore not offered
+for a statement that writes through a `WITH` clause; for an `UPDATE` type
+`EXPLAIN (FORMAT JSON, ANALYZE) UPDATE …` yourself and wrap it in **Rollback when finished** to
+measure it without keeping the change. The console's **Explain** and **Explain analyze** still run
+the text format and show it in the console.
+
+For PostgreSQL's own text output type `EXPLAIN` without `FORMAT JSON`, for example
+`EXPLAIN (ANALYZE, BUFFERS) SELECT …`. The plan comes back as rows of one **QUERY PLAN** column,
+as phpMyAdmin shows it; switch the grid's **Extra options** to **Full texts** to see the lines
+whole, with their indentation.
 
 ![The plan of SELECT * FROM books WHERE author_id = 3: an Append over a Seq Scan on books and one on ebooks, each with Filter: (author_id = 3)](/media/sql/explain.png)
 
-For actual times and row counts use **Explain analyze**, which runs
-`EXPLAIN (ANALYZE, BUFFERS) SELECT …`; the console's **Explain analyze** does the same. `ANALYZE`
-executes the statement, writes included, so for an `UPDATE` type it yourself and wrap it in
-**Rollback when finished** to measure it without keeping the change.
-`EXPLAIN (FORMAT JSON)` returns one cell: use **Full texts** or **Copy to clipboard** to read it.
 **Skip Explain SQL** strips `EXPLAIN` and its options and runs the statement itself.
 
 ::: tip For phpMyAdmin users
