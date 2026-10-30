@@ -12,7 +12,7 @@ use PhpPgAdmin\App;
  * name to text value (null for NULL), as the server sends them:
  *
  *     [
- *     {"type":"header","version":"0.1.1","comment":"Export to JSON plugin for phpPgAdmin"},
+ *     {"type":"header","version":"0.2.0","comment":"Export to JSON plugin for phpPgAdmin"},
  *     {"type":"database","name":"bookshop"},
  *     {"type":"table","name":"authors","database":"bookshop","schema":"public","data":
  *     [

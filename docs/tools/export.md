@@ -183,7 +183,7 @@ to value:
 
 ```json
 [
-{"type":"header","version":"0.1.1","comment":"Export to JSON plugin for phpPgAdmin"},
+{"type":"header","version":"0.2.0","comment":"Export to JSON plugin for phpPgAdmin"},
 {"type":"database","name":"bookshop"},
 {"type":"table","name":"authors","database":"bookshop","schema":"public","data":
 [
