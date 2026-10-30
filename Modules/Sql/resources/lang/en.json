@@ -89,7 +89,15 @@
     "do_you_really": "Do you really want to execute \"{{sql}}\"?",
     "yes": "Yes",
     "double_click_hint": "You can also edit most values by double-clicking directly on them.",
-    "no_row_selected": "No row selected."
+    "no_row_selected": "No row selected.",
+    "relational_key": "Relational key",
+    "relational_display": "Display column for relationships",
+    "hide_transformation": "Hide browser transformation",
+    "geo": {
+      "GEOM": "Geometry",
+      "WKT": "Well Known Text",
+      "WKB": "Well Known Binary"
+    }
   },
   "operations": {
     "title": "Query results operations",

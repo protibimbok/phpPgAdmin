@@ -1,9 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useParams } from 'react-router'
+import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import { preference } from '@/preferences'
 import { notify } from '@/notify'
-import type { Order, ResultColumn, RowsResult } from '../api'
+import { notAvailable } from '@/unbuilt'
+import { foreignValues, type Order, type ResultColumn, type RowsResult } from '../api'
+import { ewkbToWkt } from '../gis/geometry'
 import DateTimeInput from '../fields/DateTimeInput'
 import { useForeignValues, foreignOptions } from '../fields/ForeignSelect'
 import { dateFieldClass, dateKind, fieldKind, fractionDigits, hasTimeZone, padFraction } from '../fields/kinds'
@@ -94,6 +98,11 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
   const [fullTexts, setFullTexts] = useState(false)
   const showComments = preference<boolean>(SHOW_BROWSE_COMMENTS)
   const [showBinary, setShowBinary] = useState(false)
+  /** phpMyAdmin's Relational key / Display column for relationships: K shows the key, D the referenced row's display column. */
+  const [relational, setRelational] = useState<'K' | 'D'>('K')
+  /** phpMyAdmin's Geometry / Well Known Text / Well Known Binary for PostGIS values. */
+  const [geoOption, setGeoOption] = useState<'GEOM' | 'WKT' | 'WKB'>('GEOM')
+  const db = useParams().db
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [editing, setEditing] = useState<Editing | null>(null)
 
@@ -128,6 +137,18 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
     return indexed.filter(({ row }) => row.some((value) => value !== null && value.toLowerCase().includes(needle)))
   }, [result.rows, needle])
   const hasActions = rowActions.length > 0 || bulkActions.length > 0
+  const foreignColumns = useMemo(() => result.columns.map((c, i) => ({ c, i })).filter(({ c }) => c.foreign_key), [result.columns])
+  const hasSpatial = result.columns.some((c) => isPostgisType(c.type_name))
+  // The display column of each foreign key column, read once the option asks for it.
+  const { data: displays } = useRequest(
+    () =>
+      relational === 'D' && db && foreignColumns.length > 0
+        ? Promise.all(foreignColumns.map(({ c }) => foreignValues(db, c.foreign_key!).catch(() => null))).then(
+            (lists) => new Map(lists.map((list, n) => [foreignColumns[n].i, list && list.display_column !== null ? new Map(list.values.map((v) => [v.key ?? '', v.display])) : null])),
+          )
+        : Promise.resolve(null),
+    [relational, db, foreignColumns],
+  )
   const allChecked = visibleRows.length > 0 && visibleRows.every(({ index }) => checked.has(index))
 
   function go(next: Partial<GridNav>) {
@@ -367,6 +388,18 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                     </label>
                   </div>
                 </fieldset>
+                {foreignColumns.length > 0 && db && (
+                  <fieldset className="col-auto">
+                    {(['K', 'D'] as const).map((value) => (
+                      <div className="form-check" key={value}>
+                        <input className="form-check-input" type="radio" name="relational_display" id={`relationalDisplayRadio${value}${uniqueId}`} value={value} checked={relational === value} onChange={() => setRelational(value)} />
+                        <label className="form-check-label" htmlFor={`relationalDisplayRadio${value}${uniqueId}`}>
+                          {t(value === 'K' ? 'grid.relational_key' : 'grid.relational_display')}
+                        </label>
+                      </div>
+                    ))}
+                  </fieldset>
+                )}
                 <fieldset className="col-auto">
                   <div className="form-check">
                     <input className="form-check-input" type="checkbox" name="display_binary" id={`display_binary_${uniqueId}`} checked={showBinary} onChange={(e) => setShowBinary(e.target.checked)} />
@@ -375,6 +408,27 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                     </label>
                   </div>
                 </fieldset>
+                <div className="col-auto">
+                  <div className="form-check">
+                    {/* Browser transformations (phpMyAdmin's column_info) are not built. */}
+                    <input className="form-check-input" type="checkbox" name="hide_transformation" id={`hide_transformation_${uniqueId}`} checked={false} onChange={(e) => notAvailable(e)} />
+                    <label className="form-check-label" htmlFor={`hide_transformation_${uniqueId}`}>
+                      {t('grid.hide_transformation')}
+                    </label>
+                  </div>
+                </div>
+                {hasSpatial && (
+                  <fieldset className="col-auto">
+                    {(['GEOM', 'WKT', 'WKB'] as const).map((value) => (
+                      <div className="form-check" key={value}>
+                        <input className="form-check-input" type="radio" name="geoOption" id={`geoOptionRadio${value}${uniqueId}`} value={value} checked={geoOption === value} onChange={() => setGeoOption(value)} />
+                        <label className="form-check-label" htmlFor={`geoOptionRadio${value}${uniqueId}`}>
+                          {t(`grid.geo.${value}`)}
+                        </label>
+                      </div>
+                    ))}
+                  </fieldset>
+                )}
               </div>
             </div>
             <div className="card-footer">
@@ -487,6 +541,8 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                         numeric={numeric[i]}
                         fullTexts={fullTexts}
                         showBinary={showBinary}
+                        geoOption={geoOption}
+                        display={displays?.get(i)?.get(value ?? '')}
                         onDoubleClick={cellEditor && cellEditor.canEdit(result.columns[i]) ? () => startEditing(index, i) : undefined}
                       />
                     ),
@@ -538,7 +594,16 @@ interface CellProps {
   numeric: boolean
   fullTexts: boolean
   showBinary: boolean
+  geoOption: 'GEOM' | 'WKT' | 'WKB'
+  /** The referenced row's display column, with "Display column for relationships". */
+  display?: string | null
   onDoubleClick?: () => void
+}
+
+/** PostGIS's types, output as hex EWKB. */
+function isPostgisType(type: string | null | undefined): boolean {
+  const bare = (type ?? '').replace(/^.*\./, '')
+  return bare === 'geometry' || bare === 'geography'
 }
 
 /**
@@ -575,7 +640,7 @@ function cellClasses(column: ResultColumn, numeric: boolean, fullTexts: boolean)
 }
 
 /** One value: NULL in italics, numbers at the end, long texts cut unless "Full texts" is on. */
-function Cell({ value, column, numeric, fullTexts, showBinary, onDoubleClick }: CellProps) {
+function Cell({ value, column, numeric, fullTexts, showBinary, geoOption, display, onDoubleClick }: CellProps) {
   const { t } = useTranslation('sql')
   const typeName = column.type_name
   const editable = onDoubleClick ? ' grid_edit' : ''
@@ -592,6 +657,24 @@ function Cell({ value, column, numeric, fullTexts, showBinary, onDoubleClick }: 
 
   if (value === '') {
     return <td data-type={typeName} data-decimals={decimals} className={`${numeric ? 'text-end ' : ''}${classes}${editable}`} onDoubleClick={onDoubleClick} />
+  }
+
+  if (isPostgisType(typeName) && geoOption !== 'WKB') {
+    // phpMyAdmin's Geometry shows the value as a [GEOMETRY - size] tag, Well Known Text as text.
+    const wkt = geoOption === 'WKT' ? ewkbToWkt(value) : null
+    return (
+      <td data-type={typeName} className={`text-start ${geoOption === 'GEOM' ? 'hex text-nowrap' : 'text pre_wrap'}${editable}`} onDoubleClick={onDoubleClick}>
+        {geoOption === 'GEOM' ? `[GEOMETRY - ${formatBytes(`\\x${value}`)}]` : (wkt ?? value)}
+      </td>
+    )
+  }
+
+  if (display !== undefined && display !== null) {
+    return (
+      <td data-type={typeName} className={`text-start ${classes}${editable}`} title={value} onDoubleClick={onDoubleClick}>
+        {display}
+      </td>
+    )
   }
 
   if (isBinaryType(typeName) && !showBinary) {

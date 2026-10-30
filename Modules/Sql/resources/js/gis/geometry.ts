@@ -156,3 +156,83 @@ export function bounds(shapes: Shape[]): [number, number, number, number] | null
   }
   return box
 }
+
+/**
+ * A PostGIS value's hex (E)WKB as Well Known Text, with its SRID as EWKT writes it
+ * ("SRID=4326;POINT(1 2)"); null when it cannot be read. Z and M are kept.
+ */
+export function ewkbToWkt(hex: string): string | null {
+  const clean = hex.trim()
+  if (!/^[0-9a-fA-F]+$/.test(clean) || clean.length % 2 !== 0) return null
+  const bytes = new Uint8Array(clean.length / 2)
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.substr(i * 2, 2), 16)
+  const view = new DataView(bytes.buffer)
+  let offset = 0
+  let srid: number | null = null
+  const NAMES = ['', 'POINT', 'LINESTRING', 'POLYGON', 'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON', 'GEOMETRYCOLLECTION']
+  const num = (v: number) => String(Number.isInteger(v) ? v : Number(v.toPrecision(15)))
+
+  function read(): { name: string; body: string } {
+    const little = view.getUint8(offset) === 1
+    offset += 1
+    const u32 = () => {
+      const v = view.getUint32(offset, little)
+      offset += 4
+      return v
+    }
+    const f64 = () => {
+      const v = view.getFloat64(offset, little)
+      offset += 8
+      return v
+    }
+    let type = u32()
+    let z = Boolean(type & 0x80000000)
+    let m = Boolean(type & 0x40000000)
+    if (type & 0x20000000) srid = u32()
+    type &= 0x0fffffff
+    if (type > 1000) {
+      const flag = Math.floor(type / 1000)
+      z ||= flag === 1 || flag === 3
+      m ||= flag === 2 || flag === 3
+      type %= 1000
+    }
+    const dims = 2 + (z ? 1 : 0) + (m ? 1 : 0)
+    const suffix = z && m ? ' ZM ' : z ? ' Z ' : m ? ' M ' : ''
+    const point = () => Array.from({ length: dims }, f64).map(num).join(' ')
+    const points = () => `(${Array.from({ length: u32() }, point).join(',')})`
+    const name = (NAMES[type] ?? '') + suffix
+    switch (type) {
+      case 1: {
+        const p = point()
+        return { name, body: p.split(' ').every((v) => v === 'NaN') ? `${suffix === '' ? ' ' : ''}EMPTY` : `(${p})` }
+      }
+      case 2:
+        return { name, body: points() }
+      case 3:
+        return { name, body: `(${Array.from({ length: u32() }, points).join(',')})` }
+      case 4:
+      case 5:
+      case 6:
+      case 7: {
+        const n = u32()
+        const parts = Array.from({ length: n }, () => read())
+        if (n === 0) return { name, body: `${suffix === '' ? ' ' : ''}EMPTY` }
+        return { name, body: `(${parts.map((p) => (type === 7 ? p.name + p.body : p.body)).join(',')})` }
+      }
+    }
+    throw new Error(`WKB type ${type}`)
+  }
+
+  try {
+    const { name, body } = read()
+    return `${srid !== null ? `SRID=${srid};` : ''}${name}${body}`
+  } catch {
+    return null
+  }
+}
+
+/** The geometry's kind, "POINT", from its hex (E)WKB; null when it cannot be read. */
+export function ewkbKind(hex: string): string | null {
+  const wkt = ewkbToWkt(hex)
+  return wkt === null ? null : (wkt.replace(/^SRID=\d+;/, '').match(/^[A-Z]+/)?.[0] ?? null)
+}

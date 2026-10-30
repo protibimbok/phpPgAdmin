@@ -65,7 +65,10 @@ statement with its own `LIMIT`, of `EXPLAIN` and so on cannot be sorted from the
 | --- | --- |
 | **Partial texts** (default) | Cuts values longer than 50 characters and adds `...`, on one line. |
 | **Full texts** | Shows values whole, wrapping lines and keeping line breaks and indentation. The **←T→** icon in the grid's corner switches between the two as well. |
+| **Relational key** (default) / **Display column for relationships** | Shown when a column is a foreign key. **Display column for relationships** shows, in place of each key, the referenced row's display column (the first text column of the referenced table, the one the insert form's dropdown shows), with the key on hover. Keys past the foreign-key dropdown limit (100) stay as they are. |
 | **Show binary contents** | Shows `bytea` values as their hex text (`\xdeadbeef`) instead of `[BLOB - 4 B]`. |
+| **Hide browser transformation** | phpMyAdmin's transformations are not built; the box answers *Not available yet.* |
+| **Geometry** (default) / **Well Known Text** / **Well Known Binary** | Shown when a column is PostGIS `geometry` or `geography`. **Geometry** shows `[GEOMETRY - 21 B]`, **Well Known Text** the value as EWKT (`SRID=4326;POINT(1 2)`, Z and M kept), read in the browser from the hex EWKB, and **Well Known Binary** that hex as PostgreSQL outputs it. Drawing them is [Visualize GIS data](/tools/sql#visualize-gis-data). |
 
 **Go** closes the card; the options apply as you change them. They are not saved and reset when the
 page reloads.
