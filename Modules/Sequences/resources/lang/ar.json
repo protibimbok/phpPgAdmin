@@ -55,6 +55,7 @@
     "next_value": "القيمة التالية",
     "actions_hint": "إعادة البدء تحدد القيمة التالية التي تعيدها nextval() (قيمة البدء إن تُرك الحقل فارغًا)؛ القيمة التالية تستدعي nextval() مرة واحدة.",
     "restarted": "يعاد بدء التسلسل {{name}} عند {{value}}.",
-    "next_value_is": "أعادت nextval('{{name}}') القيمة {{value}}."
+    "next_value_is": "أعادت nextval('{{name}}') القيمة {{value}}.",
+    "data_type": "نوع البيانات"
   }
 }

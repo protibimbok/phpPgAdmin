@@ -7,6 +7,8 @@ export interface Sequence {
   name: string
   schema: string
   seqowner: string
+  /** smallint, integer or bigint: CREATE SEQUENCE … AS. */
+  seqtype?: string | null
   comment: string | null
   acl: string | null
   owned_table: string | null
@@ -61,6 +63,7 @@ export interface SequenceData {
   schema?: string
   seqowner?: string
   comment?: string
+  seqtype?: string
   current_value?: string
   increment?: string
   start?: string

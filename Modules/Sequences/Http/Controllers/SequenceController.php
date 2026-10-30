@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Sequences\Http\Controllers;
 
+use League\Route\Http\Exception\BadRequestException;
 use PhpPgAdmin\Core\Nodes\Acl;
 use PhpPgAdmin\Core\Nodes\Catalog;
 use PhpPgAdmin\Core\Nodes\Ddl;
@@ -174,7 +175,8 @@ final class SequenceController extends RelationController
             }
         }
         // A value equal to the current one is no change; the editor may send the whole form.
-        foreach (['seqowner', 'comment', 'increment', 'start', 'minimum', 'maximum', 'cache', 'cycled', 'relpersistence', 'current_value', 'schema'] as $key) {
+        self::checkType($data);
+        foreach (['seqowner', 'comment', 'seqtype', 'increment', 'start', 'minimum', 'maximum', 'cache', 'cycled', 'relpersistence', 'current_value', 'schema'] as $key) {
             if (!array_key_exists($key, $data)) {
                 continue;
             }
@@ -219,6 +221,7 @@ final class SequenceController extends RelationController
     {
         $data['name'] = $this->requireName($data);
         $data['schema'] = $this->schemaName($ctx);
+        self::checkType($data);
         foreach (['increment', 'start', 'minimum', 'maximum', 'cache', 'current_value'] as $key) {
             if (array_key_exists($key, $data) && ($data[$key] === '' || $data[$key] === null)) {
                 unset($data[$key]);
@@ -236,6 +239,29 @@ final class SequenceController extends RelationController
         return $data;
     }
 
+    /**
+     * The sequence's data type, which the templates write as it is: one of the three integer
+     * types; empty takes it away.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function checkType(array &$data): void
+    {
+        if (!array_key_exists('seqtype', $data)) {
+            return;
+        }
+        $type = trim((string) $data['seqtype']);
+        if ($type === '') {
+            unset($data['seqtype']);
+
+            return;
+        }
+        if (!in_array($type, ['smallint', 'integer', 'bigint'], true)) {
+            throw new BadRequestException('A sequence is smallint, integer or bigint.');
+        }
+        $data['seqtype'] = $type;
+    }
+
     /** The definition columns of pg_sequence merged into the row, as pgAdmin's _fetch_properties does. */
     private function withDefinition(NodeContext $ctx, array $row): array
     {
@@ -246,6 +272,8 @@ final class SequenceController extends RelationController
             $row[$key] = is_int($value) ? (string) $value : $value;
         }
         $row['is_called'] = $definition['is_called'] ?? null;
+        // The data type, CREATE SEQUENCE … AS (smallint, integer or bigint).
+        $row['seqtype'] = $ctx->conn->scalar('SELECT pg_catalog.format_type(seqtypid, NULL) FROM pg_catalog.pg_sequence WHERE seqrelid = $1', [(int) $row['oid']]);
         $row['is_sys_obj'] = (int) $row['oid'] <= DatabaseController::LAST_SYSTEM_OID;
 
         return $row;

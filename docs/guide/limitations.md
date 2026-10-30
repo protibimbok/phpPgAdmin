@@ -20,7 +20,6 @@ These options are not in the forms; use the SQL tab for them:
 
 - **Views:** the create form has no storage options ([Views](/schema/views#create-a-view)).
 - **Operator classes, families and conversions:** created from a form, but not altered; a family's members are changed with `ALTER OPERATOR FAMILY` on the SQL tab ([Types](/schema/types#operator-classes-families-and-conversions)).
-- **Sequences:** there is no data type field ([Sequences](/schema/sequences)).
 
 ### Export, import and tools
 

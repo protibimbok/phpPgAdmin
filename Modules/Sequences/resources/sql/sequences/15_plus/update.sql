@@ -30,6 +30,10 @@ ALTER SEQUENCE IF EXISTS {{ conn|qtIdent(o_data.schema, data.name) }}
 
 {% endif %}
 {% set defquery = '' %}
+{# phpPgAdmin: ALTER SEQUENCE … AS type #}
+{% if data.seqtype is defined and data.seqtype %}
+{% set defquery = defquery ~ '\n    AS ' ~ data.seqtype %}
+{% endif %}
 {% if data.increment is defined %}
 {% set defquery = defquery ~ '\n    INCREMENT ' ~ data.increment|string %}
 {% endif %}

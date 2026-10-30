@@ -1,4 +1,6 @@
-CREATE {% if data.relpersistence %}UNLOGGED {% endif %}SEQUENCE{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{ conn|qtIdent(data.schema, data.name) }}{% if data.cycled %}
+CREATE {% if data.relpersistence %}UNLOGGED {% endif %}SEQUENCE{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{ conn|qtIdent(data.schema, data.name) }}{# phpPgAdmin: AS type, left out for bigint as pg_dump does #}{% if data.seqtype and data.seqtype != 'bigint' %}
+
+    AS {{ data.seqtype }}{% endif %}{% if data.cycled %}
 
     CYCLE{% endif %}{% if data.increment is defined %}
 

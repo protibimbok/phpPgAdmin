@@ -19,6 +19,8 @@ interface Form {
   schema: string
   owner: string
   comment: string
+  /** The data type, smallint, integer or bigint. */
+  type: string
   currentValue: string
   increment: string
   start: string
@@ -31,7 +33,7 @@ interface Form {
   ownedColumn: string
 }
 
-const EMPTY: Form = { name: '', schema: '', owner: '', comment: '', currentValue: '', increment: '', start: '', minimum: '', maximum: '', cache: '', cycled: false, unlogged: false, ownedTable: '', ownedColumn: '' }
+const EMPTY: Form = { name: '', schema: '', owner: '', comment: '', type: 'bigint', currentValue: '', increment: '', start: '', minimum: '', maximum: '', cache: '', cycled: false, unlogged: false, ownedTable: '', ownedColumn: '' }
 
 function fromSequence(s: Sequence): Form {
   return {
@@ -39,6 +41,7 @@ function fromSequence(s: Sequence): Form {
     schema: s.schema,
     owner: s.seqowner,
     comment: s.comment ?? '',
+    type: s.seqtype ?? 'bigint',
     currentValue: String(s.current_value),
     increment: String(s.increment),
     start: String(s.start),
@@ -105,6 +108,7 @@ export default function SequenceEditor({ mode }: { mode: 'create' | 'edit' }) {
       ...(editing && form.schema ? { schema: form.schema } : {}),
       seqowner: form.owner,
       comment: form.comment,
+      seqtype: form.type,
       ...(editing ? { current_value: form.currentValue } : {}),
       increment: form.increment,
       start: form.start,
@@ -221,6 +225,19 @@ export default function SequenceEditor({ mode }: { mode: 'create' | 'edit' }) {
                   <td>{t('editor.comment')}</td>
                   <td>
                     <input type="text" name="item_comment" value={form.comment} onChange={(e) => set('comment', e.target.value)} />
+                  </td>
+                </tr>
+                <tr>
+                  <td>{t('editor.data_type')}</td>
+                  <td>
+                    {/* CREATE SEQUENCE … AS: the type bounds the minimum and maximum. */}
+                    <select name="item_type" value={form.type} onChange={(e) => set('type', e.target.value)}>
+                      {['smallint', 'integer', 'bigint'].map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                 </tr>
                 {editing && numberRow('currentValue', t('editor.current_value'))}

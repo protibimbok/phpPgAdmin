@@ -55,6 +55,7 @@
     "next_value": "Next value",
     "actions_hint": "Restart sets the next value nextval() returns (the start value when left empty); Next value calls nextval() once.",
     "restarted": "Sequence {{name}} restarts at {{value}}.",
-    "next_value_is": "nextval('{{name}}') returned {{value}}."
+    "next_value_is": "nextval('{{name}}') returned {{value}}.",
+    "data_type": "Data type"
   }
 }

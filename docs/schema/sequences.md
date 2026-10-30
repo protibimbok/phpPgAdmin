@@ -30,6 +30,7 @@ The list and the editor show bigint values in full, for example the default maxi
 | **Sequence name** | The name. | `CREATE SEQUENCE public.rtn_seq` |
 | **Owner** | **(current role)** or a role. | `ALTER SEQUENCE … OWNER TO` |
 | **Comment** | | `COMMENT ON SEQUENCE` |
+| **Data type** | **smallint**, **integer** or **bigint** (the default); it bounds the minimum and maximum. **bigint** is not written, as pg_dump leaves it out. | `AS integer` |
 | **Increment** | Step between values; negative counts down. Default 1. | `INCREMENT 5` |
 | **Start** | First value returned. Default: the minimum (ascending) or maximum (descending). | `START 100` |
 | **Minimum** / **Maximum** | Bounds. Defaults: 1 and 2⁶³−1 for an ascending bigint sequence. | `MINVALUE 100` / `MAXVALUE 200` |
@@ -55,9 +56,6 @@ The hint under **Owned by** reads
 *A sequence owned by a column is dropped with it; the table must be in this schema.*
 
 ::: info Not in the form
-- **Data type** (`AS smallint | integer | bigint`): new sequences are `bigint`. To make an
-  `integer` sequence, run `CREATE SEQUENCE … AS integer` on the [SQL tab](/tools/sql). The
-  editor keeps the type of an existing sequence.
 - **RESTART**: there is no Restart field; use [Current value](#current-value) or
   `ALTER SEQUENCE … RESTART WITH n`.
 - To use a sequence as a column default, set the column's default to `nextval('rtn_seq')` on the
@@ -69,8 +67,10 @@ The hint under **Owned by** reads
 **Edit** (or clicking the sequence in the navigation panel) opens `…/sequences/<name>/edit`. The
 form has the same fields, except **Start**, which is replaced by **Current value**. Changes run as
 `ALTER SEQUENCE` statements: `RENAME TO` for the name, `OWNER TO`, `OWNED BY`, `SET UNLOGGED` /
-`SET LOGGED`, `COMMENT ON SEQUENCE`, and one `ALTER SEQUENCE` with the changed `INCREMENT`,
-`MINVALUE`, `MAXVALUE`, `CACHE` and `CYCLE` settings.
+`SET LOGGED`, `COMMENT ON SEQUENCE`, and one `ALTER SEQUENCE` with the changed `AS` type,
+`INCREMENT`, `MINVALUE`, `MAXVALUE`, `CACHE` and `CYCLE` settings. A new type moves bounds that were
+the old type's defaults to the new type's (PostgreSQL does it); a value outside the new type's range
+is refused.
 
 ![The editor of invoice_number: name, owner, comment, current value 1000, increment, bounds, cache, cycle, unlogged and owned-by fields, then the Statistics, Dependencies and Dependents panels](/media/schema/sequences-editor.png)
 

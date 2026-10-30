@@ -25,6 +25,10 @@ SELECT setval({{ seqname|qtLiteral(conn) }}, {{ data.current_value }}, false);
 
 {% endif %}
 {% set defquery = '' %}
+{# phpPgAdmin: ALTER SEQUENCE … AS type #}
+{% if data.seqtype is defined and data.seqtype %}
+{% set defquery = defquery ~ '\n    AS ' ~ data.seqtype %}
+{% endif %}
 {% if data.increment is defined %}
 {% set defquery = defquery ~ '\n    INCREMENT ' ~ data.increment|string %}
 {% endif %}
