@@ -61,6 +61,7 @@
     "end": "End",
     "page_number": "Page number:",
     "show_all": "Show all",
+    "show_all_warning": "Do you really want to see all of the rows? For a big table this could crash the browser.",
     "number_of_rows": "Number of rows:",
     "all": "All",
     "filter_rows": "Filter rows:",

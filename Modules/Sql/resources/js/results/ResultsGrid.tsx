@@ -24,6 +24,12 @@ export const ROWS_OPTIONS = [25, 50, 100, 250, 500]
 /** The rows a result shows per page, the role's "Number of rows" setting (MaxRows). */
 export const defaultMaxRows = (): number => preference<number>(MAX_ROWS)
 
+/**
+ * The most rows "Show all" is offered for, as phpMyAdmin offers it only for a result of at most
+ * 500 rows (Results.php's has_show_all, with ShowAll off); it still asks before showing them.
+ */
+export const SHOW_ALL_LIMIT = 500
+
 /** phpMyAdmin's LimitChars: how much of a long text a cell shows in "Partial texts" mode. */
 const limitChars = (): number => preference<number>(LIMIT_CHARS)
 
@@ -91,8 +97,12 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [editing, setEditing] = useState<Editing | null>(null)
 
-  // A new result set (another page, a reload after a save) closes the editor.
-  useEffect(() => setEditing(null), [result])
+  // A new result set (another page, a reload after a save or a delete) closes the editor and
+  // forgets the ticked rows, whose indexes now point at other rows.
+  useEffect(() => {
+    setEditing(null)
+    setChecked(new Set())
+  }, [result])
 
   const total = result.total_rows
   const pageSize = nav.maxRows
@@ -102,6 +112,14 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
   const pageNumber = pageSize !== null ? Math.floor(pos / pageSize) + 1 : 1
   const isLastPage = showingAll || (!result.has_more && (total === null || pos + result.row_count >= total))
   const numeric = useMemo(() => result.columns.map((c) => isNumericType(c.type_name)), [result.columns])
+  // ORDER BY a name two columns share is ambiguous, so only a column whose name is its own sorts.
+  const sortable = useMemo(() => {
+    const seen = new Map<string, number>()
+    for (const c of result.columns) seen.set(c.name, (seen.get(c.name) ?? 0) + 1)
+
+    return result.columns.map((c) => result.pageable && seen.get(c.name) === 1)
+  }, [result.columns, result.pageable])
+  const offerShowAll = showingAll || total === null || total <= SHOW_ALL_LIMIT
   const needle = filter.trim().toLowerCase()
   const visibleRows = useMemo(() => {
     const indexed = result.rows.map((row, index) => ({ row, index }))
@@ -226,23 +244,31 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                   <div className="navigation_separator">|</div>
                 </td>
               )}
-              <td>
-                <form onSubmit={(e) => e.preventDefault()}>
-                  <input
-                    type="checkbox"
-                    name="navig"
-                    id={`showAll_${uniqueId}`}
-                    className="showAllRows"
-                    value="all"
-                    checked={showingAll}
-                    onChange={(e) => go({ maxRows: e.target.checked ? null : defaultMaxRows(), pos: 0 })}
-                  />
-                  <label htmlFor={`showAll_${uniqueId}`}>{t('grid.show_all')}</label>
-                </form>
-              </td>
-              <td>
-                <div className="navigation_separator">|</div>
-              </td>
+              {offerShowAll && (
+                <>
+                  <td>
+                    <form onSubmit={(e) => e.preventDefault()}>
+                      <input
+                        type="checkbox"
+                        name="navig"
+                        id={`showAll_${uniqueId}`}
+                        className="showAllRows"
+                        value="all"
+                        checked={showingAll}
+                        onChange={(e) => {
+                          // phpMyAdmin's "Prompt to confirm on Show All".
+                          if (e.target.checked && !window.confirm(t('grid.show_all_warning'))) return
+                          go({ maxRows: e.target.checked ? null : defaultMaxRows(), pos: 0 })
+                        }}
+                      />
+                      <label htmlFor={`showAll_${uniqueId}`}>{t('grid.show_all')}</label>
+                    </form>
+                  </td>
+                  <td>
+                    <div className="navigation_separator">|</div>
+                  </td>
+                </>
+              )}
               <td className="navigation_goto">
                 <form className="maxRowsForm" onSubmit={(e) => e.preventDefault()}>
                   <label htmlFor={`sessionMaxRowsSelect_${uniqueId}`}>{t('grid.number_of_rows')}</label>
@@ -378,15 +404,15 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                   </th>
                 )}
                 {result.columns.map((column, i) => {
-                  const sorted = nav.order.find((o) => o.name === column.name)
+                  const sorted = sortable[i] ? nav.order.find((o) => o.name === column.name) : undefined
 
                   return (
                     <th
                       key={i}
-                      className={`draggable position-sticky bg-body${numeric[i] ? ' text-end' : ''}${result.pageable ? ' column_heading marker pointer' : ''}`}
+                      className={`draggable position-sticky bg-body${numeric[i] ? ' text-end' : ''}${sortable[i] ? ' column_heading marker pointer' : ''}`}
                       data-column={column.name}
                     >
-                      {result.pageable ? (
+                      {sortable[i] ? (
                         <a
                           href="#sort"
                           className="sortlink"

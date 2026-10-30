@@ -35,14 +35,14 @@ The bar appears above and below the grid.
 | **<<**, **<** | First page, previous page. Shown from the second page on. |
 | Page selector | Jumps to a page. Shown when there is more than one page; with more than 200 pages it lists the first and last five, the ten around the current one and round numbers in between. |
 | **>**, **>>** | Next page, last page. |
-| **Show all** | Shows every row on one page (`?rows=all`). Untick to return to the default page size. |
+| **Show all** | Shows every row on one page (`?rows=all`), after asking *Do you really want to see all of the rows?* Offered, as in phpMyAdmin, only when the result has at most 500 rows. Untick to return to the default page size. |
 | **Number of rows:** | 25, 50, 100, 250 or 500 rows per page. The default is the **Number of rows** setting under [Settings → Main panel](/server/settings). |
 | **Filter rows:** | Hides the rows of **this page** that do not contain the text, in any column, ignoring case. It does not query the server; use [Search](/table/search) to filter the table. |
 | **Sort by key:** | Tables only. **PRIMARY (ASC)/(DESC)** and the same for each index whose columns are all in the result. Indexes on expressions are left out. **None** returns to the default order. |
 
-::: warning Show all has no upper limit
-**Show all** on a large table sends every row to the browser at once. There is no cap like
-phpMyAdmin's `$cfg['MaxRows']` safeguard for "all".
+::: warning A typed ?rows=all is not capped
+The **Show all** box is not offered past 500 rows, but a URL that already says `?rows=all` still
+sends every row of the table to the browser at once.
 :::
 
 ### Sorting by a column
@@ -51,7 +51,8 @@ Click a column heading to sort by it; click it again to reverse the order. A dat
 column starts newest first, others ascending. The grid sorts by one column at a time: clicking another
 heading replaces the order. The arrow next to a heading shows the current direction.
 
-Headings are links only when the result can be paged. On the SQL tab, results of a batch, of a
+Headings are links only when the result can be paged, and only for a name that one column has: two
+columns called the same (`SELECT 1 AS a, 2 AS a`) cannot be told apart by `ORDER BY`. On the SQL tab, results of a batch, of a
 statement with its own `LIMIT`, of `EXPLAIN` and so on cannot be sorted from the grid.
 
 ## Extra options
