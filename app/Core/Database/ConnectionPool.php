@@ -58,6 +58,18 @@ final class ConnectionPool
     }
 
     /**
+     * A connection of its own to the given database, which the pool does not close at the end
+     * of the request: for a response body that keeps reading after the controller returns
+     * (a streamed export). The caller closes it.
+     *
+     * @throws ConnectionException
+     */
+    public function detached(?string $database = null): Connection
+    {
+        return $this->connector->connect($this->credentials, $database ?? $this->credentials->database);
+    }
+
+    /**
      * The environment a client program connects with as the session's role, to the given
      * database or the session's maintenance database.
      *

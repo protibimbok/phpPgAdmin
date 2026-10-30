@@ -37,8 +37,8 @@ export interface ExportOptions {
 /** The options of the Export form that a template keeps: everything but what is exported. */
 export interface ExportSettings {
   method: 'quick' | 'custom'
-  /** pg_dump's formats, or CSV and CSV for MS Excel written by COPY. */
-  format: 'plain' | 'custom' | 'tar' | 'csv' | 'excel'
+  /** pg_dump's formats, CSV, CSV for MS Excel and tab-separated written by COPY, or HTML and XML read through a cursor. */
+  format: 'plain' | 'custom' | 'tar' | 'csv' | 'excel' | 'tsv' | 'html' | 'xml'
   output: 'text' | 'file'
   filename_template: string
   encoding: string
@@ -87,6 +87,10 @@ export interface ExportSettings {
   excel_remove_crlf: boolean
   excel_columns: boolean
   excel_edition: 'win' | 'mac_excel2003' | 'mac_excel2008'
+  tsv_null: string
+  tsv_columns: boolean
+  htmlword_columns: boolean
+  htmlword_null: string
 }
 
 const query = (target: ExportTarget) => new URLSearchParams(Object.entries(target).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString()

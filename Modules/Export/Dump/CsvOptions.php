@@ -11,7 +11,8 @@ use League\Route\Http\Exception\BadRequestException;
  * them: one character each to separate, enclose and escape columns, the text NULL becomes, and
  * a header row. COPY ends lines with "\n"; another line terminator is put in by CsvLineEnds.
  * The Excel format is CSV with every value enclosed, "\r\n" line ends and the edition's
- * separator, as phpMyAdmin writes it.
+ * separator, as phpMyAdmin writes it. Tab-separated is COPY's text format (the classic
+ * phpPgAdmin's "tab" export): tabs between columns, backslash escapes and NULL as \N.
  */
 final readonly class CsvOptions
 {
@@ -26,6 +27,7 @@ final readonly class CsvOptions
         public bool $removeCrLf,
         public bool $columns,
         public bool $forceQuote,
+        public bool $text = false,
     ) {
     }
 
@@ -39,6 +41,10 @@ final readonly class CsvOptions
     {
         $string = static fn (string $key, string $default): string => is_string($input[$key] ?? null) ? $input[$key] : $default;
         $bool = static fn (string $key, bool $default): bool => array_key_exists($key, $input) ? filter_var($input[$key], FILTER_VALIDATE_BOOL) : $default;
+
+        if ($format === 'tsv') {
+            return new self("\t", '', '', "\n", $string('tsv_null', '\N'), false, $bool('tsv_columns', true), false, true);
+        }
 
         if ($format === 'excel') {
             $edition = $string('excel_edition', 'win');

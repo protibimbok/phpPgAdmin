@@ -39,7 +39,10 @@
     "custom": "PostgreSQL custom archive (pg_restore)",
     "tar": "PostgreSQL tar archive (pg_restore)",
     "csv": "CSV",
-    "excel": "CSV for MS Excel"
+    "excel": "CSV for MS Excel",
+    "tsv": "Tab-separated values (COPY text)",
+    "html": "HTML",
+    "xml": "XML"
   },
   "selection": {
     "databases": "Databases",
@@ -131,7 +134,8 @@
       "example_both": "INSERT INTO tbl_name (col_A, col_B, col_C) VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9)",
       "example_neither": "INSERT INTO tbl_name VALUES (1, 2, 3)"
     },
-    "rows_per_insert": "Rows in each INSERT statement:"
+    "rows_per_insert": "Rows in each INSERT statement:",
+    "xml_none": "XML has no options: each row is a <row> of <column name=\"…\"> elements, as the classic phpPgAdmin wrote it, and the Import page reads it back."
   },
   "csv": {
     "separator": "Columns separated with:",

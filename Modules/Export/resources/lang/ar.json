@@ -39,7 +39,10 @@
     "custom": "أرشيف PostgreSQL المخصص (pg_restore)",
     "tar": "أرشيف PostgreSQL بصيغة tar (pg_restore)",
     "csv": "CSV",
-    "excel": "CSV لبرنامج MS Excel"
+    "excel": "CSV لبرنامج MS Excel",
+    "tsv": "قيم مفصولة بعلامات جدولة (COPY text)",
+    "html": "HTML",
+    "xml": "XML"
   },
   "selection": {
     "databases": "قواعد البيانات",
@@ -131,7 +134,8 @@
       "example_both": "INSERT INTO tbl_name (col_A, col_B, col_C) VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9)",
       "example_neither": "INSERT INTO tbl_name VALUES (1, 2, 3)"
     },
-    "rows_per_insert": "عدد الصفوف في كل جملة INSERT:"
+    "rows_per_insert": "عدد الصفوف في كل جملة INSERT:",
+    "xml_none": "لا خيارات لصيغة XML: كل صف هو عنصر <row> من عناصر <column name=\"…\">، كما كان phpPgAdmin الكلاسيكي يكتبه، وتقرؤه صفحة الاستيراد."
   },
   "csv": {
     "separator": "الأعمدة مفصولة بـ:",

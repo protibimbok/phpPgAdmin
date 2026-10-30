@@ -54,7 +54,14 @@ const DEFAULTS: Omit<ExportSettings, 'filename_template' | 'encoding' | 'databas
   excel_remove_crlf: false,
   excel_columns: true,
   excel_edition: 'win',
+  tsv_null: '\\N',
+  tsv_columns: true,
+  htmlword_columns: true,
+  htmlword_null: 'NULL',
 }
+
+/** The formats written as rows of data only: COPY's CSV and text, and the HTML and XML read through a cursor. */
+const DATA_FORMATS: ExportSettings['format'][] = ['csv', 'excel', 'tsv', 'html', 'xml']
 
 type Flag = { [K in keyof ExportSettings]: ExportSettings[K] extends boolean ? K : never }[keyof ExportSettings]
 
@@ -69,6 +76,15 @@ function rememberedFilename(scope: ExportScope): string | null {
   } catch {
     return null
   }
+}
+
+/** The role's default format, where the scope offers it: archives and CSV need a database, HTML and XML a table. */
+function preferredFormat(scope: ExportScope): ExportSettings['format'] {
+  const format = preference<ExportSettings['format']>(FORMAT)
+  if (scope === 'server') return 'plain'
+  if ((format === 'html' || format === 'xml') && scope !== 'table') return 'plain'
+
+  return format
 }
 
 /**
@@ -109,7 +125,7 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
     ...DEFAULTS,
     // The role's defaults, where the scope offers them: pg_dump's archives and CSV need a database.
     method: preselected.length > 0 ? 'custom' : preference<ExportSettings['method']>(METHOD),
-    format: scope === 'server' ? 'plain' : preference<ExportSettings['format']>(FORMAT),
+    format: preferredFormat(scope),
     compression: preference<ExportSettings['compression']>(COMPRESSION),
     filename_template: rememberedFilename(scope) ?? options.filename_template,
     encoding: options.encoding,
@@ -132,10 +148,12 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
   const set = <K extends keyof ExportSettings>(key: K, value: ExportSettings[K]) => setSettings((current) => ({ ...current, [key]: value }))
   const custom = settings.method === 'custom'
   const plain = settings.format === 'plain'
-  // CSV is data only, as in phpMyAdmin: what is ticked under Data goes in.
-  const csv = settings.format === 'csv' || settings.format === 'excel'
+  // CSV is data only, as in phpMyAdmin: what is ticked under Data goes in. So are tab-separated, HTML and XML.
+  const csv = DATA_FORMATS.includes(settings.format)
+  // HTML and XML are read through a cursor here, without the client programs.
+  const rowFormat = settings.format === 'html' || settings.format === 'xml'
   const tools = options.tools
-  const toolsProblem = tools === null ? t('tools.missing') : csv ? (tools.psql ? null : t('tools.no_psql', { directory: tools.directory })) : tools.usable ? null : t('tools.too_old', { version: tools.version, server: options.server_major })
+  const toolsProblem = rowFormat ? null : tools === null ? t('tools.missing') : csv ? (tools.psql ? null : t('tools.no_psql', { directory: tools.directory })) : tools.usable ? null : t('tools.too_old', { version: tools.version, server: options.server_major })
 
   // What the selection adds up to at the database and schema scopes, as the server reads it.
   const contents: ExportSettings['contents'] = scope === 'database' || scope === 'schema' ? (settings.structure.length === 0 ? 'data' : settings.data.length === 0 ? 'structure' : 'both') : settings.contents
@@ -261,11 +279,18 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
           { value: 'tar' as const, label: t('format.tar') },
           { value: 'csv' as const, label: t('format.csv') },
           { value: 'excel' as const, label: t('format.excel') },
+          { value: 'tsv' as const, label: t('format.tsv') },
+          ...(scope === 'table'
+            ? [
+                { value: 'html' as const, label: t('format.html') },
+                { value: 'xml' as const, label: t('format.xml') },
+              ]
+            : []),
         ]),
   ]
 
   // The field names of phpMyAdmin's plugins: sql_*, and csv_* and excel_* as they are spelled there.
-  const field = (key: Flag) => (key.startsWith('csv_') || key.startsWith('excel_') ? key.replace('remove_crlf', 'removeCRLF') : `sql_${key}`)
+  const field = (key: Flag) => (key.startsWith('csv_') || key.startsWith('excel_') ? key.replace('remove_crlf', 'removeCRLF') : key.startsWith('tsv_') || key.startsWith('htmlword_') ? key : `sql_${key}`)
   const toggle = (key: Flag, label: ReactNode, children?: ReactNode) => (
     <li className="list-group-item">
       <div className="form-check form-switch">
@@ -542,6 +567,37 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                       </li>
                     </ul>
                   </div>
+                </div>
+              )}
+              {settings.format === 'tsv' && (
+                <div id="tsv_options" className="format_specific_options">
+                  <ul className="list-group">
+                    <li className="list-group-item">
+                      <label htmlFor="text_tsv_null" className="form-label">
+                        {t('csv.null')}
+                      </label>
+                      <input className="form-control" type="text" name="tsv_null" id="text_tsv_null" value={settings.tsv_null} onChange={(e) => set('tsv_null', e.target.value)} />
+                    </li>
+                    {toggle('tsv_columns', t('csv.columns'))}
+                  </ul>
+                </div>
+              )}
+              {settings.format === 'html' && (
+                <div id="htmlword_options" className="format_specific_options">
+                  <ul className="list-group">
+                    <li className="list-group-item">
+                      <label htmlFor="text_htmlword_null" className="form-label">
+                        {t('csv.null')}
+                      </label>
+                      <input className="form-control" type="text" name="htmlword_null" id="text_htmlword_null" value={settings.htmlword_null} onChange={(e) => set('htmlword_null', e.target.value)} />
+                    </li>
+                    {toggle('htmlword_columns', t('csv.columns'))}
+                  </ul>
+                </div>
+              )}
+              {settings.format === 'xml' && (
+                <div id="xml_options" className="format_specific_options">
+                  <p className="card-text">{t('options.xml_none')}</p>
                 </div>
               )}
               {!csv && (

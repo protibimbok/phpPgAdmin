@@ -9,23 +9,31 @@ use League\Route\Http\Exception\NotFoundException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Core\Database\Quoting;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Export\Dump\ClientTools;
 use PhpPgAdmin\Modules\Export\Dump\CopyCommand;
+use PhpPgAdmin\Modules\Export\Dump\CopyFormat;
 use PhpPgAdmin\Modules\Export\Dump\CsvLineEnds;
 use PhpPgAdmin\Modules\Export\Dump\DumpCommand;
 use PhpPgAdmin\Modules\Export\Dump\DumpStream;
 use PhpPgAdmin\Modules\Export\Dump\ExportRequest;
 use PhpPgAdmin\Modules\Export\Dump\FileName;
+use PhpPgAdmin\Modules\Export\Dump\HtmlFormat;
+use PhpPgAdmin\Modules\Export\Dump\RowStream;
+use PhpPgAdmin\Modules\Export\Dump\SqlInsertFormat;
+use PhpPgAdmin\Modules\Export\Dump\XmlFormat;
 use PhpPgAdmin\Modules\Export\Storage\ExportTemplates;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * The Export pages' backend: what a scope offers to export (GET /api/export/options), and the
  * export itself (POST /api/export), pg_dump or pg_dumpall streamed to the response as an
- * attachment, or as text for "View output as text", and CSV written by COPY through psql.
+ * attachment, or as text for "View output as text", CSV and tab-separated text written by
+ * COPY through psql, and HTML, XML and a view's rows read through a cursor (RowStream).
  */
 final class ExportController
 {
@@ -86,6 +94,17 @@ final class ExportController
         $export = ExportRequest::fromArray($body);
         $pool = ConnectionPool::from($request);
 
+        $conn = $export->database === null ? $pool->maintenance() : $pool->for($export->database);
+        $tableKind = $export->scope === 'table'
+            ? ($this->relationKind($conn, (string) $export->schema, (string) $export->table) ?? throw new NotFoundException(sprintf('There is no relation "%s"."%s".', $export->schema, $export->table)))
+            : 'r';
+
+        // HTML, XML, and the rows of a view or foreign table (which pg_dump does not dump) are
+        // read here through a cursor; the rest is pg_dump, pg_dumpall or psql's COPY.
+        if ($export->isRowFormat() || ($export->format === 'plain' && $export->contents === 'data' && in_array($tableKind, ['v', 'f'], true))) {
+            return $this->rowExport($export, $pool);
+        }
+
         $tools = ClientTools::locate() ?? throw new ApiException(503, 'pg_dump was not found. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the directory of the PostgreSQL client programs.');
         $serverMajor = intdiv($pool->version(), 10000);
         if ($export->csv !== null && !is_executable($tools->path('psql'))) {
@@ -96,18 +115,12 @@ final class ExportController
             throw new ApiException(422, sprintf('pg_dump %s cannot dump a PostgreSQL %d server; point PGADMIN_PG_BIN_DIR at the client programs of version %d or newer.', $tools->versionString(), $serverMajor, $serverMajor));
         }
 
-        $conn = $export->database === null ? $pool->maintenance() : $pool->for($export->database);
-        $tableKind = 'r';
         $objects = match ($export->scope) {
             'server' => $this->databases($conn),
             'database' => $this->schemas($conn),
             'schema' => $this->relations($conn, (string) $export->schema),
             'table' => [],
         };
-        if ($export->scope === 'table') {
-            $tableKind = $this->relationKind($conn, (string) $export->schema, (string) $export->table)
-                ?? throw new NotFoundException(sprintf('There is no relation "%s"."%s".', $export->schema, $export->table));
-        }
         $oversized = $export->maxSize !== null && $export->scope !== 'server' ? $this->oversized($conn, $export) : [];
 
         $command = $export->csv !== null
@@ -115,20 +128,68 @@ final class ExportController
             : new DumpCommand($export, $tools, $objects, $oversized, $tableKind);
         $environment = $pool->environment($export->database ?? $conn->database());
         $plain = $export->format === 'plain';
-        $gzip = !$export->asText && $export->compression === 'gzip' && $export->format !== 'custom';
+        $gzip = $this->gzip($export);
         $filter = $export->csv !== null && $export->csv->terminated !== "\n" ? (new CsvLineEnds($export->csv->enclosed, $export->csv->escaped, $export->csv->terminated))(...) : null;
-        $prefix = $plain && trim($export->headerComment) !== ''
+        $prefix = $plain ? $this->headerComment($export) : '';
+
+        $this->detachSession();
+        $stream = DumpStream::start($command->program(), $command->arguments(), $environment, $gzip, $plain, $prefix, $filter);
+
+        return $this->respond($export, $stream, $gzip);
+    }
+
+    /**
+     * An export whose rows RowStream reads through a cursor: HTML, XML, or the INSERT or COPY
+     * statements of a view's or foreign table's rows.
+     */
+    private function rowExport(ExportRequest $export, ConnectionPool $pool): ResponseInterface
+    {
+        $relation = Quoting::ident((string) $export->schema, (string) $export->table);
+        $title = $export->schema . '.' . $export->table;
+        $format = match ($export->format) {
+            'html' => new HtmlFormat($title, $export->htmlColumns, $export->htmlNull, $export->encoding ?? 'UTF-8'),
+            'xml' => new XmlFormat($export->encoding ?? 'UTF-8'),
+            default => $export->dataStyle === 'insert'
+                ? new SqlInsertFormat($relation, in_array($export->insertSyntax, ['columns', 'both'], true), in_array($export->insertSyntax, ['multi', 'both'], true) ? $export->rowsPerInsert : 1, $export->flag('on_conflict_do_nothing'))
+                : new CopyFormat($relation),
+        };
+        $plain = $export->format === 'plain';
+        $gzip = $this->gzip($export);
+
+        $this->detachSession();
+        $stream = RowStream::start($pool->detached($export->database), 'SELECT * FROM ' . $relation, $format, $gzip, $plain ? $this->headerComment($export) : '', $plain ? '-- ' : '', $export->encoding);
+
+        return $this->respond($export, $stream, $gzip);
+    }
+
+    private function gzip(ExportRequest $export): bool
+    {
+        return !$export->asText && $export->compression === 'gzip' && $export->format !== 'custom';
+    }
+
+    /** phpMyAdmin's "Add custom comment into header", as SQL comment lines. */
+    private function headerComment(ExportRequest $export): string
+    {
+        return trim($export->headerComment) !== ''
             ? implode('', array_map(static fn (string $line): string => '-- ' . $line . "\n", explode('\n', str_replace(["\r\n", "\n"], '\n', $export->headerComment)))) . "\n"
             : '';
+    }
 
-        // The dump can take long and needs nothing more from the session; let the session's other
-        // requests through while it runs.
+    /**
+     * The dump can take long and needs nothing more from the session; let the session's other
+     * requests through while it runs.
+     */
+    private function detachSession(): void
+    {
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_write_close();
         }
         set_time_limit(0);
+    }
 
-        $stream = DumpStream::start($command->program(), $command->arguments(), $environment, $gzip, $plain, $prefix, $filter);
+    /** The stream as the response: text for "View output as text", otherwise an attachment named by the template. */
+    private function respond(ExportRequest $export, StreamInterface $stream, bool $gzip): ResponseInterface
+    {
         $response = (new Psr17Factory())->createResponse()
             ->withHeader('Cache-Control', 'no-store')
             ->withHeader('X-Accel-Buffering', 'no')
@@ -151,7 +212,10 @@ final class ExportController
                 $gzip => 'application/gzip',
                 $export->format === 'tar' => 'application/x-tar',
                 $export->format === 'custom' => 'application/octet-stream',
+                $export->format === 'tsv' => 'text/tab-separated-values',
                 $export->csv !== null => 'text/csv',
+                $export->format === 'html' => 'text/html; charset=utf-8',
+                $export->format === 'xml' => 'application/xml',
                 default => 'application/sql',
             })
             ->withHeader('Content-Disposition', sprintf('attachment; filename="%s"; filename*=UTF-8\'\'%s', addcslashes($ascii, '"\\'), rawurlencode($name)));

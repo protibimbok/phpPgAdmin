@@ -36,7 +36,7 @@ final readonly class CopyCommand
     public function arguments(): array
     {
         $args = ['--no-password', '--no-psqlrc', '--quiet', '--set=ON_ERROR_STOP=1'];
-        $statements = array_map($this->statement(...), $this->relations);
+        $statements = array_merge(...array_map(fn (array $relation): array => $this->csv->text ? $this->textStatements($relation) : [$this->statement($relation)], $this->relations));
         if (count($statements) > 1) {
             $statements = ['BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY', ...$statements, 'COMMIT'];
         }
@@ -74,5 +74,28 @@ final readonly class CopyCommand
         }
 
         return sprintf('COPY (SELECT %s FROM %s) TO STDOUT WITH (%s)', $select, $from, implode(', ', $options));
+    }
+
+    /**
+     * Tab-separated: COPY's text format. Its HEADER needs PostgreSQL 15, so the column names
+     * are a COPY of their own, a one-row SELECT that COPY escapes like the data.
+     *
+     * @param array{schema: string, name: string, kind: string, columns: list<string>} $relation
+     * @return list<string>
+     */
+    private function textStatements(array $relation): array
+    {
+        $from = ($relation['kind'] === 'r' ? 'ONLY ' : '') . Quoting::ident($relation['schema'], $relation['name']);
+        $options = ['FORMAT text', 'NULL ' . Quoting::literal($this->csv->null)];
+        if ($this->request->encoding !== null) {
+            $options[] = 'ENCODING ' . Quoting::literal($this->request->encoding);
+        }
+        $copy = sprintf('COPY (SELECT * FROM %s) TO STDOUT WITH (%s)', $from, implode(', ', $options));
+        if (!$this->csv->columns || $relation['columns'] === []) {
+            return [$copy];
+        }
+        $header = sprintf('COPY (SELECT %s) TO STDOUT WITH (%s)', implode(', ', array_map(Quoting::literal(...), $relation['columns'])), implode(', ', $options));
+
+        return [$header, $copy];
     }
 }

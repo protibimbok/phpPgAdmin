@@ -35,6 +35,9 @@ registerPreferences([
       { value: 'tar', label: 'export:format.tar' },
       { value: 'csv', label: 'export:format.csv' },
       { value: 'excel', label: 'export:format.excel' },
+      { value: 'tsv', label: 'export:format.tsv' },
+      { value: 'html', label: 'export:format.html' },
+      { value: 'xml', label: 'export:format.xml' },
     ],
   },
   {

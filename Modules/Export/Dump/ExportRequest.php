@@ -17,7 +17,10 @@ final readonly class ExportRequest
 {
     public const array SCOPES = ['server', 'database', 'schema', 'table'];
 
-    public const array FORMATS = ['plain', 'custom', 'tar', 'csv', 'excel'];
+    public const array FORMATS = ['plain', 'custom', 'tar', 'csv', 'excel', 'tsv', 'html', 'xml'];
+
+    /** The formats written here from a cursor (RowStream), for one relation's rows. */
+    public const array ROW_FORMATS = ['html', 'xml'];
 
     public const array COMPRESSIONS = ['none', 'gzip'];
 
@@ -82,6 +85,8 @@ final readonly class ExportRequest
         public int $rowsPerInsert,
         public array $flags,
         public ?CsvOptions $csv = null,
+        public bool $htmlColumns = true,
+        public string $htmlNull = 'NULL',
     ) {
     }
 
@@ -106,6 +111,9 @@ final readonly class ExportRequest
         $format = self::choice($input, 'format', self::FORMATS, 'plain');
         if ($scope === 'server' && $format !== 'plain') {
             throw new BadRequestException('pg_dumpall writes plain SQL only.');
+        }
+        if (in_array($format, self::ROW_FORMATS, true) && $scope !== 'table') {
+            throw new BadRequestException('HTML and XML exports are of one table or view.');
         }
 
         $maxSize = $input['max_size'] ?? null;
@@ -154,7 +162,9 @@ final readonly class ExportRequest
             insertSyntax: self::choice($input, 'insert_syntax', ['neither', 'columns', 'multi', 'both'], 'both'),
             rowsPerInsert: (int) $rows,
             flags: $flags,
-            csv: $format === 'csv' || $format === 'excel' ? CsvOptions::fromArray($input, $format) : null,
+            csv: in_array($format, ['csv', 'excel', 'tsv'], true) ? CsvOptions::fromArray($input, $format) : null,
+            htmlColumns: filter_var($input['htmlword_columns'] ?? true, FILTER_VALIDATE_BOOL),
+            htmlNull: is_string($input['htmlword_null'] ?? null) ? $input['htmlword_null'] : 'NULL',
         );
     }
 
@@ -162,6 +172,12 @@ final readonly class ExportRequest
     public function flag(string $name): bool
     {
         return $this->flags[$name] ?? array_key_exists($name, self::INCLUDE_FLAGS);
+    }
+
+    /** Whether the rows are read through a cursor here: HTML and XML. */
+    public function isRowFormat(): bool
+    {
+        return in_array($this->format, self::ROW_FORMATS, true);
     }
 
     public function isArchive(): bool
