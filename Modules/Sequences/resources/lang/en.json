@@ -47,6 +47,14 @@
     "none": "(none)",
     "owned_by_hint": "A sequence owned by a column is dropped with it; the table must be in this schema.",
     "created": "Sequence {{name}} has been created.",
-    "altered": "Sequence {{name}} has been altered."
+    "altered": "Sequence {{name}} has been altered.",
+    "schema": "Schema",
+    "actions": "Actions",
+    "restart_at": "Restart at",
+    "restart": "Restart",
+    "next_value": "Next value",
+    "actions_hint": "Restart sets the next value nextval() returns (the start value when left empty); Next value calls nextval() once.",
+    "restarted": "Sequence {{name}} restarts at {{value}}.",
+    "next_value_is": "nextval('{{name}}') returned {{value}}."
   }
 }

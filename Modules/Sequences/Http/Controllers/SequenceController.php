@@ -69,12 +69,14 @@ final class SequenceController extends RelationController
         return $this->node($ctx, (int) $row['oid']);
     }
 
-    /** The ALTERs for what the client's data changes. */
+    /** The ALTERs for what the client's data changes; the node is read in the schema the sequence is in afterwards. */
     public function update(NodeContext $ctx, int $oid, array $data): array
     {
         $this->execute($ctx, $this->updateSql($ctx, $oid, $data));
+        $scid = (int) $ctx->conn->scalar('SELECT relnamespace FROM pg_catalog.pg_class WHERE oid = $1', [$oid]);
+        $row = $ctx->row('nodes.sql', [...$this->vars($ctx, $oid), 'scid' => $scid]) ?? throw $this->gone($ctx);
 
-        return $this->node($ctx, $oid);
+        return $this->toNode($ctx, $row);
     }
 
     /** DROP SEQUENCE, CASCADE on request. */
@@ -93,6 +95,25 @@ final class SequenceController extends RelationController
         }
 
         return $this->updateSql($ctx, $oid, $data);
+    }
+
+    /**
+     * ALTER SEQUENCE … RESTART, at the given value or the sequence's start: the classic
+     * phpPgAdmin's "Reset" and "Restart".
+     */
+    public function restart(NodeContext $ctx, int $oid, ?string $value): void
+    {
+        if ($value !== null && filter_var($value, FILTER_VALIDATE_INT) === false && preg_match('/^-?\d+$/', $value) !== 1) {
+            throw new \League\Route\Http\Exception\BadRequestException('A sequence restarts at a whole number.');
+        }
+        $row = parent::properties($ctx, $oid);
+        $this->execute($ctx, sprintf('ALTER SEQUENCE %s RESTART%s;', \PhpPgAdmin\Core\Database\Quoting::ident((string) $row['schema'], (string) $row['name']), $value === null ? '' : ' WITH ' . $value));
+    }
+
+    /** nextval(): the classic phpPgAdmin's "Next value", which advances the sequence and returns the value. */
+    public function nextValue(NodeContext $ctx, int $oid): string
+    {
+        return (string) $ctx->conn->scalar('SELECT pg_catalog.nextval($1::oid::regclass)::text', [$oid]);
     }
 
     /** pg_statio_all_sequences for one sequence, or for every one of the schema. */

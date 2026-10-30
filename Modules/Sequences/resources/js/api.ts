@@ -85,6 +85,16 @@ export function dropSequence(db: string, scid: number, seid: number, cascade = f
   return sequences(db, scid).remove(seid, cascade).then(() => undefined)
 }
 
+/** ALTER SEQUENCE … RESTART, at the value given or the sequence's start. */
+export function restartSequence(db: string, scid: number, seid: number, value: string | null): Promise<void> {
+  return api.post<{ ok: true }>(`${collectionUrl(db, 'schemas', scid, 'sequences')}/${seid}/restart`, { value }).then(() => undefined)
+}
+
+/** nextval(): advances the sequence and returns the value. */
+export function nextSequenceValue(db: string, scid: number, seid: number): Promise<string> {
+  return api.post<{ value: string }>(`${collectionUrl(db, 'schemas', scid, 'sequences')}/${seid}/nextval`, {}).then((r) => r.value)
+}
+
 export function sequenceModifiedSql(db: string, scid: number, data: SequenceData, seid?: number): Promise<string> {
   return sequences(db, scid).modifiedSql(data, seid)
 }
