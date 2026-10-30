@@ -33,6 +33,13 @@
     "current_lsn": "موضع WAL الحالي (LSN)",
     "current_walfile": "ملف WAL الحالي"
   },
+  "restore_point": {
+    "title": "إنشاء نقطة استعادة مسمّاة",
+    "name": "اسم نقطة الاستعادة:",
+    "help": "تكتب pg_create_restore_point الاسم في WAL؛ ويتوقف الاسترداد إلى نقطة زمنية عندها باستخدام recovery_target_name.",
+    "create": "إنشاء نقطة الاستعادة",
+    "created": "أُنشئت نقطة الاستعادة \"{{name}}\" عند {{lsn}}."
+  },
   "replicas": {
     "application": "التطبيق",
     "host": "المضيف",

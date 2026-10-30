@@ -19,6 +19,7 @@ Route::middleware(Authenticate::class)->controller(ReplicationController::class)
     Route::delete('/server/replication/slots/{name:[^/]+}', 'dropSlot')->setName('replication.slots.drop');
     Route::post('/server/replication/replay/pause', 'pauseReplay')->setName('replication.replay.pause');
     Route::post('/server/replication/replay/resume', 'resumeReplay')->setName('replication.replay.resume');
+    Route::post('/server/replication/restore-point', 'createRestorePoint')->setName('replication.restore_point');
 });
 
 // Beyond the node operations: the lists the editors offer, and the publications of the

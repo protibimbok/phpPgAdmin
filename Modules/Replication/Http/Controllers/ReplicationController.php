@@ -16,7 +16,8 @@ use Psr\Http\Message\ServerRequestInterface;
  * whether the server is a primary (the standbys in pg_stat_replication) or a standby (its WAL
  * receiver and replay), the replication slots, and the settings each side runs on. A slot can
  * be created and dropped, and a standby's WAL replay paused and resumed (pgAdmin's
- * wal_replay). Everything goes through the maintenance connection, as the views are
+ * wal_replay), and a primary can write a named restore point for point-in-time recovery to stop
+ * at (pg_create_restore_point). Everything goes through the maintenance connection, as the views are
  * server-wide, except a logical slot, which is created and dropped in its own database.
  */
 final class ReplicationController
@@ -36,7 +37,8 @@ final class ReplicationController
                r.rolsuper AS superuser,
                r.rolsuper OR r.rolreplication AS replication,
                r.rolsuper OR pg_catalog.pg_has_role(r.oid, 'pg_read_all_stats', 'USAGE') AS monitor,
-               pg_catalog.has_function_privilege('pg_catalog.pg_wal_replay_pause()', 'EXECUTE') AS replay_control
+               pg_catalog.has_function_privilege('pg_catalog.pg_wal_replay_pause()', 'EXECUTE') AS replay_control,
+               pg_catalog.has_function_privilege('pg_catalog.pg_create_restore_point(text)', 'EXECUTE') AS restore_point
         FROM pg_catalog.pg_roles r
         WHERE r.rolname = current_user
         SQL;
@@ -135,6 +137,29 @@ final class ReplicationController
     public function resumeReplay(ServerRequestInterface $request): array
     {
         return $this->replay($request, 'pg_wal_replay_resume');
+    }
+
+    /**
+     * pg_create_restore_point(name): a named point in the WAL that a point-in-time recovery can
+     * stop at with recovery_target_name. PostgreSQL writes it on a primary with wal_level replica
+     * or logical, and logs "restore point … created".
+     *
+     * @return array{sql: string, lsn: string}
+     */
+    public function createRestorePoint(ServerRequestInterface $request): array
+    {
+        $name = trim((string) (((array) $request->getParsedBody())['name'] ?? ''));
+        if ($name === '') {
+            throw new BadRequestException('A restore point needs a name.');
+        }
+        // MAXFNAMELEN - 1: the longest name PostgreSQL keeps.
+        if (strlen($name) > 63) {
+            throw new BadRequestException('A restore point name has at most 63 bytes.');
+        }
+        $conn = ConnectionPool::from($request)->maintenance();
+        $sql = sprintf('SELECT pg_catalog.pg_create_restore_point(%s);', $conn->escapeLiteral($name));
+
+        return ['sql' => $sql, 'lsn' => (string) $conn->scalar($sql)];
     }
 
     /** @return array{sql: string, replay_paused: bool} */

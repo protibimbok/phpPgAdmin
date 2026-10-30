@@ -10,7 +10,7 @@ import { urls } from '@/level'
 import { notifyError, notifySuccess } from '@/notify'
 import { listDatabases } from '@databases/js/api'
 import { roleUrl } from '@roles/js/Pages/Roles'
-import { createSlot, dropSlot, replicationOverview, walReplay, type ReplicationOverview, type Slot, type SlotData } from '../api'
+import { createRestorePoint, createSlot, dropSlot, replicationOverview, walReplay, type ReplicationOverview, type Slot, type SlotData } from '../api'
 import LogicalReplication from './LogicalReplication'
 
 /** phpMyAdmin's status_table.twig: a Variable / Value table. */
@@ -69,13 +69,13 @@ const bytes = (value: number | null | undefined) => (value === null || value ===
 export default function Replication() {
   const { t } = useTranslation('replication')
   const { data, error, reload } = useRequest(() => replicationOverview(), [])
-  const [confirm, setConfirm] = useState<{ sql: string; label: string; danger?: boolean; run: () => Promise<{ sql: string }>; done: string } | null>(null)
+  const [confirm, setConfirm] = useState<{ sql: string; label: string; danger?: boolean; run: () => Promise<{ sql: string; lsn?: string }>; done: string | ((result: { sql: string; lsn?: string }) => string) } | null>(null)
 
   async function run(pending: NonNullable<typeof confirm>) {
     setConfirm(null)
     try {
-      await pending.run()
-      notifySuccess(pending.done)
+      const result = await pending.run()
+      notifySuccess(typeof pending.done === 'string' ? pending.done : pending.done(result))
     } catch (e) {
       notifyError(errorMessage(e))
     } finally {
@@ -105,7 +105,17 @@ export default function Replication() {
                 <Icon name="s_notice" /> {t('limited_privileges')}
               </div>
             )}
-            <PrimaryCard data={data} />
+            <PrimaryCard
+              data={data}
+              onRestorePoint={(name) =>
+                setConfirm({
+                  sql: `SELECT pg_catalog.pg_create_restore_point('${name.replaceAll("'", "''")}');`,
+                  label: t('restore_point.create'),
+                  run: () => createRestorePoint(name),
+                  done: (result) => t('restore_point.created', { name, lsn: result.lsn ?? '' }),
+                })
+              }
+            />
             <ReplicaCard
               data={data}
               onReplay={(action) =>
@@ -148,10 +158,48 @@ export default function Replication() {
   )
 }
 
-function PrimaryCard({ data }: { data: ReplicationOverview }) {
+/**
+ * "Create a named restore point": pg_create_restore_point, which a primary writes into its WAL
+ * for a point-in-time recovery to stop at. It needs wal_level replica or logical.
+ */
+function RestorePoint({ onCreate }: { onCreate: (name: string) => void }) {
+  const { t } = useTranslation('replication')
+  const { t: tApp } = useTranslation()
+  const [name, setName] = useState('')
+
+  return (
+    <Toggle id="primary_restore_point_href" label={t('restore_point.title')}>
+      <form
+        id="restore_point_form"
+        className="row row-cols-lg-auto g-2 align-items-center my-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (name.trim() !== '') onCreate(name.trim())
+        }}
+      >
+        <div className="col-12">
+          <label htmlFor="restore_point_name" className="col-form-label">
+            {t('restore_point.name')}
+          </label>
+        </div>
+        <div className="col-12">
+          <input type="text" className="form-control" id="restore_point_name" name="restore_point_name" maxLength={63} required value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="col-12">
+          <input type="submit" className="btn btn-primary" id="restore_point_go" value={tApp('go')} />
+        </div>
+        <div className="col-12 form-text">{t('restore_point.help')}</div>
+      </form>
+    </Toggle>
+  )
+}
+
+function PrimaryCard({ data, onRestorePoint }: { data: ReplicationOverview; onRestorePoint: (name: string) => void }) {
   const { t } = useTranslation('replication')
   const { server, replicas } = data
   const configured = (!server.in_recovery && server.wal_level !== 'minimal' && server.max_wal_senders > 0) || replicas.length > 0
+  // A standby cannot write WAL, and wal_level minimal has no restore points to write.
+  const restorePoint = !server.in_recovery && server.wal_level !== 'minimal' && server.restore_point
 
   if (!configured) {
     return (
@@ -166,6 +214,13 @@ function PrimaryCard({ data }: { data: ReplicationOverview }) {
               <Link to={`/server/variables?${new URLSearchParams({ filter: server.wal_level === 'minimal' ? 'wal_level' : 'max_wal_senders' })}`}>{t('primary.configure')}</Link>
               {t('primary.not_configured_after')}
             </>
+          )}
+          {restorePoint && (
+            <ul className="mt-2">
+              <li>
+                <RestorePoint onCreate={onRestorePoint} />
+              </li>
+            </ul>
           )}
         </div>
       </div>
@@ -200,6 +255,11 @@ function PrimaryCard({ data }: { data: ReplicationOverview }) {
               {t('primary.add_user')}
             </Link>
           </li>
+          {restorePoint && (
+            <li>
+              <RestorePoint onCreate={onRestorePoint} />
+            </li>
+          )}
         </ul>
       </div>
     </div>

@@ -34,10 +34,24 @@ and `max_wal_senders` is above 0, or when a standby is connected. Then the card 
   there are none.
 - **Add replica replication user**: opens [Add role](/server/roles#add-a-role) with `REPLICATION`
   already checked, for the role a standby connects as.
+- **Create a named restore point**: see below.
 
 When the server is not configured, the card says so and **configure** opens
 [Variables](/server/variables) filtered on `wal_level` (or `max_wal_senders`). Both need a restart.
 On a standby that passes WAL on to others the card says *cascading replication*.
+
+### Create a named restore point
+
+**Create a named restore point** (on a primary whose `wal_level` is `replica` or `logical`, also
+when it has no standbys) opens a **Restore point name:** field. **Go** asks to confirm
+`SELECT pg_catalog.pg_create_restore_point('before_upgrade');` and then says *Restore point
+"before_upgrade" created at 1/96993008.* with the WAL position. PostgreSQL also logs
+`restore point "before_upgrade" created at 1/96993008`.
+
+A point-in-time recovery from a base backup and the archived WAL can then stop there with
+`recovery_target_name = 'before_upgrade'`. The name is up to 63 bytes; names need not be unique,
+and a recovery stops at the first one it meets. The function needs a superuser or `EXECUTE` on it,
+so the entry is not shown to other roles, nor on a standby, which cannot write WAL.
 
 ## Replica replication
 

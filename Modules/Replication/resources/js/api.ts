@@ -91,6 +91,8 @@ export interface ReplicationOverview {
     monitor: boolean
     /** Whether it may pause and resume WAL replay. */
     replay_control: boolean
+    /** Whether it may run pg_create_restore_point. */
+    restore_point: boolean
   }
   primary_settings: Setting[]
   standby_settings: Setting[]
@@ -123,6 +125,11 @@ export function dropSlot(name: string): Promise<{ sql: string }> {
 
 export function walReplay(action: 'pause' | 'resume'): Promise<{ sql: string; replay_paused: boolean }> {
   return api.post<{ sql: string; replay_paused: boolean }>(`/api/server/replication/replay/${action}`, {})
+}
+
+/** pg_create_restore_point(name): a point a point-in-time recovery can stop at (recovery_target_name). */
+export function createRestorePoint(name: string): Promise<{ sql: string; lsn: string }> {
+  return api.post<{ sql: string; lsn: string }>('/api/server/replication/restore-point', { name })
 }
 
 /** A table a publication publishes; from PostgreSQL 15 with a column list and a row filter. */

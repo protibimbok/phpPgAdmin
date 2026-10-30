@@ -33,6 +33,13 @@
     "current_lsn": "Current WAL LSN",
     "current_walfile": "Current WAL file"
   },
+  "restore_point": {
+    "title": "Create a named restore point",
+    "name": "Restore point name:",
+    "help": "pg_create_restore_point writes the name into the WAL; a point-in-time recovery stops there with recovery_target_name.",
+    "create": "Create restore point",
+    "created": "Restore point \"{{name}}\" created at {{lsn}}."
+  },
   "replicas": {
     "application": "Application",
     "host": "Host",
