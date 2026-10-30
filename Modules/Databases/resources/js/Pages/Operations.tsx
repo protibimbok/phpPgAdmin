@@ -14,6 +14,7 @@ import MaintenanceCard from '@maintenance/js/MaintenanceCard'
 import { quoteIdent } from '@sql/js/sql'
 import { collationRemedy, createDatabase, databaseModifiedSql, databaseOptions, databaseProperties, dropDatabase, resolveDatabase, updateDatabase, type CollationRemedy, type DatabaseChanges, type NewDatabase } from '../api'
 import CollationRefreshDialog from '../CollationRefreshDialog'
+import ParametersCard from '../ParametersCard'
 
 type Preview = { sql: string | null; error: string | null } | null
 
@@ -371,6 +372,8 @@ export default function Operations() {
           </div>
         </div>
       </form>
+
+      <ParametersCard db={db} variables={properties.variables ?? []} settings={options?.settings ?? []} roles={options?.roles ?? []} onPreview={(changes) => showPreview(changes, did)} onSave={(changes) => void alter(changes, t('parameters.saved'))} />
 
       <div className="card mb-2">
         <div className="card-header">

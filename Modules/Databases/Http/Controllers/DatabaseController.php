@@ -224,7 +224,7 @@ final class DatabaseController extends NodeController
      * The libc and ICU locales come from pg_collation, as suggestions for LC_COLLATE, LC_CTYPE
      * and ICU_LOCALE; the server version decides which locale providers the form offers.
      *
-     * @return array{roles: list<string>, tablespaces: list<string>, encodings: list<string>, templates: list<string>, locales: list<string>, icu_locales: list<string>, version: int}
+     * @return array{roles: list<string>, tablespaces: list<string>, encodings: list<string>, templates: list<string>, locales: list<string>, icu_locales: list<string>, settings: list<string>, version: int}
      */
     public function options(NodeContext $ctx): array
     {
@@ -237,6 +237,8 @@ final class DatabaseController extends NodeController
             'encodings' => Catalog::encodings($ctx->conn),
             'templates' => Catalog::databases($ctx->conn),
             'locales' => array_map('strval', array_column($ctx->conn->rows("SELECT DISTINCT collcollate FROM pg_catalog.pg_collation WHERE collprovider = 'c' AND collcollate IS NOT NULL AND collencoding IN (-1, pg_catalog.pg_char_to_encoding(pg_catalog.getdatabaseencoding())) ORDER BY 1"), 'collcollate')),
+            // The settings a database may set (ALTER DATABASE … SET), for the Parameters card.
+            'settings' => array_map('strval', array_column($ctx->rows('variables.sql'), 'name')),
             'icu_locales' => $version < 150000 ? [] : array_map('strval', array_column($ctx->conn->rows("SELECT DISTINCT {$icuColumn} AS locale FROM pg_catalog.pg_collation WHERE collprovider = 'i' AND {$icuColumn} IS NOT NULL ORDER BY 1"), 'locale')),
             'version' => $version,
         ];

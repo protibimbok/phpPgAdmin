@@ -88,5 +88,17 @@
     "note": "Note: the statistics are pg_stat_database's counters, cumulative since they were last reset.",
     "enable": "Enable statistics",
     "disable": "Disable statistics"
+  },
+  "parameters": {
+    "title": "Parameters",
+    "none": "The database sets no parameters; its sessions start with the server's settings.",
+    "name": "Name",
+    "value": "Value",
+    "role": "Role",
+    "all_roles": "(all roles)",
+    "remove": "Remove",
+    "add": "Add parameter",
+    "show_all": "Show all settings (SHOW ALL)",
+    "saved": "The database parameters have been saved."
   }
 }

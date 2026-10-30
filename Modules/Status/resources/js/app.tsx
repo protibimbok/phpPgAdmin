@@ -16,7 +16,10 @@ registerModule({
   menuFilter: (menu) => {
     const next = insertBefore(menu, { label: 'roles:tab' }, { label: 'status:tab', icon: 's_status', path: '/server/status' })
 
-    return insertAfter(next, { label: 'roles:tablespaces.tab' }, { label: 'status:variables.tab', icon: 's_vars', path: '/server/variables' })
+    const withVariables = insertAfter(next, { label: 'roles:tablespaces.tab' }, { label: 'status:variables.tab', icon: 's_vars', path: '/server/variables' })
+
+    // A database's sessions and locks, as the classic phpPgAdmin's database Processes tab.
+    return insertAfter(withVariables, { label: 'roles:privileges.tab', level: 'database' }, { label: 'status:nav.processes', icon: 's_status', path: '/db/:db/processes', level: 'database' })
   },
   routes: [
     { path: 'server/status', element: <ServerStatus /> },
@@ -26,5 +29,7 @@ registerModule({
     { path: 'server/status/monitor', element: <Monitor /> },
     { path: 'server/status/logs', element: <Logs /> },
     { path: 'server/variables', element: <Variables /> },
+    { path: 'db/:db/processes', element: <Processes /> },
+    { path: 'db/:db/locks', element: <Locks /> },
   ],
 })

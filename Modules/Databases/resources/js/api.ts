@@ -88,6 +88,8 @@ export interface DatabaseOptions {
   /** libc locales (LC_COLLATE, LC_CTYPE) and ICU locales the server knows, as suggestions. */
   locales: string[]
   icu_locales: string[]
+  /** The settings a database may set for its sessions (ALTER DATABASE … SET). */
+  settings: string[]
   version: number
 }
 
@@ -147,6 +149,15 @@ export interface DatabaseChanges {
   spcname?: string
   is_template?: boolean
   datallowconn?: boolean
+  /** ALTER DATABASE … SET / RESET, and ALTER ROLE … IN DATABASE for a role's own. */
+  variables?: { added?: DatabaseVariable[]; changed?: DatabaseVariable[]; deleted?: DatabaseVariable[] }
+}
+
+/** A setting a database gives its sessions, for every role or for one. */
+export interface DatabaseVariable {
+  name: string
+  value: string
+  role: string | null
 }
 
 export function createDatabase(data: NewDatabase): Promise<TreeNode<DatabaseMeta>> {

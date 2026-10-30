@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
@@ -41,7 +41,9 @@ export default function Processes() {
   const { t } = useTranslation('status')
   const { t: tApp } = useTranslation()
   const [onlyActive, setOnlyActive] = useState(false)
-  const [database, setDatabase] = useState('')
+  // A database's own tab shows its sessions only.
+  const { db } = useParams()
+  const [database, setDatabase] = useState(db ?? '')
   const [background, setBackground] = useState(false)
   const [full, setFull] = useState(false)
   const [sort, setSort] = useState<{ column: Column; desc: boolean }>({ column: 'pid', desc: false })
@@ -100,16 +102,18 @@ export default function Processes() {
                 </label>
               </div>
             </div>
-            <div className="col-12">
-              <select className="form-select" aria-label={t('processes.database')} value={database} onChange={(e) => setDatabase(e.target.value)}>
-                <option value="">{t('processes.all_databases')}</option>
-                {(databases ?? []).map((d) => (
-                  <option key={d.did} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {db === undefined && (
+              <div className="col-12">
+                <select className="form-select" aria-label={t('processes.database')} value={database} onChange={(e) => setDatabase(e.target.value)}>
+                  <option value="">{t('processes.all_databases')}</option>
+                  {(databases ?? []).map((d) => (
+                    <option key={d.did} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="col-12">
               <input className="btn btn-secondary" type="submit" value={t('processes.refresh')} />
             </div>

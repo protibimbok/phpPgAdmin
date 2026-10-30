@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink } from 'react-router'
+import { NavLink, useParams } from 'react-router'
 import Icon from '@/components/Icon'
+import { urls } from '@/level'
 import { REFRESH_RATES } from './api'
 
 const PAGES = [
@@ -13,14 +14,23 @@ const PAGES = [
   { key: 'logs', path: '/server/status/logs' },
 ] as const
 
-/** The pills above every Status page, as phpMyAdmin's server/status/base.twig lays them out. */
+/**
+ * The pills above every Status page, as phpMyAdmin's server/status/base.twig lays them out. In
+ * a database (its Processes tab, the classic phpPgAdmin's database Processes and Locks) only
+ * the pages that a database narrows are offered.
+ */
 export default function StatusNav() {
   const { t } = useTranslation('status')
+  const { db } = useParams()
+  const pages = db === undefined ? PAGES : [
+    { key: 'processes', path: `${urls.database(db)}/processes` },
+    { key: 'locks', path: `${urls.database(db)}/locks` },
+  ]
 
   return (
     <div className="row">
       <ul className="nav nav-pills p-2">
-        {PAGES.map((page) => (
+        {pages.map((page) => (
           <li className="nav-item" key={page.key}>
             <NavLink to={page.path} end className={({ isActive }) => `nav-link${isActive ? ' active' : ''} disableAjax`}>
               {t(`nav.${page.key}`)}
