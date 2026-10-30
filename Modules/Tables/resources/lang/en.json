@@ -260,7 +260,8 @@
     "collation": "Collation",
     "nulls": "NULLs",
     "default_class": "Default",
-    "expression": "Expression"
+    "expression": "Expression",
+    "created": "Index {{name}} has been created."
   },
   "constraint_dialog": {
     "add_title": "Add {{type}} constraint",

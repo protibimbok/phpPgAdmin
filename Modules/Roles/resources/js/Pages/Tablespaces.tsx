@@ -269,7 +269,6 @@ function CreateTablespaceCard({ onCreated }: { onCreated: () => void }) {
           <div className="col-12">
             <select name="spcuser" className="form-select" aria-label={t('tablespaces.columns.owner')} value={owner} onChange={(e) => setOwner(e.target.value)}>
               <option value="">{t('tablespaces.columns.owner')}</option>
-              <option value="" />
               {(options?.roles ?? []).map((role) => (
                 <option key={role} value={role}>
                   {role}

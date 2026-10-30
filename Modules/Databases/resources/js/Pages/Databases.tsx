@@ -361,7 +361,6 @@ function CreateDatabaseCard({ onCreated }: { onCreated: () => void }) {
           <div className="col-12">
             <select lang="en" dir="ltr" name="template" className="form-select" aria-label={t('create.template')} value={template} onChange={(e) => setTemplate(e.target.value)}>
               <option value="">{t('create.template')}</option>
-              <option value="" />
               {(options?.templates ?? []).map((database) => (
                 <option key={database} value={database}>
                   {database}
@@ -372,7 +371,6 @@ function CreateDatabaseCard({ onCreated }: { onCreated: () => void }) {
           <div className="col-12">
             <select name="datowner" className="form-select" aria-label={t('create.owner')} value={owner} onChange={(e) => setOwner(e.target.value)}>
               <option value="">{t('create.owner')}</option>
-              <option value="" />
               {(options?.roles ?? []).map((role) => (
                 <option key={role} value={role}>
                   {role}
@@ -383,7 +381,6 @@ function CreateDatabaseCard({ onCreated }: { onCreated: () => void }) {
           <div className="col-12">
             <select lang="en" dir="ltr" name="encoding" className="form-select" aria-label={t('create.encoding')} value={encoding} onChange={(e) => setEncoding(e.target.value)}>
               <option value="">{t('create.encoding')}</option>
-              <option value="" />
               {(options?.encodings ?? []).map((enc) => (
                 <option key={enc} value={enc}>
                   {enc}

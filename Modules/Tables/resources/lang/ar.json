@@ -260,7 +260,8 @@
     "collation": "الترتيب الأبجدي",
     "nulls": "القيم الفارغة",
     "default_class": "الافتراضي",
-    "expression": "تعبير"
+    "expression": "تعبير",
+    "created": "تم إنشاء الفهرس {{name}}."
   },
   "constraint_dialog": {
     "add_title": "إضافة قيد {{type}}",

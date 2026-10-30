@@ -250,14 +250,17 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
     }
     setBusy(true)
     try {
+      let message = tApp('query_executed')
       if (primary) {
         await updateTable(db, scid, tid, primaryChanges())
       } else if (index) {
         await indexesOf(db, scid, tid).update(index.oid, indexData())
       } else {
-        await indexesOf(db, scid, tid).create(indexData())
+        // A new index is announced by the name it got, PostgreSQL's own when none was typed.
+        const node = await indexesOf(db, scid, tid).create(indexData())
+        message = t('index_dialog.created', { name: node.label })
       }
-      notifySuccess(tApp('query_executed'))
+      notifySuccess(message)
       onSaved()
     } catch (e) {
       notifyError(errorMessage(e))
