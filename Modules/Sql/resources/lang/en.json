@@ -420,5 +420,16 @@
     "unreadable_one": "{{count}} value could not be read and is not drawn.",
     "unreadable_other": "{{count}} values could not be read and are not drawn.",
     "missing": "Run a query on the SQL page and use \"Visualize GIS data\" under its results to draw its spatial values."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "clear": "Clear",
+    "listening": "Listening on: {{channels}}. What NOTIFY sends to these channels is shown here.",
+    "not_listening": "The session listens on no channel any more.",
+    "none": "No notification yet.",
+    "recorded": "Recorded time",
+    "event": "Event",
+    "pid": "Process ID",
+    "payload": "Payload"
   }
 }

@@ -12,6 +12,9 @@ declare(strict_types=1);
  *     {"command": "run", "options": {…QueryRunner's options…}}   the batch's results
  *     {"command": "commit"} / {"command": "rollback"}             end the open transaction
  *     {"command": "status"}                                       where the session stands
+ *
+ * Every reply also hands over the notifications (LISTEN/NOTIFY) received since the last one,
+ * and, outside a transaction, the channels the session listens on.
  *     {"command": "stop"}                                         close the connection and end
  *
  * Every reply carries the transaction status ("idle", "intrans", "inerror"…) and the backend
@@ -34,6 +37,8 @@ use PhpPgAdmin\Modules\Sql\Storage\RunningQueries;
 const HEARTBEAT_LIMIT = 180;
 /** However the page keeps it alive, a session nobody has sent a command to for this long ends. */
 const IDLE_LIMIT = 4 * 3600;
+/** The notifications a session keeps for the page between two of its requests. */
+const NOTIFICATIONS_KEPT = 1000;
 
 $directory = $argv[1] ?? '';
 $job = is_file($directory . '/session.json') ? json_decode((string) file_get_contents($directory . '/session.json'), true) : null;
@@ -86,7 +91,33 @@ if ($server === false) {
 chmod($job['socket'], 0600);
 file_put_contents($directory . '/ready', '1');
 
-$state = static fn (): array => ['transaction' => $conn->transactionStatus(), 'backend_pid' => $conn->backendPid()];
+// pgAdmin's Notifications: what NOTIFY sent to the channels the session LISTENs on, kept
+// until the next reply hands it over (the last NOTIFICATIONS_KEPT when nobody asked for long).
+$notifications = [];
+$collect = static function () use ($pg, &$notifications): void {
+    while (($notify = pg_get_notify($pg, PGSQL_ASSOC)) !== false) {
+        $notifications[] = ['channel' => (string) $notify['message'], 'pid' => (int) $notify['pid'], 'payload' => (string) ($notify['payload'] ?? ''), 'received_at' => gmdate('Y-m-d\TH:i:s\Z')];
+    }
+    if (count($notifications) > NOTIFICATIONS_KEPT) {
+        $notifications = array_slice($notifications, -NOTIFICATIONS_KEPT);
+    }
+};
+$state = static function () use ($conn, $collect, &$notifications): array {
+    $collect();
+    $state = ['transaction' => $conn->transactionStatus(), 'backend_pid' => $conn->backendPid(), 'notifications' => $notifications];
+    $notifications = [];
+    // The channels listened on, read only outside a transaction: a query in one would take its
+    // snapshot, or fail in an aborted one.
+    if ($state['transaction'] === 'idle') {
+        try {
+            $state['channels'] = array_column($conn->rows('SELECT pg_catalog.pg_listening_channels() AS channel'), 'channel');
+        } catch (QueryException) {
+            // The state goes without them.
+        }
+    }
+
+    return $state;
+};
 
 /** @return array<string, mixed> */
 $handle = static function (array $command) use ($conn, $history, $running, $state, &$stopping): array {
@@ -128,6 +159,8 @@ while (!$stopping && $alive()) {
     $read = [$server];
     $write = $except = null;
     if (@stream_select($read, $write, $except, 1) < 1) {
+        $collect();
+
         continue;
     }
     $client = @stream_socket_accept($server, 1);

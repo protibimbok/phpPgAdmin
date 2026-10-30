@@ -323,6 +323,20 @@ Statements that cannot run in a transaction block (`VACUUM`, `CREATE DATABASE`,
 `CREATE INDEX CONCURRENTLY`, `ALTER SYSTEM`) fail under both options.
 :::
 
+### Notifications (LISTEN and NOTIFY)
+
+Since the page's runs share the session's connection, `LISTEN channel` stays in effect after the run,
+as in pgAdmin's query tool. A **Notifications** card (pgAdmin's Notifications tab) then appears under
+the results: *Listening on: orders, audit.* and a table of what `NOTIFY` sent to those channels, from
+any session, newest first: **Recorded time**, **Event** (the channel), **Process ID** (the backend that
+sent it) and **Payload**. While the session listens, the page asks it every two seconds; a
+notification sent inside a transaction arrives when that transaction commits. **Clear** empties the
+table; `UNLISTEN *` stops listening (the table stays until cleared). The session keeps the last 1000
+notifications between two looks, and the page shows the last 1000. The channels are read only when
+no transaction is open, so inside one the card shows the ones from before it.
+
+Without a query tool session each run has its own connection, and a `LISTEN` ends with it.
+
 ## Bind parameters
 
 Tick **Bind parameters** to use named placeholders. Each `:name` in the query (outside strings,

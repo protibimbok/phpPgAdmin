@@ -101,6 +101,17 @@ export interface QueryResponse {
   rolled_back: boolean
   /** Where the connection stands after the run (libpq's transaction status). */
   transaction?: TransactionStatus
+  /** In a query tool session: the notifications received since its last reply, and the channels it listens on (outside a transaction). */
+  notifications?: SessionNotification[]
+  channels?: string[]
+}
+
+/** A NOTIFY the session's connection received on a channel it LISTENs on. */
+export interface SessionNotification {
+  channel: string
+  pid: number
+  payload: string
+  received_at: string
 }
 
 /** libpq's PQtransactionStatus: outside a transaction, inside one, inside a failed one. */
@@ -125,12 +136,12 @@ export function runInSession(id: string, request: QueryRequest & { autocommit?: 
 }
 
 /** COMMIT or ROLLBACK the session's open transaction; the tag says which happened. */
-export function endSessionTransaction(id: string, command: 'commit' | 'rollback'): Promise<{ command_tag: string; was: TransactionStatus; transaction: TransactionStatus }> {
+export function endSessionTransaction(id: string, command: 'commit' | 'rollback'): Promise<{ command_tag: string; was: TransactionStatus; transaction: TransactionStatus; notifications?: SessionNotification[]; channels?: string[] }> {
   return api.post(`/api/query/sessions/${encodeURIComponent(id)}/${command}`)
 }
 
 /** The session's status; the request also keeps it alive. */
-export function querySessionStatus(id: string): Promise<{ transaction: TransactionStatus; backend_pid: number }> {
+export function querySessionStatus(id: string): Promise<{ transaction: TransactionStatus; backend_pid: number; notifications?: SessionNotification[]; channels?: string[] }> {
   return api.get(`/api/query/sessions/${encodeURIComponent(id)}`)
 }
 

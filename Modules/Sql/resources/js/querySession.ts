@@ -11,6 +11,7 @@ import {
   stopQuerySession,
   type QueryRequest,
   type QueryResponse,
+  type SessionNotification,
   type TransactionStatus,
 } from './api'
 
@@ -28,7 +29,18 @@ interface Entry {
   starting: Promise<string | null> | null
   status: TransactionStatus
   listeners: Set<(status: TransactionStatus) => void>
+  /** pgAdmin's Notifications tab: what arrived on the channels listened on, oldest first. */
+  notifications: SessionNotification[]
+  channels: string[]
+  notificationListeners: Set<() => void>
 }
+
+/** The notifications a page keeps, as the session keeps them. */
+const NOTIFICATIONS_KEPT = 1000
+
+/** How often a session that listens on a channel is asked for what arrived. */
+const LISTEN_POLL_MS = 2_000
+let listenPoll: number | null = null
 
 /** pgAdmin's heartbeat interval; the session ends three minutes after the last one. */
 const HEARTBEAT_MS = 30_000
@@ -43,7 +55,7 @@ function entryFor(db: string | null): Entry {
   const key = keyOf(db)
   let entry = sessions.get(key)
   if (!entry) {
-    entry = { id: null, starting: null, status: 'idle', listeners: new Set() }
+    entry = { id: null, starting: null, status: 'idle', listeners: new Set(), notifications: [], channels: [], notificationListeners: new Set() }
     sessions.set(key, entry)
   }
 
@@ -56,11 +68,49 @@ function setStatus(entry: Entry, status: TransactionStatus) {
   for (const listener of entry.listeners) listener(status)
 }
 
+/** A reply's notifications and channels; a session that listens is asked again soon. */
+function absorb(entry: Entry, reply: { notifications?: SessionNotification[]; channels?: string[] }) {
+  const arrived = reply.notifications ?? []
+  const channels = reply.channels ?? entry.channels
+  if (arrived.length === 0 && channels.join('\n') === entry.channels.join('\n')) return
+  entry.notifications = [...entry.notifications, ...arrived].slice(-NOTIFICATIONS_KEPT)
+  entry.channels = channels
+  for (const listener of entry.notificationListeners) listener()
+  watchListening()
+}
+
+/** While a session listens on a channel, it is asked every LISTEN_POLL_MS. */
+function watchListening() {
+  const listening = [...sessions.values()].some((entry) => entry.id !== null && entry.channels.length > 0)
+  if (listening && listenPoll === null && typeof window !== 'undefined') listenPoll = window.setInterval(poll, LISTEN_POLL_MS)
+  if (!listening && listenPoll !== null) {
+    window.clearInterval(listenPoll)
+    listenPoll = null
+  }
+}
+
+function poll() {
+  for (const entry of sessions.values()) {
+    if (entry.id === null || entry.channels.length === 0) continue
+    const id = entry.id
+    querySessionStatus(id).then(
+      (state) => {
+        if (entry.id !== id) return
+        setStatus(entry, state.transaction)
+        absorb(entry, state)
+      },
+      () => undefined,
+    )
+  }
+}
+
 /** The session is gone: what was open in it was rolled back when its connection closed. */
 function forget(entry: Entry, warn: boolean) {
   const lost = entry.status === 'intrans' || entry.status === 'inerror'
   entry.id = null
   setStatus(entry, 'idle')
+  // Its LISTENs went with its connection.
+  if (entry.channels.length > 0) absorb(entry, { channels: [] })
   if (warn && lost) notify(i18next.t('sql:session.ended'), 'warning')
 }
 
@@ -70,7 +120,9 @@ function beat() {
     const id = entry.id
     querySessionStatus(id).then(
       (state) => {
-        if (entry.id === id) setStatus(entry, state.transaction)
+        if (entry.id !== id) return
+        setStatus(entry, state.transaction)
+        absorb(entry, state)
       },
       (e: unknown) => {
         if (entry.id === id && e instanceof ApiError && [401, 404, 410].includes(e.status)) forget(entry, true)
@@ -129,7 +181,10 @@ export async function runInQuerySession(db: string | null, request: QueryRequest
   if (id === null) return runQuery(db, request)
   try {
     const response = await runInSession(id, { ...request, autocommit })
-    if (entry.id === id) setStatus(entry, response.transaction ?? 'idle')
+    if (entry.id === id) {
+      setStatus(entry, response.transaction ?? 'idle')
+      absorb(entry, response)
+    }
 
     return response
   } catch (e) {
@@ -153,6 +208,7 @@ export async function endTransaction(db: string | null, command: 'commit' | 'rol
   try {
     const reply = await endSessionTransaction(id, command)
     setStatus(entry, reply.transaction)
+    absorb(entry, reply)
 
     return reply.command_tag
   } catch (e) {
@@ -176,3 +232,27 @@ export function useTransactionStatus(db: string | null): TransactionStatus {
 
   return status
 }
+
+/** The database's session's notifications and the channels it listens on, and Clear. */
+export function useNotifications(db: string | null): { notifications: SessionNotification[]; channels: string[]; clear: () => void } {
+  const entry = entryFor(db)
+  const [, setVersion] = useState(0)
+  useEffect(() => {
+    const listener = () => setVersion((v) => v + 1)
+    entry.notificationListeners.add(listener)
+
+    return () => {
+      entry.notificationListeners.delete(listener)
+    }
+  }, [entry])
+
+  return {
+    notifications: entry.notifications,
+    channels: entry.channels,
+    clear: () => {
+      entry.notifications = []
+      for (const listener of entry.notificationListeners) listener()
+    },
+  }
+}
+

@@ -17,6 +17,7 @@ import { createBookmark, createMacro, deleteBookmark, fetchCatalog, listBookmark
 import SqlEditor, { type SqlEditorHandle } from '../editor/SqlEditor'
 import MacrosDialog, { nextMacroName } from '../macros/MacrosDialog'
 import MacrosMenu, { macroKeyOf } from '../macros/MacrosMenu'
+import NotificationsCard from '../results/NotificationsCard'
 import QueryResults from '../results/QueryResults'
 import { defaultMaxRows, type GridNav } from '../results/ResultsGrid'
 import { useGridActions } from '../results/useGridActions'
@@ -733,6 +734,7 @@ function SqlPageAt() {
           bookmarkDatabase={db ?? undefined}
         />
       )}
+      <NotificationsCard db={db} />
       {actions.modal}
       <MacrosDialog
         show={manageMacros}
