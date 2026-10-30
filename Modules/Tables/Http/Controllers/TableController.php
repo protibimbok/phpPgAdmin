@@ -123,6 +123,37 @@ final class TableController extends RelationController
         return $sql;
     }
 
+    /** @var array<string, true> relation names the statements being built create, by schema and name */
+    private array $namesTaken = [];
+
+    /**
+     * A name for a copied SERIAL column's sequence as PostgreSQL chooses one (ChooseRelationName):
+     * table_column_seq, the longer of the two names cut until it fits the 63 bytes of a name, and
+     * a number after "seq" until no relation of the schema, nor one these statements create,
+     * holds it.
+     */
+    private function sequenceName(NodeContext $ctx, string $schema, string $table, string $column): string
+    {
+        for ($pass = 0; ; $pass++) {
+            $label = 'seq' . ($pass === 0 ? '' : (string) $pass);
+            [$first, $second] = [$table, $column];
+            while (strlen($first) + strlen($second) + strlen($label) + 2 > 63) {
+                if (strlen($first) >= strlen($second)) {
+                    $first = mb_strcut($first, 0, strlen($first) - 1, 'UTF-8');
+                } else {
+                    $second = mb_strcut($second, 0, strlen($second) - 1, 'UTF-8');
+                }
+            }
+            $name = $first . '_' . $second . '_' . $label;
+            $exists = $ctx->conn->scalar('SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2', [$schema, $name]) !== null;
+            if (!$exists && !isset($this->namesTaken[$schema . "\0" . $name])) {
+                $this->namesTaken[$schema . "\0" . $name] = true;
+
+                return $name;
+            }
+        }
+    }
+
     /**
      * The statements that copy the table to another name (and schema): CREATE TABLE … (LIKE …
      * INCLUDING ALL) for the structure, INSERT … SELECT for the data, the foreign keys when
@@ -141,6 +172,7 @@ final class TableController extends RelationController
         $what = (string) ($data['what'] ?? 'data');
         $from = Quoting::ident((string) $source['schema'], (string) $source['name']);
         $to = Quoting::ident($schema, $name);
+        $this->namesTaken[$schema . "\0" . $name] = true;
 
         $parts = [];
         if (!empty($data['drop_if_exists']) && $what !== 'dataonly') {
@@ -156,7 +188,7 @@ final class TableController extends RelationController
         // the copy gets sequences of its own, moved past the rows it received.
         if ($what !== 'dataonly') {
             foreach ($this->serialColumns($ctx, $oid) as $column) {
-                $sequence = Quoting::ident($schema, sprintf('%s_%s_seq', $name, $column['attname']));
+                $sequence = Quoting::ident($schema, $this->sequenceName($ctx, $schema, $name, (string) $column['attname']));
                 $parts[] = sprintf("CREATE SEQUENCE %s AS %s OWNED BY %s.%s;", $sequence, $column['typname'], $to, Quoting::ident($column['attname']));
                 $parts[] = sprintf("ALTER TABLE %s\n    ALTER COLUMN %s SET DEFAULT nextval('%s'::regclass);", $to, Quoting::ident($column['attname']), str_replace("'", "''", $sequence));
                 if ($what !== 'structure') {
@@ -196,6 +228,10 @@ final class TableController extends RelationController
             $copies[$oid] = ['source' => $source, 'name' => $name];
         }
         $schema = trim((string) ($data['schema'] ?? ''));
+        // Every copy's name is taken before any of their sequences is named.
+        foreach ($copies as $copy) {
+            $this->namesTaken[($schema ?: (string) $copy['source']['schema']) . "\0" . $copy['name']] = true;
+        }
 
         $parts = [];
         foreach ($copies as $oid => $copy) {
