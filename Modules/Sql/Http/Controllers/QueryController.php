@@ -144,9 +144,10 @@ final class QueryController
         $params = [];
         $where = '';
         if ($search !== '') {
-            // LIKE's own wildcards in the text are matched literally.
+            // LIKE's own wildcards in the text are matched literally. ILIKE refuses a
+            // nondeterministic collation (case_insensitive ICU ones), which ::text keeps.
             $params[] = '%' . addcslashes($search, '\\%_') . '%';
-            $where = sprintf(' WHERE %s::text ILIKE $1%s', $keySql, $displaySql === null ? '' : sprintf(' OR %s::text ILIKE $1', $displaySql));
+            $where = sprintf(' WHERE %s::text COLLATE "default" ILIKE $1%s', $keySql, $displaySql === null ? '' : sprintf(' OR %s::text COLLATE "default" ILIKE $1', $displaySql));
         }
         $order = ($query['order'] ?? '') === 'display' && $displaySql !== null ? sprintf('%s, %s', $displaySql, $keySql) : $keySql;
 

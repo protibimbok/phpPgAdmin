@@ -37,8 +37,8 @@ final class FindReplaceController
         [$conn, $relation, $column, $match, $replaced] = $this->parts($request, $args);
 
         $rows = $conn->query(sprintf(
-            'SELECT %1$s::text, (%2$s)::text, count(*) FROM %3$s WHERE %4$s GROUP BY %1$s ORDER BY %1$s',
-            $column,
+            'SELECT %1$s, (%2$s)::text, count(*) FROM %3$s WHERE %4$s GROUP BY %1$s ORDER BY %1$s',
+            self::source($column),
             $replaced,
             Quoting::ident($relation->schema, $relation->name),
             $match,
@@ -82,6 +82,16 @@ final class FindReplaceController
         ];
     }
 
+    /**
+     * The column as plain text in the default collation, so the search stays case-sensitive:
+     * citext has its own case-blind strpos and replace, and a nondeterministic collation
+     * refuses substring searches and groups values that differ in case.
+     */
+    private static function source(string $column): string
+    {
+        return sprintf('%s::text COLLATE "default"', $column);
+    }
+
     private static function update(Relation $relation, string $column, string $match, string $replaced): string
     {
         return sprintf('UPDATE %s SET %s = %s WHERE %s', Quoting::ident($relation->schema, $relation->name), $column, $replaced, $match);
@@ -117,12 +127,13 @@ final class FindReplaceController
         }
 
         $column = Quoting::ident($name);
+        $source = self::source($column);
         if (!empty($input['use_regex'])) {
-            $match = sprintf('%s ~ %s', $column, Quoting::literal($find));
-            $replaced = sprintf("regexp_replace(%s, %s, %s, 'g')", $column, Quoting::literal($find), Quoting::literal($replaceWith));
+            $match = sprintf('%s ~ %s', $source, Quoting::literal($find));
+            $replaced = sprintf("regexp_replace(%s, %s, %s, 'g')", $source, Quoting::literal($find), Quoting::literal($replaceWith));
         } else {
-            $match = sprintf('strpos(%s, %s) > 0', $column, Quoting::literal($find));
-            $replaced = sprintf('replace(%s, %s, %s)', $column, Quoting::literal($find), Quoting::literal($replaceWith));
+            $match = sprintf('strpos(%s, %s) > 0', $source, Quoting::literal($find));
+            $replaced = sprintf('replace(%s, %s, %s)', $source, Quoting::literal($find), Quoting::literal($replaceWith));
         }
 
         return [$conn, $relation, $column, $match, $replaced];

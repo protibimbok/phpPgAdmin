@@ -96,7 +96,7 @@ final class DirectoryDump
             . $octal($mode, 8)
             . $octal(0, 8)
             . $octal(0, 8)
-            . $octal($size, 12)
+            . ($size < 8 ** 11 ? $octal($size, 12) : self::base256($size, 12))
             . $octal($mtime, 12)
             . str_repeat(' ', 8)
             . $type
@@ -110,6 +110,21 @@ final class DirectoryDump
         $sum = array_sum(array_map('ord', str_split($header)));
 
         return substr_replace($header, str_pad(decoct($sum), 6, '0', STR_PAD_LEFT) . "\0 ", 148, 8);
+    }
+
+    /**
+     * A number too large for its octal field (a file of 8 GiB or more) in GNU tar's base-256
+     * form: the high bit of the first byte set, then the value big-endian.
+     */
+    private static function base256(int $value, int $length): string
+    {
+        $bytes = '';
+        for ($i = 0; $i < $length; $i++) {
+            $bytes = chr($value & 0xff) . $bytes;
+            $value >>= 8;
+        }
+
+        return chr(ord($bytes[0]) | 0x80) . substr($bytes, 1);
     }
 
     private static function remove(string $directory): void

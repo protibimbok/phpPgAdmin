@@ -168,8 +168,12 @@ final class SecurityLabelController
     {
         $list = [];
         foreach (is_array($labels) ? $labels : [] as $entry) {
-            $provider = trim((string) ($entry['provider'] ?? ''));
-            $label = (string) ($entry['label'] ?? '');
+            $provider = is_array($entry) ? $entry['provider'] ?? '' : null;
+            $label = is_array($entry) ? $entry['label'] ?? '' : null;
+            if (!is_string($provider) || !is_string($label)) {
+                throw new BadRequestException('A security label\'s provider and label are text.');
+            }
+            $provider = trim($provider);
             if ($provider === '' && $label === '') {
                 continue;
             }

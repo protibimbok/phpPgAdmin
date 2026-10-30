@@ -131,6 +131,7 @@ final class LogsController
     /**
      * The whole file, as an attachment, read a megabyte at a time while the response is sent:
      * on a connection of its own, since the request's connections close before the body goes out.
+     * No Content-Length: a log truncated on rotation while it is read ends the body early.
      */
     public function download(ServerRequestInterface $request, array $args): ResponseInterface
     {
@@ -152,14 +153,13 @@ final class LogsController
             $offset += strlen($chunk);
 
             return $chunk;
-        }, $conn->close(...), $size);
+        }, $conn->close(...));
 
         $factory = new Psr17Factory();
 
         return $factory->createResponse()
             ->withHeader('Content-Type', match ($format) { 'csvlog' => 'text/csv', 'jsonlog' => 'application/x-ndjson', default => 'text/plain' })
             ->withHeader('Content-Disposition', sprintf('attachment; filename="%s"', addcslashes($name, '"\\')))
-            ->withHeader('Content-Length', (string) $size)
             ->withBody($body);
     }
 

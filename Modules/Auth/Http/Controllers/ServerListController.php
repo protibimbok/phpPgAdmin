@@ -31,7 +31,7 @@ final class ServerListController
         $servers = Servers::make();
         $id = (int) $args['id'];
         $servers->find($id) ?? throw new NotFoundException(__('auth::errors.unknown_server'));
-        $name = trim((string) (((array) $request->getParsedBody())['name'] ?? ''));
+        $name = trim(self::text(((array) $request->getParsedBody())['name'] ?? null, 'name'));
         if (mb_strlen($name) > self::NAME_LENGTH) {
             throw new BadRequestException(__('auth::errors.name_too_long', ['max' => self::NAME_LENGTH]));
         }
@@ -92,8 +92,8 @@ final class ServerListController
             }
             $parameters = is_array($entry['ConnectionParameters'] ?? null) ? $entry['ConnectionParameters'] : [];
             $sslmode = $entry['SSLMode'] ?? $parameters['sslmode'] ?? 'prefer';
-            $name = trim((string) ($entry['Name'] ?? ''));
-            $username = trim((string) ($entry['Username'] ?? ''));
+            $name = trim(self::text($entry['Name'] ?? null, sprintf('Servers.%s.Name', $key)));
+            $username = trim(self::text($entry['Username'] ?? null, sprintf('Servers.%s.Username', $key)));
             try {
                 $server = Server::fromArray([
                     'host' => is_scalar($entry['Host'] ?? null) ? (string) $entry['Host'] : '',
@@ -115,5 +115,15 @@ final class ServerListController
         }
 
         return ['added' => $added, 'updated' => count($parsed) - $added];
+    }
+
+    /** A string field of the body: absent is empty, anything but a string or a number is refused. */
+    private static function text(mixed $value, string $field): string
+    {
+        if ($value !== null && !is_string($value) && !is_int($value) && !is_float($value)) {
+            throw new BadRequestException(sprintf('%s must be text.', $field));
+        }
+
+        return (string) $value;
     }
 }
