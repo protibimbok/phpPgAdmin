@@ -177,6 +177,16 @@ export default function Structure() {
         </form>
       )}
 
+      <hr />
+      <p className="d-print-none">
+        <button type="button" className="btn btn-link p-0 jsPrintButton" onClick={() => window.print()}>
+          <Icon name="b_print" /> {tApp('print')}
+        </button>{' '}
+        <Link to={`${urls.database(db)}/data-dictionary`} id="data_dictionary_link">
+          <Icon name="b_tblanalyse" /> {t('data_dictionary.title')}
+        </Link>
+      </p>
+
       <CreateSchemaCard db={db} onCreated={changed} />
 
       <ConfirmQuery

@@ -8,6 +8,7 @@ use PhpPgAdmin\Core\Facades\Nodes;
 use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
+use PhpPgAdmin\Modules\Schemas\Http\Controllers\DataDictionaryController;
 use PhpPgAdmin\Modules\Schemas\Http\Controllers\SchemaController;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -23,4 +24,9 @@ Route::middleware(Authenticate::class)->group(function (): void {
 
         return (new SchemaController())->options($ctx);
     })->setName('schemas.options');
+});
+
+// phpMyAdmin's data dictionary: the database's tables (?schema= for one schema's) with their columns and indexes.
+Route::middleware(Authenticate::class)->controller(DataDictionaryController::class)->group(function (): void {
+    Route::get('/databases/{db}/data-dictionary', 'show')->setName('schemas.data_dictionary');
 });

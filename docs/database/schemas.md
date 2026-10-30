@@ -104,6 +104,32 @@ schemas before a failing one stay dropped and the rest are not tried.
 dropped table is dropped too. Check the dependents first on the table's or schema's DDL page.
 :::
 
+## Print and Data dictionary
+
+Under the schema list, as under phpMyAdmin's table list, **Print** prints the page and **Data
+dictionary** opens phpMyAdmin's data dictionary (`/db/<database>/data-dictionary`): the database's
+name and comment, a **Print** button, and for every table, partitioned table, partition, view,
+materialized view and foreign table of every schema (as `schema.table`, schema by schema):
+
+- its comment (**Table comments:**);
+- its columns: **Column** (with *(Primary)* for a primary key column), **Type**, **Null**,
+  **Default** (an identity or a generated column shows `GENERATED … AS IDENTITY` or its
+  expression), **Links to** (the table and column a foreign key references, linked to that table's
+  Structure page, when the table has foreign keys) and **Comments**;
+- its indexes: **Keyname**, **Type** (the access method: BTREE, GIN, …), **Unique**, one row per
+  **Column** (an expression index shows the expression, an `INCLUDE` column is marked), its
+  **Collation** when not the default, **Null**, and the index's **Comment**; or *No index
+  defined!*
+
+`?schema=public` in the address limits it to one schema. When printed, the navigation panel and the
+Print buttons are left out.
+
+::: info Differences from phpMyAdmin
+phpMyAdmin's *Packed* and *Cardinality* index columns have no PostgreSQL counterpart and are not
+shown, nor is *Media type*. phpMyAdmin's data dictionary covers one database's tables; here a
+database has schemas, so the tables are grouped by schema.
+:::
+
 ## Show create
 
 The **Show create** tab shows the database's DDL the way pgAdmin's SQL tab does, with two panels

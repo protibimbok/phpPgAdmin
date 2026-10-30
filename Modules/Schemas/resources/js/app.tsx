@@ -1,6 +1,7 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
 import { registerContainerLink, registerNodeLink } from '@/nodes/links'
+import DataDictionary from './Pages/DataDictionary'
 import Operations from './Pages/Operations'
 import Structure from './Pages/Structure'
 
@@ -12,7 +13,11 @@ registerContainerLink('schema', ({ db }) => (db === null ? urls.server() : urls.
 registerModule({
   id: 'schemas',
   menuFilter: (menu) => [...menu, { label: 'schemas:tab', icon: 'b_props', path: '/db/:db', level: 'database' }],
-  routes: [{ path: 'db/:db', element: <Structure /> }],
+  routes: [
+    { path: 'db/:db', element: <Structure /> },
+    // phpMyAdmin's database/data_dictionary, linked from the bottom of the Structure page.
+    { path: 'db/:db/data-dictionary', element: <DataDictionary /> },
+  ],
 })
 
 // The schema's "Operations" tab comes after the Structure and SQL tabs the other modules give

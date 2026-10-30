@@ -48,5 +48,24 @@
     "go": "تنفيذ",
     "renamed": "تمت إعادة تسمية المخطط {{name}} إلى {{newName}}.",
     "saved": "تم حفظ خصائص المخطط."
+  },
+  "data_dictionary": {
+    "title": "قاموس البيانات",
+    "database_comment": "تعليق قاعدة البيانات:",
+    "table_comments": "تعليقات الجدول:",
+    "column": "العمود",
+    "type": "النوع",
+    "null": "فارغ",
+    "default": "الافتراضي",
+    "links_to": "يرتبط بـ",
+    "comments": "التعليقات",
+    "primary": "أساسي",
+    "indexes": "الفهارس",
+    "keyname": "اسم المفتاح",
+    "unique": "فريد",
+    "collation": "الترتيب",
+    "comment": "تعليق",
+    "included": "INCLUDE",
+    "no_index": "لا يوجد فهرس معرّف!"
   }
 }

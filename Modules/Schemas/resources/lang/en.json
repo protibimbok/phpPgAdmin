@@ -44,5 +44,24 @@
     "go": "Go",
     "renamed": "Schema {{name}} has been renamed to {{newName}}.",
     "saved": "Schema properties have been saved."
+  },
+  "data_dictionary": {
+    "title": "Data dictionary",
+    "database_comment": "Database comment:",
+    "table_comments": "Table comments:",
+    "column": "Column",
+    "type": "Type",
+    "null": "Null",
+    "default": "Default",
+    "links_to": "Links to",
+    "comments": "Comments",
+    "primary": "Primary",
+    "indexes": "Indexes",
+    "keyname": "Keyname",
+    "unique": "Unique",
+    "collation": "Collation",
+    "comment": "Comment",
+    "included": "INCLUDE",
+    "no_index": "No index defined!"
   }
 }

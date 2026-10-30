@@ -66,3 +66,48 @@ export function schemaModifiedSql(db: string, data: SchemaData, scid?: number): 
 export function schemaOptions(db: string): Promise<{ roles: string[] }> {
   return api.get<{ roles: string[] }>(`${collectionUrl(db, 'schemas')}/options`)
 }
+
+/** A column in the data dictionary, with the columns its foreign keys reference. */
+export interface DictionaryColumn {
+  name: string
+  type: string
+  nullable: boolean
+  default: string | null
+  primary_key: boolean
+  links: { schema: string; table: string; column: string }[]
+  comment: string | null
+}
+
+export interface DictionaryIndex {
+  name: string
+  method: string
+  unique: boolean
+  primary: boolean
+  comment: string | null
+  /** Key columns (or expressions), then INCLUDE columns. */
+  columns: { name: string; collation: string | null; nulls: string | null; included: boolean }[]
+}
+
+export interface DictionaryTable {
+  schema: string
+  name: string
+  /** relkind: r, p, v, m or f. */
+  kind: string
+  comment: string | null
+  columns: DictionaryColumn[]
+  indexes: DictionaryIndex[]
+}
+
+export interface DataDictionary {
+  database: string
+  schema: string | null
+  comment: string | null
+  tables: DictionaryTable[]
+}
+
+/** phpMyAdmin's data dictionary: the database's tables (one schema's when given) with their columns and indexes. */
+export function dataDictionary(db: string, schema?: string | null): Promise<DataDictionary> {
+  const query = schema ? `?${new URLSearchParams({ schema })}` : ''
+
+  return api.get<DataDictionary>(`/api/databases/${encodeURIComponent(db)}/data-dictionary${query}`)
+}
