@@ -103,6 +103,13 @@ final class IndexSql
                 $old[$param] = $old[$param] ? 'true' : 'false';
             }
         }
+        // A storage parameter the client left out keeps its value; update.sql would read it as
+        // emptied and RESET it. Only one sent empty is reset.
+        foreach (self::STORAGE_PARAMETERS as $param) {
+            if (!array_key_exists($param, $data)) {
+                $data[$param] = $old[$param] ?? null;
+            }
+        }
 
         return ['sql' => $ctx->renderFrom('indexes', 'update.sql', ['data' => $data, 'o_data' => $old, 'update_column' => false, 'update_column_data' => []]), 'recreated' => false];
     }

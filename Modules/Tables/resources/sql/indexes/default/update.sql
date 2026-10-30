@@ -25,7 +25,7 @@ ALTER INDEX IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
 
 {% endif %}
 {## Changes deduplicate_items ##}
-{% if data.deduplicate_items in [true, false] and o_data.deduplicate_items != data.deduplicate_items %}
+{% if data.deduplicate_items in ['true', 'false'] and o_data.deduplicate_items != data.deduplicate_items %}
 ALTER INDEX IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     SET (deduplicate_items={{data.deduplicate_items}});
 
@@ -52,13 +52,13 @@ ALTER INDEX IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
 
 {% endif %}
 {## Changes fastupdate ##}
-{% if data.fastupdate in [true, false] and o_data.fastupdate != data.fastupdate %}
+{% if data.fastupdate in ['true', 'false'] and o_data.fastupdate != data.fastupdate %}
 ALTER INDEX IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     SET (fastupdate={{data.fastupdate}});
 
 {% endif %}
 {## Changes autosummarize ##}
-{% if data.autosummarize in [true, false] and o_data.autosummarize != data.autosummarize %}
+{% if data.autosummarize in ['true', 'false'] and o_data.autosummarize != data.autosummarize %}
 ALTER INDEX IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     SET (autosummarize={{data.autosummarize}});
 
