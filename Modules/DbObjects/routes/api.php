@@ -43,5 +43,12 @@ Route::middleware(Authenticate::class)->group(function () use ($context): void {
     Route::get('/databases/{db}/foreign_servers/options', fn (ServerRequestInterface $request, array $args): array => (new ForeignServerController())->options($context($request, $args, 'foreign_server')))->setName('foreign_servers.options');
     Route::get('/databases/{db}/user_mappings/options', fn (ServerRequestInterface $request, array $args): array => (new UserMappingController())->options($context($request, $args, 'user_mapping')))->setName('user_mappings.options');
     Route::get('/databases/{db}/schemas/{scid:number}/foreign_tables/options', fn (ServerRequestInterface $request, array $args): array => (new ForeignTableController())->options($context($request, $args, 'foreign_table')))->setName('foreign_tables.options');
+    // IMPORT FOREIGN SCHEMA into the schema (or the one the body names); /sql previews the statement.
+    Route::post('/databases/{db}/schemas/{scid:number}/foreign_tables/import/sql', fn (ServerRequestInterface $request, array $args): array => ['sql' => (new ForeignTableController())->importSql($ctx = $context($request, $args, 'foreign_table'), $ctx->input())])->setName('foreign_tables.import.sql');
+    Route::post('/databases/{db}/schemas/{scid:number}/foreign_tables/import', function (ServerRequestInterface $request, array $args) use ($context): array {
+        $ctx = $context($request, $args, 'foreign_table');
+
+        return (new ForeignTableController())->import($ctx, $ctx->input());
+    })->setName('foreign_tables.import');
     Route::get('/databases/{db}/event_triggers/options', fn (ServerRequestInterface $request, array $args): array => (new EventTriggerController())->options($context($request, $args, 'event_trigger')))->setName('event_triggers.options');
 });

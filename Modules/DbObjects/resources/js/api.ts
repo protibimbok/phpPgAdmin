@@ -176,4 +176,17 @@ export interface ForeignTable {
 }
 
 export const foreignTables = (db: string, scid: number) => collection<ForeignTable>(collectionUrl(db, 'schemas', scid, 'foreign_tables'))
-export const foreignTableOptions = (db: string, scid: number) => api.get<{ servers: string[]; roles: string[] }>(`${collectionUrl(db, 'schemas', scid, 'foreign_tables')}/options`)
+export const foreignTableOptions = (db: string, scid: number) => api.get<{ servers: string[]; roles: string[]; schemas: string[] }>(`${collectionUrl(db, 'schemas', scid, 'foreign_tables')}/options`)
+
+/** What IMPORT FOREIGN SCHEMA takes: tables are names one per line, mode 'all', 'limit' (LIMIT TO) or 'except'. */
+export interface ForeignSchemaImport {
+  server: string
+  remote_schema: string
+  mode: 'all' | 'limit' | 'except'
+  tables: string
+  into: string
+  options: OptionPair[]
+}
+
+export const importForeignSchemaSql = (db: string, scid: number, data: ForeignSchemaImport) => api.post<{ sql: string }>(`${collectionUrl(db, 'schemas', scid, 'foreign_tables')}/import/sql`, data).then((r) => r.sql)
+export const importForeignSchema = (db: string, scid: number, data: ForeignSchemaImport) => api.post<{ sql: string; tables: string[] }>(`${collectionUrl(db, 'schemas', scid, 'foreign_tables')}/import`, data)

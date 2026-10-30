@@ -158,5 +158,19 @@
     "edit_title": "Edit foreign table {{name}}",
     "no_servers": "There is no foreign server yet: add one on the database's Objects page.",
     "options_hint": "Where the wrapper finds the rows, such as schema_name and table_name for postgres_fdw."
+  },
+  "import_schema": {
+    "button": "Import foreign schema",
+    "title": "Import foreign schema",
+    "remote_schema": "Remote schema",
+    "mode": "Tables",
+    "mode_all": "All tables",
+    "mode_limit": "Only these tables (LIMIT TO)",
+    "mode_except": "All but these tables (EXCEPT)",
+    "tables": "Table names",
+    "tables_hint": "One remote table or view name per line.",
+    "into": "Into schema",
+    "options_hint": "The wrapper's import options, such as import_default, import_collate or import_not_null for postgres_fdw.",
+    "done": "Remote schema {{schema}} has been imported into {{into}}."
   }
 }

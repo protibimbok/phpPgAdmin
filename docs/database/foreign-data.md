@@ -228,6 +228,33 @@ privileges, **Add privileges for a role** and **Add column privileges**
 (`GRANT SELECT ON TABLE public.dbo_authors TO bookshop_staff;`). A role reading a foreign table
 also needs a user mapping on its server.
 
+### Import foreign schema
+
+**Import foreign schema**, beside **Add foreign table**, creates a foreign table for every table and
+view of a remote schema in one statement, with the columns the remote server reports. The dialog
+asks for:
+
+| Field | What it does |
+| --- | --- |
+| Foreign server | The server to read the remote schema from. |
+| Remote schema | The schema's name on the remote server. |
+| Tables | **All tables**, **Only these tables (LIMIT TO)** or **All but these tables (EXCEPT)**; the last two show a **Table names** box, one name per line. |
+| Into schema | The local schema the foreign tables are created in; this schema by default. |
+| Options | The wrapper's import options: `postgres_fdw` takes `import_default`, `import_collate`, `import_not_null` and `import_generated`. |
+
+**Preview SQL** shows the statement; **Go** runs it:
+
+```sql
+IMPORT FOREIGN SCHEMA remote_src
+    LIMIT TO (a, b)
+    FROM SERVER loop
+    INTO landing
+    OPTIONS (import_default 'true');
+```
+
+A local table with the same name as a remote one makes the whole statement fail; nothing is
+created. Not every wrapper supports the statement (`file_fdw` does not).
+
 ### Drop
 
 **Drop** runs `DROP FOREIGN TABLE schema.table;` (with **CASCADE**, also dropping views on it). The
@@ -259,5 +286,5 @@ The rows come from `bookshop` at query time. To import every table of a remote s
 
 ## Limitations
 
-- `IMPORT FOREIGN SCHEMA`, foreign-table constraints (`CHECK`), partitions of a partitioned table
+- Foreign-table constraints (`CHECK`), partitions of a partitioned table
   that are foreign tables, and security labels have no form.

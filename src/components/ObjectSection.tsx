@@ -30,6 +30,8 @@ export interface ObjectSectionProps<Row extends { oid: number; name: string }> {
   canEdit?: (row: Row) => boolean
   /** A notice under the heading: the state the objects depend on (row security enabled or not). */
   notice?: ReactNode
+  /** More buttons beside the create button. */
+  actions?: ReactNode
 }
 
 /**
@@ -38,7 +40,7 @@ export interface ObjectSectionProps<Row extends { oid: number; name: string }> {
  * Edit / Export / Drop links. The triggers, rules, policies, collations and text search lists
  * are all this.
  */
-export default function ObjectSection<Row extends { oid: number; name: string }>({ id, icon, title, rows, empty, createLabel, createIcon, onCreate, columns, onEdit, onExport, onDrop, noneSelected, labels, canEdit, notice }: ObjectSectionProps<Row>) {
+export default function ObjectSection<Row extends { oid: number; name: string }>({ id, icon, title, rows, empty, createLabel, createIcon, onCreate, columns, onEdit, onExport, onDrop, noneSelected, labels, canEdit, notice, actions }: ObjectSectionProps<Row>) {
   const { t: tApp } = useTranslation()
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const allChecked = rows.length > 0 && rows.every((row) => checked.has(row.oid))
@@ -88,11 +90,14 @@ export default function ObjectSection<Row extends { oid: number; name: string }>
             </div>
           </div>
         )}
-        {onCreate && (
+        {(onCreate || actions) && (
           <div className={rows.length > 0 ? 'ms-auto' : undefined}>
-            <button type="button" className="ajax add_anchor btn btn-primary" onClick={onCreate}>
-              <Icon name={createIcon ?? 'b_plus'} /> {createLabel}
-            </button>
+            {onCreate && (
+              <button type="button" className="ajax add_anchor btn btn-primary" onClick={onCreate}>
+                <Icon name={createIcon ?? 'b_plus'} /> {createLabel}
+              </button>
+            )}
+            {actions}
           </div>
         )}
       </div>

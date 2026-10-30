@@ -158,5 +158,19 @@
     "edit_title": "تحرير الجدول الأجنبي {{name}}",
     "no_servers": "لا يوجد خادم أجنبي بعد: أضف واحدًا في صفحة الكائنات لقاعدة البيانات.",
     "options_hint": "أين يجد المغلّف الصفوف، مثل schema_name وtable_name في postgres_fdw."
+  },
+  "import_schema": {
+    "button": "استيراد مخطط أجنبي",
+    "title": "استيراد مخطط أجنبي",
+    "remote_schema": "المخطط البعيد",
+    "mode": "الجداول",
+    "mode_all": "كل الجداول",
+    "mode_limit": "هذه الجداول فقط (LIMIT TO)",
+    "mode_except": "كل الجداول عدا هذه (EXCEPT)",
+    "tables": "أسماء الجداول",
+    "tables_hint": "اسم جدول أو عرض بعيد في كل سطر.",
+    "into": "إلى المخطط",
+    "options_hint": "خيارات الاستيراد للمغلّف، مثل import_default أو import_collate أو import_not_null في postgres_fdw.",
+    "done": "تم استيراد المخطط البعيد {{schema}} إلى {{into}}."
   }
 }

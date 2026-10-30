@@ -80,10 +80,71 @@ final class ForeignTableController extends NodeController
         return $oid === null ? $ctx->render('create.sql', ['data' => $this->forCreate($ctx, $data)]) : $this->updateSql($ctx, $oid, $data);
     }
 
-    /** @return array{servers: list<string>, roles: list<string>} the foreign servers a table may read from, and the roles */
+    /** @return array{servers: list<string>, roles: list<string>, schemas: list<string>} the foreign servers a table may read from, the roles, and the schemas a foreign schema may be imported into */
     public function options(NodeContext $ctx): array
     {
-        return ['servers' => array_column($ctx->rows('get_foreign_servers.sql'), 'srvname'), 'roles' => Catalog::roles($ctx->conn)];
+        return ['servers' => array_column($ctx->rows('get_foreign_servers.sql'), 'srvname'), 'roles' => Catalog::roles($ctx->conn), 'schemas' => Catalog::schemas($ctx->conn)];
+    }
+
+    /**
+     * IMPORT FOREIGN SCHEMA from the client's data: server, remote_schema, mode ('all', 'limit'
+     * or 'except'), tables (names one per line or comma-separated), into (a local schema, the
+     * route's when left out) and options as {option, value}.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function importSql(NodeContext $ctx, array $data): string
+    {
+        $server = trim((string) ($data['server'] ?? ''));
+        $remote = trim((string) ($data['remote_schema'] ?? ''));
+        if ($server === '') {
+            throw new BadRequestException('A foreign schema is imported from a foreign server: choose one.');
+        }
+        if ($remote === '') {
+            throw new BadRequestException('Name the remote schema to import.');
+        }
+        $mode = (string) ($data['mode'] ?? 'all');
+        if (!in_array($mode, ['all', 'limit', 'except'], true)) {
+            throw new BadRequestException(sprintf('"%s" is not a table restriction.', $mode));
+        }
+        $tables = array_values(array_unique(array_filter(array_map('trim', preg_split('/[\r\n,]+/', (string) ($data['tables'] ?? '')) ?: []), static fn (string $t): bool => $t !== '')));
+        if ($mode !== 'all' && $tables === []) {
+            throw new BadRequestException('LIMIT TO and EXCEPT need at least one table name.');
+        }
+        $into = trim((string) ($data['into'] ?? ''));
+        if ($into === '') {
+            $into = $this->schemaName($ctx);
+        }
+        $options = array_map(static fn (array $o): string => Quoting::ident($o['option']) . ' ' . Quoting::literal($o['value']), ForeignOptions::fromClient($data['options'] ?? []));
+
+        $sql = 'IMPORT FOREIGN SCHEMA ' . Quoting::ident($remote);
+        if ($mode !== 'all') {
+            $sql .= "\n    " . ($mode === 'limit' ? 'LIMIT TO' : 'EXCEPT') . ' (' . implode(', ', array_map(static fn (string $t): string => Quoting::ident($t), $tables)) . ')';
+        }
+        $sql .= "\n    FROM SERVER " . Quoting::ident($server) . "\n    INTO " . Quoting::ident($into);
+        if ($options !== []) {
+            $sql .= "\n    OPTIONS (" . implode(', ', $options) . ')';
+        }
+
+        return $sql . ';';
+    }
+
+    /** Runs IMPORT FOREIGN SCHEMA; the foreign tables it created in the target schema. */
+    public function import(NodeContext $ctx, array $data): array
+    {
+        $sql = $this->importSql($ctx, $data);
+        $into = trim((string) ($data['into'] ?? ''));
+        $schema = $into === '' ? $this->schemaName($ctx) : $into;
+        $before = $this->foreignTableNames($ctx, $schema);
+        $this->execute($ctx, $sql);
+
+        return ['sql' => $sql, 'tables' => array_values(array_diff($this->foreignTableNames($ctx, $schema), $before))];
+    }
+
+    /** @return list<string> */
+    private function foreignTableNames(NodeContext $ctx, string $schema): array
+    {
+        return array_column($ctx->conn->rows("SELECT c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind = 'f' AND n.nspname = $1 ORDER BY 1", [$schema]), 'relname');
     }
 
     /** The row with its options and columns as the client reads them. */

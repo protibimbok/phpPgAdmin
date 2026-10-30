@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
+import Icon from '@/components/Icon'
 import Modal from '@/components/Modal'
 import ObjectSection from '@/components/ObjectSection'
 import SqlView from '@/components/SqlView'
@@ -13,7 +14,7 @@ import { resolve } from '@/nodes/client'
 import { notifyError, notifySuccess } from '@/notify'
 import { quoteIdent } from '@sql/js/sql'
 import { PrivilegesAction, PrivilegesModal } from '@roles/js/PrivilegesSection'
-import { foreignTableOptions, foreignTables, type ForeignTable } from '../api'
+import { foreignTableOptions, foreignTables, importForeignSchema, importForeignSchemaSql, type ForeignSchemaImport, type ForeignTable } from '../api'
 import NodeDialog, { type Field, type Values } from '../dialogs/NodeDialog'
 
 /**
@@ -39,6 +40,7 @@ export default function ForeignTables() {
   const [confirm, setConfirm] = useState<{ sql: string[]; rows: ForeignTable[] } | null>(null)
   const [cascade, setCascade] = useState(false)
   const [privileges, setPrivileges] = useState<ForeignTable | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const open = search.get('open')
   useEffect(() => {
@@ -112,6 +114,27 @@ export default function ForeignTables() {
     columns: (row?.columns ?? []).filter((c) => c.inheritedfrom === null).map(({ attnum, name, cltype, attnotnull, defval, coloptions }) => ({ attnum, name, cltype, attnotnull, defval, coloptions })),
   }
 
+  // IMPORT FOREIGN SCHEMA: the foreign tables of a remote schema created in one statement.
+  const importFields: Field[] = [
+    { key: 'server', label: t('fields.server'), kind: 'select', options: data.options.servers.map((s) => ({ value: s, label: s })), empty: '', required: true, hint: data.options.servers.length === 0 ? t('foreign_table.no_servers') : undefined },
+    { key: 'remote_schema', label: t('import_schema.remote_schema'), kind: 'text', required: true, placeholder: 'public' },
+    {
+      key: 'mode',
+      label: t('import_schema.mode'),
+      kind: 'select',
+      options: [
+        { value: 'all', label: t('import_schema.mode_all') },
+        { value: 'limit', label: t('import_schema.mode_limit') },
+        { value: 'except', label: t('import_schema.mode_except') },
+      ],
+    },
+    { key: 'tables', label: t('import_schema.tables'), kind: 'textarea', visible: (v) => v.mode !== 'all', hint: t('import_schema.tables_hint') },
+    { key: 'into', label: t('import_schema.into'), kind: 'select', options: [...new Set([schema, ...data.options.schemas])].map((s) => ({ value: s, label: s })), required: true },
+    { key: 'options', label: t('fields.options'), kind: 'options', hint: t('import_schema.options_hint') },
+  ]
+  const importInitial: Values = { server: data.options.servers[0] ?? '', remote_schema: '', mode: 'all', tables: '', into: schema, options: [] }
+  const importData = (values: Values) => values as unknown as ForeignSchemaImport
+
   return (
     <>
       <ObjectSection<ForeignTable>
@@ -147,6 +170,27 @@ export default function ForeignTables() {
         }}
         noneSelected={t('none_selected')}
         labels={{ name: t('columns.name'), edit: t('actions.edit'), export: t('actions.export'), drop: t('actions.drop') }}
+        actions={
+          <button type="button" className="ajax btn btn-secondary ms-2" id="import_foreign_schema" onClick={() => setImporting(true)}>
+            <Icon name="b_import" /> {t('import_schema.button')}
+          </button>
+        }
+      />
+
+      <NodeDialog
+        show={importing}
+        id="importForeignSchemaDialog"
+        title={t('import_schema.title')}
+        fields={importFields}
+        initial={importInitial}
+        save={(values) => importForeignSchema(db, data.scid, importData(values))}
+        preview={(values) => importForeignSchemaSql(db, data.scid, importData(values))}
+        savedMessage={(values) => t('import_schema.done', { schema: String(values.remote_schema), into: String(values.into) })}
+        onClose={() => setImporting(false)}
+        onSaved={() => {
+          setImporting(false)
+          changed()
+        }}
       />
 
       <NodeDialog
