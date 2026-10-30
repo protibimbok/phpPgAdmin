@@ -54,6 +54,7 @@ export default defineConfig({
             { text: 'Signing in', link: '/guide/signing-in' },
             { text: 'Finding your way around', link: '/guide/interface' },
             { text: 'Known limitations', link: '/guide/limitations' },
+            { text: 'Compared with the classic phpPgAdmin', link: '/guide/classic-phppgadmin' },
           ],
         },
         {

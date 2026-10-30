@@ -33,7 +33,7 @@ phpPgAdmin is a web application for administering PostgreSQL 13 and newer. It lo
 | Own storage | Optional configuration storage database | SQLite `pgadmin4.db` | SQLite file in `storage/` |
 
 ::: info Not the classic phpPgAdmin
-This is a new application. Its configuration (`config/*.php` and `PGADMIN_*` environment variables) has nothing in common with the classic phpPgAdmin's `conf/config.inc.php`, so a classic installation cannot be upgraded in place.
+This is a new application. Its configuration (`config/*.php` and `PGADMIN_*` environment variables) has nothing in common with the classic phpPgAdmin's `conf/config.inc.php`, so a classic installation cannot be upgraded in place. [Compared with the classic phpPgAdmin](/guide/classic-phppgadmin) sets the two side by side.
 :::
 
 ## The object hierarchy
