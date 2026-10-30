@@ -71,6 +71,14 @@ export function reportUnauthorized(error: ApiError): void {
   if (error.unauthorized) unauthorizedHandler?.()
 }
 
+// How far the server's clock is ahead of this browser's, from the Date header of its answers.
+let clockOffset = 0
+
+/** Milliseconds the server's clock is ahead of the browser's, to the second (the Date header's precision). */
+export function serverClockOffset(): number {
+  return clockOffset
+}
+
 /**
  * Call the API and return its JSON. A body is sent as JSON; a failure throws an ApiError
  * carrying the server's message and error fields.
@@ -81,6 +89,8 @@ export async function request<T>(url: string, init: RequestInit = {}): Promise<T
     credentials: 'same-origin',
     headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
   })
+  const date = Date.parse(response.headers.get('Date') ?? '')
+  if (Number.isFinite(date)) clockOffset = date - Date.now()
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ApiErrorBody

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
+import { errorMessage } from '@/api/request'
 import Icon from '@/components/Icon'
 import Modal from '@/components/Modal'
 import i18n from '@/i18n'
 import LocaleSelect from '@/i18n/LocaleSelect'
+import { notifyError } from '@/notify'
 import logo from '../../img/logo.svg'
 import { getServers, login, removeServer, renameServer, serverLabel, SSL_MODES, type SavedServer, type Server, type ServerChoice, type SslMode, type User } from '../api'
 import '../../scss/login.scss'
@@ -136,15 +138,23 @@ export default function Login({ onLogin, expired = false }: LoginProps) {
     if (username.trim() === '') return setManaging({ ...managing, error: t('servers.credentials_first') })
     setManaging({ ...managing, error: null })
     setPending(true)
+    let session: Awaited<ReturnType<typeof login>>
     try {
-      const session = await login(username, password, { id: managing.server.id })
-      if (managing.action === 'rename') await renameServer(managing.server.id, managing.name.trim())
-      else await removeServer(managing.server.id)
-      await enter(session)
+      session = await login(username, password, { id: managing.server.id })
     } catch (e) {
       setManaging({ ...managing, error: e instanceof Error ? e.message : t('login.failed') })
       setPending(false)
+
+      return
     }
+    // Signed in by now: a failed rename or remove is reported in the application, not here.
+    try {
+      if (managing.action === 'rename') await renameServer(managing.server.id, managing.name.trim())
+      else await removeServer(managing.server.id)
+    } catch (e) {
+      notifyError(errorMessage(e))
+    }
+    await enter(session)
   }
 
   const languageLabel = tApp('language')

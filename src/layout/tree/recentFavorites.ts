@@ -11,12 +11,27 @@ const EMPTY: QuickWarpLists = { recent: [], favorite: [] }
 
 let lists: QuickWarpLists = EMPTY
 const listeners = new Set<() => void>()
+// Requests are numbered as they are sent; an answer older than the one shown, or sent before
+// the lists were cleared on signing out, is not applied.
+let sent = 0
+let applied = 0
 
 function set(next: QuickWarpLists): QuickWarpLists {
   lists = next
   for (const listener of listeners) listener()
 
   return next
+}
+
+function track(request: Promise<QuickWarpLists>): Promise<QuickWarpLists> {
+  const seq = ++sent
+
+  return request.then((next) => {
+    if (seq < applied) return lists
+    applied = seq
+
+    return set(next)
+  })
 }
 
 function subscribe(listener: () => void) {
@@ -32,11 +47,11 @@ export function useQuickWarp(): QuickWarpLists {
 }
 
 export function loadQuickWarp(): Promise<QuickWarpLists> {
-  return getQuickWarpLists().then(set)
+  return track(getQuickWarpLists())
 }
 
 export function recordRecent(table: Pick<QuickWarpTable, 'database' | 'schema' | 'table'>): Promise<QuickWarpLists> {
-  return recordRecentTable(table).then(set)
+  return track(recordRecentTable(table))
 }
 
 export const isFavorite = (list: QuickWarpLists, database: string, schema: string, table: string): boolean =>
@@ -46,7 +61,7 @@ export const isFavorite = (list: QuickWarpLists, database: string, schema: strin
 export function toggleFavorite(table: Pick<QuickWarpTable, 'database' | 'schema' | 'table'>): Promise<QuickWarpLists> {
   const request = isFavorite(lists, table.database, table.schema, table.table) ? removeFavoriteTable : addFavoriteTable
 
-  return request(table).then(set)
+  return track(request(table))
 }
 
 /** How phpMyAdmin names a table in the lists, `db`.`table`, here with PostgreSQL's quotes and the schema. */
@@ -54,5 +69,6 @@ export const quickWarpLabel = (entry: QuickWarpTable): string => [entry.database
 
 /** Forget the lists, when the panel goes away on signing out, so another role never sees them. */
 export function clearQuickWarp(): void {
+  applied = ++sent
   set(EMPTY)
 }

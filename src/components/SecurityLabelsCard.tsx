@@ -43,11 +43,19 @@ export default function SecurityLabelsCard({ db, catalog, oid }: SecurityLabelsC
   const { data: object } = useRequest(() => api.get<LabelState>(query(0)), [db, catalog, oid])
   const { data: current, reload } = useRequest(() => api.get<LabelState>(query(subid)), [db, catalog, oid, subid])
   const [labels, setLabels] = useState<SecurityLabel[]>([])
+  // The Object whose labels are in the rows: until the newly picked one's arrive, the rows are
+  // the previous object's and are neither previewed nor saved.
+  const [labelsFor, setLabelsFor] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (current) setLabels(current.labels)
+    if (current) {
+      setLabels(current.labels)
+      setLabelsFor(subid)
+    }
+    // subid is read as it is when its labels arrive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current])
 
   if (!object || !current) return null
@@ -59,7 +67,7 @@ export default function SecurityLabelsCard({ db, catalog, oid }: SecurityLabelsC
 
   async function save(e: FormEvent) {
     e.preventDefault()
-    if (busy) return
+    if (busy || labelsFor !== subid) return
     setBusy(true)
     try {
       await api.post<LabelState>(base(db), body())
@@ -73,6 +81,7 @@ export default function SecurityLabelsCard({ db, catalog, oid }: SecurityLabelsC
   }
 
   function showPreview() {
+    if (labelsFor !== subid) return
     setPreview({ sql: null, error: null })
     api.post<{ sql: string }>(`${base(db)}/sql`, body()).then(
       (r) => setPreview({ sql: r.sql === '' ? t('nothing_to_change') : r.sql, error: null }),
@@ -90,7 +99,10 @@ export default function SecurityLabelsCard({ db, catalog, oid }: SecurityLabelsC
               <label htmlFor="seclabel_object" className="me-2">
                 {t('security_labels.object')}
               </label>
-              <select id="seclabel_object" name="seclabel_object" value={subid} onChange={(e) => setSubid(Number(e.target.value))}>
+              <select id="seclabel_object" name="seclabel_object" value={subid} onChange={(e) => {
+                  setLabelsFor(null)
+                  setSubid(Number(e.target.value))
+                }}>
                 <option value={0}>{t('security_labels.this_object')}</option>
                 {object.columns.map((c) => (
                   <option key={c.attnum} value={c.attnum}>
@@ -143,7 +155,7 @@ export default function SecurityLabelsCard({ db, catalog, oid }: SecurityLabelsC
         </div>
         <div className="card-footer text-end">
           <input className="btn btn-secondary preview_sql me-2" type="button" value={t('preview_sql')} onClick={showPreview} />
-          <input className="btn btn-primary" type="submit" value={t('go')} disabled={busy} />
+          <input className="btn btn-primary" type="submit" value={t('go')} disabled={busy || labelsFor !== subid} />
         </div>
       </div>
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />

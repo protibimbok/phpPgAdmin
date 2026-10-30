@@ -72,7 +72,7 @@ export default function FindReplace() {
   }
 
   async function replace() {
-    if (!preview) return
+    if (!preview || busy) return
     setConfirming(false)
     setBusy(true)
     try {
@@ -130,7 +130,7 @@ export default function FindReplace() {
               </div>
             </div>
             <div className="card-footer">
-              <input className="btn btn-primary" type="submit" name="submit" value={tApp('go')} />
+              <input className="btn btn-primary" type="submit" name="submit" value={tApp('go')} disabled={busy} />
             </div>
           </div>
         </form>
@@ -161,7 +161,7 @@ export default function FindReplace() {
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              setConfirming(true)
+              if (!busy) setConfirming(true)
             }}
           >
             <div className="card">
@@ -187,7 +187,7 @@ export default function FindReplace() {
                 </table>
               </div>
               <div className="card-footer">
-                <input className="btn btn-secondary" type="submit" name="replace" value={t('replace.replace')} />
+                <input className="btn btn-secondary" type="submit" name="replace" value={t('replace.replace')} disabled={busy} />
               </div>
             </div>
           </form>

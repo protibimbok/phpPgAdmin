@@ -28,7 +28,7 @@ export default function AutovacuumTablesCard({ db }: { db: string }) {
   const { t } = useTranslation('databases')
   const { t: tApp } = useTranslation()
   const url = `/api/databases/${encodeURIComponent(db)}/autovacuum_tables`
-  const { data, reload } = useRequest(() => api.get<{ rows: AutovacuumTable[] }>(url).then((r) => r.rows), [url])
+  const { data, error, reload } = useRequest(() => api.get<{ rows: AutovacuumTable[] }>(url).then((r) => r.rows), [url])
   const [confirm, setConfirm] = useState<AutovacuumTable | null>(null)
 
   async function reset(row: AutovacuumTable) {
@@ -48,7 +48,11 @@ export default function AutovacuumTablesCard({ db }: { db: string }) {
         <Icon name="b_tblops" /> {t('autovacuum.title')}
       </div>
       <div className="card-body">
-        {data === undefined ? (
+        {error ? (
+          <div className="alert alert-danger mb-0" role="alert">
+            {error.message}
+          </div>
+        ) : data === undefined ? (
           tApp('loading')
         ) : data.length === 0 ? (
           <div className="card-text">{t('autovacuum.none')}</div>

@@ -58,6 +58,9 @@ export default function ZoomSearch() {
   const [help, setHelp] = useState(false)
   const [point, setPoint] = useState<{ keys: RowKeys; row: Record<string, string | null>; edited: Record<string, string | null> } | null>(null)
   const [saved, setSaved] = useState<CommandResult | null>(null)
+  const [saving, setSaving] = useState(false)
+  // Only the latest Go's answer is plotted.
+  const searchSeq = useRef(0)
 
   if (error) {
     return (
@@ -90,16 +93,17 @@ export default function ZoomSearch() {
       return
     }
     const where = rows
-      .filter((row) => row.column !== '')
-      .map((row) => {
-        const column = columnOf(row.column)!
+      .flatMap((row) => {
+        const column = columnOf(row.column)
 
-        return condition(column, { ...row.criterion, operator: row.criterion.operator || operatorsFor(column)[0] })
+        return column ? [condition(column, { ...row.criterion, operator: row.criterion.operator || operatorsFor(column)[0] })] : []
       })
       .filter(Boolean)
+    const seq = ++searchSeq.current
     const sql = `SELECT * FROM ${qualifiedName(schema, table)}${where.length > 0 ? ` WHERE ${where.join(' AND ')}` : ''} LIMIT ${Math.max(1, maxPlot)}`
     try {
       const response = await runQuery(db, { sql, limit: null, count: false })
+      if (seq !== searchSeq.current) return
       const result = response.results[0]
       if (result.kind === 'error') throw new Error(result.error.message)
       if (result.kind !== 'rows') return
@@ -117,6 +121,7 @@ export default function ZoomSearch() {
       setResetKey((k) => k + 1)
       setFormShown(false)
     } catch (err) {
+      if (seq !== searchSeq.current) return
       setPlot(null)
       setFailure(errorMessage(err))
     }
@@ -140,12 +145,18 @@ export default function ZoomSearch() {
   }
 
   async function savePoint() {
-    if (!point) return
+    if (!point || saving) return
     const changed = Object.fromEntries(Object.entries(point.edited).filter(([name, value]) => value !== point.row[name]))
-    setPoint(null)
-    if (Object.keys(changed).length === 0) return
+    if (Object.keys(changed).length === 0) {
+      setPoint(null)
+
+      return
+    }
+    setSaving(true)
     try {
       const outcome = await saveRows(db, schema, table, { updated: [{ keys: point.keys, values: changed }] })
+      // The dialog stays open with its edits when the UPDATE fails.
+      setPoint(null)
       setSaved({ kind: 'command', sql: outcome.sql.join(';\n'), line: 1, duration_ms: 0, notices: [], affected_rows: outcome.updated.length, command_tag: 'UPDATE' })
       // The plot follows the row's new values.
       if (plot && (plot.x in changed || plot.y in changed || plot.label in changed)) {
@@ -165,6 +176,8 @@ export default function ZoomSearch() {
       }
     } catch (err) {
       notifyError(errorMessage(err))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -323,7 +336,7 @@ export default function ZoomSearch() {
         onClose={() => setPoint(null)}
         footer={
           <>
-            <button type="button" className="btn btn-secondary" id="dataPointSaveButton" onClick={() => void savePoint()}>
+            <button type="button" className="btn btn-secondary" id="dataPointSaveButton" disabled={saving} onClick={() => void savePoint()}>
               {tApp('save')}
             </button>
             <button type="button" className="btn btn-secondary" onClick={() => setPoint(null)}>

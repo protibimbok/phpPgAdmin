@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import type { RouteObject } from 'react-router'
+import { createElement, Fragment, type ReactNode } from 'react'
+import { useParams, type RouteObject } from 'react-router'
 import { fillPath, type Level, type LevelName, type RelationKind } from './level'
 
 /**
@@ -126,8 +126,21 @@ export function getMenuFor(level: Level): MenuItem[] {
     .map((item) => ({ ...item, path: fillPath(item.path, level) }))
 }
 
+/**
+ * Every page made anew when its route's parameters change, as a page load is in phpMyAdmin:
+ * a route's element stays mounted from table A to table B, and state a page built from A's data
+ * (a preview, criteria, a form) would otherwise act on B.
+ */
+function ParamsKeyed({ children }: { children: ReactNode }) {
+  const params = useParams()
+
+  return createElement(Fragment, { key: JSON.stringify(params) }, children)
+}
+
 export function getRoutes(): RouteObject[] {
-  return getModules().flatMap((module) => module.routes ?? [])
+  return getModules()
+    .flatMap((module) => module.routes ?? [])
+    .map((route) => (route.element ? { ...route, element: createElement(ParamsKeyed, null, route.element) } : route))
 }
 
 export function isUnder(pathname: string, path: string): boolean {

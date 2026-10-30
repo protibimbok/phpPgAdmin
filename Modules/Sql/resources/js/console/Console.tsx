@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { errorMessage } from '@/api/request'
+import { errorMessage, serverClockOffset } from '@/api/request'
 import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import { notifyError, notifySuccess } from '@/notify'
@@ -143,7 +143,7 @@ export default function Console() {
   /** phpMyAdmin's Debug SQL: the statements run since the page was loaded, with the time each took. */
   const debugQueries = useMemo<DebugQuery[]>(() => {
     const runs = (history ?? [])
-      .filter((entry) => Date.parse(entry.started_at) >= PAGE_LOADED - 1000)
+      .filter((entry) => Date.parse(entry.started_at) - serverClockOffset() >= PAGE_LOADED - 2000)
       .reverse()
       .map((entry): DebugQuery => ({ key: `d${entry.id}`, sql: entry.sql, database: entry.database, count: 1, time: entry.duration_ms ?? 0, failed: entry.status === 'error', started: entry.started_at }))
     if (debugOrder === 'exec') return runs

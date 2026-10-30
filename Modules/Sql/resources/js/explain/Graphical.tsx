@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Icon from '@/components/Icon'
 import { imageUri } from './images'
@@ -86,6 +86,8 @@ interface PlanSvgProps {
 const PlanSvg = forwardRef<SVGSVGElement, PlanSvgProps>(function PlanSvg({ analysis, zoom, selected, onNodeClick }, ref) {
   const { t } = useTranslation('sql')
   const arrows = analysis.nodes.filter((n) => n.serial !== analysis.root.serial)
+  // The arrowheads' ids are the page's: each plan card (a batch of EXPLAINs) has its own.
+  const markers = `explain_arrow_${useId().replace(/[^A-Za-z0-9]/g, '')}_`
 
   return (
     <svg
@@ -100,14 +102,14 @@ const PlanSvg = forwardRef<SVGSVGElement, PlanSvgProps>(function PlanSvg({ analy
     >
       <defs>
         {arrows.map((node) => (
-          <marker key={node.serial} id={`explain_arrow_${node.serial}`} viewBox={`0 0 ${2 * ARROW_WIDTH} ${2 * ARROW_HEIGHT}`} markerWidth={ARROW_WIDTH} markerHeight={ARROW_HEIGHT} orient="auto" refX="0" refY={ARROW_WIDTH / 4}>
+          <marker key={node.serial} id={`${markers}${node.serial}`} viewBox={`0 0 ${2 * ARROW_WIDTH} ${2 * ARROW_HEIGHT}`} markerWidth={ARROW_WIDTH} markerHeight={ARROW_HEIGHT} orient="auto" refX="0" refY={ARROW_WIDTH / 4}>
             <polygon className="explain-arrowhead" points={[0, 0, 0, ARROW_WIDTH / 2, ARROW_HEIGHT, ARROW_WIDTH / 4, 0, 0].join(',')} />
           </marker>
         ))}
       </defs>
       <g transform={`matrix(${zoom},0,0,${zoom},0,0)`}>
         <rect className="explain-surface" x={0} y={0} width={analysis.width} height={analysis.height} rx={5} ry={5} />
-        <PlanContent node={analysis.root} originX={analysis.width - X_MARGIN} originY={Y_MARGIN} selected={selected} onNodeClick={onNodeClick} />
+        <PlanContent node={analysis.root} originX={analysis.width - X_MARGIN} originY={Y_MARGIN} selected={selected} markers={markers} onNodeClick={onNodeClick} />
       </g>
     </svg>
   )
@@ -119,11 +121,13 @@ interface PlanContentProps {
   originY: number
   parent?: { x: number; y: number }
   selected: PlanNode | null
+  /** The prefix of the arrowheads' marker ids. */
+  markers: string
   onNodeClick: (node: PlanNode) => void
 }
 
 /** pgAdmin's PlanContent: a node's subplan frame, icon, label and the arrow to its parent, then its children. */
-function PlanContent({ node, originX, originY, parent, selected, onNodeClick }: PlanContentProps) {
+function PlanContent({ node, originX, originY, parent, selected, markers, onNodeClick }: PlanContentProps) {
   const x = originX + node.xpos
   const y = originY + node.ypos
   const isSubPlan = node.raw['Parent Relationship'] === 'SubPlan'
@@ -162,10 +166,10 @@ function PlanContent({ node, originX, originY, parent, selected, onNodeClick }: 
           <title>{tooltip}</title>
         </image>
         <MultiText x={x + P_WIDTH / 2 + TXT_ALIGN} y={y + P_HEIGHT - TXT_ALIGN} label={node.label} />
-        {parent && <PolyLine startX={x + P_WIDTH} startY={y + P_HEIGHT / 2} endX={parent.x - ARROW_WIDTH} endY={parent.y + P_HEIGHT / 2} width={node.arrowSize + 2} marker={`explain_arrow_${node.serial}`} />}
+        {parent && <PolyLine startX={x + P_WIDTH} startY={y + P_HEIGHT / 2} endX={parent.x - ARROW_WIDTH} endY={parent.y + P_HEIGHT / 2} width={node.arrowSize + 2} marker={`${markers}${node.serial}`} />}
       </g>
       {node.children.map((child) => (
-        <PlanContent key={child.serial} node={child} originX={originX} originY={originY} parent={{ x, y }} selected={selected} onNodeClick={onNodeClick} />
+        <PlanContent key={child.serial} node={child} originX={originX} originY={originY} parent={{ x, y }} selected={selected} markers={markers} onNodeClick={onNodeClick} />
       ))}
     </>
   )
