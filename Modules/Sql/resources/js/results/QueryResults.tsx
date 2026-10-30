@@ -76,7 +76,7 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
                     <a href="#export" className="btn" onClick={(e) => { e.preventDefault(); navigate(exportQueryUrl(db), { state: { sql: result.sql } }) }}>
                       <Icon name="b_tblexport" /> {t('operations.export')}
                     </a>
-                    <a href="#chart" className="btn" onClick={notAvailable}>
+                    <a href="#chart" className="btn" onClick={(e) => { e.preventDefault(); navigate(db === undefined ? '/server/chart' : `${urls.database(db)}/chart`, { state: { sql: result.sql } }) }}>
                       <Icon name="b_chart" /> {t('operations.display_chart')}
                     </a>
                     <span>

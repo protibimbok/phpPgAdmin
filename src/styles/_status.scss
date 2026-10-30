@@ -72,7 +72,7 @@ table#chartGrid {
   stroke-width: 1;
 }
 
-@for $i from 1 through 3 {
+@for $i from 1 through 8 {
   .jqplot-series-#{$i} {
     fill: none;
     stroke: color(chart-#{$i});
@@ -83,6 +83,13 @@ table#chartGrid {
 
   .jqplot-swatch-#{$i} {
     background: color(chart-#{$i});
+  }
+
+  // A bar, column, area or pie slice of the query chart.
+  .jqplot-fill-#{$i} {
+    fill: color(chart-#{$i});
+    stroke: color(chart-surface);
+    stroke-width: 1;
   }
 
   .jqplot-marker-#{$i} {
@@ -131,4 +138,41 @@ table#chartGrid {
     height: 2px;
     margin: 0 4px 3px 0;
   }
+}
+
+// The query chart (Display chart): the Monitor charts' surface and ink around an SVG.
+.queryChart {
+  position: relative;
+  display: inline-block;
+  font-family: font-family(chart);
+  color: color(chart-text);
+
+  svg {
+    display: block;
+  }
+}
+
+.queryChart-surface {
+  fill: color(chart-surface);
+}
+
+.queryChart-plot {
+  fill: none;
+}
+
+.queryChart-area {
+  fill-opacity: 0.5;
+}
+
+.queryChart-axis-label {
+  font-size: 0.85em;
+}
+
+.queryChart-slice-label {
+  fill: #fff;
+}
+
+.jqplot-title-text {
+  font-size: 1.2em;
+  fill: color(chart-text);
 }

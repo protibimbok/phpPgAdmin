@@ -149,7 +149,23 @@ grid as the Browse tab — the **Query results operations** card and the
 **Query results operations** has **Print**, **Copy to clipboard** (the rows on this page as
 tab-separated text with a header line, `NULL` written out), **Export**, **Display chart** and
 **Create view**. **Export** opens the [Export page for the query's rows](/tools/export#query-results)
-(every row, not only this page). **Display chart** answers that it is not available yet.
+(every row, not only this page). **Display chart** opens the [chart](#display-chart) of them.
+
+### Display chart
+
+**Display chart** (`/db/<database>/chart`) is phpMyAdmin's chart page for the statement's rows:
+
+- **Bar** (horizontal), **Column**, **Line**, **Spline**, **Area**, and **Pie** when one series is
+  chosen; **Stacked** for bars, columns and areas.
+- **Chart title**, the **X-Axis** column (the first one to begin with) and the **Series** (every
+  other numeric column), and the two axis labels.
+- **Series names are in a column**: for rows in long form, a **Series column** whose values name
+  the series and a **Value Column** with their numbers, one series per distinct name.
+- **Start row** and **Number of rows** run the statement again for that slice of its rows; **Go**
+  applies them.
+- **Save chart as image** downloads the chart as `chart.png`.
+
+Hovering a bar, point or slice shows its series, X value and value.
 
 ### How paging and ordering work
 

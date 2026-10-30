@@ -2,6 +2,7 @@ import { insertAfter, insertBefore, registerModule } from '@/modular'
 import Console from './console/Console'
 import Browse from './Pages/Browse'
 import Change from './Pages/Change'
+import Chart from './Pages/Chart'
 import Search from './Pages/Search'
 import SqlPage from './Pages/Sql'
 import './preferences'
@@ -28,6 +29,9 @@ registerModule({
   },
   routes: [
     { path: 'server/sql', element: <SqlPage /> },
+    // A query's rows as a chart, from the results' "Display chart" link.
+    { path: 'server/chart', element: <Chart /> },
+    { path: 'db/:db/chart', element: <Chart /> },
     { path: 'db/:db/sql', element: <SqlPage /> },
     { path: 'db/:db/schema/:schema/sql', element: <SqlPage /> },
     ...KINDS.flatMap((kind) => [

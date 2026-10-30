@@ -256,5 +256,34 @@
     "added": "The query has been added to the macros as “{{name}}”.",
     "empty": "The query box is empty.",
     "key_hint": "A macro runs from this menu or its key. Keys the browser keeps for itself (Ctrl+1…9 switch tabs in most browsers) do not reach the page."
+  },
+  "chart": {
+    "type": "Chart type",
+    "types": {
+      "bar": "Bar",
+      "column": "Column",
+      "line": "Line",
+      "spline": "Spline",
+      "area": "Area",
+      "pie": "Pie"
+    },
+    "stacked": "Stacked",
+    "title": "Chart title:",
+    "x_axis": "X-Axis:",
+    "series": "Series:",
+    "x_label": "X-Axis label:",
+    "y_label": "Y-Axis label:",
+    "y_values": "Y Values",
+    "series_in_column": "Series names are in a column",
+    "series_column": "Series column:",
+    "value_column": "Value Column:",
+    "start_row": "Start row:",
+    "number_of_rows": "Number of rows:",
+    "save_image": "Save chart as image",
+    "save_failed": "The chart could not be saved as an image.",
+    "no_series": "Choose at least one numeric column as a series.",
+    "no_rows": "The statement returned nothing to chart.",
+    "not_rows": "The statement returns no rows to chart.",
+    "missing": "Run a query on the SQL page and use \"Display chart\" under its results to chart its rows."
   }
 }

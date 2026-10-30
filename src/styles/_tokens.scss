@@ -71,13 +71,19 @@ $colors: (
   'notification-bg': #ffe57e,
   'notification-border': #e2b709,
   // charts: pmahomme's monitor surface, jqPlot's grid and ink, and jqPlot's series colours
-  // 1, 2 and 4 (its third, #c5b47f, is too close to the second to tell apart)
+  // 1, 2 and 4 (its third, #c5b47f, is too close to the second to tell apart), then its
+  // fifth to ninth for the query charts' further series
   'chart-surface': #ebebeb,
   'chart-grid': #ccc,
   'chart-text': #222,
   'chart-1': #4bb2c5,
   'chart-2': #eaa228,
   'chart-3': #579575,
+  'chart-4': #839557,
+  'chart-5': #958c12,
+  'chart-6': #953579,
+  'chart-7': #4b5de4,
+  'chart-8': #d8b83f,
 );
 
 // Button faces are gradients; each is (top, bottom).

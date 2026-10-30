@@ -42,7 +42,6 @@ These options are not in the forms; use the SQL tab for them:
 
 ### SQL editor and results
 
-- There is no **Display chart** under a result ([SQL editor](/tools/sql#results)).
 - The error position is not marked in the editor ([SQL editor](/tools/sql#errors)).
 
 ## Behaviour to know about
