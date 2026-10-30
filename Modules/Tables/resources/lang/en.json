@@ -245,7 +245,8 @@
     "drag": "Drag to reorder",
     "ignore": "Ignore",
     "add_columns": "Add {{count}} column(s) to index",
-    "no_columns": "An index needs at least one column."
+    "no_columns": "An index needs at least one column.",
+    "clustered": "Cluster the table on this index (CLUSTER ON)"
   },
   "constraint_dialog": {
     "add_title": "Add {{type}} constraint",
@@ -333,7 +334,8 @@
     "dropped": "Table {{table}} has been dropped.",
     "inherits": "Inheritance",
     "inherits_from": "Inherited from table(s)",
-    "inherits_hint": "A parent's columns must already exist in this table with the same types; CREATE TABLE adds them, ALTER TABLE does not."
+    "inherits_hint": "A parent's columns must already exist in this table with the same types; CREATE TABLE adds them, ALTER TABLE does not.",
+    "cluster_using": "Cluster the table using index:"
   },
   "schema_structure": {
     "with_selected": {

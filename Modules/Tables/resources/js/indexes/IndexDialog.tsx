@@ -30,6 +30,9 @@ interface Row {
   desc: boolean
 }
 
+/** The access methods whose indexes a table can be clustered on (pg_am.amclusterable). */
+const CLUSTERABLE = ['btree', 'gist']
+
 /**
  * phpMyAdmin's index dialog (modals/index_dialog_modal.twig with table/index_form.twig): the
  * index name, its choice (PRIMARY, INDEX, UNIQUE), the advanced options folded away (here
@@ -48,6 +51,7 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
   const [fillfactor, setFillfactor] = useState('')
   const [where, setWhere] = useState('')
   const [comment, setComment] = useState('')
+  const [clustered, setClustered] = useState(false)
   const [rows, setRows] = useState<Row[]>([])
   const [addCount, setAddCount] = useState(1)
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
@@ -62,6 +66,7 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
       setFillfactor(index.fillfactor === null || index.fillfactor === undefined ? '' : String(index.fillfactor))
       setWhere(index.indconstraint ?? '')
       setComment(index.description ?? '')
+      setClustered(Boolean(index.indisclustered))
       setRows(index.columns.map((c) => ({ name: c.colname, desc: Boolean(c.sort_order) })))
     } else {
       setName('')
@@ -70,6 +75,7 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
       setFillfactor('')
       setWhere('')
       setComment('')
+      setClustered(false)
       setRows(Array.from({ length: Math.max(1, initialColumns) }, (_, i) => ({ name: columns[i]?.name ?? '', desc: false })))
     }
     setAdvanced(false)
@@ -87,6 +93,8 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
       indconstraint: where || undefined,
       fillfactor: fillfactor || undefined,
       description: comment || undefined,
+      // CLUSTER ON marks the index the table is clustered by; only B-tree and GiST indexes can be.
+      indisclustered: CLUSTERABLE.includes(method) ? clustered : false,
     }
 
     return data
@@ -217,6 +225,16 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
                   </div>
                   <input type="text" name="index[Index_comment]" id="input_index_comment" size={30} maxLength={1024} value={comment} onChange={(e) => setComment(e.target.value)} disabled={choice === 'PRIMARY'} />
                 </div>
+                {choice !== 'PRIMARY' && CLUSTERABLE.includes(method) && (
+                  <div>
+                    <div className="form-check mt-2">
+                      <input className="form-check-input" type="checkbox" name="index[Clustered]" id="input_clustered" checked={clustered} onChange={(e) => setClustered(e.target.checked)} />
+                      <label className="form-check-label" htmlFor="input_clustered">
+                        {t('index_dialog.clustered')}
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="clearfloat" />

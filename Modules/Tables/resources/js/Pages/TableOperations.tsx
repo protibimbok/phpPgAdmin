@@ -39,13 +39,16 @@ export default function TableOperations() {
     ])
     const parts: Partition[] = properties.is_partitioned ? await partitionsOf(db, scid, tid).list() : []
     const clustered = [...idx, ...primary, ...unique].find((i) => i.indisclustered)?.name ?? null
+    // CLUSTER takes a B-tree or GiST index; a primary key's and a unique constraint's are B-trees.
+    const clusterable = [...primary.map((c) => c.name), ...unique.map((c) => c.name), ...idx.filter((i) => i.amname === 'btree' || i.amname === 'gist').map((i) => i.name)]
 
-    return { scid, tid, properties, options, keys, clustered, partitions: parts }
+    return { scid, tid, properties, options, keys, clustered, clusterable, partitions: parts }
   }, [db, schema, table])
   const [preview, setPreview] = useState<Preview>(null)
   const [confirm, setConfirm] = useState<{ sql: string; warning?: string; run: () => Promise<void>; boxes?: { key: string; label: string }[] } | null>(null)
   const [boxes, setBoxes] = useState<Record<string, boolean>>({})
 
+  const [clusterOn, setClusterOn] = useState('')
   const [moveSchema, setMoveSchema] = useState(schema)
   const [moveName, setMoveName] = useState(table)
   const [newName, setNewName] = useState(table)
@@ -493,6 +496,31 @@ export default function TableOperations() {
               <Link className="maintain_action" to={sqlPage(`CLUSTER ${relation}`)}>
                 {t('operations.cluster', { index: data.clustered })}
               </Link>
+            </li>
+          )}
+          {data.clusterable.length > 0 && (
+            <li className="list-group-item">
+              <div className="row g-2 align-items-center">
+                <div className="col-auto">
+                  <label htmlFor="cluster_index" className="col-form-label">
+                    {t('operations.cluster_using')}
+                  </label>
+                </div>
+                <div className="col-auto">
+                  <select className="form-select" id="cluster_index" name="cluster_index" value={clusterOn || data.clusterable[0]} onChange={(e) => setClusterOn(e.target.value)}>
+                    {data.clusterable.map((index) => (
+                      <option key={index} value={index}>
+                        {index}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-auto">
+                  <Link className="maintain_action btn btn-secondary" to={sqlPage(`CLUSTER ${relation} USING ${quoteIdent(clusterOn || data.clusterable[0])}`)}>
+                    {tApp('go')}
+                  </Link>
+                </div>
+              </div>
             </li>
           )}
         </ul>

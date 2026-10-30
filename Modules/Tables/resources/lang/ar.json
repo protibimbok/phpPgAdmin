@@ -245,7 +245,8 @@
     "drag": "اسحب لإعادة الترتيب",
     "ignore": "تجاهل",
     "add_columns": "إضافة {{count}} عمود/أعمدة إلى الفهرس",
-    "no_columns": "يحتاج الفهرس إلى عمود واحد على الأقل."
+    "no_columns": "يحتاج الفهرس إلى عمود واحد على الأقل.",
+    "clustered": "تجميع الجدول على هذا الفهرس (CLUSTER ON)"
   },
   "constraint_dialog": {
     "add_title": "إضافة قيد {{type}}",
@@ -333,7 +334,8 @@
     "dropped": "تم حذف الجدول {{table}}.",
     "inherits": "الوراثة",
     "inherits_from": "موروث من الجدول/الجداول",
-    "inherits_hint": "يجب أن تكون أعمدة الجدول الأب موجودة في هذا الجدول بنفس الأنواع؛ CREATE TABLE يضيفها أما ALTER TABLE فلا."
+    "inherits_hint": "يجب أن تكون أعمدة الجدول الأب موجودة في هذا الجدول بنفس الأنواع؛ CREATE TABLE يضيفها أما ALTER TABLE فلا.",
+    "cluster_using": "تجميع الجدول باستخدام الفهرس:"
   },
   "schema_structure": {
     "with_selected": {
