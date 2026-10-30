@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
+import Icon from '@/components/Icon'
 import { useRequest } from '@/api/useRequest'
 import { useLevel, type Level } from '@/level'
 import { collection, collectionUrl, getNodeTypes, type NodeType, type TreeNode } from '@/nodes/client'
-import { containerLink, nodeLink } from '@/nodes/links'
+import { containerLink, newLink, nodeLink } from '@/nodes/links'
 import TreeItem from './TreeItem'
 import TreeList from './TreeList'
 import { useTreeState } from './treeState'
@@ -128,11 +130,34 @@ function Nodes({ db, type, path, ancestors, level, linked }: { db: string; type:
     )
   }
 
+  const create = newLink(type.type)
+  const createHref = create?.link({ db, ancestors })
+
   return (
     <ul>
       <TreeList
         items={nodes}
         label={(node) => node.label}
+        head={
+          create && createHref && createHref !== '#' ? (
+            // phpMyAdmin's NodeTableContainer / NodeViewContainer "New" child.
+            <li className={`new_${type.type} italics${nodes.length === 0 ? ' last' : ''}`}>
+              <div className="block">
+                <i />
+                {nodes.length > 0 && <b />}
+              </div>
+              <div className="block second">
+                <Link to={createHref}>
+                  <Icon name={create.icon} title={t('new')} />
+                </Link>
+              </div>
+              <Link className="hover_show_full" to={createHref} title={t('new')}>
+                {t('new')}
+              </Link>
+              <div className="clearfloat" />
+            </li>
+          ) : undefined
+        }
         render={(node, index, visible) => {
           const { selected, inside } = linked ? matches(node, type, db, ancestors, level) : { selected: false, inside: false }
 

@@ -111,7 +111,7 @@ When a schema has no relations, the page shows *No tables found in schema.* and 
 
 ## In the navigation tree
 
-Under a schema, the tree groups objects in containers: **Tables**, **Statistics**, **Views**, **Materialized views**, **Sequences**, **Functions**, **Procedures**, **Trigger functions**, **Aggregates**, **Operators**, **Types**, **Domains**, **Collations** and the full text search objects. A table node opens its Browse tab; under it are its columns, indexes, constraints, partitions, triggers, rules and policies, each opening the page where that object is managed (Structure or Triggers).
+Under a schema, the tree groups objects in containers: **Tables**, **Statistics**, **Views**, **Materialized views**, **Sequences**, **Functions**, **Procedures**, **Trigger functions**, **Aggregates**, **Operators**, **Types**, **Domains**, **Collations** and the full text search objects. A table node opens its Browse tab; under it are its columns, indexes, constraints, partitions, triggers, rules and policies, each opening the page where that object is managed (Structure or Triggers). The **Tables** and **Views** containers start with a **New** entry that opens the create table and create view forms.
 
 ## Coming from phpMyAdmin
 

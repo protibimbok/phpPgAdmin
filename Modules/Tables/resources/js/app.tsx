@@ -1,6 +1,6 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
-import { registerContainerLink, registerNodeLink, relationOf, schemaOf, type NodeLinkContext } from '@/nodes/links'
+import { registerContainerLink, registerNewLink, registerNodeLink, relationOf, schemaOf, type NodeLinkContext } from '@/nodes/links'
 import ColumnDefinitions from './Pages/ColumnDefinitions'
 import RelationView from './Pages/RelationView'
 import TableOperations from './Pages/TableOperations'
@@ -65,6 +65,16 @@ for (const type of ['trigger', 'rule', 'row_security_policy', 'view_trigger', 'v
 // the relation's "Structure", "Operations" and "Show create" tabs, where a table's own URL lands.
 // phpMyAdmin gives a view the same bar as a table, so the tabs name the kind in their path and
 // the Views module supplies the pages behind them for views and materialized views.
+// phpMyAdmin's "New" under Tables: the schema's create-table page.
+registerNewLink('table', {
+  icon: 'b_table_add',
+  link: ({ db, ancestors }) => {
+    const schema = schemaOf(ancestors)
+
+    return db === null || schema === undefined ? '#' : `${urls.schema(db, schema)}/create-table`
+  },
+})
+
 registerModule({
   id: 'tables',
   menuFilter: (menu) => [

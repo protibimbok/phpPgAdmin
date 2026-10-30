@@ -35,6 +35,23 @@ export function registerContainerLink(type: string, link: ContainerLink): void {
   containers.set(type, link)
 }
 
+/** The "New" entry a container starts with, as phpMyAdmin's tree has under Tables and Views. */
+export interface NewLink {
+  link: ContainerLink
+  icon: string
+}
+
+const newLinks = new Map<string, NewLink>()
+
+/** Register the "New" entry of a node type's container: the page that creates one. */
+export function registerNewLink(type: string, link: NewLink): void {
+  newLinks.set(type, link)
+}
+
+export function newLink(type: string): NewLink | undefined {
+  return newLinks.get(type)
+}
+
 /** The page for a node: its own, else its container's. */
 export function nodeLink(node: TreeNode, context: NodeLinkContext): string {
   return links.get(node.type)?.(node, context) ?? containerLink(node.type, context)

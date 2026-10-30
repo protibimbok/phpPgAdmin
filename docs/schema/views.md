@@ -11,19 +11,16 @@ they sit under **Views** and **Materialized views**, and clicking one opens its 
 
 ## Create a view
 
-There are two ways in:
+There are three ways in:
 
+- **From the navigation panel.** Open a schema's **Views** container; its first entry, **New**,
+  opens the schema's create-view page, as phpMyAdmin's tree does. (The **Tables** container has a
+  **New** entry too, for the [create table](/schema/create-table) form.)
 - **From a query result.** Run a `SELECT` on any [SQL tab](/tools/sql), then click
   **Create view** under the results (in **Query results operations**). The form opens in a modal
   with the query already in the **AS** box. After **Go** the new view's Structure tab opens.
 - **From the URL** `/db/<database>/schema/<schema>/create-view`. This page shows the same form;
   add `?sql=<query>` to prefill the definition.
-
-::: info No "New view" link
-The navigation panel's **Views** container and the schema's Structure tab have no "create view"
-link. phpMyAdmin also creates views from query results; here that is the only button that leads to
-the form.
-:::
 
 ![The Create view modal opened from the results of SELECT id, title, price FROM public.books WHERE price > 30](/media/schema/views-create-from-results.png)
 

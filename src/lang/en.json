@@ -117,5 +117,6 @@
     "add": "Add label",
     "saved": "The security labels have been saved."
   },
-  "continue": "Continue"
+  "continue": "Continue",
+  "new": "New"
 }

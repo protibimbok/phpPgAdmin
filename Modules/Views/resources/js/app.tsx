@@ -1,6 +1,6 @@
 import { urls } from '@/level'
 import { registerModule } from '@/modular'
-import { registerContainerLink, registerNodeLink, schemaOf } from '@/nodes/links'
+import { registerContainerLink, registerNewLink, registerNodeLink, schemaOf } from '@/nodes/links'
 import CreateView from './Pages/CreateView'
 import ViewDdl from './Pages/ViewDdl'
 import ViewOperations from './Pages/ViewOperations'
@@ -22,6 +22,16 @@ for (const kind of KINDS) {
     return db === null || schema === undefined ? '#' : urls.schema(db, schema)
   })
 }
+
+// phpMyAdmin's "New" under Views: the schema's create-view page.
+registerNewLink('view', {
+  icon: 'b_view_add',
+  link: ({ db, ancestors }) => {
+    const schema = schemaOf(ancestors)
+
+    return db === null || schema === undefined ? '#' : `${urls.schema(db, schema)}/create-view`
+  },
+})
 
 // The pages behind the relation tabs the Tables module declares (Structure, Operations, Show
 // create) for the view kinds, the edit-view form and the schema's create-view page.
