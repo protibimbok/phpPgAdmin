@@ -42,4 +42,19 @@ return [
 
     'timeout' => (int) (getenv('PGADMIN_DB_TIMEOUT') ?: 10),
 
+    /*
+    |--------------------------------------------------------------------------
+    | SSL Certificate Directory
+    |--------------------------------------------------------------------------
+    |
+    | The directory on the web server that a saved server's client
+    | certificate, key, root certificate and revocation list are picked
+    | from (Connection options of the saved servers). Only the names of
+    | files directly in it can be chosen, never another path. Null turns
+    | the SSL file options off.
+    |
+    */
+
+    'ssl_directory' => getenv('PGADMIN_SSL_DIRECTORY') ?: null,
+
 ];

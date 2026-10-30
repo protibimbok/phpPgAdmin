@@ -25,6 +25,8 @@ Route::middleware(Authenticate::class)->prefix('auth/servers')->controller(Serve
     Route::get('/export', 'exportList')->setName('auth.servers.export');
     Route::post('/import', 'importList')->setName('auth.servers.import');
     Route::patch('/{id:number}', 'update')->setName('auth.servers.rename');
+    Route::get('/{id:number}/options', 'options')->setName('auth.servers.options');
+    Route::put('/{id:number}/options', 'updateOptions')->setName('auth.servers.options.update');
     Route::delete('/{id:number}', 'destroy')->setName('auth.servers.remove');
 });
 

@@ -59,7 +59,7 @@ final class Authenticate implements MiddlewareInterface
         }
 
         try {
-            return Server::fromArray($data);
+            return Server::fromArray($data, true);
         } catch (\InvalidArgumentException) {
             return null;
         }

@@ -46,6 +46,31 @@ Changing the list needs a login, so that nobody can change it from the login pag
 
 A name shows in the list as "Production (db1.internal:5432)".
 
+### Connection options
+
+**Connection options** beside **Rename** in the same dialog sets pgAdmin's connection options of a
+saved server (its server dialog's Connection, Parameters and Advanced fields). They need a login, and
+they are never sent to the login page.
+
+| Field | For | What it does |
+|---|---|---|
+| **Service** | everyone | libpq's `service`: a section of the web server's `pg_service.conf` (`PGSERVICE` for the client programs). |
+| **Application name** | everyone | `application_name` instead of `phpPgAdmin`, as `pg_stat_activity` shows it. |
+| **Client certificate**, **Client certificate key**, **Root certificate**, **Certificate revocation list** | everyone | libpq's `sslcert`, `sslkey`, `sslrootcert`, `sslcrl`. Each is picked from the files directly in the directory `PGADMIN_SSL_DIRECTORY` names ([Configuration](/guide/configuration#environment-variables)): a name, never a path, and a symbolic link out of the directory is not offered. Without that setting the lists are empty and saving a file name is refused. Ignored for a Unix socket. |
+| **Role** | your role | The role to become after connecting, sent as the startup option `-c role=…` (what `SET ROLE` does). On the server you are signed in to, a role yours cannot become is refused (*There is no role "x" on this server.*). |
+| **Post-connection SQL** | your role | Statements run on every new connection, the query tool session's included. If they fail, the request fails with *The post-connection SQL failed: …*. |
+
+The options for everyone apply to whoever signs in to the server, so only a signed-in user can change
+them. The role and the post-connection SQL are kept under your username and used only when that role
+signs in: another role cannot make your connections run its SQL. They apply to phpPgAdmin's own
+connections, the query tool session, the debugger and the client programs (`pg_dump`, `pg_restore`,
+`psql` get the service, application name, SSL files and role through `PG*` variables); the
+post-connection SQL does not run in the client programs or the debugger. Your session takes the change
+at once; other sessions from their next sign-in. A login through the **Advanced** fields, rather than
+by picking the saved server, connects without them.
+
+Connection options are not part of the exported server list.
+
 ### Importing and exporting the server list
 
 The same **Import/Export servers** dialog exports the list as `servers.json` and imports one, in

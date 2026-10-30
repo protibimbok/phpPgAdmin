@@ -4,6 +4,7 @@ import { errorMessage } from '@/api/request'
 import Icon from '@/components/Icon'
 import Modal from '@/components/Modal'
 import { notifyError, notifySuccess } from '@/notify'
+import ServerOptionsModal from './ServerOptionsModal'
 import { exportServers, getServers, importServers, removeServer, renameServer, serverLabel, type SavedServer } from './api'
 
 /**
@@ -17,6 +18,7 @@ export default function ServersModal({ show, onClose }: { show: boolean; onClose
   const [servers, setServers] = useState<SavedServer[] | null>(null)
   const [editing, setEditing] = useState<{ id: number; name: string } | null>(null)
   const [removing, setRemoving] = useState<SavedServer | null>(null)
+  const [configuring, setConfiguring] = useState<SavedServer | null>(null)
   const file = useRef<HTMLInputElement>(null)
 
   function load() {
@@ -89,7 +91,7 @@ export default function ServersModal({ show, onClose }: { show: boolean; onClose
   return (
     <>
       <Modal
-        show={show && removing === null}
+        show={show && removing === null && configuring === null}
         onClose={onClose}
         title={t('servers.title')}
         size="lg"
@@ -113,7 +115,7 @@ export default function ServersModal({ show, onClose }: { show: boolean; onClose
                   <th>{t('servers.server')}</th>
                   <th>{t('login.sslmode')}</th>
                   <th>{t('servers.username')}</th>
-                  <th colSpan={2}>{t('servers.action')}</th>
+                  <th colSpan={3}>{t('servers.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,6 +139,11 @@ export default function ServersModal({ show, onClose }: { show: boolean; onClose
                     <td className="text-nowrap">
                       <a href="#rename" className="rename_server" onClick={(e) => { e.preventDefault(); setEditing({ id: server.id, name: server.name ?? '' }) }}>
                         <Icon name="b_edit" /> {t('servers.rename')}
+                      </a>
+                    </td>
+                    <td className="text-nowrap">
+                      <a href="#options" className="server_options" onClick={(e) => { e.preventDefault(); setConfiguring(server) }}>
+                        <Icon name="s_cog" /> {t('servers.options')}
                       </a>
                     </td>
                     <td className="text-nowrap">
@@ -167,6 +174,7 @@ export default function ServersModal({ show, onClose }: { show: boolean; onClose
           <div className="form-text">{t('servers.import_help')}</div>
         </fieldset>
       </Modal>
+      {configuring && <ServerOptionsModal server={configuring} onClose={() => setConfiguring(null)} />}
       <Modal
         show={removing !== null}
         onClose={() => setRemoving(null)}

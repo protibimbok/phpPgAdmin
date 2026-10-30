@@ -9,6 +9,7 @@ use League\Route\Http\Exception\NotFoundException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Core\Database\Connector;
 use PhpPgAdmin\Core\Database\QueryException;
 use PhpPgAdmin\Core\Database\Quoting;
 use PhpPgAdmin\Core\Http\ApiException;
@@ -249,7 +250,7 @@ final class ExportController
             }
             $relation = ['schema' => '', 'name' => '', 'kind' => 'q', 'columns' => array_map(static fn ($column): string => $column->name, $columns), 'query' => $sql];
             $command = new CopyCommand($export, $export->csv, $tools, [$relation]);
-            $environment = $pool->environment($export->database ?? $conn->database()) + ['PGOPTIONS' => '-c default_transaction_read_only=on'];
+            $environment = Connector::withStartupOptions($pool->environment($export->database ?? $conn->database()), '-c default_transaction_read_only=on');
             $filter = $export->csv->terminated !== "\n" ? (new CsvLineEnds($export->csv->enclosed, $export->csv->escaped, $export->csv->terminated))(...) : null;
             $gzip = $this->gzip($export);
 

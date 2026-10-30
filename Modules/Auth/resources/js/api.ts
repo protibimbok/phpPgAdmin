@@ -97,6 +97,27 @@ export function renameServer(id: number, name: string): Promise<void> {
   return request<{ ok: true }>(`/api/auth/servers/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }).then(() => undefined)
 }
 
+/** pgAdmin's connection options of a saved server: the server's, and the signed-in role's own role and post-connection SQL. */
+export interface ServerOptions {
+  service?: string
+  application_name?: string
+  sslcert?: string
+  sslkey?: string
+  sslrootcert?: string
+  sslcrl?: string
+  role?: string
+  post_connection_sql?: string
+}
+
+/** A saved server's options, and the files of the server's SSL directory (null when none is configured). */
+export function getServerOptions(id: number): Promise<{ options: ServerOptions; ssl_files: string[] | null }> {
+  return request(`/api/auth/servers/${id}/options`)
+}
+
+export function setServerOptions(id: number, options: ServerOptions): Promise<void> {
+  return request<{ ok: true }>(`/api/auth/servers/${id}/options`, { method: 'PUT', body: JSON.stringify(options) }).then(() => undefined)
+}
+
 /** Forget a saved server. Needs a signed-in user. */
 export function removeServer(id: number): Promise<void> {
   return request<{ ok: true }>(`/api/auth/servers/${id}`, { method: 'DELETE' }).then(() => undefined)

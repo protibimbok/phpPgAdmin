@@ -100,7 +100,7 @@ final class AuthController
             ],
         ];
         $_SESSION[Authenticate::CREDENTIALS] = $credentials->toArray();
-        $_SESSION[Authenticate::SERVER] = $server->toArray();
+        $_SESSION[Authenticate::SERVER] = $server->toSessionArray();
         unset($_SESSION[Authenticate::OTHER_CREDENTIALS]);
 
         // The role's saved language, as phpMyAdmin restores a user's settings from its configuration

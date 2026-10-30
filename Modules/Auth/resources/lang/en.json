@@ -46,7 +46,8 @@
     "login_needed_remove": "Changing the saved servers needs a login: {{server}} is removed from the list once {{username}} has logged in to it with the password above, and you go on into phpPgAdmin.",
     "login_rename": "Log in and rename",
     "login_remove": "Log in and remove",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "options": "Connection options"
   },
   "errors": {
     "credentials_required": "A username is required.",
@@ -58,5 +59,22 @@
     "import_entry": "Server \"{{key}}\" of the list cannot be imported: {{reason}}",
     "import_not_object": "it is not an object.",
     "favorites_full": "Favorite List is full!"
+  },
+  "server_options": {
+    "title": "Connection options of {{server}}",
+    "saved": "The connection options have been saved.",
+    "server_legend": "For everyone who signs in to this server",
+    "role_legend": "For your role only",
+    "service": "Service",
+    "application_name": "Application name",
+    "sslcert": "Client certificate",
+    "sslkey": "Client certificate key",
+    "sslrootcert": "Root certificate",
+    "sslcrl": "Certificate revocation list",
+    "role": "Role",
+    "post_connection_sql": "Post-connection SQL",
+    "ssl_help": "Files of the web server's SSL certificate directory. They apply unless the server is reached through a Unix socket.",
+    "no_ssl_directory": "No SSL certificate directory is configured (PGADMIN_SSL_DIRECTORY), so no certificate files can be chosen.",
+    "role_help": "The role is set with SET ROLE on every connection; the post-connection SQL runs on every new connection. Other sessions get the changes from their next sign-in."
   }
 }

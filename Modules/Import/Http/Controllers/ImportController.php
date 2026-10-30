@@ -8,6 +8,7 @@ use League\Route\Http\Exception\BadRequestException;
 use League\Route\Http\Exception\NotFoundException;
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Core\Database\Connector;
 use PhpPgAdmin\Core\Facades\Config;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\Process\BackgroundProcess;
@@ -156,7 +157,7 @@ final class ImportController
             $process->start(
                 $command->program(),
                 $arguments,
-                $command->environment() + $pool->environment($conn->database()),
+                self::environment($command->environment(), $pool->environment($conn->database())),
                 $input,
                 $temporary,
                 $import->format === 'sql',
@@ -348,5 +349,22 @@ final class ImportController
             'k' => $number * 1024,
             default => $number,
         };
+    }
+
+    /**
+     * The command's environment over the role's: its startup options (PGOPTIONS) after the
+     * role's, which may hold the role a saved server sets.
+     *
+     * @param array<string, string> $command
+     * @param array<string, string> $role
+     * @return array<string, string>
+     */
+    private static function environment(array $command, array $role): array
+    {
+        $options = $command['PGOPTIONS'] ?? null;
+        unset($command['PGOPTIONS']);
+        $environment = [...$role, ...$command];
+
+        return $options === null ? $environment : Connector::withStartupOptions($environment, $options);
     }
 }

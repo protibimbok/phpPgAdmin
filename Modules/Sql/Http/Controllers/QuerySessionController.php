@@ -62,7 +62,7 @@ final class QuerySessionController
 
         $process = BackgroundProcess::prepare();
         $socket = self::socket($process->id());
-        file_put_contents($process->directory . '/session.json', json_encode(['database' => $database, 'socket' => $socket] + $owner, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        file_put_contents($process->directory . '/session.json', json_encode(['database' => $database, 'socket' => $socket, 'post_connection_sql' => $pool->connector()->server->postConnectionSql($pool->username())] + $owner, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
         try {
             $process->start(BackgroundProcess::php(), [dirname(__DIR__, 4) . '/bin/query-session.php', $process->directory], $pool->environment($database));
             for ($wait = 0; $wait < 200 && !is_file($process->directory . '/ready'); $wait++) {

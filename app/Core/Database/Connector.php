@@ -99,7 +99,22 @@ final class Connector
             $env['PGSSLMODE'] = $this->server->sslmode;
         }
 
-        return $env;
+        // The saved server's connection options: service, application name, SSL files, role.
+        return [...$env, ...$this->server->libpqEnvironment($credentials->username)];
+    }
+
+    /**
+     * An environment with more startup options (PGOPTIONS) for a client program, after the
+     * ones it has: the role a saved server sets is kept.
+     *
+     * @param array<string, string> $environment
+     * @return array<string, string>
+     */
+    public static function withStartupOptions(array $environment, string $options): array
+    {
+        $environment['PGOPTIONS'] = trim(($environment['PGOPTIONS'] ?? '') . ' ' . $options);
+
+        return $environment;
     }
 
     /** @throws ConnectionException */
@@ -131,7 +146,20 @@ final class Connector
             throw ConnectionException::fromLibpq($warning ?? 'could not connect to server');
         }
 
-        return new Connection($pg, $database);
+        $connection = new Connection($pg, $database);
+        // pgAdmin's post-connection SQL, the role's own on a saved server, on every connection.
+        $sql = $this->server->postConnectionSql($username);
+        if ($sql !== null) {
+            try {
+                $connection->queryMulti($sql);
+            } catch (QueryException $e) {
+                $connection->close();
+
+                throw ConnectionException::postConnectionSql($e->getMessage());
+            }
+        }
+
+        return $connection;
     }
 
     private function conninfo(string $username, #[\SensitiveParameter] string $password, string $database): string
@@ -150,6 +178,8 @@ final class Connector
         if (!$this->server->isSocket()) {
             $params['sslmode'] = $this->server->sslmode;
         }
+        // The saved server's connection options; the application name it sets replaces ours.
+        $params = [...$params, ...$this->server->libpqParameters($username)];
 
         return implode(' ', array_map(
             static fn (string $key, string $value): string => $key . '=' . self::quote($value),

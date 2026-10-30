@@ -30,6 +30,7 @@ The server home page's **Database server** card shows which server you are on; t
 | `PGADMIN_DB_SSLMODE` | `db.sslmode` | `prefer` | libpq's SSL mode: `disable`, `allow`, `prefer`, `require`, `verify-ca` or `verify-full`. Ignored for a Unix socket. |
 | `PGADMIN_DB_DATABASE` | `db.database` | none | The maintenance database: where a login connects first. Unset, it tries `postgres`, then `template1`, then the database named after the role. |
 | `PGADMIN_DB_TIMEOUT` | `db.timeout` | `10` | Seconds to wait for a server before the connection fails (libpq's `connect_timeout`). Also passed to the client programs as `PGCONNECT_TIMEOUT`. |
+| `PGADMIN_SSL_DIRECTORY` | `db.ssl_directory` | none | A directory on the web server holding client certificates, keys, root certificates and revocation lists; a saved server's [connection options](/guide/signing-in#connection-options) can name the files directly in it, and nothing else. Unset, those options are off. |
 | `PGADMIN_STORAGE_PATH` | `storage.path` | `storage/phppgadmin.sqlite` | The SQLite file phpPgAdmin keeps its own data in. The compiled template cache goes in a `cache/` directory next to it. |
 | `PGADMIN_PROCESS_DIR` | `storage.processes` | `storage/processes` | Where imports, maintenance runs and debugger sessions keep their working files. |
 | `PGADMIN_UPLOAD_DIR` | `storage.upload_dir` | none | A directory on the web server whose files the Import pages offer as well as an upload. |

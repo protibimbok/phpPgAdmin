@@ -25,6 +25,12 @@ final class ConnectionException extends RuntimeException
         return new self($message, self::isCredentialsRejected($message), self::isDatabaseUnavailable($message));
     }
 
+    /** The saved server's post-connection SQL failed on a connection that had opened. */
+    public static function postConnectionSql(string $message): self
+    {
+        return new self('The post-connection SQL failed: ' . $message, false, false);
+    }
+
     /**
      * True when the server was reached and turned the role or password down; false when it
      * could not be reached at all or the database could not be opened.

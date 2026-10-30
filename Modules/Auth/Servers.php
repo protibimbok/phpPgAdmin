@@ -110,6 +110,13 @@ final class Servers
         return !$known;
     }
 
+    /** Replace the saved server's connection options; an empty list takes them away. */
+    public function setOptions(int $id, array $options): void
+    {
+        $statement = $this->db->prepare('UPDATE servers SET options = ? WHERE id = ?');
+        $statement->execute([$options === [] ? null : json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), $id]);
+    }
+
     public function forget(int $id): void
     {
         $statement = $this->db->prepare('DELETE FROM servers WHERE id = ?');
@@ -119,6 +126,6 @@ final class Servers
     /** @param array<string, mixed> $row */
     private static function hydrate(array $row): Server
     {
-        return Server::fromArray($row);
+        return Server::fromArray($row, true);
     }
 }

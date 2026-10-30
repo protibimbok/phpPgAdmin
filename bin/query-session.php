@@ -63,6 +63,15 @@ if ($pg === false) {
     exit(1);
 }
 $conn = new Connection($pg, $job['database']);
+// The saved server's post-connection SQL for the role, as on phpPgAdmin's other connections.
+if (is_string($job['post_connection_sql'] ?? null) && trim($job['post_connection_sql']) !== '') {
+    try {
+        $conn->queryMulti($job['post_connection_sql']);
+    } catch (QueryException $e) {
+        fwrite(STDERR, 'The post-connection SQL failed: ' . $e->getMessage() . "\n");
+        exit(1);
+    }
+}
 $history = QueryHistory::for((string) ($job['server'] ?? ''), (string) ($job['username'] ?? ''));
 $running = RunningQueries::for((string) ($job['server'] ?? ''), (string) ($job['username'] ?? ''));
 
