@@ -133,6 +133,8 @@ export interface Column {
   colconstype: 'i' | 'g' | 'n'
   attidentity: string
   genexpr: string | null
+  /** PostgreSQL 18: a VIRTUAL generated column (attgenerated 'v'). */
+  genvirtual?: boolean
   is_fk: boolean
   is_sys_column: boolean
   inheritedfrom: string | null
@@ -273,6 +275,7 @@ export interface ColumnData {
   /** 'a' ALWAYS, 'd' BY DEFAULT, for an identity column. */
   attidentity?: 'a' | 'd' | ''
   genexpr?: string
+  genvirtual?: boolean
   /** Identity sequence options. */
   seqstart?: string
   seqincrement?: string
@@ -417,6 +420,12 @@ export interface NewTable {
   spcname?: string
   /** True for UNLOGGED. */
   relpersistence?: boolean
+  /** WITH (…) storage parameters; autovacuum_enabled 't' or 'f', empty for the server's default. */
+  fillfactor?: string
+  parallel_workers?: string
+  toast_tuple_target?: string
+  autovacuum_enabled?: 't' | 'f'
+  toast_autovacuum_enabled?: 't' | 'f'
   coll_inherits?: string[]
   /** OF type: a typed table, whose columns are the composite type's. */
   typname?: string

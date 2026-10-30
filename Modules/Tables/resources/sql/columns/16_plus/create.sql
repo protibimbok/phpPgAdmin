@@ -18,7 +18,7 @@ MINVALUE {{data.seqmin|int}} {% endif %}{% if data.seqmax is defined and data.se
 MAXVALUE {{data.seqmax|int}} {% endif %}{% if data.seqcache is defined and data.seqcache is not null and data.seqcache != ''%}
 CACHE {{data.seqcache|int}} {% endif %}
 {% if data.seqincrement or data.seqcycle or data.seqincrement or data.seqstart or data.seqmin or data.seqmax or data.seqcache %}){% endif %}
-{% endif %}{% endif %}{% if data.colconstype == 'g' and data.genexpr and data.genexpr != '' %} GENERATED ALWAYS AS ({{data.genexpr}}) STORED{% endif %};
+{% endif %}{% endif %}{% if data.colconstype == 'g' and data.genexpr and data.genexpr != '' %} GENERATED ALWAYS AS ({{data.genexpr}}) {% if data.genvirtual %}VIRTUAL{% else %}STORED{% endif %}{% endif %};
 
 {###  Add comments ###}
 {% if data and data.description and data.description != null %}

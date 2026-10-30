@@ -61,6 +61,7 @@ final class TableSql
         $data['coll_inherits'] = array_values(array_filter((array) ($data['coll_inherits'] ?? []), static fn ($v): bool => trim((string) $v) !== ''));
         self::checkTypedAndLike($ctx, $data);
         $data['relpersistence'] = (bool) ($data['relpersistence'] ?? false);
+        self::checkStorageParameters($data);
         $data['vacuum_table'] = [];
         $data['vacuum_toast'] = [];
 
@@ -91,6 +92,32 @@ final class TableSql
             'name' => $name,
             'schema' => $data['schema'],
         ];
+    }
+
+    /**
+     * The WITH (…) storage parameters, which the template writes as they are: integers in the
+     * ranges PostgreSQL takes, and 't' or 'f' for the autovacuum switches; empty ones go.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function checkStorageParameters(array &$data): void
+    {
+        foreach (['fillfactor' => [10, 100], 'parallel_workers' => [0, 1024], 'toast_tuple_target' => [128, 32736]] as $key => [$min, $max]) {
+            $value = trim((string) ($data[$key] ?? ''));
+            if ($value === '') {
+                unset($data[$key]);
+                continue;
+            }
+            if (preg_match('/^\d+$/', $value) !== 1 || (int) $value < $min || (int) $value > $max) {
+                throw new BadRequestException(sprintf('%s takes a whole number from %d to %d.', $key, $min, $max));
+            }
+            $data[$key] = (int) $value;
+        }
+        foreach (['autovacuum_enabled', 'toast_autovacuum_enabled'] as $key) {
+            if (!in_array($data[$key] ?? null, ['t', 'f'], true)) {
+                unset($data[$key]);
+            }
+        }
     }
 
     /**

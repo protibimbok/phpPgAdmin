@@ -244,6 +244,17 @@
       "max": "Maximum",
       "cache": "Cache",
       "cycle": "Cycle"
+    },
+    "storage_parameters": "Storage parameters (WITH)",
+    "params": {
+      "fillfactor": "Fill factor",
+      "parallel_workers": "Parallel workers",
+      "toast_tuple_target": "Toast tuple target",
+      "autovacuum_enabled": "Autovacuum",
+      "toast_autovacuum_enabled": "TOAST autovacuum",
+      "default": "Default",
+      "on": "On",
+      "off": "Off"
     }
   },
   "index_dialog": {

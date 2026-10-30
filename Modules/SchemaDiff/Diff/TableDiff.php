@@ -98,8 +98,8 @@ final readonly class TableDiff
         if ($column['collation'] !== null) {
             $sql .= ' COLLATE ' . $column['collation'];
         }
-        if ($column['generated'] === 's') {
-            $sql .= ' GENERATED ALWAYS AS (' . $column['default'] . ') STORED';
+        if ($column['generated'] === 's' || $column['generated'] === 'v') {
+            $sql .= ' GENERATED ALWAYS AS (' . $column['default'] . ') ' . ($column['generated'] === 'v' ? 'VIRTUAL' : 'STORED');
         } elseif ($column['identity'] !== '') {
             $sql .= ' GENERATED ' . ($column['identity'] === 'a' ? 'ALWAYS' : 'BY DEFAULT') . ' AS IDENTITY';
         } elseif ($column['default'] !== null) {
@@ -119,7 +119,7 @@ final readonly class TableDiff
         $col = Quoting::ident($name);
         $prefix = sprintf('ALTER TABLE IF EXISTS %s ALTER COLUMN %s', $table, $col);
         $sql = [];
-        if ($column['generated'] !== $was['generated'] || ($column['generated'] === 's' && $column['default'] !== $was['default'])) {
+        if ($column['generated'] !== $was['generated'] || ($column['generated'] !== '' && $column['default'] !== $was['default'])) {
             // A generation expression cannot be changed in place: the column is made again.
             return [
                 sprintf('ALTER TABLE IF EXISTS %s DROP COLUMN IF EXISTS %s;', $table, $col),

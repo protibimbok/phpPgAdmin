@@ -61,7 +61,7 @@ MAXVALUE {{c.seqmax|int}} {% endif %}{% if c.seqcache is defined and c.seqcache 
 CACHE {{c.seqcache|int}} {% endif %}
 {% if c.seqincrement or c.seqcycle or c.seqincrement or c.seqstart or c.seqmin or c.seqmax or c.seqcache %}){% endif %}
 {% endif %}
-{% if c.colconstype == 'g' and c.genexpr and c.genexpr != '' %} GENERATED ALWAYS AS ({{c.genexpr}}) STORED{% endif %}
+{% if c.colconstype == 'g' and c.genexpr and c.genexpr != '' %} GENERATED ALWAYS AS ({{c.genexpr}}) {% if c.genvirtual %}VIRTUAL{% else %}STORED{% endif %}{% endif %}
 {% if not loop.last %},
 {% endif %}
 {% endif %}

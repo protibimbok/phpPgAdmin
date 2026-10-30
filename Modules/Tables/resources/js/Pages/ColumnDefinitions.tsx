@@ -78,6 +78,8 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
   const [likeOptions, setLikeOptions] = useState<Partial<Record<LikeOption, boolean>>>({})
   const [amname, setAmname] = useState('')
   const [unlogged, setUnlogged] = useState(false)
+  /** The table's WITH (…) storage parameters, pgAdmin's Advanced › Parameters. */
+  const [storage, setStorage] = useState({ fillfactor: '', parallel_workers: '', toast_tuple_target: '', autovacuum_enabled: '', toast_autovacuum_enabled: '' })
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -143,6 +145,8 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
       if (like) Object.assign(created, { like_relation: like }, likeOptions)
       if (amname) created.amname = amname
       if (unlogged) created.relpersistence = true
+      for (const key of ['fillfactor', 'parallel_workers', 'toast_tuple_target'] as const) if (storage[key].trim() !== '') created[key] = storage[key].trim()
+      for (const key of ['autovacuum_enabled', 'toast_autovacuum_enabled'] as const) if (storage[key] === 't' || storage[key] === 'f') created[key] = storage[key]
       if (partitionBy && partitionExpr.trim() !== '') created.partition_scheme = `${partitionBy} (${partitionExpr.trim()})`
       if (keys.primary) created.primary_key = [keys.primary]
       if (keys.unique.length > 0) created.unique_constraint = keys.unique
@@ -424,6 +428,37 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
       )}
 
       {mode === 'create' && (
+        /* pgAdmin's table dialog, Advanced › Parameters: WITH (…) storage parameters. */
+        <table className="table table-borderless w-auto align-middle mb-0" id="storage_parameters">
+          <tbody>
+            <tr>
+              <th colSpan={9}>{t('definitions.storage_parameters')}</th>
+            </tr>
+            <tr className="align-top">
+              {(['fillfactor', 'parallel_workers', 'toast_tuple_target'] as const).map((key) => (
+                <td key={key}>
+                  <label htmlFor={`table_${key}`}>{t(`definitions.params.${key}`)}</label>
+                  <br />
+                  <input type="number" id={`table_${key}`} name={key} min={key === 'fillfactor' ? 10 : key === 'toast_tuple_target' ? 128 : 0} max={key === 'fillfactor' ? 100 : key === 'parallel_workers' ? 1024 : 32736} value={storage[key]} onChange={(e) => setStorage({ ...storage, [key]: e.target.value })} />
+                </td>
+              ))}
+              {(['autovacuum_enabled', 'toast_autovacuum_enabled'] as const).map((key) => (
+                <td key={key}>
+                  <label htmlFor={`table_${key}`}>{t(`definitions.params.${key}`)}</label>
+                  <br />
+                  <select id={`table_${key}`} name={key} value={storage[key]} onChange={(e) => setStorage({ ...storage, [key]: e.target.value })}>
+                    <option value="">{t('definitions.params.default')}</option>
+                    <option value="t">{t('definitions.params.on')}</option>
+                    <option value="f">{t('definitions.params.off')}</option>
+                  </select>
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      )}
+
+      {mode === 'create' && (
         /* columns_definitions/partitions.twig: "Partition by: [strategy] (expression or column list)". Partitions are added from the structure page. */
         <table className="table table-borderless w-auto align-middle mb-0" id="partition_table">
           <tbody>
@@ -599,11 +634,19 @@ function ColumnRow({ index, row, groups, options, onChange }: { index: number; r
       </td>
       <td className="text-center">
         {/* phpMyAdmin's column virtuality: the kind, then the expression. */}
-        <select name={`field_virtuality[${index}]`} id={id(11)} className="virtuality" value={row.virtuality} onChange={(e) => onChange(e.target.value === 'STORED' ? { virtuality: 'STORED', identity: false } : { virtuality: '' })}>
+        <select
+          name={`field_virtuality[${index}]`}
+          id={id(11)}
+          className="virtuality"
+          value={row.virtuality}
+          onChange={(e) => onChange(e.target.value === 'STORED' || e.target.value === 'VIRTUAL' ? { virtuality: e.target.value, identity: false } : { virtuality: '' })}
+        >
           <option value="" />
+          {/* PostgreSQL 18 computes a VIRTUAL generated column when it is read, as phpMyAdmin's VIRTUAL. */}
+          {(options.version >= 180000 || row.virtuality === 'VIRTUAL') && <option value="VIRTUAL">VIRTUAL</option>}
           <option value="STORED">STORED</option>
         </select>
-        {row.virtuality === 'STORED' && (
+        {row.virtuality !== '' && (
           <input type="text" name={`field_expression[${index}]`} size={12} value={row.expression} placeholder={t('definitions.expression')} className="textfield expression d-block mt-1" onChange={(e) => onChange({ expression: e.target.value })} />
         )}
       </td>

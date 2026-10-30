@@ -15,7 +15,6 @@ Controls for unbuilt features still appear, as they do in phpMyAdmin. Clicking o
 
 These options are not in the forms; use the SQL tab for them:
 
-- **Create table:** `WITH (…)` storage parameters and PostgreSQL 18 virtual generated columns ([Creating a table](/schema/create-table)).
 - **Indexes:** `NULLS NOT DISTINCT` and per-column statistics targets ([Indexes and constraints](/table/indexes-constraints#what-the-dialog-does-not-offer)).
 - **Constraints:** foreign key `SET NULL (col)` / `SET DEFAULT (col)` column lists ([Indexes and constraints](/table/indexes-constraints#foreign-keys-relation-view)).
 

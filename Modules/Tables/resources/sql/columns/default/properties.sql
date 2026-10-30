@@ -33,8 +33,8 @@ SELECT DISTINCT ON (att.attnum) att.attname as name, att.atttypid, att.attlen, a
 	EXISTS(SELECT 1 FROM pg_catalog.pg_constraint WHERE conrelid=att.attrelid AND contype='f' AND att.attnum=ANY(conkey)) As is_fk,
 	(SELECT pg_catalog.array_agg(provider || '=' || label) FROM pg_catalog.pg_seclabels sl1 WHERE sl1.objoid=att.attrelid AND sl1.objsubid=att.attnum) AS seclabels,
 	(CASE WHEN (att.attnum < 1) THEN true ElSE false END) AS is_sys_column,
-	(CASE WHEN (att.attidentity in ('a', 'd')) THEN 'i' WHEN (att.attgenerated in ('s')) THEN 'g' ELSE 'n' END) AS colconstype,
-	(CASE WHEN (att.attgenerated in ('s')) THEN pg_catalog.pg_get_expr(def.adbin, def.adrelid) END) AS genexpr, tab.relname as relname,
+	(CASE WHEN (att.attidentity in ('a', 'd')) THEN 'i' WHEN (att.attgenerated in ('s', 'v')) THEN 'g' ELSE 'n' END) AS colconstype,
+	(CASE WHEN (att.attgenerated in ('s', 'v')) THEN pg_catalog.pg_get_expr(def.adbin, def.adrelid) END) AS genexpr, (att.attgenerated = 'v') AS genvirtual, tab.relname as relname,
 	(CASE WHEN tab.relkind = 'v' THEN true ELSE false END) AS is_view_only,
 	(CASE WHEN att.attcompression = 'p' THEN 'pglz' WHEN att.attcompression = 'l' THEN 'lz4' END) AS attcompression,
 	(SELECT dsd.refobjid

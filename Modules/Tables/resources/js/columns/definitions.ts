@@ -26,8 +26,8 @@ export interface ColumnDefinition {
   /** The identity sequence's options; empty for the default. */
   sequence: SequenceOptions
   comment: string
-  /** GENERATED ALWAYS AS (expression) STORED; phpMyAdmin's Virtuality. */
-  virtuality: '' | 'STORED'
+  /** GENERATED ALWAYS AS (expression) STORED, or VIRTUAL (PostgreSQL 18); phpMyAdmin's Virtuality. */
+  virtuality: '' | 'STORED' | 'VIRTUAL'
   expression: string
   /** SET STORAGE: '' for the type's own, or 'p', 'm', 'e', 'x'. */
   storage: '' | 'p' | 'm' | 'e' | 'x'
@@ -175,7 +175,7 @@ export function fromColumn(column: Column, isPrimary: boolean): ColumnDefinition
         ? { start: text(column.seqstart), increment: text(column.seqincrement), min: text(column.seqmin), max: text(column.seqmax), cache: text(column.seqcache), cycle: Boolean(column.seqcycle) }
         : emptySequence(),
     comment: column.description ?? '',
-    virtuality: column.colconstype === 'g' ? 'STORED' : '',
+    virtuality: column.colconstype === 'g' ? (column.genvirtual ? 'VIRTUAL' : 'STORED') : '',
     expression: column.colconstype === 'g' ? (column.genexpr ?? '') : '',
     storage: column.attstorage === column.defaultstorage ? '' : (column.attstorage as ColumnDefinition['storage']),
     defaultStorage: column.defaultstorage,
@@ -253,9 +253,10 @@ export function toColumnData(definition: ColumnDefinition): ColumnData {
     description: definition.comment,
   }
   const defval = defaultExpression(definition)
-  if (definition.virtuality === 'STORED' && definition.expression.trim() !== '') {
+  if (definition.virtuality !== '' && definition.expression.trim() !== '') {
     data.colconstype = 'g'
     data.genexpr = definition.expression.trim()
+    data.genvirtual = definition.virtuality === 'VIRTUAL'
   } else {
     if (defval !== '') data.defval = defval
     if (definition.identity) Object.assign(data, { colconstype: 'i', attidentity: definition.identityKind }, sequenceData(definition))
@@ -313,9 +314,12 @@ export function toColumnChanges(definition: ColumnDefinition): ColumnData | null
       changed = true
     }
   }
-  if (definition.virtuality !== was.virtuality || (definition.virtuality === 'STORED' && definition.expression !== was.expression)) {
-    data.colconstype = definition.virtuality === 'STORED' ? 'g' : (data.colconstype ?? 'n')
-    if (definition.virtuality === 'STORED') data.genexpr = definition.expression.trim()
+  if (definition.virtuality !== was.virtuality || (definition.virtuality !== '' && definition.expression !== was.expression)) {
+    data.colconstype = definition.virtuality !== '' ? 'g' : (data.colconstype ?? 'n')
+    if (definition.virtuality !== '') {
+      data.genexpr = definition.expression.trim()
+      data.genvirtual = definition.virtuality === 'VIRTUAL'
+    }
     changed = true
   }
   if (definition.storage !== was.storage) {

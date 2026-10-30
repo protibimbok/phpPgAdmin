@@ -244,6 +244,17 @@
       "max": "الحد الأقصى",
       "cache": "التخزين المؤقت",
       "cycle": "دوري"
+    },
+    "storage_parameters": "معاملات التخزين (WITH)",
+    "params": {
+      "fillfactor": "معامل الملء",
+      "parallel_workers": "العمّال المتوازيون",
+      "toast_tuple_target": "هدف صف TOAST",
+      "autovacuum_enabled": "التنظيف التلقائي",
+      "toast_autovacuum_enabled": "التنظيف التلقائي لـ TOAST",
+      "default": "الافتراضي",
+      "on": "مفعّل",
+      "off": "معطّل"
     }
   },
   "index_dialog": {

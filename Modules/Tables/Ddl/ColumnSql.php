@@ -78,7 +78,15 @@ final class ColumnSql
         $becomes = $column['colconstype'] === 'g';
         $target = sprintf("ALTER TABLE IF EXISTS %s\n    ALTER COLUMN %s", Quoting::ident($column['schema'], $column['table']), Quoting::ident((string) (($column['name'] ?? '') !== '' ? $column['name'] : $old['name'])));
 
+        $wasVirtual = filter_var($old['genvirtual'] ?? false, FILTER_VALIDATE_BOOL);
+        if ($was && $becomes && array_key_exists('genvirtual', $column) && filter_var($column['genvirtual'], FILTER_VALIDATE_BOOL) !== $wasVirtual) {
+            throw new BadRequestException('PostgreSQL cannot turn a STORED generated column into a VIRTUAL one or back; drop the column and add it again.');
+        }
         if ($was && !$becomes) {
+            if ($wasVirtual) {
+                throw new BadRequestException('PostgreSQL cannot drop the expression of a VIRTUAL generated column; drop the column instead.');
+            }
+
             return "\n" . $target . " DROP EXPRESSION;\n";
         }
         if (!$was && $becomes) {
@@ -163,6 +171,10 @@ final class ColumnSql
         }
         ColumnTypes::normaliseLengths($column);
         self::checkOptions($column);
+        // PostgreSQL 18's VIRTUAL generated columns, computed when read; STORED otherwise.
+        if (array_key_exists('genvirtual', $column)) {
+            $column['genvirtual'] = filter_var($column['genvirtual'], FILTER_VALIDATE_BOOL);
+        }
 
         if (isset($column['attacl']) && is_array($column['attacl'])) {
             if (array_is_list($column['attacl'])) {
