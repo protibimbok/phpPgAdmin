@@ -81,7 +81,8 @@
     "export": "Export",
     "do_you_really": "Do you really want to execute \"{{sql}}\"?",
     "yes": "Yes",
-    "double_click_hint": "You can also edit most values by double-clicking directly on them."
+    "double_click_hint": "You can also edit most values by double-clicking directly on them.",
+    "no_row_selected": "No row selected."
   },
   "operations": {
     "title": "Query results operations",

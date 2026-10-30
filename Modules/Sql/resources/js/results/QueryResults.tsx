@@ -6,6 +6,7 @@ import { urls } from '@/level'
 import CreateViewModal from '@views/js/CreateViewModal'
 import type { QueryResponse, RowsResult } from '../api'
 import BookmarkForm from './BookmarkForm'
+import { explainJson } from '../explain/detect'
 import ResultMessage from './ResultMessage'
 import ResultsGrid, { type GridNav, type ResultsGridProps } from './ResultsGrid'
 
@@ -56,7 +57,8 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
             onRun={onRun}
             rolledBack={response.rolled_back && (failed || i === response.results.length - 1)}
           />
-          {result.kind === 'rows' && result.row_count > 0 && (
+          {/* A JSON plan is shown by the plan card under the message, not as its one QUERY PLAN cell. */}
+          {result.kind === 'rows' && result.row_count > 0 && !explainJson(result) && (
             <ResultsGrid
               result={result}
               nav={nav}

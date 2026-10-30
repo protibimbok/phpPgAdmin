@@ -2,14 +2,14 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type R
 import { useTranslation } from 'react-i18next'
 import Icon from '@/components/Icon'
 import { preference } from '@/preferences'
-import { notAvailable } from '@/unbuilt'
+import { notify } from '@/notify'
 import type { Order, ResultColumn, RowsResult } from '../api'
 import DateTimeInput from '../fields/DateTimeInput'
 import { useForeignValues, foreignOptions } from '../fields/ForeignSelect'
 import { dateFieldClass, dateKind, fieldKind, fractionDigits, hasTimeZone, padFraction } from '../fields/kinds'
 import { LIMIT_CHARS, MAX_ROWS, SHOW_BROWSE_COMMENTS } from '../preferences'
 import { isBinaryType, isNumericType } from '../sql'
-import { notAvailable as browseForeign } from '@/unbuilt'
+import BrowseForeign from '../fields/BrowseForeign'
 
 /** Where in the result set the grid is and how it is ordered; the page decides what to do about a change. */
 export interface GridNav {
@@ -516,7 +516,7 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
                 className="btn btn-link mult_submit"
                 type="button"
                 title={action.label}
-                onClick={() => (checked.size === 0 ? notAvailable() : action.onClick([...checked].sort((a, b) => a - b)))}
+                onClick={() => (checked.size === 0 ? notify(t('grid.no_row_selected'), 'notice') : action.onClick([...checked].sort((a, b) => a - b)))}
               >
                 <Icon name={action.icon} title={action.label} /> {action.label}
               </button>
@@ -650,6 +650,8 @@ function CellEditorBox({ db, editing, column, onChange, onCommit, onCancel, null
   const kind = fieldKind(column)
   const picker = dateKind(column)
   const foreign = useForeignValues(db, column.foreign_key)
+  // While the Browse foreign values window is open, focus is in it, which is not leaving the editor.
+  const [browsing, setBrowsing] = useState(false)
   const multiline = kind === 'text' || kind === 'json' || editing.value.includes('\n')
 
   useEffect(() => {
@@ -669,6 +671,7 @@ function CellEditorBox({ db, editing, column, onChange, onCommit, onCancel, null
 
   const onBlur = (e: { relatedTarget: EventTarget | null }) => {
     // Leaving for the NULL box, a select or the picker is not leaving the editor.
+    if (browsing) return
     if (!(e.relatedTarget instanceof HTMLElement && e.relatedTarget.closest('.cEdit'))) onCommit()
   }
   const common = {
@@ -702,10 +705,34 @@ function CellEditorBox({ db, editing, column, onChange, onCommit, onCancel, null
   if (column.foreign_key) {
     area = (
       <>
-        {foreign?.truncated ? (
-          <a className="ajax browse_foreign" href="#browse-foreign" onClick={browseForeign}>
-            <Icon name="b_browse" title={t('fields.browse_foreign')} />
-          </a>
+        {foreign?.truncated && column.foreign_key ? (
+          <>
+            <a
+              className="ajax browse_foreign"
+              href="#browse-foreign"
+              onClick={(e) => {
+                e.preventDefault()
+                setBrowsing(true)
+              }}
+            >
+              <Icon name="b_browse" title={t('fields.browse_foreign')} />
+            </a>
+            <BrowseForeign
+              show={browsing}
+              db={db}
+              foreignKey={column.foreign_key}
+              value={editing.value}
+              onPick={(key) => {
+                setBrowsing(false)
+                setValue(key)
+                box.current?.focus()
+              }}
+              onClose={() => {
+                setBrowsing(false)
+                box.current?.focus()
+              }}
+            />
+          </>
         ) : (
           <select value={editing.value} onChange={(e) => setValue(e.target.value)} onKeyDown={onKeyDown} aria-label={column.name}>
             {foreignOptions(foreign)}
