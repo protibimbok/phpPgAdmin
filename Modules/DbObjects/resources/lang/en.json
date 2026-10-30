@@ -172,5 +172,35 @@
     "into": "Into schema",
     "options_hint": "The wrapper's import options, such as import_default, import_collate or import_not_null for postgres_fdw.",
     "done": "Remote schema {{schema}} has been imported into {{into}}."
+  },
+  "cron_job": {
+    "title": "pg_cron jobs",
+    "none": "There are no pg_cron jobs.",
+    "create": "Add job",
+    "create_title": "Add a pg_cron job",
+    "edit_title": "Edit the pg_cron job {{name}}",
+    "schedule_hint": "Five cron fields (minute hour day month weekday, in GMT unless cron.timezone says otherwise), @hourly, @daily and the like, or \"1-59 seconds\".",
+    "database_hint": "The database the command runs in; empty for this one.",
+    "last_run": "Last run",
+    "never": "never",
+    "runs": "Runs",
+    "runs_of": "Runs of {{name}}",
+    "no_runs": "The job has not run yet, or cron.log_run is off.",
+    "fields": {
+      "name": "Name",
+      "schedule": "Schedule",
+      "command": "Command",
+      "database": "Database",
+      "username": "Run as",
+      "active": "Active"
+    },
+    "run_columns": {
+      "status": "Status",
+      "start_time": "Start",
+      "end_time": "End",
+      "database": "Database",
+      "username": "Run as",
+      "return_message": "Message"
+    }
   }
 }

@@ -1,6 +1,7 @@
 import { urls } from '@/level'
 import { insertAfter, registerModule } from '@/modular'
 import { registerContainerLink, registerNodeLink, schemaOf } from '@/nodes/links'
+import CronJobs from './Pages/CronJobs'
 import ForeignTables from './Pages/ForeignTables'
 import Objects from './Pages/Objects'
 
@@ -13,6 +14,10 @@ for (const kind of KINDS) {
   registerNodeLink(kind, (node, { db }) => (db === null ? '#' : `${urls.database(db)}/objects?${new URLSearchParams({ open: `${kind}:${node.oid}` })}`))
   registerContainerLink(kind, ({ db }) => (db === null ? urls.server() : `${urls.database(db)}/objects#${kind}s_section`))
 }
+
+// pg_cron's jobs, which the tree lists only in a database with pg_cron, open on their page.
+registerNodeLink('cron_job', (node, { db }) => (db === null ? '#' : `${urls.database(db)}/cron-jobs?${new URLSearchParams({ open: String(node.oid) })}`))
+registerContainerLink('cron_job', ({ db }) => (db === null ? urls.server() : `${urls.database(db)}/cron-jobs`))
 
 // A foreign table opens its dialog on its schema's Foreign tables page, where its folder leads.
 registerNodeLink('foreign_table', (node, { db, ancestors }) => {
@@ -32,7 +37,10 @@ registerModule({
   id: 'dbobjects',
   order: 41,
   menuFilter: (menu) => insertAfter(menu, { label: 'roles:privileges.tab', level: 'database' }, { label: 'dbobjects:tab', icon: 'b_plugin', path: '/db/:db/objects', level: 'database' }),
-  routes: [{ path: 'db/:db/objects', element: <Objects /> }],
+  routes: [
+    { path: 'db/:db/objects', element: <Objects /> },
+    { path: 'db/:db/cron-jobs', element: <CronJobs /> },
+  ],
 })
 
 // The schema's Foreign tables tab, after Types. The module sorts after the Types module.

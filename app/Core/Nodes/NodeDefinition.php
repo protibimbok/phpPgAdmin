@@ -41,6 +41,9 @@ final readonly class NodeDefinition
      * @param int $minVersion The lowest server version the node exists for, 130000 for 13.0.
      * @param list<string> $supports Optional operations: sql, msql, stats, depends, children, resolve.
      * @param bool $collectionNode Whether the tree shows a folder ("Tables") holding the nodes, as pgAdmin does.
+     * @param string|null $extension The extension the objects belong to ("pg_cron"): the type is
+     *        offered only in a database that has it installed, as pgAdmin shows pgAgent Jobs only
+     *        where pgagent is.
      */
     public function __construct(
         public string $type,
@@ -55,6 +58,7 @@ final readonly class NodeDefinition
         public ?int $maxVersion = null,
         public array $supports = [],
         public bool $collectionNode = true,
+        public ?string $extension = null,
     ) {
         if (!preg_match('/^[a-z][a-z0-9_]*$/', $type) || !preg_match('/^[a-z][a-z0-9_-]*$/', $collection) || !preg_match('/^[a-z][a-z0-9_]*$/', $idParam)) {
             throw new InvalidArgumentException(sprintf('Node [%s] needs lower-case type, collection and id parameter names.', $type));

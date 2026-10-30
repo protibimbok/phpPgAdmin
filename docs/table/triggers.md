@@ -200,4 +200,4 @@ See [Views and materialized views](/schema/views) for the rest of a view's tabs.
 | Trigger body written in the dialog | A trigger calls a separate trigger function; write it under [Routines](/schema/routines) first. |
 | **Definer** | No definer: the function runs with the rights of the user whose statement fired it, unless the function is `SECURITY DEFINER`. |
 | One event per trigger | Several events, `UPDATE OF` columns, `WHEN`, statement-level triggers and transition tables. |
-| Events (scheduler) | No built-in scheduler; use an extension such as `pg_cron`. |
+| Events (scheduler) | No built-in scheduler; with the `pg_cron` extension, its jobs are managed on the [pg_cron jobs](/database/objects#pg-cron-jobs) page. |

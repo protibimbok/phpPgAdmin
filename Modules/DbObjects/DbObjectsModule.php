@@ -13,6 +13,7 @@ use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
 use PhpPgAdmin\Core\Nodes\NodeDefinition;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\CastController;
+use PhpPgAdmin\Modules\DbObjects\Http\Controllers\CronJobController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\EventTriggerController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ExtensionController;
 use PhpPgAdmin\Modules\DbObjects\Http\Controllers\ForeignDataWrapperController;
@@ -50,6 +51,7 @@ final class DbObjectsModule implements Module, ProvidesNodes, ProvidesApiRoutes,
             new NodeDefinition('foreign_server', 'foreign_servers', 'fsid', ForeignServerController::class, parent: 'foreign_data_wrapper', templateDir: 'foreign_servers', label: 'Foreign Servers', icon: 's_host', supports: ['sql', 'msql', 'depends', 'children']),
             new NodeDefinition('user_mapping', 'user_mappings', 'umid', UserMappingController::class, parent: 'foreign_server', templateDir: 'user_mappings', label: 'User Mappings', icon: 'user', supports: ['sql', 'msql', 'depends']),
             new NodeDefinition('foreign_table', 'foreign_tables', 'foid', ForeignTableController::class, parent: 'schema', templateDir: 'foreign_tables', label: 'Foreign Tables', icon: 's_link', supports: ['sql', 'msql', 'depends']),
+            new NodeDefinition('cron_job', 'cron_jobs', 'cjid', CronJobController::class, parent: NodeDefinition::DATABASE, templateDir: 'cron_jobs', label: 'pg_cron Jobs', icon: 'b_events', supports: ['sql', 'msql', 'stats'], extension: 'pg_cron'),
             new NodeDefinition('event_trigger', 'event_triggers', 'etid', EventTriggerController::class, parent: NodeDefinition::DATABASE, templateDir: 'event_triggers', label: 'Event Triggers', icon: 'b_triggers', supports: ['sql', 'msql', 'depends']),
         ];
     }

@@ -276,6 +276,41 @@ DDL or sign-ins for everyone in the database; disable it from a superuser sessio
 server with `event_triggers = off`, PostgreSQL 17+).
 :::
 
+## pg_cron jobs
+
+Job scheduling, which pgAdmin does with pgAgent, is done here with the
+[pg_cron](https://github.com/citusdata/pg_cron) extension. In a database where `pg_cron` is installed
+(the one `cron.database_name` names, `postgres` by default), the navigation panel shows **pg_cron
+Jobs** under the database; anywhere else it is not shown at all. Its folder opens the **pg_cron jobs**
+page (`/db/<database>/cron-jobs`), a job its dialog there. pg_cron 1.4 or later is needed.
+
+The list has each job's **Name**, **Schedule**, the **Database** it runs in, the role it runs as
+(**Run as**), whether it is **Active**, and its **Last run** (status and start time, the message on
+hover), with **Runs**, **Edit**, **Export** and **Drop**, and **Export** / **Drop** for the ticked
+jobs. **Runs** lists the job's last 50 runs from `cron.job_run_details`: status, start, end,
+database, role and message.
+
+**Add job** and **Edit** open the job dialog:
+
+| Field | pg_cron |
+|---|---|
+| **Name** | `job_name`; fixed once the job exists, since pg_cron cannot rename a job. |
+| **Schedule** | Five cron fields (`0 3 * * *`, in GMT unless `cron.timezone` says otherwise), `@daily` and the like, or `30 seconds`. |
+| **Command** | The SQL the job runs. |
+| **Database** | Where it runs; empty for this database. |
+| **Run as** | The role it runs as; empty for yours. Another role needs a superuser. |
+| **Active** | Unticked, the job stays but does not run. |
+
+A new job is `SELECT cron.schedule_in_database(…)`, a change `SELECT cron.alter_job(…)`, a drop
+`SELECT cron.unschedule(<id>)`; **Preview SQL** and **Export** show them. pg_cron lists only your own
+jobs unless you are a superuser.
+
+::: warning Not tried against a live pg_cron
+The local test server has no pg_cron. The page was checked against a stand-in `cron` schema with
+pg_cron's `cron.job`, `cron.job_run_details` and functions of the same signatures, so the statements
+match pg_cron 1.4's documented API but have not been run by pg_cron itself. pgAgent is not supported.
+:::
+
 ## Limitations
 
 - Security labels and `ALTER EXTENSION … ADD/DROP member` are not offered.

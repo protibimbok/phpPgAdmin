@@ -172,5 +172,35 @@
     "into": "إلى المخطط",
     "options_hint": "خيارات الاستيراد للمغلّف، مثل import_default أو import_collate أو import_not_null في postgres_fdw.",
     "done": "تم استيراد المخطط البعيد {{schema}} إلى {{into}}."
+  },
+  "cron_job": {
+    "title": "مهام pg_cron",
+    "none": "لا توجد مهام pg_cron.",
+    "create": "إضافة مهمة",
+    "create_title": "إضافة مهمة pg_cron",
+    "edit_title": "تحرير مهمة pg_cron ‏{{name}}",
+    "schedule_hint": "خمسة حقول cron (الدقيقة الساعة اليوم الشهر يوم الأسبوع، بتوقيت غرينتش ما لم يحدد cron.timezone غير ذلك)، أو ‎@hourly و‎@daily وما شابه، أو \"1-59 seconds\".",
+    "database_hint": "قاعدة البيانات التي يُنفَّذ فيها الأمر؛ فارغ لهذه القاعدة.",
+    "last_run": "آخر تشغيل",
+    "never": "لم تُشغَّل",
+    "runs": "مرات التشغيل",
+    "runs_of": "مرات تشغيل {{name}}",
+    "no_runs": "لم تُشغَّل المهمة بعد، أو أن cron.log_run معطّل.",
+    "fields": {
+      "name": "الاسم",
+      "schedule": "الجدول",
+      "command": "الأمر",
+      "database": "قاعدة البيانات",
+      "username": "التشغيل باسم",
+      "active": "نشطة"
+    },
+    "run_columns": {
+      "status": "الحالة",
+      "start_time": "البدء",
+      "end_time": "الانتهاء",
+      "database": "قاعدة البيانات",
+      "username": "التشغيل باسم",
+      "return_message": "الرسالة"
+    }
   }
 }

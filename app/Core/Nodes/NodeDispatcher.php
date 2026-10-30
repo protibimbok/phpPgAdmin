@@ -29,6 +29,9 @@ final class NodeDispatcher
         if (!$node->availableOn($ctx->version())) {
             throw new NotFoundException(sprintf('This server (version %d) has no %s objects.', $ctx->version(), str_replace('_', ' ', $node->type)));
         }
+        if ($node->extension !== null && !in_array($node->extension, self::extensions($ctx->conn), true)) {
+            throw new NotFoundException(sprintf('The database has no %s extension.', $node->extension));
+        }
 
         $controller = new ($node->controller)();
         $oid = isset($args[$node->idParam]) ? (int) $args[$node->idParam] : null;
@@ -61,12 +64,25 @@ final class NodeDispatcher
     {
         $pool = ConnectionPool::from($request);
         $serverLevel = !isset($args['db']);
-        $version = ($serverLevel ? $pool->maintenance() : $pool->for(self::database($args)))->version();
+        $conn = $serverLevel ? $pool->maintenance() : $pool->for(self::database($args));
+        $version = $conn->version();
+        $installed = null;
+        $hasExtension = static function (string $name) use (&$installed, $conn): bool {
+            $installed ??= self::extensions($conn);
+
+            return in_array($name, $installed, true);
+        };
 
         return ['nodes' => array_values(array_map(
             static fn (NodeDefinition $n): array => $n->toArray(),
-            array_filter($registry->all(), static fn (NodeDefinition $n): bool => $n->availableOn($version) && $registry->isServerLevel($n) === $serverLevel),
+            array_filter($registry->all(), static fn (NodeDefinition $n): bool => $n->availableOn($version) && $registry->isServerLevel($n) === $serverLevel && ($n->extension === null || $hasExtension($n->extension))),
         ))];
+    }
+
+    /** @return list<string> the extensions installed in the connection's database */
+    private static function extensions(\PhpPgAdmin\Core\Database\Connection $conn): array
+    {
+        return array_column($conn->rows('SELECT extname FROM pg_catalog.pg_extension'), 'extname');
     }
 
     /**

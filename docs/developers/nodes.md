@@ -40,6 +40,7 @@ public function nodes(): array
 | `minVersion`, `maxVersion` | The server versions the type exists on (default `130000`, no maximum). On other servers its routes answer 404 "This server (version …) has no … objects" and it is left out of `nodes` and `children`. |
 | `supports` | Optional operations: `sql`, `msql`, `stats`, `depends`, `children`, `resolve`. `list`, `nodes`, `node`, `properties`, `create`, `update` and `delete` always have routes. |
 | `collectionNode` | Whether the tree shows a folder ("Sequences") holding the nodes. |
+| `extension` | An extension the objects belong to (`pg_cron`): the type is listed (`GET …/nodes`) and its routes answer only in a database that has it installed; elsewhere they are 404. |
 
 The constructor validates the names, the parent and the controller class, so a typo fails at boot. `NodeRegistry::register()` rejects a type registered twice, and `ancestors()` rejects a cyclic parent chain.
 
