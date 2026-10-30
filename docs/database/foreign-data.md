@@ -15,8 +15,8 @@ The chain, and where each part lives:
 | User mapping | The credentials a local role uses on that server | Database → **Objects** → **User mappings** |
 | Foreign table | A local table whose rows come from the server | Schema → **Foreign tables** |
 
-The sections share the Objects tab's layout (Add, Edit, Export, Drop, with-selected Export and Drop,
-CASCADE on drop), described in [How the sections work](/database/objects#how-the-sections-work).
+The sections share the Objects tab's layout (Add, Privileges, Edit, Export, Drop, with-selected
+Export and Drop, CASCADE on drop), described in [How the sections work](/database/objects#how-the-sections-work).
 
 ## Option editors
 
@@ -152,7 +152,7 @@ local cluster.
 
 A schema's **Foreign tables** tab (`/db/<database>/schema/<schema>/foreign-tables`) lists its
 foreign tables with **Rows** (a **Browse** link), **Server**, **Columns**, **Options** and
-**Comment**.
+**Comment**, and **Privileges**, **Edit**, **Export** and **Drop** per row.
 
 ::: info Not in the schema's table list
 Foreign tables are listed only on this tab. The schema's [Structure tab](/schema/structure) leaves
@@ -220,6 +220,14 @@ Columns a foreign table inherits from a parent table are left out of the grid.
 get the usual result grid, with paging, export and the rest. Each page of results is a query on the
 remote server.
 
+### Privileges
+
+**Privileges** opens a dialog with the table's grantees and its column grants, as on a table's
+[Privileges](/tools/privileges) tab: `SELECT`, `INSERT`, `UPDATE`, `DELETE` and the other table
+privileges, **Add privileges for a role** and **Add column privileges**
+(`GRANT SELECT ON TABLE public.dbo_authors TO bookshop_staff;`). A role reading a foreign table
+also needs a user mapping on its server.
+
 ### Drop
 
 **Drop** runs `DROP FOREIGN TABLE schema.table;` (with **CASCADE**, also dropping views on it). The
@@ -251,10 +259,5 @@ The rows come from `bookshop` at query time. To import every table of a remote s
 
 ## Limitations
 
-- **Privileges**: there is no editor for `GRANT USAGE ON FOREIGN DATA WRAPPER` or
-  `GRANT USAGE ON FOREIGN SERVER`; a role that is not the owner needs `USAGE` on the server to
-  create mappings and foreign tables. Run the `GRANT` in the [SQL editor](/tools/sql). Foreign
-  tables are covered: they appear in the schema's [Privileges](/tools/privileges) tab and grant
-  wizard.
 - `IMPORT FOREIGN SCHEMA`, foreign-table constraints (`CHECK`), partitions of a partitioned table
   that are foreign tables, and security labels have no form.

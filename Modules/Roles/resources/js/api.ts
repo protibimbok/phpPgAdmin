@@ -116,7 +116,7 @@ export interface Grantee {
   privileges: Grant[]
 }
 
-export type PrivilegeKind = 'database' | 'tablespace' | 'schema' | 'table' | 'sequence' | 'function' | 'type'
+export type PrivilegeKind = 'database' | 'tablespace' | 'schema' | 'table' | 'sequence' | 'function' | 'type' | 'language' | 'foreign_data_wrapper' | 'foreign_server'
 
 export interface ObjectPrivileges {
   /** type: pg_class.relkind, pg_proc.prokind or pg_type.typtype; null for the other kinds. */

@@ -8,7 +8,10 @@ many objects at once. Tablespaces have the same panel on their
 [own page](/server/tablespaces#privileges), and sequences, functions, procedures, types and domains
 below their editor's form: the **Privileges** link of each row on the
 [Sequences](/schema/sequences#privileges), [Routines](/schema/routines#privileges) and
-[Types](/schema/types) lists opens it. The layout follows phpMyAdmin's database Privileges tab.
+[Types](/schema/types) lists opens it. Languages, foreign data wrappers, foreign servers and
+foreign tables open theirs in a dialog from the **Privileges** link of their row on the
+[Objects](/database/objects#how-the-sections-work) and [Foreign tables](/database/foreign-data#privileges)
+pages. The layout follows phpMyAdmin's database Privileges tab.
 
 ## Roles having access
 
@@ -20,7 +23,7 @@ so what the owner and `PUBLIC` hold implicitly shows too.
 | Column | What it shows |
 |---|---|
 | **Role** | The grantee; `PUBLIC` (every role) in red; *(owner)* after the owner. |
-| **Type** | *database-specific*, *schema-specific*, *table-specific*, *view-specific*, *materialized view-specific*, *foreign table-specific*, *sequence-specific*, *routine*, *type-specific*, *domain-specific*, *tablespace-specific*, or **Column:** *name* for a column grant. |
+| **Type** | *database-specific*, *schema-specific*, *table-specific*, *view-specific*, *materialized view-specific*, *foreign table-specific*, *sequence-specific*, *routine*, *type-specific*, *domain-specific*, *tablespace-specific*, *language-specific*, *foreign data wrapper-specific*, *foreign server-specific*, or **Column:** *name* for a column grant. |
 | **Privileges** | The privileges held, or **ALL PRIVILEGES** when it holds every one the object accepts. |
 | **Grant** | **No**, or the privileges it holds `WITH GRANT OPTION` (it may grant them on). |
 | **Granted by** | The grantor(s). |
@@ -57,12 +60,13 @@ showing the `REVOKE`, and removes everything the grantee holds on the object.
 |---|---|
 | Database | `CREATE`, `CONNECT`, `TEMPORARY` |
 | Schema | `USAGE`, `CREATE` |
-| Table, view, materialized view | `INSERT`, `SELECT`, `UPDATE`, `DELETE`, `TRUNCATE`, `REFERENCES`, `TRIGGER`, `MAINTAIN` (PostgreSQL 17+) |
+| Table, view, materialized view, foreign table | `INSERT`, `SELECT`, `UPDATE`, `DELETE`, `TRUNCATE`, `REFERENCES`, `TRIGGER`, `MAINTAIN` (PostgreSQL 17+) |
 | Column | `INSERT`, `SELECT`, `UPDATE`, `REFERENCES` |
 | Sequence | `USAGE`, `SELECT`, `UPDATE` |
 | Function, procedure | `EXECUTE` |
 | Type, domain | `USAGE` |
 | Tablespace | `CREATE` |
+| Language, foreign data wrapper, foreign server | `USAGE` |
 
 Hover a privilege for what it allows.
 

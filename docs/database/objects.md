@@ -15,6 +15,9 @@ Every section works the same way:
 - The **Add …** button opens an empty dialog.
 - Each row has **Edit** (the same dialog, filled in), **Export** (the DDL that recreates the object,
   with **Copy to clipboard**) and **Drop**.
+- Languages, foreign data wrappers and foreign servers also have **Privileges**: a dialog with
+  the object's grantees of `USAGE`, **Edit privileges**, **Revoke** and **Add privileges for a role**,
+  as on the [Privileges](/tools/privileges) tabs (`GRANT USAGE ON LANGUAGE plpgsql TO bookshop_staff;`).
 - Tick rows (or **Check all**) and use the **Export** or **Drop** button above the table for several
   objects at once. With nothing ticked you get *No object selected.*
 - **Drop** asks first, showing the statement, with **Drop the objects that depend on it too
@@ -275,9 +278,6 @@ server with `event_triggers = off`, PostgreSQL 17+).
 
 ## Limitations
 
-- There is no privilege editor for languages (`GRANT USAGE ON LANGUAGE`), foreign data wrappers or
-  foreign servers; run the `GRANT` in the [SQL editor](/tools/sql). Foreign tables are covered by
-  the schema's [Privileges](/tools/privileges) tab and its grant wizard.
 - Security labels and `ALTER EXTENSION … ADD/DROP member` are not offered.
 - A language, cast or event trigger that is part of an extension is listed like the others; drop the
   extension instead of the member.

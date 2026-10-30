@@ -12,6 +12,7 @@ import { urls } from '@/level'
 import { resolve } from '@/nodes/client'
 import { notifyError, notifySuccess } from '@/notify'
 import { quoteIdent } from '@sql/js/sql'
+import { PrivilegesAction, PrivilegesModal } from '@roles/js/PrivilegesSection'
 import { foreignTableOptions, foreignTables, type ForeignTable } from '../api'
 import NodeDialog, { type Field, type Values } from '../dialogs/NodeDialog'
 
@@ -37,6 +38,7 @@ export default function ForeignTables() {
   const [exported, setExported] = useState<{ title: string; sql: string | null } | null>(null)
   const [confirm, setConfirm] = useState<{ sql: string[]; rows: ForeignTable[] } | null>(null)
   const [cascade, setCascade] = useState(false)
+  const [privileges, setPrivileges] = useState<ForeignTable | null>(null)
 
   const open = search.get('open')
   useEffect(() => {
@@ -134,6 +136,8 @@ export default function ForeignTables() {
           { label: t('columns.columns'), render: (r) => r.columns.map((c) => `${c.name} ${c.cltype}`).join(', ') },
           { label: t('columns.options'), render: (r) => r.ftoptions.map((o) => `${o.option} '${o.value}'`).join(', ') },
           { label: t('columns.comment'), render: (r) => r.description },
+          // Table privileges, and those of its columns, as on a table's Privileges tab.
+          { label: '', render: (r) => <PrivilegesAction onClick={() => setPrivileges(r)} /> },
         ]}
         onEdit={(r) => setEditing({ row: r })}
         onExport={exportSql}
@@ -160,6 +164,8 @@ export default function ForeignTables() {
           changed()
         }}
       />
+
+      <PrivilegesModal db={db} target={privileges && { kind: 'table', oid: privileges.oid, name: `${schema}.${privileges.name}` }} onClose={() => setPrivileges(null)} />
 
       <Modal show={exported !== null} title={exported?.title ?? ''} size="lg" onClose={() => setExported(null)}>
         {exported?.sql === null ? tApp('loading') : <SqlView sql={exported?.sql ?? ''} />}

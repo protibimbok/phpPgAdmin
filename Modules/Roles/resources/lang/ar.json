@@ -138,13 +138,17 @@
       "sequence": "خاص بالتسلسل",
       "function": "روتين",
       "type": "خاص بالنوع",
-      "tablespace": "خاصة بمساحة الجداول"
+      "tablespace": "خاصة بمساحة الجداول",
+      "language": "خاص باللغة",
+      "foreign_data_wrapper": "خاص بمغلّف البيانات الخارجية",
+      "foreign_server": "خاص بالخادم الخارجي"
     },
     "column": "العمود",
     "revoke": "سحب",
     "add": "إضافة امتيازات لدور",
     "add_column": "إضافة امتيازات عمود",
     "edit_title": "امتيازات {{grantee}} على {{name}}",
+    "of": "الامتيازات: {{name}}",
     "grantee": "الدور:",
     "updated": "تم تحديث امتيازات {{grantee}}.",
     "database_specific": "امتيازات خاصة بقواعد البيانات",

@@ -12,8 +12,8 @@ use PhpPgAdmin\Core\Nodes\Ddl;
 use PhpPgAdmin\Modules\Roles\Privileges\PrivilegeSql;
 
 /**
- * The privileges on one object (a database, tablespace, schema, relation, sequence, routine or
- * type) and its columns, the default privileges of a database or schema, and the grant
+ * The privileges on one object (a database, tablespace, schema, relation, sequence, routine,
+ * type, language, foreign data wrapper or foreign server) and its columns, the default privileges of a database or schema, and the grant
  * wizard's bulk GRANT: what pgAdmin edits in each node's Security tab, its Default Privileges tab and its
  * Grant Wizard. Privileges are read with aclexplode() over the ACL or, when it is NULL, the
  * built-in default, so what the owner and PUBLIC hold implicitly shows too.
@@ -263,6 +263,10 @@ final class PrivilegeController
             'table', 'sequence' => $conn->row("SELECT CASE WHEN relkind = 'S' THEN 'SEQUENCE' ELSE 'TABLE' END AS keyword, oid::pg_catalog.regclass::text AS name, oid::pg_catalog.regclass::text AS ident, pg_catalog.pg_get_userbyid(relowner) AS owner, COALESCE(relacl, pg_catalog.acldefault((CASE WHEN relkind = 'S' THEN 's' ELSE 'r' END)::\"char\", relowner)) AS acl, relkind::text AS type FROM pg_catalog.pg_class WHERE oid = $1", [$oid]),
             'function' => $conn->row("SELECT CASE WHEN prokind = 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END AS keyword, oid::pg_catalog.regprocedure::text AS name, oid::pg_catalog.regprocedure::text AS ident, pg_catalog.pg_get_userbyid(proowner) AS owner, COALESCE(proacl, pg_catalog.acldefault('f', proowner)) AS acl, prokind::text AS type FROM pg_catalog.pg_proc WHERE oid = $1", [$oid]),
             'type' => $conn->row("SELECT CASE WHEN typtype = 'd' THEN 'DOMAIN' ELSE 'TYPE' END AS keyword, pg_catalog.format_type(oid, NULL) AS name, pg_catalog.format_type(oid, NULL) AS ident, pg_catalog.pg_get_userbyid(typowner) AS owner, COALESCE(typacl, pg_catalog.acldefault('T', typowner)) AS acl, typtype::text AS type FROM pg_catalog.pg_type WHERE oid = $1", [$oid]),
+            // pgAdmin's privilege macro: GRANT … ON LANGUAGE / FOREIGN DATA WRAPPER / FOREIGN SERVER name.
+            'language' => $conn->row("SELECT 'LANGUAGE' AS keyword, lanname AS name, pg_catalog.quote_ident(lanname) AS ident, pg_catalog.pg_get_userbyid(lanowner) AS owner, COALESCE(lanacl, pg_catalog.acldefault('l', lanowner)) AS acl, NULL AS type FROM pg_catalog.pg_language WHERE oid = $1", [$oid]),
+            'foreign_data_wrapper' => $conn->row("SELECT 'FOREIGN DATA WRAPPER' AS keyword, fdwname AS name, pg_catalog.quote_ident(fdwname) AS ident, pg_catalog.pg_get_userbyid(fdwowner) AS owner, COALESCE(fdwacl, pg_catalog.acldefault('F', fdwowner)) AS acl, NULL AS type FROM pg_catalog.pg_foreign_data_wrapper WHERE oid = $1", [$oid]),
+            'foreign_server' => $conn->row("SELECT 'FOREIGN SERVER' AS keyword, srvname AS name, pg_catalog.quote_ident(srvname) AS ident, pg_catalog.pg_get_userbyid(srvowner) AS owner, COALESCE(srvacl, pg_catalog.acldefault('S', srvowner)) AS acl, NULL AS type FROM pg_catalog.pg_foreign_server WHERE oid = $1", [$oid]),
             default => throw new BadRequestException(sprintf('Privileges cannot be set on a "%s".', $kind)),
         } ?? throw new NotFoundException(sprintf('Could not find the %s. It may have been removed by another user.', $kind));
 
@@ -285,7 +289,8 @@ final class PrivilegeController
             'tablespace' => ['CREATE'],
             'schema' => ['USAGE', 'CREATE'],
             'sequence' => ['USAGE', 'SELECT', 'UPDATE'],
-            'function', 'type' => [$kind === 'function' ? 'EXECUTE' : 'USAGE'],
+            'function' => ['EXECUTE'],
+            'type', 'language', 'foreign_data_wrapper', 'foreign_server' => ['USAGE'],
             // MAINTAIN is granted on relations since PostgreSQL 17.
             default => $conn->version() >= 170000 ? [...self::RELATION, 'MAINTAIN'] : self::RELATION,
         };

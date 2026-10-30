@@ -10,6 +10,8 @@ import SqlView from '@/components/SqlView'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { quoteIdent } from '@sql/js/sql'
+import { PrivilegesAction, PrivilegesModal } from '@roles/js/PrivilegesSection'
+import type { PrivilegeKind } from '@roles/js/api'
 import {
   castOptions,
   casts,
@@ -74,6 +76,7 @@ export default function Objects() {
   const [exported, setExported] = useState<{ title: string; sql: string | null } | null>(null)
   const [confirm, setConfirm] = useState<{ sql: string[]; run: () => Promise<void> } | null>(null)
   const [cascade, setCascade] = useState(false)
+  const [privileges, setPrivileges] = useState<{ kind: PrivilegeKind; oid: number; name: string } | null>(null)
 
   // The navigation panel opens an object by OID: ?open=extension:16384.
   const open = search.get('open')
@@ -150,6 +153,8 @@ export default function Objects() {
     labels,
     onExport: (rows: Row[]) => exportSql(kind, rows),
   })
+  // pgAdmin's Security tab of a language, wrapper or server: USAGE, granted from a dialog.
+  const privilegesColumn = (kind: PrivilegeKind) => ({ label: '', render: (row: Row) => <PrivilegesAction onClick={() => setPrivileges({ kind, oid: row.oid, name: row.name })} /> })
   const castName = (row: Cast) => `(${row.srctyp} AS ${row.trgtyp})`
   const options = (pairs: OptionPair[]) => pairs.map((p) => `${p.option} '${p.value}'`).join(', ')
   const mappingRole = (row: UserMapping) => (row.name === 'public' ? 'PUBLIC' : quoteIdent(row.name))
@@ -184,6 +189,7 @@ export default function Objects() {
           { label: t('columns.handler'), render: (row) => <code>{row.lanproc}</code> },
           { label: t('columns.owner'), render: (row) => row.lanowner },
           { label: t('columns.comment'), render: (row) => row.description },
+          privilegesColumn('language'),
         ]}
         onEdit={(row) => setEditing({ kind: 'language', row })}
         onDrop={(rows) => askDrop('language', rows, (row) => `DROP LANGUAGE ${quoteIdent(row.name)};`)}
@@ -235,6 +241,7 @@ export default function Objects() {
           { label: t('columns.validator'), render: (row) => <code>{row.fdwvalue}</code> },
           { label: t('columns.options'), render: (row) => options(row.fdwoptions) },
           { label: t('columns.owner'), render: (row) => row.fdwowner },
+          privilegesColumn('foreign_data_wrapper'),
         ]}
         onEdit={(row) => setEditing({ kind: 'foreign_data_wrapper', row })}
         onDrop={(rows) => askDrop('foreign_data_wrapper', rows, (row) => `DROP FOREIGN DATA WRAPPER ${quoteIdent(row.name)};`)}
@@ -253,6 +260,7 @@ export default function Objects() {
           { label: t('columns.version'), render: (row) => row.fsrvversion },
           { label: t('columns.options'), render: (row) => options(row.fsrvoptions) },
           { label: t('columns.owner'), render: (row) => row.fsrvowner },
+          privilegesColumn('foreign_server'),
         ]}
         onEdit={(row) => setEditing({ kind: 'foreign_server', row })}
         onDrop={(rows) => askDrop('foreign_server', rows, (row) => `DROP SERVER ${quoteIdent(row.name)};`)}
@@ -282,6 +290,8 @@ export default function Objects() {
           changed()
         }}
       />
+
+      <PrivilegesModal db={db} target={privileges} onClose={() => setPrivileges(null)} />
 
       <Modal show={exported !== null} title={exported?.title ?? ''} size="lg" onClose={() => setExported(null)}>
         {exported?.sql === null ? tApp('loading') : <SqlView sql={exported?.sql ?? ''} />}

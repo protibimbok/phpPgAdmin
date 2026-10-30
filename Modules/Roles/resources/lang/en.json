@@ -134,13 +134,17 @@
       "sequence": "sequence-specific",
       "function": "routine",
       "type": "type-specific",
-      "tablespace": "tablespace-specific"
+      "tablespace": "tablespace-specific",
+      "language": "language-specific",
+      "foreign_data_wrapper": "foreign data wrapper-specific",
+      "foreign_server": "foreign server-specific"
     },
     "column": "Column",
     "revoke": "Revoke",
     "add": "Add privileges for a role",
     "add_column": "Add column privileges",
     "edit_title": "Privileges of {{grantee}} on {{name}}",
+    "of": "Privileges: {{name}}",
     "grantee": "Role:",
     "updated": "The privileges of {{grantee}} have been updated.",
     "database_specific": "Database-specific privileges",

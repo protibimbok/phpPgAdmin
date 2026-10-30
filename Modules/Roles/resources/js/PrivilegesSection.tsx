@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
+import Modal from '@/components/Modal'
 import { objectPrivileges, roleOptions, type PrivilegeKind } from './api'
 import { ObjectPrivilegesPanel } from './Pages/Privileges'
 
@@ -44,5 +45,27 @@ export function PrivilegesLink({ to }: { to: string }) {
     <Link className="privileges_anchor" to={`${to}${PRIVILEGES_HASH}`}>
       <Icon name="s_rights" /> {t('privileges.tab')}
     </Link>
+  )
+}
+
+/** A list row's "Privileges" action for an object with no editor page of its own: opens them in a dialog. */
+export function PrivilegesAction({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation('roles')
+
+  return (
+    <a className="ajax privileges_anchor" href={PRIVILEGES_HASH} onClick={(e) => { e.preventDefault(); onClick() }}>
+      <Icon name="s_rights" /> {t('privileges.tab')}
+    </a>
+  )
+}
+
+/** The privileges of an object that has no page of its own, in a dialog over its list. */
+export function PrivilegesModal({ db, target, onClose }: { db: string; target: { kind: PrivilegeKind; oid: number; name: string } | null; onClose: () => void }) {
+  const { t } = useTranslation('roles')
+
+  return (
+    <Modal show={target !== null} title={target ? t('privileges.of', { name: target.name }) : ''} size="xl" onClose={onClose} id="privilegesModal">
+      {target && <PrivilegesSection key={`${target.kind}:${target.oid}`} db={db} kind={target.kind} oid={target.oid} />}
+    </Modal>
   )
 }
