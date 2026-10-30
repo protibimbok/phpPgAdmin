@@ -103,7 +103,8 @@
     "title": "عمليات على نتائج الاستعلام",
     "export": "تصدير",
     "display_chart": "عرض رسم بياني",
-    "create_view": "إنشاء عرض"
+    "create_view": "إنشاء عرض",
+    "visualize_gis": "عرض بيانات GIS"
   },
   "insert_tab": "إدراج",
   "change": {
@@ -417,5 +418,23 @@
     "rolled_back": "تم التراجع عن المعاملة.",
     "commit_rolled_back": "كانت المعاملة قد فشلت، فتراجع عنها COMMIT.",
     "ended": "انتهت جلسة أداة الاستعلام؛ وتم التراجع عن أي معاملة تُركت مفتوحة فيها."
+  },
+  "gis": {
+    "title": "عرض تصوّر GIS",
+    "label_column": "عمود التسمية",
+    "spatial_column": "العمود المكاني",
+    "none": "-- لا شيء --",
+    "use_osm": "استخدام OpenStreetMaps طبقةً أساسية",
+    "save": "حفظ",
+    "save_failed": "تعذّر حفظ التصوّر صورةً.",
+    "no_rows": "لا تُرجع التعليمة صفوفًا للرسم.",
+    "no_spatial": "لا تُرجع التعليمة عمودًا مكانيًا: point أو lseg أو box أو path أو polygon أو circle أو geometry أو geography من PostGIS.",
+    "unreadable_zero": "لم تُقرأ أي قيمة.",
+    "unreadable_one": "تعذّرت قراءة قيمة واحدة فلم تُرسم.",
+    "unreadable_two": "تعذّرت قراءة قيمتين فلم تُرسما.",
+    "unreadable_few": "تعذّرت قراءة {{count}} قيم فلم تُرسم.",
+    "unreadable_many": "تعذّرت قراءة {{count}} قيمة فلم تُرسم.",
+    "unreadable_other": "تعذّرت قراءة {{count}} قيمة فلم تُرسم.",
+    "missing": "شغّل استعلامًا في صفحة SQL واستخدم «عرض بيانات GIS» أسفل نتائجه لرسم قيمه المكانية."
   }
 }

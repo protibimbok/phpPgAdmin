@@ -33,6 +33,7 @@ These options are not in the forms; use the SQL tab for them:
 - **Import:** restricted mode rejects backslash commands, so a `pg_dumpall` file (which uses `\connect`) cannot be imported. COPY text, binary and XML imports are only available for a single table; CSV at database or schema level creates a new table. ODS and the other phpMyAdmin formats are not offered ([Import](/tools/import#restricted-mode)).
 - **Debugger:** in-context debugging stops only the first call of the routine after Set breakpoint, and cannot be limited to one session's PID ([Debugger](/tools/debugger#in-context-debugging-set-breakpoint)).
 - **Designer:** **Reload** does not add tables created after the layout was saved ([Designer](/database/designer)).
+- **GIS visualization:** no OpenStreetMap base layer and no PDF download; coordinates are drawn without a map projection ([Visualize GIS data](/tools/sql#visualize-gis-data)).
 - **Schema diff:** roles, tablespaces, the database's own settings and data are not compared ([Schema diff](/database/schema-diff#what-is-compared)). Another server must be one of the saved servers.
 
 ## Behaviour to know about

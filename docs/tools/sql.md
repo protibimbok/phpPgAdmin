@@ -158,9 +158,11 @@ grid as the Browse tab — the **Query results operations** card and the
 [**Bookmark this SQL query**](/tools/history-bookmarks#bookmark-a-query) card.
 
 **Query results operations** has **Print**, **Copy to clipboard** (the rows on this page as
-tab-separated text with a header line, `NULL` written out), **Export**, **Display chart** and
-**Create view**. **Export** opens the [Export page for the query's rows](/tools/export#query-results)
-(every row, not only this page). **Display chart** opens the [chart](#display-chart) of them.
+tab-separated text with a header line, `NULL` written out), **Export**, **Display chart**,
+**Visualize GIS data** (only when a column is spatial) and **Create view**. **Export** opens the
+[Export page for the query's rows](/tools/export#query-results) (every row, not only this page).
+**Display chart** opens the [chart](#display-chart) of them, **Visualize GIS data** the
+[drawing of their spatial values](#visualize-gis-data).
 
 ### Display chart
 
@@ -177,6 +179,28 @@ tab-separated text with a header line, `NULL` written out), **Export**, **Displa
 - **Save chart as image** downloads the chart as `chart.png`.
 
 Hovering a bar, point or slice shows its series, X value and value.
+
+### Visualize GIS data
+
+**Visualize GIS data** (`/db/<database>/gis-visualization`) is phpMyAdmin's **Display GIS
+Visualization** page, and pgAdmin's Geometry Viewer in its place. It draws the values of a spatial
+column of the statement's rows:
+
+- PostgreSQL's built-in geometric types: `point` (a small circle), `lseg` and `path` (lines; a closed
+  path is closed), `box` and `polygon` (filled), `circle` (filled, at its radius). `line`, which is
+  infinite, is not drawn.
+- PostGIS `geometry` and `geography`, read from the hex EWKB PostgreSQL outputs them as: points,
+  line strings, polygons with their holes, the multi types and geometry collections; Z and M values
+  are left out. Coordinates are drawn as they are (no map projection).
+
+**Label column** (the first non-spatial column to begin with, or **-- None --**) names each row's
+shapes when the pointer is on them; **Spatial column** picks the column drawn; **Start row** and
+**Number of rows** run the statement again for that slice, as on the chart page. Each row has its own
+colour. The wheel zooms around the pointer and dragging pans. **Save** downloads the drawing as **PNG**
+or **SVG**, named after the column. A value that cannot be read is skipped, and a warning counts them.
+
+**Use OpenStreetMaps as Base Layer** and **Save › PDF** are not built: the drawing is phpPgAdmin's own
+SVG, without a map library or tiles from the internet.
 
 ### How paging and ordering work
 

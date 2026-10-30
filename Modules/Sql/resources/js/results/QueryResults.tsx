@@ -7,6 +7,7 @@ import CreateViewModal from '@views/js/CreateViewModal'
 import type { QueryResponse, RowsResult } from '../api'
 import BookmarkForm from './BookmarkForm'
 import { explainJson } from '../explain/detect'
+import { isSpatialType } from '../gis/geometry'
 import ResultMessage from './ResultMessage'
 import ResultsGrid, { type GridNav, type ResultsGridProps } from './ResultsGrid'
 
@@ -80,6 +81,11 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
                     <a href="#chart" className="btn" onClick={(e) => { e.preventDefault(); navigate(db === undefined ? '/server/chart' : `${urls.database(db)}/chart`, { state: { sql: result.sql } }) }}>
                       <Icon name="b_chart" /> {t('operations.display_chart')}
                     </a>
+                    {result.columns.some((c) => isSpatialType(c.type_name)) && (
+                      <a href="#gis" className="btn" id="visualizeGis" onClick={(e) => { e.preventDefault(); navigate(db === undefined ? '/server/gis-visualization' : `${urls.database(db)}/gis-visualization`, { state: { sql: result.sql } }) }}>
+                        <Icon name="b_globe" /> {t('operations.visualize_gis')}
+                      </a>
+                    )}
                     <span>
                       <a href="#create-view" className="btn create_view ajax" onClick={(e) => { e.preventDefault(); setCreateView(result.sql) }}>
                         <Icon name="b_view_add" /> {t('operations.create_view')}

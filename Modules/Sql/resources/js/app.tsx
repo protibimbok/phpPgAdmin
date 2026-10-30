@@ -4,6 +4,7 @@ import Browse from './Pages/Browse'
 import Change from './Pages/Change'
 import FindReplace from './Pages/FindReplace'
 import Chart from './Pages/Chart'
+import GisVisualization from './Pages/GisVisualization'
 import Search from './Pages/Search'
 import SqlPage from './Pages/Sql'
 import ZoomSearch from './Pages/ZoomSearch'
@@ -34,6 +35,9 @@ registerModule({
     // A query's rows as a chart, from the results' "Display chart" link.
     { path: 'server/chart', element: <Chart /> },
     { path: 'db/:db/chart', element: <Chart /> },
+    // A query's spatial values drawn, from the results' "Visualize GIS data" link.
+    { path: 'server/gis-visualization', element: <GisVisualization /> },
+    { path: 'db/:db/gis-visualization', element: <GisVisualization /> },
     { path: 'db/:db/sql', element: <SqlPage /> },
     { path: 'db/:db/schema/:schema/sql', element: <SqlPage /> },
     ...KINDS.flatMap((kind) => [

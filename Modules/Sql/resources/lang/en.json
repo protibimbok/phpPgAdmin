@@ -91,7 +91,8 @@
     "title": "Query results operations",
     "export": "Export",
     "display_chart": "Display chart",
-    "create_view": "Create view"
+    "create_view": "Create view",
+    "visualize_gis": "Visualize GIS data"
   },
   "insert_tab": "Insert",
   "change": {
@@ -405,5 +406,19 @@
     "rolled_back": "The transaction has been rolled back.",
     "commit_rolled_back": "The transaction had failed, so COMMIT rolled it back.",
     "ended": "The query tool session has ended; a transaction left open in it was rolled back."
+  },
+  "gis": {
+    "title": "Display GIS Visualization",
+    "label_column": "Label column",
+    "spatial_column": "Spatial column",
+    "none": "-- None --",
+    "use_osm": "Use OpenStreetMaps as Base Layer",
+    "save": "Save",
+    "save_failed": "The visualization could not be saved as an image.",
+    "no_rows": "The statement returns no rows to draw.",
+    "no_spatial": "The statement returns no spatial column: point, lseg, box, path, polygon, circle, or PostGIS geometry or geography.",
+    "unreadable_one": "{{count}} value could not be read and is not drawn.",
+    "unreadable_other": "{{count}} values could not be read and are not drawn.",
+    "missing": "Run a query on the SQL page and use \"Visualize GIS data\" under its results to draw its spatial values."
   }
 }
