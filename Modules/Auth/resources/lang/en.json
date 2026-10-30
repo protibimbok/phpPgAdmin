@@ -56,6 +56,7 @@
     "name_too_long": "A server name has at most {{max}} characters.",
     "import_invalid": "The file is not a server list: it needs a \"Servers\" object, as pgAdmin exports it.",
     "import_entry": "Server \"{{key}}\" of the list cannot be imported: {{reason}}",
-    "import_not_object": "it is not an object."
+    "import_not_object": "it is not an object.",
+    "favorites_full": "Favorite List is full!"
   }
 }

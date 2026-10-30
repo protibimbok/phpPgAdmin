@@ -6,6 +6,7 @@ use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Modules\Auth\Http\Controllers\AccountController;
 use PhpPgAdmin\Modules\Auth\Http\Controllers\AuthController;
 use PhpPgAdmin\Modules\Auth\Http\Controllers\PreferenceController;
+use PhpPgAdmin\Modules\Auth\Http\Controllers\RecentFavoriteController;
 use PhpPgAdmin\Modules\Auth\Http\Controllers\ServerListController;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 
@@ -35,4 +36,12 @@ Route::middleware(Authenticate::class)->controller(PreferenceController::class)-
 Route::middleware(Authenticate::class)->controller(AccountController::class)->group(function (): void {
     Route::get('/account', 'show')->setName('account.show');
     Route::post('/account/password', 'password')->setName('account.password');
+});
+
+// The navigation panel's Recent and Favorites lists, the role's on this server.
+Route::middleware(Authenticate::class)->prefix('navigation/tables')->controller(RecentFavoriteController::class)->group(function (): void {
+    Route::get('', 'index')->setName('navigation.tables');
+    Route::post('/recent', 'recent')->setName('navigation.tables.recent');
+    Route::post('/favorite', 'addFavorite')->setName('navigation.tables.favorite');
+    Route::delete('/favorite', 'removeFavorite')->setName('navigation.tables.unfavorite');
 });

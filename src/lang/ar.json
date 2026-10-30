@@ -37,6 +37,16 @@
     "link": "ربط باللوحة الرئيسية",
     "unlink": "فصل عن اللوحة الرئيسية"
   },
+  "quick_warp": {
+    "recent": "الأخيرة",
+    "recent_title": "الجداول الأخيرة",
+    "favorites": "المفضلة",
+    "favorites_title": "الجداول المفضلة",
+    "no_recent": "لا توجد جداول أخيرة.",
+    "no_favorites": "لا توجد جداول مفضلة.",
+    "add_favorite": "إضافة إلى المفضلة",
+    "remove_favorite": "إزالة من المفضلة"
+  },
   "user_menu": {
     "open": "فتح قائمة الحساب"
   },

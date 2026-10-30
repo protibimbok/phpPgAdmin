@@ -290,3 +290,79 @@ $nav-width: var(--pga-nav-width, #{size('sidebar')});
     inset-inline-start: calc(#{$nav-width} + #{size('sidebar-resizer')});
   }
 }
+
+// The Recent and Favorites buttons above the tree, each opening its list on hover (pmahomme's
+// "Quick warp links").
+.pma_quick_warp {
+  position: relative;
+  margin-top: 5px;
+  margin-inline-start: 2px;
+
+  .drop_list {
+    float: inline-start;
+    margin-inline-start: 3px;
+    padding: 2px 0;
+
+    &:hover {
+      .drop_button {
+        background: color('surface');
+      }
+
+      ul {
+        display: block;
+      }
+    }
+
+    ul {
+      display: none;
+      position: absolute;
+      top: 100%;
+      inset-inline: 3px 0;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      overflow-y: auto;
+      list-style: none;
+      background: color('surface');
+      border: border-width('base') solid color('border-pill');
+      border-radius: 0.3em;
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+      box-shadow: 0 0 5px color('border-menu');
+      z-index: 802;
+    }
+
+    li {
+      padding: 0;
+      border-radius: 0;
+      white-space: nowrap;
+
+      .icon {
+        vertical-align: sub;
+      }
+
+      &:hover {
+        background: color('surface-pill');
+      }
+    }
+
+    a {
+      display: block;
+      padding: 0.2em 0.3em;
+
+      &.favorite_table_anchor {
+        clear: inline-start;
+        float: inline-start;
+        padding: 0.1em 0.3em 0;
+      }
+    }
+  }
+
+  .drop_button {
+    padding: 0.3em;
+    border: border-width('base') solid color('border-pill');
+    border-radius: 0.3em;
+    background: color('surface-pill');
+    cursor: pointer;
+  }
+}

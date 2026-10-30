@@ -23,12 +23,25 @@ export const FIRST_LEVEL_PAGE_SIZE = 'navigation.first_level_items'
 export const PAGE_SIZE = 'navigation.max_items'
 export const FILTER_MINIMUM = 'navigation.filter_minimum'
 
-registerPreferenceGroups([{ page: 'navigation', id: 'tree', label: 'settings:groups.navigation_tree', description: 'settings:groups.navigation_tree_help' }])
+/**
+ * The Recent and Favorites lists above the tree (NumRecentTables, NumFavoriteTables): how many
+ * tables each keeps, 0 to hide it, in phpMyAdmin's Navigation panel group. The server reads the
+ * same keys when it trims the lists.
+ */
+export const NUM_RECENT_TABLES = 'navigation.num_recent_tables'
+export const NUM_FAVORITE_TABLES = 'navigation.num_favorite_tables'
+
+registerPreferenceGroups([
+  { page: 'navigation', id: 'panel', label: 'settings:groups.navigation_panel', description: 'settings:groups.navigation_panel_help' },
+  { page: 'navigation', id: 'tree', label: 'settings:groups.navigation_tree', description: 'settings:groups.navigation_tree_help' },
+])
 registerPreferences([
   { key: FIRST_LEVEL_PAGE_SIZE, type: 'number', default: 100, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.first_level_items', description: 'settings:navigation.first_level_items_help' },
   { key: PAGE_SIZE, type: 'number', default: 50, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.max_items', description: 'settings:navigation.max_items_help' },
   { key: FILTER_MINIMUM, type: 'number', default: 30, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.filter_minimum', description: 'settings:navigation.filter_minimum_help' },
   { key: SHOW_SYSTEM, type: 'boolean', default: false, page: 'navigation', group: 'tree', label: 'settings:navigation.show_system', description: 'settings:navigation.show_system_help' },
+  { key: NUM_RECENT_TABLES, type: 'number', default: 10, min: 0, page: 'navigation', group: 'panel', label: 'settings:navigation.num_recent_tables', description: 'settings:navigation.num_recent_tables_help' },
+  { key: NUM_FAVORITE_TABLES, type: 'number', default: 10, min: 0, page: 'navigation', group: 'panel', label: 'settings:navigation.num_favorite_tables', description: 'settings:navigation.num_favorite_tables_help' },
 ])
 
 type Listener = () => void

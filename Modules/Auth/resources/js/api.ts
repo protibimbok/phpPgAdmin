@@ -115,3 +115,36 @@ export function exportServers(): Promise<ServerList> {
 export function importServers(list: unknown): Promise<{ added: number; updated: number }> {
   return request<{ added: number; updated: number }>('/api/auth/servers/import', { method: 'POST', body: JSON.stringify(list) })
 }
+
+/** A table in the navigation panel's Recent or Favorites list. */
+export interface QuickWarpTable {
+  database: string
+  schema: string
+  table: string
+  kind: 'table' | 'view' | 'mview'
+}
+
+/** The Recent and Favorites lists, newest first. */
+export interface QuickWarpLists {
+  recent: QuickWarpTable[]
+  favorite: QuickWarpTable[]
+}
+
+type TableName = Pick<QuickWarpTable, 'database' | 'schema' | 'table'>
+
+export function getQuickWarpLists(): Promise<QuickWarpLists> {
+  return request<QuickWarpLists>('/api/navigation/tables')
+}
+
+/** Record a table as opened: first in Recent, the list cut to its length. */
+export function recordRecentTable(table: TableName): Promise<QuickWarpLists> {
+  return request<QuickWarpLists>('/api/navigation/tables/recent', { method: 'POST', body: JSON.stringify(table) })
+}
+
+export function addFavoriteTable(table: TableName): Promise<QuickWarpLists> {
+  return request<QuickWarpLists>('/api/navigation/tables/favorite', { method: 'POST', body: JSON.stringify(table) })
+}
+
+export function removeFavoriteTable(table: TableName): Promise<QuickWarpLists> {
+  return request<QuickWarpLists>(`/api/navigation/tables/favorite?${new URLSearchParams(table)}`, { method: 'DELETE' })
+}

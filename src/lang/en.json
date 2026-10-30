@@ -37,6 +37,16 @@
     "link": "Link with main panel",
     "unlink": "Unlink from main panel"
   },
+  "quick_warp": {
+    "recent": "Recent",
+    "recent_title": "Recent tables",
+    "favorites": "Favorites",
+    "favorites_title": "Favorite tables",
+    "no_recent": "There are no recent tables.",
+    "no_favorites": "There are no favorite tables.",
+    "add_favorite": "Add to Favorites",
+    "remove_favorite": "Remove from Favorites"
+  },
   "user_menu": {
     "open": "Open user account menu"
   },

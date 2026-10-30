@@ -6,6 +6,7 @@ import { useLocale } from '@/i18n/useLocale'
 import logo from '@/img/logo-left.svg'
 import { useSession } from '@/session'
 import { NavigationTree } from './NavigationTree'
+import QuickWarp from './tree/QuickWarp'
 import TreeControls from './tree/TreeControls'
 
 const DEFAULT_WIDTH = 240
@@ -108,7 +109,10 @@ export default function Navigation() {
         </div>
 
         <div id="pma_navigation_tree" className="list_container">
-          {/* The tree's controls sit above it, on the end edge, as phpMyAdmin's state.twig puts them. */}
+          {/* The Recent and Favorites lists, then the tree's controls above it, on the end edge,
+              as phpMyAdmin's state.twig puts them. */}
+          <QuickWarp />
+          <div className="clearfloat" />
           <ul>
             <TreeControls />
           </ul>

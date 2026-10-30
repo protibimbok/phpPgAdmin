@@ -51,6 +51,8 @@
     "console_help": "How the console at the bottom of the page behaves.",
     "sql_queries": "SQL queries",
     "sql_queries_help": "SQL queries settings.",
+    "navigation_panel": "Navigation panel",
+    "navigation_panel_help": "Customize appearance of the navigation panel.",
     "navigation_tree": "Navigation tree",
     "navigation_tree_help": "Customize the navigation tree.",
     "browse": "Browse mode",
@@ -94,7 +96,11 @@
     "filter_minimum": "Minimum number of items to display the filter box",
     "filter_minimum_help": "Defines the minimum number of items (tables, views, routines and events) to display a filter box.",
     "show_system": "Show system objects",
-    "show_system_help": "List the system schemas (pg_catalog, information_schema), the template databases and the other built-in objects in the navigation tree and on the object lists."
+    "show_system_help": "List the system schemas (pg_catalog, information_schema), the template databases and the other built-in objects in the navigation tree and on the object lists.",
+    "num_recent_tables": "Recently used tables",
+    "num_recent_tables_help": "Maximum number of recently used tables; set 0 to disable.",
+    "num_favorite_tables": "Favorite tables",
+    "num_favorite_tables_help": "Maximum number of favorite tables; set 0 to disable."
   },
   "export": {
     "method": "Export method",

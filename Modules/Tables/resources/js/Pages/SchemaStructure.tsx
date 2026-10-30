@@ -7,7 +7,9 @@ import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import Modal from '@/components/Modal'
 import SqlView from '@/components/SqlView'
-import { treeState } from '@/layout/tree/treeState'
+import { isFavorite, toggleFavorite, useQuickWarp } from '@/layout/tree/recentFavorites'
+import { NUM_FAVORITE_TABLES, treeState } from '@/layout/tree/treeState'
+import { usePreference } from '@/preferences'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { notAvailable } from '@/unbuilt'
 import { formatSize } from '@/format'
@@ -55,6 +57,9 @@ export default function SchemaStructure() {
   const { t: tApp } = useTranslation()
   const { db = '', schema = '' } = useParams()
   const navigate = useNavigate()
+  // phpMyAdmin's favorite star column, shown while NumFavoriteTables is above 0.
+  const quickWarp = useQuickWarp()
+  const favorites = usePreference<number>(NUM_FAVORITE_TABLES) > 0
   const { data, error, reload } = useRequest(async () => {
     const scid = await resolveSchema(db, schema)
     const [tableRows, viewRows, mviewRows] = await Promise.all([tables(db, scid).list(), views(db, scid).list(), materializedViews(db, scid).list()])
@@ -245,7 +250,7 @@ export default function SchemaStructure() {
                 <input type="checkbox" className="checkall_box" checked={allChecked} onChange={(e) => setChecked(e.target.checked ? new Set(rows.map(keyOf)) : new Set())} aria-label={tApp('check_all')} />
               </th>
               <th>{t('columns.table')}</th>
-              <th colSpan={6} className="d-print-none">
+              <th colSpan={favorites ? 7 : 6} className="d-print-none">
                 {t('columns.action')}
               </th>
               <th>
@@ -272,6 +277,7 @@ export default function SchemaStructure() {
                     <Link to={`${href}/browse`}>{row.name}</Link>
                     {row.system && <span className="badge bg-secondary ms-2">{t('system')}</span>}
                   </th>
+                  {favorites && <FavoriteCell favorite={isFavorite(quickWarp, db, schema, row.name)} database={db} schema={schema} table={row.name} />}
                   <td className="text-center d-print-none">
                     <Link to={`${href}/browse`}>
                       <Icon name={mayHaveRows ? 'b_browse' : 'bd_browse'} title={t('actions.browse')} /> {t('actions.browse')}
@@ -332,7 +338,7 @@ export default function SchemaStructure() {
             <tr>
               <th className="d-print-none" />
               <th className="tbl_num text-nowrap">{t('total', { count: rows.length })}</th>
-              <th colSpan={6} className="d-print-none">
+              <th colSpan={favorites ? 7 : 6} className="d-print-none">
                 {t('sum')}
               </th>
               <th className="value tbl_rows font-monospace text-end">{sumRows.toLocaleString()}</th>
@@ -420,5 +426,32 @@ function CreateTableCard() {
         </div>
       </div>
     </form>
+  )
+}
+
+/**
+ * phpMyAdmin's favorite_anchor.twig: the star that adds the table to the navigation panel's
+ * Favorites, or removes it; a full list answers with phpMyAdmin's "Favorite List is full!".
+ */
+function FavoriteCell({ favorite, database, schema, table }: { favorite: boolean; database: string; schema: string; table: string }) {
+  const { t } = useTranslation()
+
+  return (
+    <td className="text-center d-print-none">
+      <a
+        className="ajax favorite_table_anchor"
+        href={favorite ? '#remove-favorite' : '#add-favorite'}
+        title={favorite ? t('quick_warp.remove_favorite') : t('quick_warp.add_favorite')}
+        onClick={(e) => {
+          e.preventDefault()
+          toggleFavorite({ database, schema, table }).catch((err: unknown) => notifyError(errorMessage(err)))
+        }}
+      >
+        <span className="text-nowrap">
+          <Icon name={favorite ? 'b_favorite' : 'b_no_favorite'} />
+          {' '}
+        </span>
+      </a>
+    </td>
   )
 }

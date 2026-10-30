@@ -51,6 +51,8 @@
     "console_help": "سلوك وحدة التحكم أسفل الصفحة.",
     "sql_queries": "استعلامات SQL",
     "sql_queries_help": "إعدادات استعلامات SQL.",
+    "navigation_panel": "لوحة التنقل",
+    "navigation_panel_help": "خصّص مظهر لوحة التنقل.",
     "navigation_tree": "شجرة التنقل",
     "navigation_tree_help": "خصّص شجرة التنقل.",
     "browse": "وضع الاستعراض",
@@ -94,7 +96,11 @@
     "filter_minimum": "أدنى عدد من العناصر لعرض مربع التصفية",
     "filter_minimum_help": "يحدد أدنى عدد من العناصر (جداول، عروض، إجراءات وأحداث) لعرض مربع التصفية.",
     "show_system": "إظهار كائنات النظام",
-    "show_system_help": "عرض مخططات النظام (pg_catalog وinformation_schema) وقواعد البيانات القالبية وباقي الكائنات المضمنة في شجرة التنقل وفي قوائم الكائنات."
+    "show_system_help": "عرض مخططات النظام (pg_catalog وinformation_schema) وقواعد البيانات القالبية وباقي الكائنات المضمنة في شجرة التنقل وفي قوائم الكائنات.",
+    "num_recent_tables": "الجداول المستخدمة مؤخرًا",
+    "num_recent_tables_help": "أقصى عدد للجداول المستخدمة مؤخرًا؛ اضبطه على 0 للتعطيل.",
+    "num_favorite_tables": "الجداول المفضلة",
+    "num_favorite_tables_help": "أقصى عدد للجداول المفضلة؛ اضبطه على 0 للتعطيل."
   },
   "export": {
     "method": "طريقة التصدير",

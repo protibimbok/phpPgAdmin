@@ -33,7 +33,7 @@ Each row is one relation. The list holds ordinary tables, partitioned tables, vi
 | --- | --- |
 | Checkbox | Selects the row for **With selected**. |
 | **Table** | The name; it links to the relation's **Browse** tab. A **System** badge marks a system table. |
-| **Action** | **Browse**, **Structure**, **Search**, **Insert**, **Empty**, **Drop** (see below). |
+| **Action** | The favorite star, then **Browse**, **Structure**, **Search**, **Insert**, **Empty**, **Drop** (see below). |
 | **Rows** | The planner's estimate, `~64`, from `pg_class.reltuples`. Click it for the exact `count(*)`. `?` means the table has never been analyzed or vacuumed. Views and materialized views show nothing. |
 | **Type** | **Table**, **Partitioned table**, **View** or **Materialized view**. |
 | **Size** | `pg_total_relation_size`: heap, indexes and TOAST together. A partitioned table shows `0 B`; its data lives in the partitions. |
@@ -57,6 +57,7 @@ The **Filters** card narrows the list to the names that contain what you type in
 
 | Action | What it does |
 | --- | --- |
+| Star | **Add to Favorites** (empty star) or **Remove from Favorites** (filled star): the navigation panel's [Favorites](/guide/interface#recent-and-favorites) list. Hidden when **Favorite tables** is 0 on [Settings › Navigation panel](/server/settings#navigation-panel). |
 | **Browse** | Opens the [Browse](/table/browse) tab. |
 | **Structure** | Opens the table's [Structure](/table/structure) tab (or the view's). |
 | **Search** | Opens the [Search](/table/search) tab. |

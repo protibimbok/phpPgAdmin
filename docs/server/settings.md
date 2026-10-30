@@ -17,7 +17,7 @@ The pills at the top of the tab are the pages, as in phpMyAdmin (which also has 
 | **Manage your settings** | `/server/settings` | Import, export and reset. |
 | **Features** | `/server/settings/features` | General (Confirm DROP queries), Console. |
 | **SQL queries** | `/server/settings/sql` | Query history length. |
-| **Navigation panel** | `/server/settings/navigation` | The navigation tree's page sizes and filter. |
+| **Navigation panel** | `/server/settings/navigation` | The Recent and Favorites lists' lengths, the navigation tree's page sizes and filter. |
 | **Main panel** | `/server/settings/main-panel` | Browse mode (rows per page). |
 | **Export** | `/server/settings/export` | Export defaults. |
 | **Import** | `/server/settings/import` | Import defaults. |
@@ -78,8 +78,12 @@ The limit is applied when the next statement is recorded: with the length set to
 
 ## Navigation panel
 
+The page has two tabs, as phpMyAdmin's has: **Navigation panel** and **Navigation tree**.
+
 | Setting | Default | Effect |
 |---|---|---|
+| **Recently used tables** | 10 | How many tables the panel's [Recent](/guide/interface#recent-and-favorites) list keeps, newest first; 0 hides the list and stops recording. Lowering it cuts the list at once. phpMyAdmin's `NumRecentTables`. |
+| **Favorite tables** | 10 | How many tables [Favorites](/guide/interface#recent-and-favorites) may hold; adding one more answers *Favorite List is full!*. 0 hides the list and the star column of the schema [Structure](/schema/structure) page. phpMyAdmin's `NumFavoriteTables`. |
 | **Maximum items on first level** | 100 | Databases per page in the tree. phpMyAdmin's `FirstLevelNavigationItems`. |
 | **Maximum items in branch** | 50 | Items per page in every other list of the tree (schemas, tables, functions…). phpMyAdmin's `MaxNavigationItems`. |
 | **Minimum number of items to display the filter box** | 30 | A list gets the **Type to filter these** box once it has this many items. It applies to the database list too, not only to tables, views and routines as the description says. phpMyAdmin's `NavigationTreeDisplayItemFilterMinimum`. |

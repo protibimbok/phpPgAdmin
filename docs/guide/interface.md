@@ -7,7 +7,7 @@ Every page of phpPgAdmin has the same frame as phpMyAdmin: the navigation panel 
 | # | Part | Described in |
 |---|---|---|
 | 1 | Navigation panel header | [Panel header](#panel-header) |
-| 2 | Tree controls | [Collapse all and Link with main panel](#collapse-all-and-link-with-main-panel) |
+| 2 | Recent and Favorites, tree controls | [Recent and Favorites](#recent-and-favorites), [Collapse all and Link with main panel](#collapse-all-and-link-with-main-panel) |
 | 3 | Navigation tree | [The navigation tree](#the-navigation-tree) |
 | 4 | Collapse arrow | [Resizing and collapsing the panel](#resizing-and-collapsing-the-panel) |
 | 5 | Breadcrumb | [Breadcrumb](#breadcrumb) |
@@ -28,6 +28,19 @@ Under the logo (which links to the server home page) are four icons:
 | **Log out** | Signs you out. See [Logging out](/guide/signing-in#logging-out). |
 | **phpPgAdmin documentation** | Opens this documentation in a new tab. |
 | **PostgreSQL documentation** | Opens postgresql.org/docs in a new tab. |
+
+### Recent and Favorites
+
+Above the tree are phpMyAdmin's two quick-access buttons. Point at one to open its list; click an entry to open that table (or view) on its Structure tab.
+
+| Button | Lists |
+|---|---|
+| **Recent** | The tables whose pages you opened last, newest first: opening any tab of a table, view or materialized view puts it at the top. Up to 10. |
+| **Favorites** | The tables you starred, newest first. The star in front of each entry removes it. Up to 10. |
+
+Star a table with the star icon in the **Action** column of a schema's [Structure](/schema/structure#the-table-list) page; click the filled star to remove it again. With the list full, starring one more answers *Favorite List is full!*.
+
+Entries are named `"database"."schema"."table"`. Both lists belong to your role on this server: they are stored by phpPgAdmin (not in the browser), so they are the same after a reload, in another browser and after signing in again. A table that was dropped or renamed stays in the lists until it drops off the end; its link then shows an error. The lengths are the **Recently used tables** and **Favorite tables** settings on [Settings › Navigation panel](/server/settings#navigation-panel); setting one to 0 hides its button.
 
 ### The navigation tree
 
