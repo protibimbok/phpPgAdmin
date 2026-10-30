@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
@@ -30,6 +30,13 @@ import {
 
 /** How many blank rows the Insert page offers: phpMyAdmin's InsertRows. */
 const INSERT_ROWS = 2
+
+/** The blank rows ?rows=N asks for ("Continue insertion with N rows"), phpMyAdmin's InsertRows otherwise. */
+function insertRowCount(param: string | null): number {
+  const n = Number(param)
+
+  return Number.isInteger(n) && n >= 1 ? Math.min(n, 100) : INSERT_ROWS
+}
 
 /** phpMyAdmin's TextareaRows / TextareaCols for a text column, CharTextareaRows / CharTextareaCols for a long character one. */
 const TEXTAREA_ROWS = 15
@@ -86,17 +93,20 @@ export default function Change() {
   }, [search])
   const copy = search.get('copy') === '1'
   const editing = keyList.length > 0 && !copy
+  // Read when the form loads; changing it on the page adds or drops rows in place, keeping what was typed.
+  const initialRows = insertRowCount(search.get('rows'))
 
   const { data, error } = useRequest(async () => {
     if (keyList.length === 0) {
       const info = await relationColumns(db, schema, table)
 
-      return { columns: info.columns, maxUpload: info.max_upload_bytes, rows: Array.from({ length: INSERT_ROWS }, (_, i) => emptyRow(info.columns, i > 0)) }
+      return { columns: info.columns, primaryKeys: info.primary_keys, maxUpload: info.max_upload_bytes, rows: Array.from({ length: initialRows }, (_, i) => emptyRow(info.columns, i > 0)) }
     }
     const loaded = await Promise.all(keyList.map((keys) => fetchRow(db, schema, table, keys)))
 
     return {
       columns: loaded[0].columns,
+      primaryKeys: loaded[0].primary_keys,
       maxUpload: loaded[0].max_upload_bytes,
       rows: loaded.map((r) => (copy ? copyOf(r.columns, r.row) : rowFrom(r.columns, r.row, keyOf(r.primary_keys, r.row)))),
     }
@@ -105,9 +115,13 @@ export default function Change() {
   const [rows, setRows] = useState<FormRow[]>([])
   const [submitType, setSubmitType] = useState<SubmitType>(editing ? 'save' : 'insert')
   const [afterInsert, setAfterInsert] = useState<AfterInsert>('back')
-  const [continueRows, setContinueRows] = useState(INSERT_ROWS)
+  const [continueRows, setContinueRows] = useState(initialRows)
   const [preview, setPreview] = useState<{ sql: string[] | null; error: string | null } | null>(null)
-  const [saving, setSaving] = useState(false)
+  /**
+   * A save on its way: Go, Enter in a field and the second Go do nothing until it is back, as
+   * phpMyAdmin's ajax.js lets one submit of a form run at a time (the buttons stay as they are).
+   */
+  const saving = useRef(false)
 
   useEffect(() => {
     if (data) setRows(data.rows)
@@ -149,8 +163,14 @@ export default function Change() {
 
   /** The changes the form stands for: an UPDATE per edited row, an INSERT per new one; an ignored row is skipped. */
   function changes(asInsert: boolean): RowChanges {
+    return collect(asInsert).changes
+  }
+
+  /** The changes, and which form rows the UPDATEs are for, in the order they are sent. */
+  function collect(asInsert: boolean): { changes: RowChanges; updatedRows: number[] } {
     const result: RowChanges = {}
-    for (const row of rows) {
+    const updatedRows: number[] = []
+    for (const [rowIndex, row] of rows.entries()) {
       if (row.ignore) continue
       const values: Record<string, CellValue> = {}
       for (const column of columns) {
@@ -162,13 +182,16 @@ export default function Change() {
         values[column.name] = cellValue(field, column)
       }
       if (!asInsert && row.keys !== null) {
-        if (Object.keys(values).length > 0) (result.updated ??= []).push({ keys: row.keys, values })
+        if (Object.keys(values).length > 0) {
+          ;(result.updated ??= []).push({ keys: row.keys, values })
+          updatedRows.push(rowIndex)
+        }
       } else {
         ;(result.added ??= []).push({ values })
       }
     }
 
-    return result
+    return { changes: result, updatedRows }
   }
 
   function showPreview(which: RowChanges) {
@@ -192,6 +215,7 @@ export default function Change() {
 
   async function submit(e?: FormEvent) {
     e?.preventDefault()
+    if (saving.current) return
     const invalid = firstInvalid()
     if (invalid) {
       document.getElementById(invalid)?.focus()
@@ -199,7 +223,8 @@ export default function Change() {
       return
     }
     const asInsert = submitType !== 'save'
-    const which = { ...changes(asInsert), ignore: submitType === 'insertignore' }
+    const collected = collect(asInsert)
+    const which = { ...collected.changes, ignore: submitType === 'insertignore' }
 
     if (submitType === 'showinsert') {
       showPreview({ ...changes(true), ignore: false })
@@ -212,19 +237,21 @@ export default function Change() {
       return
     }
 
-    setSaving(true)
+    saving.current = true
     try {
       const outcome = await saveRows(db, schema, table, which)
       const message = asInsert ? t('message.inserted', { count: outcome.added.length }) : t('message.affected', { count: outcome.updated.length })
       switch (afterInsert) {
         case 'new_insert':
           notifySuccess(message)
-          navigate(insertUrl, { state: { flash: { message, sql: outcome.sql } } })
+          // A fresh form, with as many rows as "Continue insertion" asks for.
+          if (!editing) setRows(Array.from({ length: continueRows }, (_, i) => emptyRow(columns, i > 0)))
+          navigate(`${insertUrl}?rows=${continueRows}`, { state: { flash: { message, sql: outcome.sql } } })
           break
         case 'same_insert':
           notifySuccess(message)
           if (asInsert) navigate(insertUrl)
-          else setRows((current) => current.map((row) => ({ ...row, fields: Object.fromEntries(Object.entries(row.fields).map(([k, f]) => [k, { ...f, touched: false }])) })))
+          else stayOnRows(collected.updatedRows, outcome.updated)
           break
         default:
           navigate((location.state as { from?: string } | null)?.from ?? browseUrl, { state: { flash: { message, sql: outcome.sql } } })
@@ -232,7 +259,29 @@ export default function Change() {
     } catch (err) {
       notifyError(errorMessage(err))
     } finally {
-      setSaving(false)
+      saving.current = false
+    }
+  }
+
+  /**
+   * "Edit next row" after an UPDATE: each row the form sent takes its key from what RETURNING
+   * gave back, so a changed primary key is the one the next save looks for. The page's ?keys
+   * follow, which loads the rows again as the server now has them, and a reload opens them.
+   */
+  function stayOnRows(updatedRows: number[], returned: Record<string, unknown>[]) {
+    // The server fails a save whose UPDATE matched no row, so each sent row has its row back.
+    const paired = returned.length === updatedRows.length
+    const next = rows.map((row, i) => {
+      const at = paired ? updatedRows.indexOf(i) : -1
+      const fields = Object.fromEntries(Object.entries(row.fields).map(([k, f]) => [k, { ...f, touched: false }]))
+      if (at < 0) return { ...row, fields }
+
+      return { ...row, fields, keys: Object.fromEntries(data!.primaryKeys.map((name) => [name, asText(returned[at][name])])) }
+    })
+    setRows(next)
+    if (paired && next.every((row) => row.keys !== null)) {
+      const keys = JSON.stringify(next.map((row) => row.keys))
+      if (keys !== search.get('keys')) navigate(`${location.pathname}?${new URLSearchParams({ keys })}`, { replace: true, state: location.state })
     }
   }
 
@@ -379,7 +428,7 @@ export default function Change() {
                   <td colSpan={3} className="text-end align-middle pb-2">
                     <input type="button" className="btn btn-secondary preview_sql control_at_footer" value={tApp('preview_sql')} onClick={() => showPreview({ ...changes(submitType !== 'save'), ignore: submitType === 'insertignore' })} />
                     <input type="reset" className="btn btn-secondary control_at_footer" value={t('change.reset')} onClick={reset} />
-                    <input type="submit" className="btn btn-primary control_at_footer" value={tApp('go')} id="buttonYes" disabled={saving} />
+                    <input type="submit" className="btn btn-primary control_at_footer" value={tApp('go')} id="buttonYes" />
                   </td>
                 </tr>
               </tbody>
@@ -393,7 +442,7 @@ export default function Change() {
         name="continueForm"
         onSubmit={(e) => {
           e.preventDefault()
-          navigate(`${insertUrl}?rows=${continueRows}`)
+          navigate(`${insertUrl}?rows=${continueRows}`, { replace: true })
           setRows((current) => [...current, ...Array.from({ length: Math.max(0, continueRows - current.length) }, () => emptyRow(columns, true))].slice(0, Math.max(continueRows, 1)))
         }}
       >
@@ -478,7 +527,10 @@ function ValueControl({ db, column, field, id, name, maxUpload, onChange }: Valu
 
               return
             }
-            void fileAsBytea(file).then((hex) => onChange({ value: hex, isNull: false }))
+            fileAsBytea(file).then(
+              (hex) => onChange({ value: hex, isNull: false }),
+              (err: unknown) => notifyError(errorMessage(err)),
+            )
           }}
         />{' '}
         {maxUpload !== undefined && t('fields.max_upload', { size: formatBytes(maxUpload) })}
@@ -624,6 +676,14 @@ function copyOf(columns: RelationColumn[], row: Record<string, string | null>): 
       }),
     ),
   }
+}
+
+/** A value the server sent typed (a number, a boolean, JSON) as the text a key is sent in. */
+function asText(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'string') return value
+
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
 
 function keyOf(primaryKeys: string[], row: Record<string, string | null>): RowKeys {

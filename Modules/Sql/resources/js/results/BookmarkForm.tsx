@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '@/api/request'
 import Icon from '@/components/Icon'
@@ -19,16 +19,21 @@ export default function BookmarkForm({ database, sql }: BookmarkFormProps) {
   const { t } = useTranslation('sql')
   const [label, setLabel] = useState('')
   const [shared, setShared] = useState(false)
+  // One save at a time: a second click or Enter while it is on its way would add the bookmark twice.
+  const saving = useRef(false)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (label.trim() === '') return
+    if (saving.current || label.trim() === '') return
+    saving.current = true
     try {
       await createBookmark({ database, label: label.trim(), sql, shared })
       notifySuccess(t('bookmark.created'))
       setLabel('')
     } catch (err) {
       notifyError(errorMessage(err))
+    } finally {
+      saving.current = false
     }
   }
 

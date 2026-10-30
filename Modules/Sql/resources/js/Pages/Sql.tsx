@@ -171,7 +171,9 @@ function SqlPageAt() {
 
   function submit(e?: FormEvent) {
     e?.preventDefault()
-    if (query.trim() === '') return
+    // One run at a time from the box: Go, Enter on it or Ctrl+Enter while a batch runs does
+    // nothing, as phpMyAdmin's ajax.js holds a second submit of the form back.
+    if (runner.busy() || query.trim() === '') return
     // phpMyAdmin's "Confirm DROP queries": a destructive statement waits for the user's OK.
     if (preference<boolean>(CONFIRM) && isDestructive(query)) return setConfirming(query)
     go()
@@ -179,6 +181,7 @@ function SqlPageAt() {
 
   /** The Go of the query box, once confirmed: the bookmark the box names, then the query. */
   function go() {
+    if (runner.busy()) return
     if (bookmarkLabel.trim() !== '' && db !== null) {
       createBookmark({ database: db, label: bookmarkLabel.trim(), sql: query, shared: bookmarkShared, replace: bookmarkReplace }).then(
         () => {
@@ -210,7 +213,7 @@ function SqlPageAt() {
       return
     }
     setQuery(bookmark.sql)
-    if (bookmarkAction === '0') execute(bookmark.sql)
+    if (bookmarkAction === '0' && !runner.busy()) execute(bookmark.sql)
   }
 
   function formatQuery() {

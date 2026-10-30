@@ -5,6 +5,8 @@ export interface QueryRunner {
   response: QueryResponse | null
   error: Error | null
   running: boolean
+  /** Whether a run is on its way, right now: unlike running, it is set before the next render. */
+  busy: () => boolean
   /** The request as it was last run, to run it again with another page or order. */
   last: QueryRequest | null
   run: (request: QueryRequest) => Promise<QueryResponse | null>
@@ -29,11 +31,13 @@ export function useQueryRunner(db: string | null): QueryRunner {
   const [running, setRunning] = useState(false)
   const [last, setLast] = useState<QueryRequest | null>(null)
   const current = useRef<string | null>(null)
+  const inFlight = useRef(false)
 
   const run = useCallback(
     async (request: QueryRequest) => {
       const id = requestId()
       current.current = id
+      inFlight.current = true
       setRunning(true)
       setError(null)
       setLast(request)
@@ -51,7 +55,10 @@ export function useQueryRunner(db: string | null): QueryRunner {
 
         return null
       } finally {
-        if (current.current === id) setRunning(false)
+        if (current.current === id) {
+          inFlight.current = false
+          setRunning(false)
+        }
       }
     },
     [db],
@@ -63,10 +70,13 @@ export function useQueryRunner(db: string | null): QueryRunner {
 
   const clear = useCallback(() => {
     current.current = null
+    inFlight.current = false
     setResponse(null)
     setError(null)
     setRunning(false)
   }, [])
 
-  return { response, error, running, last, run, cancel, clear }
+  const busy = useCallback(() => inFlight.current, [])
+
+  return { response, error, running, busy, last, run, cancel, clear }
 }

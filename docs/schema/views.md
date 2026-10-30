@@ -252,10 +252,9 @@ created on the [Routines](/schema/routines) tab with type **TRIGGER FUNCTION**.
 
 A materialized view has no Triggers tab: PostgreSQL allows neither triggers nor rules on one.
 
-::: warning Insert on a materialized view
-The **Insert** tab is offered for a materialized view, but PostgreSQL refuses to change one
-(*cannot change materialized view "…"*). Data only changes on refresh.
-:::
+Views and materialized views have no **Insert** tab, as in phpMyAdmin; an `INSERT` through an
+updatable view runs from the SQL tab. A materialized view cannot be changed at all (*cannot change
+materialized view "…"*): its data only changes on refresh.
 
 ## Other tabs
 

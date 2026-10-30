@@ -23,7 +23,7 @@ registerModule({
     next = insertAfter(next, { label: 'tables:tab', level: 'schema' }, { label: 'sql:tab', icon: 'b_sql', path: '/db/:db/schema/:schema/sql', level: 'schema' })
     next = insertAfter(next, { label: 'tables:structure.tab', level: 'table' }, { label: 'sql:tab', icon: 'b_sql', path: `${table}/sql`, level: 'table' })
     next = insertAfter(next, { label: 'sql:tab', level: 'table' }, { label: 'sql:search_tab', icon: 'b_search', path: `${table}/search`, level: 'table' })
-    next = insertAfter(next, { label: 'sql:search_tab', level: 'table' }, { label: 'sql:insert_tab', icon: 'b_insrow', path: `${table}/insert`, level: 'table' })
+    next = insertAfter(next, { label: 'sql:search_tab', level: 'table' }, { label: 'sql:insert_tab', icon: 'b_insrow', path: `${table}/insert`, level: 'table', kinds: ['table'] })
 
     return next
   },

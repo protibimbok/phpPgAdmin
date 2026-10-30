@@ -20,7 +20,8 @@ The rows are inserted in one transaction: if one fails, none is kept, and the se
 shown. On success you return to Browse with **2 rows inserted.** and the statements that ran.
 
 **Continue insertion with [2] rows** under the form changes the number of blank blocks; press
-<kbd>Enter</kbd> in the box. The page's URL gets `?rows=4`, but a reload goes back to two rows.
+<kbd>Enter</kbd> in the box. What you typed stays, and the page's URL gets `?rows=4`, so a reload,
+or a link with `?rows=N`, opens that many blocks (at most 100).
 
 ## The columns of the form
 
@@ -106,8 +107,11 @@ The second list, after **and then**, chooses where you go after a successful sav
 | Choice | Where you go |
 | --- | --- |
 | **Go back to previous page** | The Browse tab (or the page you came from), with the message and the statements. |
-| **Insert another new row** | A fresh insert form. |
-| **Go back to this page** | Edit form only: stays on the form with the saved values. |
+| **Insert another new row** | A fresh insert form, with as many blocks as **Continue insertion** asks for. |
+| **Go back to this page** | Edit form only: stays on the form with the saved values. A primary key you changed is followed (the URL's `?keys` too), so the next **Go** saves the same row again. |
+
+**Go** works once per click: while a save is on its way, another click or <kbd>Enter</kbd> in a field
+does nothing, as phpMyAdmin holds back a second submit of the form.
 
 **Preview SQL** shows the statements **Go** would run, values written as literals; **Reset** puts the
 form back as it was loaded.
@@ -150,6 +154,6 @@ Unique columns (an ISBN, an email) keep the copied value and need a new one, or 
 
 ## Views
 
-The Insert tab also appears on views. An insert into a simple, automatically updatable view (one
-table, no joins or aggregates) goes through to the table. A view like `book_catalogue`, which joins
-three tables, rejects it unless it has an `INSTEAD OF` trigger or rule.
+Views and materialized views have no Insert tab, as in phpMyAdmin. To add rows through a simple,
+automatically updatable view (one table, no joins or aggregates), or a view with an `INSTEAD OF`
+trigger or rule, run an `INSERT` on its [SQL](/tools/sql) tab.
