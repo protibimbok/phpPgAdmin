@@ -25,6 +25,9 @@ Route::middleware(Authenticate::class)->controller(StatisticsController::class)-
     Route::get('/server/status/queries', 'queries')->setName('status.queries');
     Route::post('/server/status/queries/reset', 'resetQueries')->setName('status.queries.reset');
     Route::get('/server/status/counters', 'counters')->setName('status.counters');
+    Route::post('/server/status/counters/reset', 'resetShared')->setName('status.counters.reset');
+    Route::get('/server/status/io', 'io')->setName('status.io');
+    Route::get('/server/status/progress', 'progress')->setName('status.progress');
 });
 
 Route::middleware(Authenticate::class)->controller(VariablesController::class)->group(function (): void {

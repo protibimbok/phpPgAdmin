@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Status\Http\Controllers;
 
+use League\Route\Http\Exception\BadRequestException;
 use League\Route\Http\Exception\NotFoundException;
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\ConnectionPool;
@@ -142,7 +143,90 @@ final class StatisticsController
             $groups[] = ['id' => 'checkpointer', 'view' => 'pg_stat_checkpointer', 'rows' => self::rows($conn->row('SELECT * FROM pg_catalog.pg_stat_checkpointer') ?? [])];
         }
 
+        $groups[] = ['id' => 'wal', 'view' => 'pg_stat_wal', 'rows' => self::rows($conn->row('SELECT * FROM pg_catalog.pg_stat_wal') ?? [])];
+
         return ['groups' => $groups];
+    }
+
+    /**
+     * pg_stat_io (PostgreSQL 16 and later), the rows with any activity, and the targets
+     * pg_stat_reset_shared() takes on this server.
+     *
+     * @return array{io: array{view: string, columns: list<string>, rows: list<list<string|null>>}|null, resettable: list<string>}
+     */
+    public function io(ServerRequestInterface $request): array
+    {
+        $conn = ConnectionPool::from($request)->maintenance();
+        $io = null;
+        if ($conn->version() >= 160000) {
+            $io = self::table('pg_stat_io', $conn->query('SELECT * FROM pg_catalog.pg_stat_io WHERE coalesce(reads, 0) + coalesce(writes, 0) + coalesce(extends, 0) + coalesce(hits, 0) + coalesce(evictions, 0) + coalesce(fsyncs, 0) > 0 ORDER BY backend_type, object, context'));
+        }
+
+        return ['io' => $io, 'resettable' => self::resettable($conn->version())];
+    }
+
+    /**
+     * pg_stat_reset_shared(target): one set of cluster-wide counters back to zero.
+     *
+     * @return array{ok: bool, sql: string}
+     */
+    public function resetShared(ServerRequestInterface $request): array
+    {
+        $conn = ConnectionPool::from($request)->maintenance();
+        $target = (string) (((array) ($request->getParsedBody() ?? []))['target'] ?? '');
+        if (!in_array($target, self::resettable($conn->version()), true)) {
+            throw new BadRequestException(sprintf('"%s" is not a target pg_stat_reset_shared() takes.', $target));
+        }
+        $sql = sprintf('SELECT pg_catalog.pg_stat_reset_shared(%s);', Quoting::literal($target));
+        $conn->query($sql);
+
+        return ['ok' => true, 'sql' => $sql];
+    }
+
+    /**
+     * The pg_stat_progress_* views that have rows: VACUUM, ANALYZE, CREATE INDEX, CLUSTER,
+     * COPY and base backups running now, with the database and the relation by name.
+     *
+     * @return array{views: list<array{view: string, columns: list<string>, rows: list<list<string|null>>}>}
+     */
+    public function progress(ServerRequestInterface $request): array
+    {
+        $conn = ConnectionPool::from($request)->maintenance();
+        $views = [];
+        foreach (['vacuum', 'analyze', 'create_index', 'cluster', 'copy', 'basebackup'] as $kind) {
+            $view = 'pg_stat_progress_' . $kind;
+            // relid only names a relation in its own database; the catalog of this one may not know it.
+            $result = $conn->query(sprintf('SELECT * FROM pg_catalog.%s ORDER BY pid', $view));
+            if ($result->rowCount() > 0) {
+                $views[] = self::table($view, $result);
+            }
+        }
+
+        return ['views' => $views];
+    }
+
+    /** @return list<string> */
+    private static function resettable(int $version): array
+    {
+        $targets = ['archiver', 'bgwriter', 'wal'];
+        if ($version >= 150000) {
+            $targets[] = 'recovery_prefetch';
+        }
+        if ($version >= 160000) {
+            $targets[] = 'io';
+        }
+        if ($version >= 170000) {
+            $targets[] = 'checkpointer';
+            $targets[] = 'slru';
+        }
+
+        return $targets;
+    }
+
+    /** @return array{view: string, columns: list<string>, rows: list<list<string|null>>} */
+    private static function table(string $view, \PhpPgAdmin\Core\Database\Result $result): array
+    {
+        return ['view' => $view, 'columns' => array_map(static fn ($column): string => $column->name, $result->columns()), 'rows' => $result->textRows()];
     }
 
     /**

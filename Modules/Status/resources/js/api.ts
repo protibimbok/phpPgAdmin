@@ -1,3 +1,4 @@
+import type { StatRows } from './StatTable'
 import { api } from '@/api/request'
 
 /** What phpMyAdmin's Status » Server page reports, from pg_stat_database and pg_stat_activity. */
@@ -291,9 +292,29 @@ export interface Counter {
 }
 
 export interface CounterGroup {
-  id: 'database' | 'bgwriter' | 'checkpointer'
+  id: 'database' | 'bgwriter' | 'checkpointer' | 'wal'
   view: string
   rows: Counter[]
+}
+
+/** pg_stat_io (PostgreSQL 16 and later; null before) and what pg_stat_reset_shared() may reset. */
+export interface IoStatistics {
+  io: StatRows | null
+  resettable: string[]
+}
+
+export function ioStatistics(): Promise<IoStatistics> {
+  return api.get<IoStatistics>('/api/server/status/io')
+}
+
+/** pg_stat_reset_shared(target); the statement run comes back. */
+export function resetSharedStatistics(target: string): Promise<string> {
+  return api.post<{ sql: string }>('/api/server/status/counters/reset', { target }).then((r) => r.sql)
+}
+
+/** The pg_stat_progress_* views with rows: the VACUUM, ANALYZE, CREATE INDEX, CLUSTER, COPY and base backups running now. */
+export function progress(): Promise<{ views: StatRows[] }> {
+  return api.get<{ views: StatRows[] }>('/api/server/status/progress')
 }
 
 export function counters(database?: string): Promise<{ groups: CounterGroup[] }> {

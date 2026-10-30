@@ -10,7 +10,8 @@ import { notify, notifyError, notifySuccess } from '@/notify'
 import { listDatabases } from '@databases/js/api'
 import { roleUrl } from '@roles/js/Pages/Roles'
 import HighlightedSql from '@sql/js/editor/HighlightedSql'
-import { activity, signalSession, type Session } from '../api'
+import { activity, progress, signalSession, type Session } from '../api'
+import StatTable from '../StatTable'
 import StatusNav, { AutoRefresh } from '../StatusNav'
 
 type Column = 'pid' | 'usename' | 'datname' | 'application_name' | 'client_addr' | 'backend_type' | 'state' | 'wait_event' | 'blocking_pids' | 'backend_start' | 'time' | 'query'
@@ -50,6 +51,7 @@ export default function Processes() {
   const [signal, setSignal] = useState<{ session: Session; action: 'cancel' | 'terminate' } | null>(null)
   const { data, error, reload } = useRequest(() => activity({ database: database || undefined, active: onlyActive }), [database, onlyActive])
   const { data: databases } = useRequest(() => listDatabases(), [])
+  const { data: running, reload: reloadProgress } = useRequest(() => progress(), [])
 
   const sessions = useMemo(() => {
     const rows = (data?.sessions ?? []).filter((session) => background || session.backend_type === 'client backend')
@@ -185,7 +187,10 @@ export default function Processes() {
         </table>
       </div>
 
-      <AutoRefresh reload={reload} />
+      {/* The pg_stat_progress_* views of the commands running now, refreshed with the list. */}
+      {running?.views.map((view) => <StatTable key={view.view} data={view} id={view.view} />)}
+
+      <AutoRefresh reload={() => { reload(); reloadProgress() }} />
 
       <ConfirmQuery
         show={signal !== null}

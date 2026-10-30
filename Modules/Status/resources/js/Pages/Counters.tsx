@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import { listDatabases } from '@databases/js/api'
-import { counters, type Counter, type CounterGroup } from '../api'
+import { errorMessage } from '@/api/request'
+import ConfirmQuery from '@/components/ConfirmQuery'
+import { notifyError, notifySuccess } from '@/notify'
+import { counters, ioStatistics, resetSharedStatistics, type Counter, type CounterGroup } from '../api'
+import StatTable from '../StatTable'
 import StatusNav from '../StatusNav'
 
 /** The documentation of each view, which the help icon of its rows opens. */
@@ -11,6 +15,7 @@ const DOCS: Record<CounterGroup['id'], string> = {
   database: 'https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-DATABASE-VIEW',
   bgwriter: 'https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-BGWRITER-VIEW',
   checkpointer: 'https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-CHECKPOINTER-VIEW',
+  wal: 'https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-WAL-VIEW',
 }
 
 type Values = Record<string, number>
@@ -71,6 +76,21 @@ export default function Counters() {
   const [unformatted, setUnformatted] = useState(false)
   const { data, error, reload } = useRequest(() => counters(database || undefined), [database])
   const { data: databases } = useRequest(() => listDatabases(), [])
+  const { data: io, reload: reloadIo } = useRequest(() => ioStatistics(), [])
+  const [resetting, setResetting] = useState<string | null>(null)
+
+  /** pg_stat_reset_shared(): one shared counter set back to zero. */
+  function reset(target: string) {
+    setResetting(null)
+    resetSharedStatistics(target).then(
+      () => {
+        notifySuccess(t('counters.reset_done', { target }))
+        reload()
+        reloadIo()
+      },
+      (e: unknown) => notifyError(errorMessage(e)),
+    )
+  }
 
   const rows = useMemo<Row[]>(
     () =>
@@ -191,6 +211,23 @@ export default function Counters() {
           </tbody>
         </table>
       </div>
+
+      {io?.io && <StatTable data={io.io} id="pg_stat_io" />}
+
+      {io && io.resettable.length > 0 && (
+        <p className="d-print-none" id="reset_shared">
+          {t('counters.reset')}{' '}
+          {io.resettable.map((target, i) => (
+            <span key={target}>
+              {i > 0 && ' | '}
+              <a href={`#reset-${target}`} onClick={(e) => { e.preventDefault(); setResetting(target) }}>
+                {target}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+      <ConfirmQuery show={resetting !== null} sql={`SELECT pg_stat_reset_shared('${resetting ?? ''}');`} onClose={() => setResetting(null)} onConfirm={() => resetting && reset(resetting)} />
     </div>
   )
 }

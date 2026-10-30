@@ -142,7 +142,8 @@
     "categories": {
       "database": "قواعد البيانات",
       "bgwriter": "كاتب الخلفية",
-      "checkpointer": "نقاط التحقق"
+      "checkpointer": "نقاط التحقق",
+      "wal": "سجل WAL"
     },
     "descriptions": {
       "database": {
@@ -201,7 +202,9 @@
         "slru_written": "عدد مخازن SLRU المكتوبة أثناء نقاط التحقق وإعادة التشغيل.",
         "stats_reset": "وقت آخر إعادة تعيين لإحصائيات نقاط التحقق."
       }
-    }
+    },
+    "reset": "إعادة تعيين العدادات المشتركة (pg_stat_reset_shared):",
+    "reset_done": "تمت إعادة تعيين عدادات {{target}}."
   },
   "jobs": {
     "all_types": "(كل الأنواع)",
@@ -355,5 +358,8 @@
       "severity": "الخطورة",
       "message": "الرسالة"
     }
+  },
+  "stats": {
+    "none": "لا توجد صفوف."
   }
 }

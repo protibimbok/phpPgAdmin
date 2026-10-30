@@ -134,7 +134,8 @@
     "categories": {
       "database": "Databases",
       "bgwriter": "Background writer",
-      "checkpointer": "Checkpointer"
+      "checkpointer": "Checkpointer",
+      "wal": "WAL"
     },
     "descriptions": {
       "database": {
@@ -193,7 +194,9 @@
         "slru_written": "Number of SLRU buffers written during checkpoints and restartpoints.",
         "stats_reset": "Time at which the checkpointer's statistics were last reset."
       }
-    }
+    },
+    "reset": "Reset shared counters (pg_stat_reset_shared):",
+    "reset_done": "The {{target}} counters have been reset."
   },
   "jobs": {
     "all_types": "(every type)",
@@ -343,5 +346,8 @@
       "severity": "Severity",
       "message": "Message"
     }
+  },
+  "stats": {
+    "none": "No rows."
   }
 }

@@ -91,6 +91,14 @@ are a member of, or every non-superuser session when they are members of
 *Process N could not be signalled: it may have ended already.*
 :::
 
+### Commands in progress
+
+Under the list, a card for each `pg_stat_progress_*` view that has rows shows the commands running
+now with their phase and counters, one column per view column: `VACUUM` (`pg_stat_progress_vacuum`),
+`ANALYZE`, `CREATE INDEX` and `REINDEX` (`pg_stat_progress_create_index`), `CLUSTER` and
+`VACUUM FULL`, `COPY` and base backups. `relid` is the table's OID in that database. The cards
+reload with the list, also under auto refresh.
+
 ### Auto refresh
 
 Under the list are phpMyAdmin's note about traffic, the **Refresh rate** select (2 seconds up to 20
@@ -146,7 +154,16 @@ cumulative statistics, one row per counter with its **Variable**, **Value** and 
   (PostgreSQL 18), and when the counters were reset;
 - `pg_stat_bgwriter`, the background writer's counters (before PostgreSQL 17 it holds the checkpoint
   counters too);
-- `pg_stat_checkpointer`, from PostgreSQL 17, the checkpoints and restartpoints.
+- `pg_stat_checkpointer`, from PostgreSQL 17, the checkpoints and restartpoints;
+- `pg_stat_wal`, the WAL records, full page images and bytes generated, and how often the WAL
+  buffers were full.
+
+Under the counters, from PostgreSQL 16, the `pg_stat_io` card lists the I/O of each backend type,
+object and context with any activity (reads, writes, extends, hits, evictions, fsyncs and their
+times). **Reset shared counters (pg_stat_reset_shared):** then names the sets that can be reset on
+this server (`archiver`, `bgwriter`, `wal`; `recovery_prefetch` from 15; `io` from 16;
+`checkpointer` and `slru` from 17); each asks for confirmation and runs
+`SELECT pg_stat_reset_shared('…')`, which takes a superuser or an explicit grant.
 
 The **Filters** card, as phpMyAdmin's:
 
@@ -154,7 +171,7 @@ The **Filters** card, as phpMyAdmin's:
 |---|---|
 | **Containing the word:** | Keeps the counters whose name contains the text (a space matches `_`). |
 | **Show only alert values** | Keeps the counters shown in red. |
-| **Filter by category…** | One view: Databases, Background writer or Checkpointer. |
+| **Filter by category…** | One view: Databases, Background writer, Checkpointer or WAL. |
 | database select | `pg_stat_database` of that database instead of the sum. |
 | **Show unformatted values** | Shows the raw numbers. Formatted, numbers of 1000 and more are shortened (`1.5 M`), with the exact number on hover. |
 | **Refresh** | Reads the counters again. |
