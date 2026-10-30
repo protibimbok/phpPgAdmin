@@ -24,6 +24,9 @@ final class QueryRunner
     /** The alias of the paging wrapper; a name no real column is likely to carry. */
     private const string WRAPPER = '_pga';
 
+    /** What the paging wrapper puts before the statement. */
+    private const string WRAPPER_PREFIX = "SELECT * FROM (\n";
+
     /** What a WITH holding an INSERT, UPDATE, DELETE or MERGE says when it is put in a subquery. */
     private const string FEATURE_NOT_SUPPORTED = '0A000';
 
@@ -131,6 +134,9 @@ final class QueryRunner
         $startedAt = gmdate('Y-m-d\TH:i:s\Z');
         $started = hrtime(true);
         $sliced = false;
+        // Whether the statement that failed was the paging wrapper, whose error position counts
+        // the wrapper's own prefix.
+        $inWrapper = false;
 
         try {
             if (!$wrapped) {
@@ -147,6 +153,7 @@ final class QueryRunner
                         $this->conn->exec('ROLLBACK TO SAVEPOINT ' . self::WRAPPER);
                     }
                     if (!self::cannotWrap($e, $order !== '')) {
+                        $inWrapper = true;
                         throw $e;
                     }
                     // The statement cannot be a subquery after all: run it as written and page in memory.
@@ -167,12 +174,25 @@ final class QueryRunner
             $duration = (hrtime(true) - $started) / 1e6;
             $this->history?->record($this->conn->database(), $statement->sql, 'error', null, $duration, $e->getMessage(), $startedAt);
 
+            $error = $e->toArray();
+            if (isset($error['position']) && $inWrapper) {
+                $inside = $error['position'] - mb_strlen(self::WRAPPER_PREFIX);
+                if ($inside >= 1 && $inside <= mb_strlen($statement->sql) + 1) {
+                    $error['position'] = $inside;
+                } else {
+                    unset($error['position']);
+                }
+            }
+
             return [
                 'sql' => $statement->sql,
                 'line' => $statement->line,
+                // Where the statement starts in the batch, in UTF-16 code units as the editor
+                // counts, so the client can mark the error position in what was typed.
+                'start' => self::utf16Length(substr($this->options['sql'], 0, $statement->offset)),
                 'kind' => 'error',
                 'duration_ms' => $duration,
-                'error' => $e->toArray(),
+                'error' => $error,
                 'notices' => [],
                 'source' => null,
             ];
@@ -254,7 +274,7 @@ final class QueryRunner
 
     private function wrap(string $sql, string $order, ?int $limit, int $offset): string
     {
-        $wrapped = sprintf("SELECT * FROM (\n%s\n) %s", $sql, self::WRAPPER);
+        $wrapped = sprintf("%s%s\n) %s", self::WRAPPER_PREFIX, $sql, self::WRAPPER);
         if ($order !== '') {
             $wrapped .= ' ORDER BY ' . $order;
         }
@@ -323,6 +343,16 @@ final class QueryRunner
         }
 
         return $rows;
+    }
+
+    /** The length of UTF-8 text in UTF-16 code units, which is how JavaScript counts a string. */
+    private static function utf16Length(string $text): int
+    {
+        if ($text === '' || !mb_check_encoding($text, 'UTF-8')) {
+            return strlen($text);
+        }
+
+        return intdiv(strlen(mb_convert_encoding($text, 'UTF-16LE', 'UTF-8')), 2);
     }
 
     private function safeExec(string $sql): void

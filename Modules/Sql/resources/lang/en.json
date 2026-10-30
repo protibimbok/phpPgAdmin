@@ -17,7 +17,10 @@
     "clear": "Clear",
     "format": "Format",
     "auto_saved": "Get auto-saved query",
-    "bind_parameters": "Bind parameters"
+    "bind_parameters": "Bind parameters",
+    "run_statement": "Execute query",
+    "run_statement_title": "Run the statement at the cursor, or the selected text (Alt+F5)",
+    "go_title": "Run the selected text, or the whole box when nothing is selected (Ctrl+Enter, F5)"
   },
   "options": {
     "delimiter": "Delimiter",

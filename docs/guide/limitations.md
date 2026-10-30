@@ -35,10 +35,6 @@ These options are not in the forms; use the SQL tab for them:
 - **Designer:** **Reload** does not add tables created after the layout was saved ([Designer](/database/designer)).
 - **Schema diff:** both schemas must be on the server you are signed in to. Database-level objects, roles, tablespaces and data are not compared ([Schema diff](/database/schema-diff#what-is-compared)).
 
-### SQL editor and results
-
-- The error position is not marked in the editor ([SQL editor](/tools/sql#errors)).
-
 ## Behaviour to know about
 
 ### Each run is a new session

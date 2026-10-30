@@ -232,6 +232,11 @@ code.sql {
     padding: 0 3px 0 5px;
     min-width: 20px;
   }
+
+  // Where the server says the error is, as pgAdmin's query tool marks it.
+  .cm-error-mark {
+    border-bottom: 2px dotted red;
+  }
 }
 
 select#fieldsSelect {

@@ -88,6 +88,8 @@ export interface CommandResult extends StatementBase {
 export interface ErrorResult extends StatementBase {
   kind: 'error'
   error: QueryError
+  /** Where the statement starts in the batch that was sent, in UTF-16 code units. */
+  start: number
 }
 
 export type StatementResult = RowsResult | CommandResult | ErrorResult

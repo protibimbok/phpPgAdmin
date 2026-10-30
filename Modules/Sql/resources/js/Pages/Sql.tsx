@@ -23,9 +23,22 @@ import { useGridActions } from '../results/useGridActions'
 import { qualifiedName, quoteIdent, quoteLiteral } from '../sql'
 import { CONFIRM, isDestructive } from '../preferences'
 import { useQueryRunner } from '../useQueryRunner'
+import type { QueryResponse } from '../api'
+import { codePointOffset, statementAt } from '../editor/statements'
 
 /** Where phpMyAdmin keeps the query it saves as you type, for "Get auto-saved query". */
 const AUTO_SAVE_KEY = 'autoSavedSql'
+
+/**
+ * What a Go runs out of the query box: the selected text when there is a selection (pgAdmin's
+ * "Execute script" runs only what is selected), the statement at the cursor for "Execute
+ * query", else all of it. "from" is where the text starts in the box, to mark an error there.
+ */
+interface BoxPart {
+  sql: string
+  from: number
+  whole: boolean
+}
 
 /** phpMyAdmin's TextareaRows: how tall the column list is. */
 const TEXTAREA_ROWS = 15
@@ -75,7 +88,8 @@ function SqlPageAt() {
   const [query, setQuery] = useState(() => search.get('sql') ?? defaultQuery(level))
   const [ran, setRan] = useState<string | null>(null)
   const [nav, setNav] = useState<GridNav>({ pos: 0, maxRows: defaultMaxRows(), order: [] })
-  const [confirming, setConfirming] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState<BoxPart | null>(null)
+  const [errorMark, setErrorMark] = useState<{ from: number; to: number } | null>(null)
   const [delimiter, setDelimiter] = useState(';')
   const [showAgain, setShowAgain] = useState(false)
   const [retain, setRetain] = useState(false)
@@ -92,6 +106,8 @@ function SqlPageAt() {
   const [bookmarkVariables, setBookmarkVariables] = useState<string[]>([])
   const [manageMacros, setManageMacros] = useState(false)
   const runner = useQueryRunner(db)
+  const queryRef = useRef(query)
+  queryRef.current = query
   const { data: macroData, reload: reloadMacros } = useRequest(() => listMacros(), [])
   const macros = macroData?.macros ?? []
   const { data: bookmarks, reload: reloadBookmarks } = useRequest(() => (db === null ? Promise.resolve([] as Bookmark[]) : listBookmarks(db)), [db])
@@ -143,19 +159,63 @@ function SqlPageAt() {
   }, [runner.running, tApp])
 
   /** Run a statement and show its results, leaving the query box as it is. */
-  function run(sql: string, next: GridNav = { pos: 0, maxRows: nav.maxRows, order: [] }) {
+  function run(sql: string, next: GridNav = { pos: 0, maxRows: nav.maxRows, order: [] }): Promise<QueryResponse | null> {
     const text = bind ? bindParameters(sql, parameters) : sql
     setRan(text)
     setNav(next)
-    void runner.run({ sql: text, delimiter, limit: next.maxRows, offset: next.pos, order: next.order, rollback, transaction })
+
+    return runner.run({ sql: text, delimiter, limit: next.maxRows, offset: next.pos, order: next.order, rollback, transaction })
   }
 
-  /** Run the box's query the way phpMyAdmin's Go does: the box is cleared and folded unless the options keep it. */
-  function execute(sql: string, next?: GridNav) {
-    run(sql, next)
-    if (!showAgain) setQuery('')
-    if (!retain) setBoxShown(false)
+  /**
+   * Run the box's query the way phpMyAdmin's Go does: once it succeeded the box is cleared and
+   * folded unless the options keep it; a part of the box (a selection, the statement at the
+   * cursor) leaves the box as it is. When a statement fails the box stays open with the text the
+   * error position points at underlined, as pgAdmin marks it.
+   */
+  function executePart(part: BoxPart, next?: GridNav) {
+    setErrorMark(null)
+    editor.current?.clearError()
+    const sent = bind ? bindParameters(part.sql, parameters) : part.sql
+    void run(part.sql, next).then((response) => {
+      if (!response) return
+      const failed = response.results.find((r) => r.kind === 'error')
+      if (!failed) {
+        if (part.whole) {
+          if (!showAgain) setQuery('')
+          if (!retain) setBoxShown(false)
+        }
+
+        return
+      }
+      setBoxShown(true)
+      // The position counts in the text the server got, which is the box's only when no
+      // parameter was bound into it and the box still holds it.
+      const position = failed.kind === 'error' ? failed.error.position : undefined
+      if (position === undefined || failed.kind !== 'error' || sent !== part.sql || queryRef.current.slice(part.from, part.from + part.sql.length) !== part.sql) return
+      const from = part.from + failed.start + codePointOffset(failed.sql, position - 1)
+      const box = queryRef.current
+      const lineEnd = box.indexOf('\n', from) === -1 ? box.length : box.indexOf('\n', from)
+      const space = box.slice(from, lineEnd).search(/\s/)
+      let to = space === -1 ? lineEnd : from + space
+      let start = from
+      // "at end of input": the position is past the text, so the last character is marked.
+      if (to <= start) {
+        start = Math.max(0, Math.min(from, box.length) - 1)
+        to = start + 1
+      }
+      setErrorMark({ from: start, to })
+    })
   }
+
+  function execute(sql: string, next?: GridNav) {
+    executePart({ sql, from: 0, whole: true }, next)
+  }
+
+  // The mark waits for the box to be shown again when it was folded.
+  useEffect(() => {
+    if (errorMark && boxShown) editor.current?.markError(errorMark.from, errorMark.to)
+  }, [errorMark, boxShown])
 
   /** pgAdmin runs a macro's SQL as it stands, without touching the editor. */
   const runMacro = (macro: Macro) => run(macro.sql)
@@ -193,16 +253,29 @@ function SqlPageAt() {
 
   function submit(e?: FormEvent) {
     e?.preventDefault()
+    const selected = editor.current?.selection()
+    ask(selected ? { sql: selected.text, from: selected.from, whole: false } : { sql: query, from: 0, whole: true })
+  }
+
+  /** pgAdmin's "Execute query" (Alt+F5): the statement the cursor is in, or the selection. */
+  function runStatement() {
+    const selected = editor.current?.selection()
+    if (selected) return ask({ sql: selected.text, from: selected.from, whole: false })
+    const statement = statementAt(query, editor.current?.cursor() ?? 0, delimiter)
+    if (statement) ask({ sql: statement.sql, from: statement.from, whole: false })
+  }
+
+  function ask(part: BoxPart) {
     // One run at a time from the box: Go, Enter on it or Ctrl+Enter while a batch runs does
     // nothing, as phpMyAdmin's ajax.js holds a second submit of the form back.
-    if (runner.busy() || query.trim() === '') return
+    if (runner.busy() || part.sql.trim() === '') return
     // phpMyAdmin's "Confirm DROP queries": a destructive statement waits for the user's OK.
-    if (preference<boolean>(CONFIRM) && isDestructive(query)) return setConfirming(query)
-    go()
+    if (preference<boolean>(CONFIRM) && isDestructive(part.sql)) return setConfirming(part)
+    go(part)
   }
 
   /** The Go of the query box, once confirmed: the bookmark the box names, then the query. */
-  function go() {
+  function go(part: BoxPart) {
     if (runner.busy()) return
     if (bookmarkLabel.trim() !== '' && db !== null) {
       createBookmark({ database: db, label: bookmarkLabel.trim(), sql: query, shared: bookmarkShared, replace: bookmarkReplace }).then(
@@ -214,7 +287,7 @@ function SqlPageAt() {
         (err: unknown) => notifyError(errorMessage(err)),
       )
     }
-    execute(query)
+    executePart(part)
   }
 
   /** The "Bookmarked SQL query" card's Go: run the chosen bookmark, show it, or delete it. */
@@ -260,7 +333,7 @@ function SqlPageAt() {
     setQuery(urlSql)
     if (autorun && urlSql.trim() !== '') {
       const asked = (locationState as { confirmed?: boolean } | null)?.confirmed === true
-      if (!asked && preference<boolean>(CONFIRM) && isDestructive(urlSql)) setConfirming(urlSql)
+      if (!asked && preference<boolean>(CONFIRM) && isDestructive(urlSql)) setConfirming({ sql: urlSql, from: 0, whole: true })
       else execute(urlSql)
     }
     setSearch((params) => {
@@ -311,11 +384,12 @@ function SqlPageAt() {
     <>
       <ConfirmQuery
         show={confirming !== null}
-        sql={confirming ?? ''}
+        sql={confirming?.sql ?? ''}
         onClose={() => setConfirming(null)}
         onConfirm={() => {
+          const part = confirming
           setConfirming(null)
-          go()
+          if (part) go(part)
         }}
       />
       {!boxShown && (
@@ -334,7 +408,7 @@ function SqlPageAt() {
                 <div className="row">
                   <div className="col">
                     <div className="mb-3">
-                      <SqlEditor ref={editor} id="sqlquery" value={query} onChange={setQuery} onSubmit={submit} ariaLabel={t('query')} autoFocus schema={completions} defaultSchema={level.schema ?? 'public'} />
+                      <SqlEditor ref={editor} id="sqlquery" value={query} onChange={setQuery} onSubmit={submit} onRunStatement={runStatement} ariaLabel={t('query')} autoFocus schema={completions} defaultSchema={level.schema ?? 'public'} />
                     </div>
                     <div id="querymessage">
                       {runner.running && (
@@ -513,7 +587,8 @@ function SqlPageAt() {
                   </div>
                 </div>
                 <div className="col-12">
-                  <input className="btn btn-primary ms-1" type="submit" id="button_submit_query" name="SQL" value={tApp('go')} />
+                  <input className="btn btn-secondary" type="button" id="button_run_statement" value={t('buttons.run_statement')} title={t('buttons.run_statement_title')} onClick={runStatement} />
+                  <input className="btn btn-primary ms-1" type="submit" id="button_submit_query" name="SQL" value={tApp('go')} title={t('buttons.go_title')} />
                 </div>
               </div>
             </div>

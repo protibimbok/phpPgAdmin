@@ -17,7 +17,10 @@
     "clear": "مسح",
     "format": "تنسيق",
     "auto_saved": "استرجاع الاستعلام المحفوظ تلقائيًا",
-    "bind_parameters": "ربط المعاملات"
+    "bind_parameters": "ربط المعاملات",
+    "run_statement": "تنفيذ الاستعلام",
+    "run_statement_title": "تنفيذ العبارة عند المؤشر أو النص المحدد (Alt+F5)",
+    "go_title": "تنفيذ النص المحدد، أو كل المربع إن لم يُحدد شيء (Ctrl+Enter، F5)"
   },
   "options": {
     "delimiter": "الفاصل",

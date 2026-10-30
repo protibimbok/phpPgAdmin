@@ -41,7 +41,8 @@ and automatic closing of brackets and quotes.
 
 | Key | What it does |
 | --- | --- |
-| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd>) | Runs the query (same as **Go**) |
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd>), <kbd>F5</kbd> | Runs the query (same as **Go**): the selected text when there is a selection, else the whole box |
+| <kbd>Alt</kbd>+<kbd>F5</kbd> | Runs the statement the cursor is in (same as **Execute query**) |
 | <kbd>Tab</kbd> | Indents; it does not leave the box |
 | <kbd>Ctrl</kbd>+<kbd>Space</kbd> | Opens the completion list |
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | Undo / redo |
@@ -91,8 +92,15 @@ follow you to another browser.
 2. Choose the options in the card's footer (below).
 3. Click **Go** or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
 
-As in phpMyAdmin, **Go** empties the box and folds it away; a **Show query box** link brings it back.
-Two footer options change that:
+When text is selected in the box, **Go** runs only the selection, as pgAdmin's **Execute script**
+does. **Execute query** (<kbd>Alt</kbd>+<kbd>F5</kbd>) runs the statement the cursor is in: the one
+whose text or semicolon holds the cursor, or the one just before it when the cursor sits after a
+semicolon with no blank line between. Quotes, dollar quotes and comments are honoured when finding
+the statement, as they are when a batch is split, and the **Delimiter** option applies.
+
+As in phpMyAdmin, a successful **Go** empties the box and folds it away; a **Show query box** link
+brings it back. Running a selection or the statement at the cursor leaves the box as it is, and so
+does a run that fails. Two footer options change that:
 
 | Option | What it does |
 | --- | --- |
@@ -249,11 +257,13 @@ A failed statement gets a red **Error** box with the statement, a **Copy** link 
 and **PostgreSQL said:** with the SQLSTATE code, the message, and the `Detail:` and `Hint:` lines when
 the server sent them (see the batch above).
 
-::: info Error position
-PostgreSQL reports where in the statement a syntax error is (`position`), and phpPgAdmin receives
-it, but the error box does not mark it. Count from the start of the failing statement shown in the
-box, not from the start of the batch.
-:::
+When PostgreSQL reports where in the statement the error is (syntax errors, unknown tables and
+columns), the box stays open and that place is underlined with a red dotted line, as pgAdmin marks
+it: from the reported character to the next space or the end of the line, with the cursor put
+there. For an error "at end of input" the last character is marked. The mark goes as soon as the
+text is edited. It is placed in the failing statement of the batch, also when only a selection or
+the statement at the cursor was run. It is not placed when **Bind parameters** replaced
+`:name` placeholders, since the server then saw different text.
 
 ## Transactions
 
