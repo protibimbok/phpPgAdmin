@@ -12,7 +12,11 @@ containers.
 ## The type list
 
 The first list shows every type and domain with **Name**, **Kind**, **Definition**, **Owner** and
-**Comment**, and **Edit**, **Export** and **Drop** links. The kinds are:
+**Comment**, and **Edit**, **Privileges**, **Export** and **Drop** links. **Privileges** (for the kinds
+that can be edited) opens the editor at its privileges: below the form, the grantees of `USAGE`
+on the type or domain as on the [Privileges](/tools/privileges) tabs, with **Edit privileges**,
+**Revoke** and **Add privileges for a role** (`GRANT USAGE ON DOMAIN public.rtn_email TO bookshop_staff;`).
+The kinds are:
 
 | Kind | Definition column | Edit |
 |---|---|---|

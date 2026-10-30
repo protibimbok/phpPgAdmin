@@ -11,6 +11,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName } from '@sql/js/sql'
+import { PrivilegesLink } from '@roles/js/PrivilegesSection'
 import { dropSequence, resolveSchema, sequences as sequencesOf, type Sequence } from '../api'
 
 /**
@@ -170,7 +171,7 @@ export default function Sequences() {
                 <th>{t('columns.cycled')}</th>
                 <th>{t('columns.owned_by')}</th>
                 <th>{t('columns.comment')}</th>
-                <th colSpan={3} />
+                <th colSpan={4} />
               </tr>
             </thead>
             <tbody>
@@ -195,6 +196,9 @@ export default function Sequences() {
                     <Link className="ajax edit_anchor" to={`${base}/${encodeURIComponent(row.name)}/edit`}>
                       <Icon name="b_edit" /> {t('actions.edit')}
                     </Link>
+                  </td>
+                  <td>
+                    <PrivilegesLink to={`${base}/${encodeURIComponent(row.name)}/edit`} />
                   </td>
                   <td>
                     <a className="ajax export_anchor" href="#export" onClick={(e) => { e.preventDefault(); exportRows([row]) }}>

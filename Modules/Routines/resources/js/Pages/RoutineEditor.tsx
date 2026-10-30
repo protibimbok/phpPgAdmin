@@ -7,6 +7,7 @@ import Icon from '@/components/Icon'
 import DependencyPanel from '@/components/DependencyPanel'
 import PreviewSql from '@/components/PreviewSql'
 import StatisticsPanel from '@/components/StatisticsPanel'
+import PrivilegesSection from '@roles/js/PrivilegesSection'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
@@ -479,6 +480,7 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
         </div>
       </form>
 
+      {editing && <PrivilegesSection db={db} kind="function" oid={oid} />}
       {editing && <StatisticsPanel load={() => routines(db, data.scid, editKind).statistics(oid)} reloadKey={`${db}/${editKind}/${oid}`} empty={t('editor.no_statistics')} />}
       {editing && <DependencyPanel dependencies={() => routines(db, data.scid, editKind).dependencies(oid)} dependents={() => routines(db, data.scid, editKind).dependents(oid)} reloadKey={`${db}/${editKind}/${oid}`} />}
 

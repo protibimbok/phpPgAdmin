@@ -17,6 +17,7 @@ result type of an aggregate or operator). The links per row:
 | Link | Shown for | What it does |
 |---|---|---|
 | **Edit** | functions, procedures, trigger functions | Opens the [routine editor](#the-routine-editor). |
+| **Privileges** | functions, procedures, trigger functions | Opens the routine editor at its [privileges](#privileges). |
 | **Execute** | functions, procedures | Asks for the arguments and runs the call on the SQL tab; see [Execute a routine](#execute-a-routine). |
 | **Export** | all | Shows the `CREATE` statement in a dialog with **Copy to clipboard**. |
 | **Drop** | all | Asks for confirmation, then runs `DROP FUNCTION`, `DROP PROCEDURE`, `DROP AGGREGATE` or `DROP OPERATOR` with the signature. |
@@ -219,9 +220,20 @@ cannot change the result. So:
   function*).
 :::
 
+### Privileges
+
+Below an existing routine's form, its grantees as on the [Privileges](/tools/privileges) tabs: each
+role holding `EXECUTE` (by default `PUBLIC` and the owner), **Edit privileges** and **Revoke**, and
+**Add privileges for a role** under **New**. To keep a routine from everyone else, revoke
+`PUBLIC`'s row:
+
+```sql
+REVOKE EXECUTE ON FUNCTION public.apply_discount(numeric, numeric) FROM PUBLIC;
+```
+
 ### Statistics, Dependencies and Dependents
 
-Below an existing routine's form:
+Below the privileges:
 
 - **Statistics**: **Number of calls**, **Total time** and **Self time** (milliseconds) from
   `pg_stat_user_functions`.

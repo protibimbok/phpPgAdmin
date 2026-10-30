@@ -11,6 +11,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
+import { PrivilegesLink } from '@roles/js/PrivilegesSection'
 import { dropRoutineRow, listRoutineRows, resolveSchema, ROW_LABELS, routineRowSql, type Aggregate, type Operator, type Routine, type RoutineKind, type RoutineRow as Row } from '../api'
 import AggregateDialog from '../dialogs/AggregateDialog'
 import OperatorDialog from '../dialogs/OperatorDialog'
@@ -233,7 +234,7 @@ export default function Routines() {
                 <th>{t('columns.name')}</th>
                 <th>{t('columns.type')}</th>
                 <th>{t('columns.returns')}</th>
-                <th colSpan={4} />
+                <th colSpan={5} />
               </tr>
             </thead>
             <tbody>
@@ -258,6 +259,7 @@ export default function Routines() {
                       </a>
                     )}
                   </td>
+                  <td>{isRoutine(row) && <PrivilegesLink to={`${base}/${row.kind}/${row.oid}/edit`} />}</td>
                   <td>
                     {(row.kind === 'function' || row.kind === 'procedure') && (
                       <a className="ajax exec_anchor" href="#execute" onClick={(e) => { e.preventDefault(); setExecuting(row) }}>

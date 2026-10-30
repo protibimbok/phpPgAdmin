@@ -10,6 +10,7 @@ import StatisticsPanel from '@/components/StatisticsPanel'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
+import PrivilegesSection from '@roles/js/PrivilegesSection'
 import { createSequence, nextSequenceValue, resolveSchema, resolveSequence, restartSequence, sequenceModifiedSql, sequenceOptions, sequences, updateSequence, type Sequence, type SequenceData } from '../api'
 
 interface Form {
@@ -302,6 +303,7 @@ export default function SequenceEditor({ mode }: { mode: 'create' | 'edit' }) {
         </div>
       )}
 
+      {editing && data.seid > 0 && <PrivilegesSection db={db} kind="sequence" oid={data.seid} />}
       {editing && data.seid > 0 && <StatisticsPanel load={() => sequences(db, data.scid).statistics(data.seid)} reloadKey={`${db}/${data.seid}`} />}
       {editing && data.seid > 0 && <DependencyPanel dependencies={() => sequences(db, data.scid).dependencies(data.seid)} dependents={() => sequences(db, data.scid).dependents(data.seid)} reloadKey={`${db}/${data.seid}`} />}
 

@@ -11,7 +11,8 @@ object. In the navigation panel, sequences sit under **Sequences**; clicking one
 
 The columns are **Name**, **Current value**, **Increment**, **Minimum**, **Maximum**, **Cache**,
 **Cycled**, **Owned by** (the `table.column` the sequence belongs to) and **Comment**, with
-**Edit**, **Export** and **Drop** per row. Above the table: **Check all** with bulk **Export** and
+**Edit**, **Privileges**, **Export** and **Drop** per row (**Privileges** opens the editor at its
+[privileges](#privileges)). Above the table: **Check all** with bulk **Export** and
 **Drop**, the filter box (matches the name as you type) and **Create new sequence**.
 
 Sequences behind `serial` and identity columns are listed too, for example `books_id_seq` owned by
@@ -104,9 +105,19 @@ Below the form, the **Actions** card has the classic phpPgAdmin's sequence actio
 
 The **Schema** select of an existing sequence moves it with `ALTER SEQUENCE … SET SCHEMA`.
 
+### Privileges
+
+Below the form, the sequence's grantees as on the [Privileges](/tools/privileges) tabs: each role
+with its privileges (`USAGE`, `SELECT`, `UPDATE`), **Edit privileges** and **Revoke**, and
+**Add privileges for a role** under **New**:
+
+```sql
+GRANT USAGE ON SEQUENCE public.rtn_seq TO bookshop_staff;
+```
+
 ### Statistics, Dependencies and Dependents
 
-Below the form: **Statistics** (**Blocks read** and **Blocks hit** from
+Below the privileges: **Statistics** (**Blocks read** and **Blocks hit** from
 `pg_statio_all_sequences`), **Dependencies** (the schema; the owning column) and **Dependents**
 (column defaults that call `nextval` on it, listed as **Function** `nextval('rtn_seq'::regclass)`).
 

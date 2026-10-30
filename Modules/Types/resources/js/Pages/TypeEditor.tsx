@@ -5,6 +5,7 @@ import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import DependencyPanel from '@/components/DependencyPanel'
+import PrivilegesSection from '@roles/js/PrivilegesSection'
 import PreviewSql from '@/components/PreviewSql'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
@@ -481,6 +482,7 @@ export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
         </div>
       </form>
 
+      {editing && <PrivilegesSection db={db} kind="type" oid={oid} />}
       {editing && (
         <DependencyPanel
           dependencies={() => (data.domain ? domains(db, scid).dependencies(oid) : types(db, scid).dependencies(oid))}

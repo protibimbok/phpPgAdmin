@@ -28,7 +28,6 @@ These options are not in the forms; use the SQL tab for them:
 - **Collations:** there is no **Refresh version** button ([Types](/schema/types#collations)).
 - **Schemas:** there is no copy-schema card ([Schema operations](/schema/operations)).
 - **Foreign data:** there is no `IMPORT FOREIGN SCHEMA`. Privileges cannot be edited on languages, foreign data wrappers or foreign servers. Foreign tables are not listed on the schema's table list ([Foreign data](/database/foreign-data)).
-- **Privileges:** sequences and routines have no **Privileges** tab; use the grant wizard ([Privileges](/tools/privileges#grant-wizard)).
 
 ### Export, import and tools
 

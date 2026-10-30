@@ -12,6 +12,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName } from '@sql/js/sql'
+import { PrivilegesLink } from '@roles/js/PrivilegesSection'
 import { collations as collationsOf, dropOpclass, dropTypeRow, ftsSqlKind, listOpclasses, listTextSearch, listTypes, opclassDropSql, opclassSql, resolveSchema, textSearch, typeRowSql, type Collation, type FtsKind, type FtsRow, type OpclassRow, type TypeRow } from '../api'
 import CollationDialog from '../dialogs/CollationDialog'
 import OpclassDialog from '../dialogs/OpclassDialog'
@@ -267,7 +268,7 @@ export default function Types() {
                   <th>{t('columns.definition')}</th>
                   <th>{t('columns.owner')}</th>
                   <th>{t('columns.comment')}</th>
-                  <th colSpan={3} />
+                  <th colSpan={4} />
                 </tr>
               </thead>
               <tbody>
@@ -295,6 +296,7 @@ export default function Types() {
                           </Link>
                         )}
                       </td>
+                      <td>{EDITABLE.has(kind) && <PrivilegesLink to={`${base}/${row.node}/${encodeURIComponent(row.name)}/edit`} />}</td>
                       <td>
                         <a className="ajax export_anchor" href="#export" onClick={(e) => { e.preventDefault(); exportRows([row]) }}>
                           <Icon name="b_export" /> {t('actions.export')}
