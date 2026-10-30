@@ -105,5 +105,16 @@
     "none": "No statistics have been gathered for it yet.",
     "statistic": "Statistic",
     "value": "Value"
+  },
+  "security_labels": {
+    "title": "Security labels",
+    "object": "Label:",
+    "this_object": "this object",
+    "column": "column {{name}}",
+    "provider": "Provider",
+    "label": "Security label",
+    "remove": "Remove",
+    "add": "Add label",
+    "saved": "The security labels have been saved."
   }
 }

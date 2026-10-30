@@ -220,6 +220,24 @@ SELECT "public"."books".* FROM "public"."books"
 
 With a valid foreign key in place the result is always empty; the check is useful for keys added `NOT VALID`, or before you add a foreign key, to find the rows that would make it fail.
 
+## Security labels
+
+A **Security labels** card, pgAdmin's grid of the same name, sets `SECURITY LABEL`s on the table
+and, picked in its **Label:** select, on each of its columns. Each row is a **Provider** and its
+**Security label**; **Remove** clears one, **Add label** adds one. **Preview SQL** shows the
+statements, **Go** runs them:
+
+```sql
+SECURITY LABEL FOR selinux ON TABLE public.authors IS 'system_u:object_r:sepgsql_table_t:s0';
+SECURITY LABEL FOR selinux ON COLUMN public.authors.name IS NULL;
+```
+
+The card appears only when the server has a label provider loaded (`sepgsql` or
+`dummy_seclabel` in `shared_preload_libraries`) or the object already has a label: without a
+provider `SECURITY LABEL` fails. The same card is on the Operations tabs of views, materialized
+views, schemas and databases, and in the editors of functions, procedures, trigger functions,
+types, domains, sequences and roles.
+
 ## Show create
 
 The **Show create** tab (`…/table/<table>/ddl`) shows the SQL that recreates the table, under *CREATE statements for public.books*, with **Copy to clipboard**. It includes the columns, constraints, `PARTITION BY` and partitions, owner, grants, comments, indexes, triggers, rules and policies.

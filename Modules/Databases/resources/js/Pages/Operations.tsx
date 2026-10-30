@@ -6,6 +6,7 @@ import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import PreviewSql from '@/components/PreviewSql'
+import SecurityLabelsCard from '@/components/SecurityLabelsCard'
 import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
@@ -398,6 +399,8 @@ export default function Operations() {
       <MaintenanceCard target={{ database: db }} />
 
       <AutovacuumTablesCard db={db} />
+
+      <SecurityLabelsCard key={did} db={db} catalog="pg_database" oid={did} />
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />
 

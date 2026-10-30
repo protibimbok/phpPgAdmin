@@ -5,6 +5,7 @@ import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
 import PreviewSql from '@/components/PreviewSql'
+import SecurityLabelsCard from '@/components/SecurityLabelsCard'
 import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls, useLevel } from '@/level'
@@ -369,6 +370,8 @@ export default function ViewOperations() {
           </div>
         </>
       )}
+
+      <SecurityLabelsCard key={vid} db={db} catalog="pg_class" oid={vid} />
 
       <div className="card mb-2">
         <div className="card-header">{tTables('operations.delete')}</div>

@@ -183,7 +183,8 @@ surrounding line breaks.
 C or internal: the list shows the database's, `pg_catalog` included). Setting one needs a
 superuser; choosing the empty entry removes it (the function is restated without `SUPPORT`).
 
-Options the editor does not have: `TRANSFORM` and `SECURITY LABEL`.
+Options the editor does not have: `TRANSFORM`. Security labels are set on the editor's
+[Security labels](/table/operations#security-labels) card, shown when the server has a label provider.
 
 The editor above generates:
 

@@ -287,4 +287,4 @@ The rows come from `bookshop` at query time. To import every table of a remote s
 ## Limitations
 
 - Foreign-table constraints (`CHECK`), partitions of a partitioned table
-  that are foreign tables, and security labels have no form.
+  that are foreign tables, and security labels on foreign objects have no form.

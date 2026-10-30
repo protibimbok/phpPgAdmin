@@ -6,6 +6,7 @@ import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import DependencyPanel from '@/components/DependencyPanel'
 import PreviewSql from '@/components/PreviewSql'
+import SecurityLabelsCard from '@/components/SecurityLabelsCard'
 import StatisticsPanel from '@/components/StatisticsPanel'
 import PrivilegesSection from '@roles/js/PrivilegesSection'
 import { treeState } from '@/layout/tree/treeState'
@@ -514,6 +515,7 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
 
       {editing && <PrivilegesSection db={db} kind="function" oid={oid} />}
       {editing && <StatisticsPanel load={() => routines(db, data.scid, editKind).statistics(oid)} reloadKey={`${db}/${editKind}/${oid}`} empty={t('editor.no_statistics')} />}
+      {editing && <SecurityLabelsCard key={oid} db={db} catalog="pg_proc" oid={oid} />}
       {editing && <DependencyPanel dependencies={() => routines(db, data.scid, editKind).dependencies(oid)} dependents={() => routines(db, data.scid, editKind).dependents(oid)} reloadKey={`${db}/${editKind}/${oid}`} />}
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />

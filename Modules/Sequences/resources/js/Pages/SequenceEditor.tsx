@@ -5,6 +5,7 @@ import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import DependencyPanel from '@/components/DependencyPanel'
+import SecurityLabelsCard from '@/components/SecurityLabelsCard'
 import PreviewSql from '@/components/PreviewSql'
 import StatisticsPanel from '@/components/StatisticsPanel'
 import { treeState } from '@/layout/tree/treeState'
@@ -305,6 +306,7 @@ export default function SequenceEditor({ mode }: { mode: 'create' | 'edit' }) {
 
       {editing && data.seid > 0 && <PrivilegesSection db={db} kind="sequence" oid={data.seid} />}
       {editing && data.seid > 0 && <StatisticsPanel load={() => sequences(db, data.scid).statistics(data.seid)} reloadKey={`${db}/${data.seid}`} />}
+      {editing && data.seid > 0 && <SecurityLabelsCard key={data.seid} db={db} catalog="pg_class" oid={data.seid} />}
       {editing && data.seid > 0 && <DependencyPanel dependencies={() => sequences(db, data.scid).dependencies(data.seid)} dependents={() => sequences(db, data.scid).dependents(data.seid)} reloadKey={`${db}/${data.seid}`} />}
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />

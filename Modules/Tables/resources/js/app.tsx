@@ -7,6 +7,7 @@ import TableOperations from './Pages/TableOperations'
 import SchemaStructure from './Pages/SchemaStructure'
 import TableDdl from './Pages/TableDdl'
 import TableStructure from './Pages/TableStructure'
+import TableSecurityLabels from './TableSecurityLabels'
 import Triggers from './Pages/Triggers'
 
 // A table in the tree opens its Browse page, as phpMyAdmin's tree does; the ancestors tell
@@ -83,7 +84,7 @@ registerModule({
     { path: 'db/:db/schema/:schema/table/:table/add-columns', element: <ColumnDefinitions mode="add" /> },
     { path: 'db/:db/schema/:schema/table/:table/columns/change', element: <ColumnDefinitions mode="change" /> },
     { path: 'db/:db/schema/:schema/table/:table/relation', element: <RelationView /> },
-    { path: 'db/:db/schema/:schema/table/:table/operations', element: <TableOperations /> },
+    { path: 'db/:db/schema/:schema/table/:table/operations', element: <><TableOperations /><TableSecurityLabels /></> },
     { path: 'db/:db/schema/:schema/table/:table/triggers', element: <Triggers /> },
     { path: 'db/:db/schema/:schema/view/:table/triggers', element: <Triggers /> },
   ],

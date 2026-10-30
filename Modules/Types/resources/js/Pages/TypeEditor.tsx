@@ -7,6 +7,7 @@ import Icon from '@/components/Icon'
 import DependencyPanel from '@/components/DependencyPanel'
 import PrivilegesSection from '@roles/js/PrivilegesSection'
 import PreviewSql from '@/components/PreviewSql'
+import SecurityLabelsCard from '@/components/SecurityLabelsCard'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
@@ -720,6 +721,8 @@ export default function TypeEditor({ mode }: { mode: 'create' | 'edit' }) {
       </form>
 
       {editing && <PrivilegesSection db={db} kind="type" oid={oid} />}
+      {editing && <SecurityLabelsCard key={`${node}/${oid}`} db={db} catalog="pg_type" oid={oid} />}
+
       {editing && (
         <DependencyPanel
           dependencies={() => (data.domain ? domains(db, scid).dependencies(oid) : types(db, scid).dependencies(oid))}

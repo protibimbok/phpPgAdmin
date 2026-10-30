@@ -6,6 +6,7 @@ import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
 import PreviewSql from '@/components/PreviewSql'
+import SecurityLabelsCard from '@/components/SecurityLabelsCard'
 import { urls } from '@/level'
 import { notifyError, notifySuccess } from '@/notify'
 import { reassign, reassignSql, resolveRole, roleDatabases, roleOptions, roleProperties, roles, type Reassign, type RoleData, type RoleProperties } from '../api'
@@ -117,6 +118,7 @@ export default function EditRole() {
 
       <ChangeLogin role={role} onSave={save} onPreview={(data) => showPreview(() => roles.modifiedSql(data, rid))} />
 
+      <SecurityLabelsCard key={rid} db={null} catalog="pg_authid" oid={rid} />
       <ReassignOwned rid={rid} options={options} self={role.rolname} onPreview={(data) => showPreview(() => reassignSql(rid, data))} />
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />

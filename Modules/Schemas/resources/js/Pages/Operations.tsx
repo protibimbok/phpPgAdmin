@@ -10,6 +10,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import MaintenanceCard from '@maintenance/js/MaintenanceCard'
+import SecurityLabelsCard from '@/components/SecurityLabelsCard'
 import { quoteIdent } from '@sql/js/sql'
 import { dropSchema, resolveSchema, schemaModifiedSql, schemaOptions, schemaProperties, updateSchema, type SchemaData } from '../api'
 
@@ -211,6 +212,8 @@ export default function Operations() {
       </form>
 
       <MaintenanceCard target={{ database: db, schema }} />
+
+      <SecurityLabelsCard key={data.scid} db={db} catalog="pg_namespace" oid={data.scid} />
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />
 
