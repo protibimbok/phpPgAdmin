@@ -6,6 +6,7 @@ import FindReplace from './Pages/FindReplace'
 import Chart from './Pages/Chart'
 import Search from './Pages/Search'
 import SqlPage from './Pages/Sql'
+import ZoomSearch from './Pages/ZoomSearch'
 import './preferences'
 
 const KINDS = ['table', 'view', 'mview'] as const
@@ -39,6 +40,7 @@ registerModule({
       { path: `db/:db/schema/:schema/${kind}/:table/browse`, element: <Browse /> },
       { path: `db/:db/schema/:schema/${kind}/:table/sql`, element: <SqlPage /> },
       { path: `db/:db/schema/:schema/${kind}/:table/search`, element: <Search /> },
+      { path: `db/:db/schema/:schema/${kind}/:table/search/zoom`, element: <ZoomSearch /> },
       { path: `db/:db/schema/:schema/${kind}/:table/search/replace`, element: <FindReplace /> },
       { path: `db/:db/schema/:schema/${kind}/:table/insert`, element: <Change /> },
       { path: `db/:db/schema/:schema/${kind}/:table/change`, element: <Change /> },

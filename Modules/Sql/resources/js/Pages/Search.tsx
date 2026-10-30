@@ -21,10 +21,10 @@ const NUMBER_OPERATORS = ['=', '>', '>=', '<', '<=', '!=', 'LIKE', 'LIKE %...%',
 const UUID_OPERATORS = ['=', '!=', 'LIKE', 'LIKE %...%', 'NOT LIKE', 'NOT LIKE %...%', 'IN (...)', 'NOT IN (...)']
 const ENUM_OPERATORS = ['=', '!=']
 const NULL_OPERATORS = ['IS NULL', 'IS NOT NULL']
-const UNARY = new Set([...NULL_OPERATORS, "= ''", "!= ''"])
+export const UNARY = new Set([...NULL_OPERATORS, "= ''", "!= ''"])
 
 /** The operators a column's type class gets, as Types::getTypeOperators: text and binary types the LIKE family, an enum equality only, the rest the comparisons. */
-function operatorsFor(column: RelationColumn): string[] {
+export function operatorsFor(column: RelationColumn): string[] {
   const kind = fieldKind(column)
   let base: string[]
   if (kind === 'enum') base = ENUM_OPERATORS
@@ -35,7 +35,7 @@ function operatorsFor(column: RelationColumn): string[] {
   return column.nullable ? [...base, ...NULL_OPERATORS] : base
 }
 
-interface Criterion {
+export interface Criterion {
   operator: string
   value: string
   /** What phpMyAdmin's rules for the column object to in the value, shown after the field. */
@@ -310,7 +310,7 @@ export default function Search() {
  * "%…%" wrapped for the LIKE %...% operators, split on commas for IN and BETWEEN; "" when the
  * value is empty and the operator needs one.
  */
-function condition(column: RelationColumn, { operator, value }: Criterion): string {
+export function condition(column: RelationColumn, { operator, value }: Criterion): string {
   const name = quoteIdent(column.name)
   if (UNARY.has(operator)) return `${name} ${operator}`
   if (value === '') return ''
@@ -361,7 +361,7 @@ interface CriterionInputProps {
  * dropdown, an enum's select, a date or timestamp field with its picker (a time gets none),
  * a text field with the type's range for the number rules otherwise.
  */
-function CriterionInput({ db, column, index, criterion, onChange }: CriterionInputProps) {
+export function CriterionInput({ db, column, index, criterion, onChange }: CriterionInputProps) {
   const id = `fieldID_${index}`
   const name = `criteriaValues[${index}]`
   const kind = fieldKind(column)

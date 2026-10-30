@@ -367,5 +367,27 @@
     "original": "Original string",
     "replaced": "Replaced string",
     "replace": "Replace"
+  },
+  "zoom": {
+    "legend": "Do a \"query by example\" (wildcard: \"%\") for two different columns",
+    "additional": "Additional search criteria",
+    "data_label": "Use this column to label each point",
+    "max_rows": "Maximum rows to plot",
+    "select_two": "Select two columns",
+    "select_different": "Select two different columns",
+    "hide_criteria": "Hide search criteria",
+    "show_criteria": "Show search criteria",
+    "browse_points": "Browse/Edit the points",
+    "how_to_use": "How to use",
+    "reset_zoom": "Reset zoom",
+    "data_point": "Data point content",
+    "no_primary_key": "The table has no primary key, so its rows cannot be edited here.",
+    "help_title": "Zoom search instructions",
+    "help_rows": "Each point represents a data row.",
+    "help_hover": "Hovering over a point will show its label.",
+    "help_zoom": "To zoom in, select a section of the plot with the mouse.",
+    "help_reset": "Click reset zoom button to come back to original state.",
+    "help_click": "Click a data point to view and possibly edit the data row.",
+    "help_resize": "The plot can be resized by dragging it along the bottom right corner."
   }
 }

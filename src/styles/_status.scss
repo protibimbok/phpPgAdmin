@@ -172,6 +172,23 @@ table#chartGrid {
   fill: #fff;
 }
 
+// Zoom search: the plot's resizable box (phpMyAdmin's #resizer, made resizable by jQuery UI
+// there) and the box a drag draws before it zooms.
+#resizer {
+  border: 1px solid silver;
+  display: inline-block;
+  resize: both;
+  overflow: hidden;
+  min-width: 220px;
+  min-height: 220px;
+}
+
+.jqplot-zoom-box {
+  fill: rgba(0, 0, 0, 0.1);
+  stroke: #999;
+  stroke-width: 1;
+}
+
 .jqplot-title-text {
   font-size: 1.2em;
   fill: color(chart-text);

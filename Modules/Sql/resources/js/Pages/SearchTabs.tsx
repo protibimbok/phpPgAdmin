@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import Icon from '@/components/Icon'
-import { notAvailable } from '@/unbuilt'
 
 export type SearchTab = 'search' | 'zoom' | 'replace'
 
@@ -21,9 +20,9 @@ export default function SearchTabs({ relationUrl, active }: { relationUrl: strin
         </Link>
       </li>
       <li className="nav-item">
-        <a className={className('zoom')} href="#zoom" onClick={notAvailable}>
+        <Link className={className('zoom')} to={`${relationUrl}/search/zoom`}>
           <Icon name="b_select" /> {t('search.zoom_search')}
-        </a>
+        </Link>
       </li>
       <li className="nav-item">
         <Link className={className('replace')} to={`${relationUrl}/search/replace`}>

@@ -25,8 +25,8 @@ SELECT "id", "title", "price" FROM "public"."books" WHERE "title" ILIKE '%guards
 
 The grid pages, sorts and edits as on [Browse](/table/browse): when the result includes the primary
 key, rows can be edited, copied and deleted. The message's **Edit** and **Explain SQL** links open the
-table's SQL tab with the statement. **Zoom search** answers that it is not available yet;
-[Find and replace](#find-and-replace) is described below.
+table's SQL tab with the statement. The other two sub-tabs, [Zoom search](#zoom-search) and
+[Find and replace](#find-and-replace), are described below.
 
 ## Operators
 
@@ -90,6 +90,31 @@ forms. Values are always sent as quoted literals (`'30'`), which PostgreSQL cast
 The options and criteria are kept only while you stay on the page. Use **Edit** on the result to keep
 the statement on the SQL tab, and [bookmark](/tools/history-bookmarks#bookmarks) it there.
 :::
+
+## Zoom search
+
+The **Zoom search** sub-tab plots the rows against two columns, one point per row, as phpMyAdmin's
+does.
+
+1. In the first two rows of the **Column** table pick the columns for the X and the Y axis, with an
+   operator and a value for each if you want to filter on them. Under **Additional search criteria**
+   two more columns can filter the rows without being plotted. The operators and value boxes are
+   those of [Table search](#operators).
+2. **Use this column to label each point** picks the text shown when the pointer is over a point;
+   it starts on the table's first text column. **Maximum rows to plot** (500) becomes the `LIMIT`.
+3. Click **Go**. Both columns must be chosen and different; otherwise **Select two columns** or
+   **Select two different columns** is shown.
+
+Numbers plot by value; `date`, `timestamp` and `time` columns on a time axis (a time of day on
+1970-01-01). Rows whose X or Y value is NULL or not a number are left out. The form folds away
+behind **Show search criteria**, and **Browse/Edit the points** shows the plot:
+
+- Drag over the plot to zoom into the box; **Reset zoom** shows every point again.
+- Drag the box's bottom right corner to resize the plot. **How to use** lists these hints.
+- Click a point to open **Data point content**: every column of the row with its **Null** box and
+  value. **Save** writes the changed values with an `UPDATE … WHERE` on the primary key, shows the
+  statement above the plot and moves the point. A table without a primary key can be plotted but
+  its points cannot be opened.
 
 ## Find and replace
 

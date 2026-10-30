@@ -142,7 +142,7 @@ const QueryChart = forwardRef<SVGSVGElement, QueryChartProps>(function QueryChar
       <g key={`tick-${v}`}>
         {horizontal ? <line className="jqplot-grid" x1={valueAt(v)} x2={valueAt(v)} y1={PAD.top} y2={PAD.top + plotH} /> : <line className="jqplot-grid" x1={PAD.left} x2={PAD.left + plotW} y1={valueAt(v)} y2={valueAt(v)} />}
         <text className="jqplot-tick" x={horizontal ? valueAt(v) : PAD.left - 5} y={horizontal ? PAD.top + plotH + 14 : valueAt(v) + 3} textAnchor={horizontal ? 'middle' : 'end'}>
-          {format(v)}
+          {formatTick(v)}
         </text>
       </g>
     ))
@@ -243,7 +243,7 @@ function smooth(points: { x: number; y: number }[]): string {
 }
 
 /** Round axis ticks from min to max: 1, 2 or 5 times a power of ten apart, five or so of them. */
-function niceTicks(min: number, max: number): number[] {
+export function niceTicks(min: number, max: number): number[] {
   if (max === min) max = min + 1
   const raw = (max - min) / 5
   const power = 10 ** Math.floor(Math.log10(raw))
@@ -255,7 +255,8 @@ function niceTicks(min: number, max: number): number[] {
   return ticks
 }
 
-function format(v: number): string {
+/** A tick value, shortened with k, M and G. */
+export function formatTick(v: number): string {
   const abs = Math.abs(v)
   if (abs >= 1e9) return `${Number((v / 1e9).toPrecision(3))}G`
   if (abs >= 1e6) return `${Number((v / 1e6).toPrecision(3))}M`
