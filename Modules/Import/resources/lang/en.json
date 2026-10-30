@@ -29,7 +29,8 @@
     "charset_archive": "An archive records the character set it was dumped in; pg_restore uses that one.",
     "none": "Choose a file to import.",
     "too_large": "The file is larger than PHP accepts in an upload ({{size}}).",
-    "charset_binary": "COPY's binary format holds no text to convert; the character set is not used."
+    "charset_binary": "COPY's binary format holds no text to convert; the character set is not used.",
+    "charset_xml": "An XML file declares its own encoding."
   },
   "other": {
     "title": "Other options",
@@ -42,8 +43,9 @@
     "sql": "SQL",
     "archive": "PostgreSQL custom or tar archive (pg_restore)",
     "csv": "CSV",
-    "text": "PostgreSQL COPY text format",
-    "binary": "PostgreSQL COPY binary format"
+    "text": "Tab-separated values (PostgreSQL COPY text format)",
+    "binary": "PostgreSQL COPY binary format",
+    "xml": "XML"
   },
   "options": {
     "title": "Format-specific options:"

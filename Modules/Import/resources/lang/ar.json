@@ -29,7 +29,8 @@
     "charset_archive": "يسجّل الأرشيف الترميز الذي صُدِّر به، ويستخدمه pg_restore.",
     "none": "اختر ملفًا لاستيراده.",
     "too_large": "الملف أكبر مما يقبله PHP في الرفع ({{size}}).",
-    "charset_binary": "لا تحوي الصيغة الثنائية لـ COPY نصًا يُحوَّل، فلا يُستخدم الترميز."
+    "charset_binary": "لا تحوي الصيغة الثنائية لـ COPY نصًا يُحوَّل، فلا يُستخدم الترميز.",
+    "charset_xml": "ملف XML يعلن ترميزه بنفسه."
   },
   "other": {
     "title": "خيارات أخرى",
@@ -42,8 +43,9 @@
     "sql": "SQL",
     "archive": "أرشيف PostgreSQL مخصص أو tar (pg_restore)",
     "csv": "CSV",
-    "text": "صيغة COPY النصية في PostgreSQL",
-    "binary": "صيغة COPY الثنائية في PostgreSQL"
+    "text": "قيم مفصولة بعلامات جدولة (صيغة COPY النصية في PostgreSQL)",
+    "binary": "صيغة COPY الثنائية في PostgreSQL",
+    "xml": "XML"
   },
   "options": {
     "title": "خيارات خاصة بالصيغة:"

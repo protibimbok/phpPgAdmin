@@ -39,13 +39,14 @@ const DEFAULTS: Omit<ImportSettings, 'charset'> = {
   verbose: false,
 }
 
-const COPY_FORMATS: CopyFormat[] = ['csv', 'text', 'binary']
+const COPY_FORMATS: CopyFormat[] = ['csv', 'text', 'binary', 'xml']
 
 /** Each COPY format's options as the page starts, phpMyAdmin's CSV defaults and COPY's own. */
 const COPY_DEFAULTS: Record<CopyFormat, CopySettings> = {
   csv: { replace: false, terminated: ',', enclosed: '"', escaped: '"', new_line: 'auto', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '' },
   text: { replace: false, terminated: '\\t', enclosed: '', escaped: '', new_line: 'auto', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '\\N', default: '' },
   binary: { replace: false, terminated: '', enclosed: '', escaped: '', new_line: '', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '' },
+  xml: { replace: false, terminated: '', enclosed: '', escaped: '', new_line: '', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '' },
 }
 
 type Flag = { [K in keyof ImportSettings]: ImportSettings[K] extends boolean ? K : never }[keyof ImportSettings]
@@ -59,6 +60,7 @@ function formatOf(name: string, scope: ImportScope): ImportSettings['format'] | 
   if (/\.(dump|backup|bak|custom|tar|pgdump)$/.test(base)) return 'archive'
   if (scope === 'table' && /\.csv$/.test(base)) return 'csv'
   if (scope === 'table' && /\.(tsv|copy)$/.test(base)) return 'text'
+  if (scope === 'table' && /\.xml$/.test(base)) return 'xml'
   if (/\.txt$/.test(base)) return scope === 'table' ? 'text' : 'sql'
 
   return null
@@ -68,7 +70,7 @@ function formatOf(name: string, scope: ImportScope): ImportSettings['format'] | 
  * The Import page of the server, a database, a schema and a table, laid out like phpMyAdmin's
  * import.twig: the file (uploaded, or from the upload directory) and its character set, other
  * options, the format (SQL, run by psql, a pg_dump archive, restored by pg_restore, or on a
- * table its rows in CSV or COPY's text or binary format, loaded by COPY) and its options. The import runs in the background; its output shows above the form until it is
+ * table its rows in CSV, COPY's text or binary format or XML, loaded by COPY) and its options. The import runs in the background; its output shows above the form until it is
  * dismissed, so an import started before the page was left is there when it is opened again.
  */
 export default function Import({ scope }: { scope: ImportScope }) {
@@ -327,6 +329,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
               </select>
               {archive && <div className="form-text">{t('file.charset_archive')}</div>}
               {settings.format === 'binary' && <div className="form-text">{t('file.charset_binary')}</div>}
+              {settings.format === 'xml' && <div className="form-text">{t('file.charset_xml')}</div>}
             </div>
           </div>
 
@@ -352,6 +355,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
                 {scope === 'table' && <option value="csv">{t('format.csv')}</option>}
                 {scope === 'table' && <option value="binary">{t('format.binary')}</option>}
                 {scope === 'table' && <option value="text">{t('format.text')}</option>}
+                {scope === 'table' && <option value="xml">{t('format.xml')}</option>}
                 <option value="archive">{t('format.archive')}</option>
                 <option value="sql">{t('format.sql')}</option>
               </select>
@@ -484,6 +488,8 @@ function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFo
   const label = (key: string) => <Trans t={t} i18nKey={key} components={{ code: <code />, i: <i /> }} />
   const id = (field: string) => `${format}_${field}`
   const binary = format === 'binary'
+  // An XML file names its columns and spells NULL itself; only what to do with the rows is asked.
+  const xml = format === 'xml'
 
   const toggle = (key: 'replace' | 'ignore' | 'col_names' | 'header_match', text: ReactNode, children?: ReactNode) => (
     <li className="list-group-item">
@@ -511,17 +517,17 @@ function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFo
       <div id={`${format}_general_opts`}>
         <ul className="list-group">
           {toggle('replace', label('copy.replace'), settings.replace && table.primary_key.length === 0 && <div className="form-text text-danger">{t('copy.no_primary_key')}</div>)}
-          {!binary && text('terminated', t('copy.terminated'), { size: 2 })}
+          {!binary && !xml && text('terminated', t('copy.terminated'), { size: 2 })}
           {format === 'csv' && text('enclosed', t('copy.enclosed'), { size: 2, maxLength: 2 })}
           {format === 'csv' && text('escaped', t('copy.escaped'), { size: 2, maxLength: 2 })}
-          {!binary && text('new_line', t('copy.new_line'), { size: 2 })}
+          {!binary && !xml && text('new_line', t('copy.new_line'), { size: 2 })}
           <li className="list-group-item">
             <label htmlFor={`number_${id('partial_import')}`} className="form-label">
               {t('copy.partial_import')}
             </label>
             <input className="form-control" type="number" name={id('partial_import')} id={`number_${id('partial_import')}`} min={0} value={settings.partial_import} onChange={(e) => set('partial_import', e.target.value)} />
           </li>
-          {text(
+          {!xml && text(
             'columns',
             <>
               {t('copy.columns')} <Icon name="b_help" title={t('copy.columns_hint', { columns: table.columns.join(', ') })} />
@@ -529,10 +535,11 @@ function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFo
           )}
           {!binary && table.on_error && toggle('ignore', label('copy.ignore'))}
           {!binary &&
+            !xml &&
             (format === 'csv' || table.text_header) &&
             toggle('col_names', label('copy.col_names'), settings.col_names && table.header_match && <ul className="list-group">{toggle('header_match', label('copy.header_match'))}</ul>)}
-          {!binary && text('null', label('copy.null'), { help: t(`copy.null_help_${format}`) })}
-          {!binary && table.default && text('default', label('copy.default'))}
+          {!binary && !xml && text('null', label('copy.null'), { help: t(`copy.null_help_${format}`) })}
+          {!binary && !xml && table.default && text('default', label('copy.default'))}
         </ul>
       </div>
     </div>

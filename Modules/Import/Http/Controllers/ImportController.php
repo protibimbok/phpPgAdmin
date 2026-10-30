@@ -16,6 +16,7 @@ use PhpPgAdmin\Modules\Import\Restore\CopyCommand;
 use PhpPgAdmin\Modules\Import\Restore\FileFormat;
 use PhpPgAdmin\Modules\Import\Restore\ImportRequest;
 use PhpPgAdmin\Modules\Import\Restore\RestoreCommand;
+use PhpPgAdmin\Modules\Import\Restore\XmlToCopy;
 use PhpPgAdmin\Modules\Import\Storage\Processes;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
@@ -24,12 +25,13 @@ use Psr\Http\Message\UploadedFileInterface;
  * The Import pages' backend: what a scope offers (GET /api/import/options), and the import
  * itself (POST /api/import), a file uploaded or taken from the upload directory and run by
  * psql or pg_restore in the background; a table's rows in CSV or COPY's formats are loaded by
- * COPY through psql. The page follows it through /api/processes.
+ * COPY through psql, and XML is converted to COPY's text format first. The page follows it
+ * through /api/processes.
  */
 final class ImportController
 {
     /** The files of the upload directory offered for import, by extension. */
-    private const string LOCAL_FILES = '/\.(sql|dump|backup|custom|tar|pgdump|csv|tsv|txt|copy)(\.gz)?$/i';
+    private const string LOCAL_FILES = '/\.(sql|dump|backup|custom|tar|pgdump|csv|tsv|txt|copy|xml)(\.gz)?$/i';
 
     /** @return array<string, mixed> */
     public function options(ServerRequestInterface $request): array
@@ -111,8 +113,19 @@ final class ImportController
             $format = FileFormat::of($path) ?? throw new ApiException(422, 'The file to import cannot be read.');
             $this->checkFormat($import, $format, $name);
 
-            if ($import->copy !== null && $relation !== null) {
-                $command = new CopyCommand($import, $import->copy, $tools, (string) $import->schema, (string) $import->table, $relation['columns'], $relation['primary_key'], $conn->version());
+            $copy = $import->copy;
+            if ($import->format === 'xml' && $copy !== null && $relation !== null) {
+                // The rows become COPY's text format first, in the process's directory.
+                $converted = $process->directory . '/input.copy';
+                $columns = XmlToCopy::convert($path, $format->gzip, $converted, (string) $import->table, array_column($relation['columns'], 'name'));
+                if ($temporary) {
+                    @unlink($path);
+                }
+                [$path, $temporary, $copy] = [$converted, true, $copy->withColumns($columns)];
+            }
+
+            if ($copy !== null && $relation !== null) {
+                $command = new CopyCommand($import, $copy, $tools, (string) $import->schema, (string) $import->table, $relation['columns'], $relation['primary_key'], $conn->version());
                 $arguments = $command->arguments();
                 $input = $path;
             } else {

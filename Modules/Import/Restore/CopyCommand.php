@@ -128,8 +128,9 @@ final readonly class CopyCommand
         if ($copy->header !== 'none') {
             $options[] = 'HEADER ' . ($copy->header === 'match' ? 'MATCH' : 'true');
         }
-        if ($this->request->charset !== null) {
-            $options[] = 'ENCODING ' . Quoting::literal($this->request->charset);
+        $charset = $copy->encoding ?? $this->request->charset;
+        if ($charset !== null) {
+            $options[] = 'ENCODING ' . Quoting::literal($charset);
         }
         if ($copy->ignoreErrors) {
             // Each row skipped is reported as a NOTICE.

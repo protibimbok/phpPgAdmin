@@ -12,11 +12,12 @@ use League\Route\Http\Exception\BadRequestException;
  * enclose and escape columns, the line terminator, how many rows to import, the columns the
  * file holds, whether a duplicate key updates the row it matches, whether a value COPY cannot
  * read skips its row (ON_ERROR ignore), a header line, and the NULL and DEFAULT strings. Each
- * format reads its own fields (csv_*, text_*, binary_*); a field left out takes its default.
+ * format reads its own fields (csv_*, text_*, binary_*, xml_*); a field left out takes its default.
+ * An XML file is converted to the text format first (XmlToCopy), its columns read from it.
  */
 final readonly class CopyImport
 {
-    public const array FORMATS = ['csv', 'text', 'binary'];
+    public const array FORMATS = ['csv', 'text', 'binary', 'xml'];
 
     /** The line terminators COPY reads, as phpMyAdmin's "Lines terminated with" field writes them. */
     private const array LINE_ENDS = ['auto', '\n', '\r\n', '\r'];
@@ -38,7 +39,15 @@ final readonly class CopyImport
         public string $header,
         public ?string $null,
         public ?string $default,
+        /** The file's character set when the conversion decides it (UTF8 for XML), over the page's. */
+        public ?string $encoding = null,
     ) {
+    }
+
+    /** The options for the rows an XML file was converted to: COPY's text format, with the file's columns, in UTF-8. */
+    public function withColumns(array $columns): self
+    {
+        return new self($this->format, $this->separator, $this->enclosed, $this->escaped, $this->limit, $columns, $this->replace, $this->ignoreErrors, $this->header, $this->null, $this->default, 'UTF8');
     }
 
     /** @param array<string, mixed> $input */
@@ -48,6 +57,13 @@ final readonly class CopyImport
         $bool = static fn (string $key): bool => filter_var($input["{$format}_{$key}"] ?? false, FILTER_VALIDATE_BOOL);
 
         $limit = trim($string('partial_import', ''));
+        if ($format === 'xml') {
+            if ($limit !== '' && filter_var($limit, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false) {
+                throw new BadRequestException('The number of rows to import is a whole number.');
+            }
+
+            return new self('text', "\t", '', '', $limit === '' || (int) $limit === 0 ? null : (int) $limit, [], $bool('replace'), $bool('ignore'), 'none', '\N', null);
+        }
         if ($limit !== '' && filter_var($limit, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false) {
             throw new BadRequestException('The number of rows to import is a whole number.');
         }

@@ -10,7 +10,7 @@ export interface ImportTarget {
 }
 
 /** The formats COPY reads a table's rows in. */
-export type CopyFormat = 'csv' | 'text' | 'binary'
+export type CopyFormat = 'csv' | 'text' | 'binary' | 'xml'
 
 export interface ImportOptions {
   scope: ImportScope
