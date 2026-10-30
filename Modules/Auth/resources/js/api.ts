@@ -31,6 +31,11 @@ export interface SavedServer extends Server {
   last_username: string | null
 }
 
+/** "Name (host:port)", or "host:port" for a server without a name. */
+export function serverLabel(server: Server): string {
+  return server.name ? `${server.name} (${server.host}:${server.port})` : `${server.host}:${server.port}`
+}
+
 /** What the login form sends about the server: a saved one by id, or one described in full. */
 export type ServerChoice = { id: number } | Pick<Server, 'host' | 'port' | 'sslmode' | 'maintenance_db'>
 
@@ -85,4 +90,28 @@ export function getAccount(): Promise<{ username: string; password_encryption: s
 /** ALTER ROLE CURRENT_USER PASSWORD: a new password hashed by the method, or null for none. */
 export function changePassword(password: string | null, hashing: string): Promise<{ ok: true }> {
   return request('/api/account/password', { method: 'POST', body: JSON.stringify({ password, hashing }) })
+}
+
+/** Give a saved server a name; an empty one takes the name away. Needs a signed-in user. */
+export function renameServer(id: number, name: string): Promise<void> {
+  return request<{ ok: true }>(`/api/auth/servers/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }).then(() => undefined)
+}
+
+/** Forget a saved server. Needs a signed-in user. */
+export function removeServer(id: number): Promise<void> {
+  return request<{ ok: true }>(`/api/auth/servers/${id}`, { method: 'DELETE' }).then(() => undefined)
+}
+
+/** pgAdmin's import_export_servers JSON: {"Servers": {"1": {"Name", "Group", "Host", "Port", "MaintenanceDB", "Username", "SSLMode"}}}. */
+export interface ServerList {
+  Servers: Record<string, Record<string, unknown>>
+}
+
+export function exportServers(): Promise<ServerList> {
+  return request<ServerList>('/api/auth/servers/export')
+}
+
+/** Add the servers of a list, or update the ones saved at the same host and port. */
+export function importServers(list: unknown): Promise<{ added: number; updated: number }> {
+  return request<{ added: number; updated: number }>('/api/auth/servers/import', { method: 'POST', body: JSON.stringify(list) })
 }

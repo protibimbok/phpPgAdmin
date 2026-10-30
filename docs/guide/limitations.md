@@ -9,7 +9,7 @@ Controls for unbuilt features still appear, as they do in phpMyAdmin. Clicking o
 ### Server and databases
 
 - Prepared transactions are listed only when `max_prepared_transactions` is above 0, which needs a server restart ([Status](/server/status#prepared-transactions)).
-- Saved servers cannot be renamed or removed from the UI ([Signing in](/guide/signing-in#renaming-and-removing-saved-servers)).
+- Renaming or removing a saved server from the login page logs you in to it first; server groups from a pgAdmin import are not kept ([Signing in](/guide/signing-in#renaming-and-removing-saved-servers)).
 
 ### Tables
 

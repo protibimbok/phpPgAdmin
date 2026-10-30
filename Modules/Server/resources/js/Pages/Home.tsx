@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Icon from '@/components/Icon'
 import LocaleSelect from '@/i18n/LocaleSelect'
+import ServersModal from '@auth/js/ServersModal'
 import { getServerInfo, type ServerInfo } from '../api'
 import ChangePasswordModal from '../ChangePasswordModal'
 
@@ -20,16 +21,19 @@ const LINKS = [
 ] as const
 
 /**
- * The home page, laid out like phpMyAdmin's: general settings (Change password) and appearance
+ * The home page, laid out like phpMyAdmin's: general settings (Change password, and the saved
+ * servers of the login page with their import and export) and appearance
  * settings on the left; the database server, the web server and the application on the right,
  * each a card of facts.
  */
 export default function Home() {
   const { t } = useTranslation('server')
   const { t: tApp } = useTranslation()
+  const { t: tAuth } = useTranslation('auth')
   const [info, setInfo] = useState<ServerInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [managingServers, setManagingServers] = useState(false)
 
   useEffect(() => {
     getServerInfo().then(setInfo, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
@@ -48,6 +52,11 @@ export default function Home() {
                 <li id="li_change_password" className="list-group-item">
                   <a href="#change-password" id="change_password_anchor" className="ajax" onClick={(e) => { e.preventDefault(); setChangingPassword(true) }}>
                     <Icon name="s_passwd" /> {t('password.title')}
+                  </a>
+                </li>
+                <li id="li_servers" className="list-group-item">
+                  <a href="#servers" id="servers_anchor" onClick={(e) => { e.preventDefault(); setManagingServers(true) }}>
+                    <Icon name="s_host" /> {tAuth('servers.manage')}
                   </a>
                 </li>
               </ul>
@@ -165,6 +174,7 @@ export default function Home() {
         </div>
       </div>
       <ChangePasswordModal show={changingPassword} onClose={() => setChangingPassword(false)} />
+      <ServersModal show={managingServers} onClose={() => setManagingServers(false)} />
     </div>
   )
 }

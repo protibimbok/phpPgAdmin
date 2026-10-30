@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
+import Icon from '@/components/Icon'
+import Modal from '@/components/Modal'
 import i18n from '@/i18n'
 import LocaleSelect from '@/i18n/LocaleSelect'
 import logo from '../../img/logo.svg'
-import { getServers, login, SSL_MODES, type SavedServer, type Server, type ServerChoice, type SslMode, type User } from '../api'
+import { getServers, login, removeServer, renameServer, serverLabel, SSL_MODES, type SavedServer, type Server, type ServerChoice, type SslMode, type User } from '../api'
 import '../../scss/login.scss'
 
 interface LoginProps {
@@ -55,6 +57,8 @@ export default function Login({ onLogin, expired = false }: LoginProps) {
   const [advanced, setAdvanced] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  // The pencil or the trash next to the saved servers: managing the list needs a login.
+  const [managing, setManaging] = useState<{ action: 'rename' | 'remove'; server: SavedServer; name: string; error: string | null } | null>(null)
 
   useEffect(() => {
     getServers().then(
@@ -107,14 +111,38 @@ export default function Login({ onLogin, expired = false }: LoginProps) {
     setPending(true)
 
     try {
-      const { user, locale } = await login(username, password, serverChoice())
-      // The role's saved language, when it has one, takes over from the login page's.
-      if (locale !== i18n.language) {
-        await i18n.changeLanguage(locale)
-      }
-      onLogin(user)
+      await enter(await login(username, password, serverChoice()))
     } catch (e) {
       setError(e instanceof Error ? e.message : t('login.failed'))
+      setPending(false)
+    }
+  }
+
+  /** Into the application as the user; the role's saved language, when it has one, takes over from the login page's. */
+  async function enter({ user, locale }: { user: User; locale: string }) {
+    if (locale !== i18n.language) {
+      await i18n.changeLanguage(locale)
+    }
+    onLogin(user)
+  }
+
+  /**
+   * The saved servers can only be changed by a signed-in user: log in to the server with the
+   * form's credentials, rename or remove it, and go on into the application.
+   */
+  async function manage(event: FormEvent) {
+    event.preventDefault()
+    if (!managing) return
+    if (username.trim() === '') return setManaging({ ...managing, error: t('servers.credentials_first') })
+    setManaging({ ...managing, error: null })
+    setPending(true)
+    try {
+      const session = await login(username, password, { id: managing.server.id })
+      if (managing.action === 'rename') await renameServer(managing.server.id, managing.name.trim())
+      else await removeServer(managing.server.id)
+      await enter(session)
+    } catch (e) {
+      setManaging({ ...managing, error: e instanceof Error ? e.message : t('login.failed') })
       setPending(false)
     }
   }
@@ -218,14 +246,26 @@ export default function Login({ onLogin, expired = false }: LoginProps) {
                     {t('login.server_choice')}
                   </label>
                   <div className="col-sm-8">
-                    <select id="select_server" name="server" className="form-select" value={choice} onChange={(e) => choose(e.target.value)}>
-                      {servers.map((server) => (
-                        <option key={server.id} value={server.id}>
-                          {server.name ? `${server.name} (${server.host}:${server.port})` : `${server.host}:${server.port}`}
-                        </option>
-                      ))}
-                      <option value={OTHER}>{t('login.other_server')}</option>
-                    </select>
+                    <div className="input-group">
+                      <select id="select_server" name="server" className="form-select" value={choice} onChange={(e) => choose(e.target.value)}>
+                        {servers.map((server) => (
+                          <option key={server.id} value={server.id}>
+                            {serverLabel(server)}
+                          </option>
+                        ))}
+                        <option value={OTHER}>{t('login.other_server')}</option>
+                      </select>
+                      {chosen && (
+                        <>
+                          <button type="button" className="btn btn-secondary" id="rename_server" title={t('servers.rename')} aria-label={t('servers.rename')} onClick={() => setManaging({ action: 'rename', server: chosen, name: chosen.name ?? '', error: null })}>
+                            <Icon name="b_edit" />
+                          </button>
+                          <button type="button" className="btn btn-secondary" id="remove_server" title={t('servers.remove')} aria-label={t('servers.remove')} onClick={() => setManaging({ action: 'remove', server: chosen, name: '', error: null })}>
+                            <Icon name="b_drop" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -331,6 +371,44 @@ export default function Login({ onLogin, expired = false }: LoginProps) {
             </div>
           </div>
         </form>
+
+        <Modal
+          show={managing !== null}
+          onClose={() => setManaging(null)}
+          title={managing?.action === 'remove' ? t('servers.remove') : t('servers.rename')}
+          id="manageServerModal"
+          footer={
+            <>
+              <button type="submit" form="manage_server_form" className={`btn ${managing?.action === 'remove' ? 'btn-danger' : 'btn-primary'}`} disabled={pending}>
+                {managing?.action === 'remove' ? t('servers.login_remove') : t('servers.login_rename')}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setManaging(null)}>
+                {t('servers.cancel')}
+              </button>
+            </>
+          }
+        >
+          {managing && (
+            <form id="manage_server_form" onSubmit={(e) => void manage(e)}>
+              {managing.error && (
+                <div className="alert alert-danger" role="alert">
+                  {managing.error}
+                </div>
+              )}
+              <p>{t(managing.action === 'remove' ? 'servers.login_needed_remove' : 'servers.login_needed_rename', { server: serverLabel(managing.server), username: username || '…' })}</p>
+              {managing.action === 'rename' && (
+                <div className="row">
+                  <label htmlFor="input_server_name" className="col-sm-4 col-form-label">
+                    {t('servers.name_label')}
+                  </label>
+                  <div className="col-sm-8">
+                    <input type="text" id="input_server_name" className="form-control" maxLength={128} autoFocus value={managing.name} onChange={(e) => setManaging({ ...managing, name: e.target.value })} />
+                  </div>
+                </div>
+              )}
+            </form>
+          )}
+        </Modal>
       </div>
     </div>
   )

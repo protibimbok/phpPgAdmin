@@ -18,10 +18,44 @@
     "session_expired": "Your session has expired. Please log in again.",
     "failed": "Login failed"
   },
+  "servers": {
+    "manage": "Import/Export servers",
+    "title": "Saved servers",
+    "name": "Name",
+    "server": "Server",
+    "username": "Username",
+    "action": "Action",
+    "unnamed": "no name",
+    "none": "No servers are saved yet: a server is saved when a login to it succeeds.",
+    "rename": "Rename",
+    "remove": "Remove",
+    "renamed": "The server has been renamed.",
+    "removed": "{{server}} has been removed from the saved servers.",
+    "remove_what": "Remove {{server}} from the saved servers? The login page will no longer offer it.",
+    "export_title": "Export",
+    "export": "Export the server list",
+    "export_help": "Downloads servers.json in pgAdmin's server import format: name, host, port, maintenance database, username and SSL mode, never a password.",
+    "import_title": "Import",
+    "import_file": "Server list (JSON):",
+    "import_help": "A file exported here or by pgAdmin (Tools › Import/Export Servers). A server at a host and port already saved is updated; groups are not kept.",
+    "not_json": "{{file}} is not a JSON file.",
+    "imported": "Servers imported: {{added}} added, {{updated}} updated.",
+    "name_label": "Name:",
+    "credentials_first": "Enter the username and password above first.",
+    "login_needed_rename": "Changing the saved servers needs a login: {{server}} is renamed once {{username}} has logged in to it with the password above, and you go on into phpPgAdmin. Leave the name empty to take it away.",
+    "login_needed_remove": "Changing the saved servers needs a login: {{server}} is removed from the list once {{username}} has logged in to it with the password above, and you go on into phpPgAdmin.",
+    "login_rename": "Log in and rename",
+    "login_remove": "Log in and remove",
+    "cancel": "Cancel"
+  },
   "errors": {
     "credentials_required": "A username is required.",
     "login_disallowed": "Login disallowed for security reasons: this server does not sign in superuser names or empty passwords.",
     "invalid_preferences": "The preferences must be an object of keys and values.",
-    "unknown_server": "That saved server no longer exists."
+    "unknown_server": "That saved server no longer exists.",
+    "name_too_long": "A server name has at most {{max}} characters.",
+    "import_invalid": "The file is not a server list: it needs a \"Servers\" object, as pgAdmin exports it.",
+    "import_entry": "Server \"{{key}}\" of the list cannot be imported: {{reason}}",
+    "import_not_object": "it is not an object."
   }
 }

@@ -33,17 +33,50 @@ Saved servers belong to the installation, not to a person. Everyone who opens th
 
 ### Renaming and removing saved servers
 
-The interface has no page for this. The servers are rows of the `servers` table in the storage database (`storage/phppgadmin.sqlite` unless [`PGADMIN_STORAGE_PATH`](/guide/configuration#storage) says otherwise), and you can change them with the `sqlite3` command:
+Changing the list needs a login, so that nobody can change it from the login page alone.
 
-```sh
-sqlite3 storage/phppgadmin.sqlite "SELECT id, name, host, port, sslmode, maintenance_db, last_username FROM servers"
+- **On the login page**, the pencil (**Rename**) and the trash (**Remove**) next to **Server
+  choice:** act on the server selected. The dialog that opens logs you in to that server with the
+  username and password in the form, then renames it (an empty name takes the name away) or removes
+  it, and goes on into phpPgAdmin. When the login fails, its error shows in the dialog and the
+  list is left as it was.
+- **Once signed in**, **Import/Export servers** in the **General settings** card of the home page
+  lists the saved servers with their SSL mode and last username, and each has **Rename** and
+  **Remove** (which asks first).
 
-# Show a name in the list: "Production (db1.internal:5432)"
-sqlite3 storage/phppgadmin.sqlite "UPDATE servers SET name = 'Production' WHERE id = 3"
+A name shows in the list as "Production (db1.internal:5432)".
 
-# Remove one
-sqlite3 storage/phppgadmin.sqlite "DELETE FROM servers WHERE id = 3"
+### Importing and exporting the server list
+
+The same **Import/Export servers** dialog exports the list as `servers.json` and imports one, in
+pgAdmin's server import format (pgAdmin's **Tools › Import/Export Servers**):
+
+```json
+{
+    "Servers": {
+        "1": {
+            "Name": "Production",
+            "Group": "Servers",
+            "Host": "db1.internal",
+            "Port": 5432,
+            "MaintenanceDB": "postgres",
+            "Username": "app",
+            "SSLMode": "require"
+        }
+    }
+}
 ```
+
+- Export writes every saved server; a server without a name gets `host:port` as its `Name`, and
+  one without a maintenance database `postgres`. No password is ever written.
+- Import adds the servers that are new and updates the name, SSL mode, maintenance database and
+  username of a server already saved at the same host and port. A file from pgAdmin 7 or newer,
+  which keeps the SSL mode under `"ConnectionParameters": {"sslmode": …}`, is read as well.
+  `Group` and pgAdmin's other fields are ignored: phpPgAdmin has one list. The whole file is checked
+  first, so a server without a host or with a bad port stops the import with nothing saved
+  ("Server "2" of the list cannot be imported: A server needs a host.").
+- Imported servers are offered after the ones logins have used; they move up once you log in to
+  them.
 
 If a server is removed while the login page is open and you log in with it selected, the form says "That saved server no longer exists." Reload the page.
 
