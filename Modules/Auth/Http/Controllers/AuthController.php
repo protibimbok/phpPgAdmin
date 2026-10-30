@@ -101,6 +101,7 @@ final class AuthController
         ];
         $_SESSION[Authenticate::CREDENTIALS] = $credentials->toArray();
         $_SESSION[Authenticate::SERVER] = $server->toArray();
+        unset($_SESSION[Authenticate::OTHER_CREDENTIALS]);
 
         // The role's saved language, as phpMyAdmin restores a user's settings from its configuration
         // storage. The session and, through SetLocale, the cookie follow it; the client switches too.
@@ -130,7 +131,7 @@ final class AuthController
     /** @return array<string, mixed> */
     public function logout(ServerRequestInterface $request): array
     {
-        unset($_SESSION[Authenticate::USER], $_SESSION[Authenticate::CREDENTIALS], $_SESSION[Authenticate::SERVER]);
+        unset($_SESSION[Authenticate::USER], $_SESSION[Authenticate::CREDENTIALS], $_SESSION[Authenticate::SERVER], $_SESSION[Authenticate::OTHER_CREDENTIALS]);
 
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);

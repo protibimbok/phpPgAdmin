@@ -7,7 +7,7 @@
   "schema": "Schema",
   "options": "Options",
   "compare": "Compare",
-  "choose": "Choose the source and the target schema.",
+  "choose": "Choose the source and the target database, and a schema on both sides or on neither.",
   "none_selected": "Select the objects to write the script for.",
   "nothing_to_do": "-- Nothing to change.",
   "nothing_shown": "No object has the statuses shown.",
@@ -36,5 +36,12 @@
     "diff_ddl": "Difference"
   },
   "script_title": "Script that makes the target like the source",
-  "open_in_sql": "Open in the SQL page of {{database}}"
+  "open_in_sql": "Open in the SQL page of {{database}}",
+  "server": "Server",
+  "username": "Username",
+  "password": "Password",
+  "connect": "Connect",
+  "whole_database": "(whole database)",
+  "database_objects": "Database objects",
+  "schema_group": "Schema: {{schema}}"
 }

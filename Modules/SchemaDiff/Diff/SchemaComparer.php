@@ -30,6 +30,9 @@ final class SchemaComparer
         'sequence' => 'SEQUENCE', 'function' => 'FUNCTION', 'procedure' => 'PROCEDURE', 'trigger_function' => 'FUNCTION',
         'aggregate' => 'AGGREGATE', 'operator' => 'OPERATOR', 'table' => 'TABLE', 'foreign_table' => 'FOREIGN TABLE',
         'view' => 'VIEW', 'mview' => 'MATERIALIZED VIEW',
+        'schema' => 'SCHEMA', 'extension' => 'EXTENSION', 'language' => 'LANGUAGE', 'foreign_data_wrapper' => 'FOREIGN DATA WRAPPER',
+        'foreign_server' => 'SERVER', 'cast' => 'CAST', 'event_trigger' => 'EVENT TRIGGER', 'publication' => 'PUBLICATION',
+        'subscription' => 'SUBSCRIPTION',
     ];
 
     private readonly TableDiff $tables;
@@ -44,8 +47,8 @@ final class SchemaComparer
     private ?array $creating = null;
 
     public function __construct(
-        private readonly SchemaSnapshot $source,
-        private readonly SchemaSnapshot $target,
+        private readonly Snapshot $source,
+        private readonly Snapshot $target,
         private readonly DdlNormalizer $normalizer,
     ) {
         $this->tables = new TableDiff($normalizer);
@@ -55,7 +58,7 @@ final class SchemaComparer
     public function compare(): array
     {
         $results = [];
-        foreach (SchemaSnapshot::TYPES as $type) {
+        foreach ($this->source->types() as $type) {
             $sourceObjects = $this->source->objects($type);
             $targetObjects = $this->target->objects($type);
             if ($sourceObjects === null || $targetObjects === null) {
@@ -107,7 +110,20 @@ final class SchemaComparer
      */
     public function script(array $items): string
     {
-        $rank = array_flip(SchemaSnapshot::TYPES);
+        $parts = $this->parts($items);
+
+        return $parts === [] ? '' : "BEGIN;\n\n" . implode("\n\n", $parts) . "\n\nEND;";
+    }
+
+    /**
+     * The statements of the script for the objects chosen, without the transaction around them.
+     *
+     * @param list<array{type: string, source_oid: int|null, target_oid: int|null}> $items
+     * @return list<string>
+     */
+    public function parts(array $items): array
+    {
+        $rank = array_flip($this->source->types());
         $drops = array_values(array_filter($items, static fn (array $i): bool => $i['source_oid'] === null));
         $rest = array_values(array_filter($items, static fn (array $i): bool => $i['source_oid'] !== null));
         usort($drops, static fn (array $a, array $b): int => ($rank[$b['type']] ?? 0) <=> ($rank[$a['type']] ?? 0));
@@ -144,7 +160,7 @@ final class SchemaComparer
         }
         array_push($parts, ...$ownedBy);
 
-        return $parts === [] ? '' : "BEGIN;\n\n" . implode("\n\n", $parts) . "\n\nEND;";
+        return $parts;
     }
 
     /**
@@ -226,6 +242,8 @@ final class SchemaComparer
         }
 
         $statements = match ($type) {
+            'schema' => [...$this->schemaOwner($sourceDdl, $targetDdl), ...$this->comments($sourceDdl, $targetDdl)],
+            'extension' => $this->extension($sourceOid, $targetOid),
             'table' => $this->tables->statements($this->source->conn, $sourceOid, $this->target->conn, $targetOid, $this->targetName($type, $targetDdl)),
             'sequence' => $this->sequence($sourceOid, $targetOid, $this->targetName($type, $targetDdl)),
             default => null,
@@ -315,6 +333,88 @@ final class SchemaComparer
             if (preg_match('/^(ALTER\s.+\sOWNER\s+TO\s|GRANT\s|REVOKE\s)/is', $statement) === 1 && !in_array($statement, $target, true)) {
                 $statements[] = $statement . ';';
             }
+        }
+
+        return $statements;
+    }
+
+    /**
+     * The COMMENT ON statements of the source's DDL that the target's lacks, and a comment set
+     * to NULL for one only the target has: what changes in a schema besides its owner and its
+     * privileges.
+     *
+     * @return list<string>
+     */
+    private function comments(string $sourceDdl, string $targetDdl): array
+    {
+        $comments = static function (array $statements): array {
+            $found = [];
+            foreach ($statements as $statement) {
+                if (preg_match('/^(COMMENT\s+ON\s+.+?)\s+IS\s/is', $statement, $m) === 1) {
+                    $found[(string) preg_replace('/\s+/', ' ', $m[1])] = $statement;
+                }
+            }
+
+            return $found;
+        };
+        $source = $comments($this->normalizer->statements($sourceDdl, true));
+        $target = $comments($this->normalizer->statements($targetDdl, false));
+        $statements = [];
+        foreach ($source as $on => $statement) {
+            if (($target[$on] ?? null) !== $statement) {
+                $statements[] = $statement . ';';
+            }
+        }
+        foreach (array_diff_key($target, $source) as $on => $statement) {
+            $statements[] = $on . ' IS NULL;';
+        }
+
+        return $statements;
+    }
+
+    /**
+     * ALTER SCHEMA … OWNER TO when the AUTHORIZATION of the source's CREATE SCHEMA differs.
+     *
+     * @return list<string>
+     */
+    private function schemaOwner(string $sourceDdl, string $targetDdl): array
+    {
+        $owner = static function (array $statements): ?array {
+            foreach ($statements as $statement) {
+                if (preg_match('/^CREATE\s+SCHEMA\s+(?:IF\s+NOT\s+EXISTS\s+)?(\S+)\s+AUTHORIZATION\s+(\S+)/is', $statement, $m) === 1) {
+                    return [$m[1], $m[2]];
+                }
+            }
+
+            return null;
+        };
+        $source = $owner($this->normalizer->statements($sourceDdl, true));
+        $target = $owner($this->normalizer->statements($targetDdl, false));
+
+        return $source !== null && $target !== null && $source[1] !== $target[1] ? [sprintf('ALTER SCHEMA %s OWNER TO %s;', $target[0], $source[1])] : [];
+    }
+
+    /**
+     * ALTER EXTENSION for a different version or schema: an extension is never dropped and
+     * created again, which would drop what uses its types and functions.
+     *
+     * @return list<string>
+     */
+    private function extension(int $sourceOid, int $targetOid): array
+    {
+        $read = static fn ($conn, int $oid): array => $conn->row('SELECT e.extname, e.extversion, n.nspname FROM pg_catalog.pg_extension e JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace WHERE e.oid = $1', [$oid]) ?? [];
+        $s = $read($this->source->conn, $sourceOid);
+        $t = $read($this->target->conn, $targetOid);
+        if ($s === [] || $t === []) {
+            return [];
+        }
+        $name = Quoting::ident((string) $t['extname']);
+        $statements = [];
+        if ($s['extversion'] !== $t['extversion']) {
+            $statements[] = sprintf('ALTER EXTENSION %s UPDATE TO %s;', $name, Quoting::literal((string) $s['extversion']));
+        }
+        if ($s['nspname'] !== $t['nspname']) {
+            $statements[] = sprintf('ALTER EXTENSION %s SET SCHEMA %s;', $name, Quoting::ident((string) $s['nspname']));
         }
 
         return $statements;

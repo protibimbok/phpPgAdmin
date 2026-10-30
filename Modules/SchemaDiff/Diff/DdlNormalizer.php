@@ -69,6 +69,10 @@ final readonly class DdlNormalizer
             if ($sql === '' || $this->ignored($sql)) {
                 continue;
             }
+            if ($this->ignoreOwner) {
+                // A schema's owner is in its CREATE.
+                $sql = (string) preg_replace('/^(CREATE\s+SCHEMA\s+(?:IF\s+NOT\s+EXISTS\s+)?\S+)\s+AUTHORIZATION\s+\S+/i', '$1', $sql);
+            }
             if ($this->ignoreTablespace) {
                 $sql = (string) preg_replace('/\s+TABLESPACE\s+("[^"]+"|\w+)/i', '', $sql);
             }

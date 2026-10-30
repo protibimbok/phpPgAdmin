@@ -7,18 +7,14 @@ namespace PhpPgAdmin\Modules\SchemaDiff\Diff;
 use League\Route\Http\Exception\NotFoundException;
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\ConnectionPool;
-use PhpPgAdmin\Core\Facades\Nodes;
-use PhpPgAdmin\Core\Nodes\NodeContext;
-use PhpPgAdmin\Core\Nodes\NodeController;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * The objects of one schema as the schema diff compares them, after pgAdmin's
- * fetch_objects_to_compare: for each node type under a schema, its objects by the name the
- * navigation panel gives them (a routine's with its arguments), and on demand an object's DDL,
- * which the node's controller writes as its SQL tab does.
+ * The objects of one schema as the schema diff compares them. When a whole database is
+ * compared, a schema only one side has stands on the other as an absent snapshot, with no
+ * objects, so that each of its objects is only in the source or only in the target.
  */
-final class SchemaSnapshot
+final class SchemaSnapshot extends Snapshot
 {
     /**
      * The node types compared, in the order a script creates them: what a column or a routine
@@ -30,23 +26,21 @@ final class SchemaSnapshot
         'table', 'foreign_table', 'view', 'mview',
     ];
 
-    public readonly int $scid;
-
-    /** @var array<string, array<string, int>> type → name → oid */
-    private array $objects = [];
-
-    /** @var array<string, string> "type/oid" → DDL */
-    private array $ddl = [];
-
-    /** @var array<string, NodeContext> */
-    private array $contexts = [];
+    public readonly ?int $scid;
 
     public function __construct(
-        private readonly ConnectionPool $pool,
-        public readonly Connection $conn,
+        ConnectionPool $pool,
+        Connection $conn,
         public readonly string $schema,
-        private readonly ServerRequestInterface $request,
+        ServerRequestInterface $request,
+        bool $absent = false,
     ) {
+        parent::__construct($pool, $conn, $request);
+        if ($absent) {
+            $this->scid = null;
+
+            return;
+        }
         $scid = $conn->scalar('SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = $1', [$schema]);
         if ($scid === null) {
             throw new NotFoundException(sprintf('There is no schema "%s" in the database "%s".', $schema, $conn->database()));
@@ -54,55 +48,23 @@ final class SchemaSnapshot
         $this->scid = (int) $scid;
     }
 
-    /**
-     * The objects of a type, by name; null when this server has no such objects.
-     *
-     * @return array<string, int>|null
-     */
-    public function objects(string $type): ?array
+    public function types(): array
     {
-        if (!array_key_exists($type, $this->objects)) {
-            $ctx = $this->context($type);
-            if ($ctx === null) {
-                return null;
-            }
-            $this->objects[$type] = [];
-            foreach ($this->controller($ctx)->nodes($ctx) as $node) {
-                $this->objects[$type][(string) $node['label']] = (int) $node['oid'];
-            }
-        }
-
-        return $this->objects[$type];
+        return self::TYPES;
     }
 
-    /** An object's DDL, as its SQL tab shows it. */
-    public function ddl(string $type, int $oid): string
+    protected function parent(): string
     {
-        $key = $type . '/' . $oid;
-        if (!isset($this->ddl[$key])) {
-            $ctx = $this->context($type) ?? throw new NotFoundException(sprintf('This server has no %s objects.', $type));
-            // With the route ids its own SQL tab has: a table's policies and rules resolve it from "tid".
-            $ctx = new NodeContext($ctx->node, $ctx->registry, $ctx->pool, $ctx->conn, $ctx->database, [...$ctx->ids, $ctx->node->idParam => $oid], $ctx->request);
-            $this->ddl[$key] = $this->controller($ctx)->sql($ctx, $oid);
-        }
-
-        return $this->ddl[$key];
+        return 'schema';
     }
 
-    private function context(string $type): ?NodeContext
+    protected function containerIds(): array
     {
-        if (!array_key_exists($type, $this->contexts)) {
-            $node = Nodes::find($type);
-            $this->contexts[$type] = $node === null || $node->parent !== 'schema' || !$node->availableOn($this->conn->version())
-                ? null
-                : new NodeContext($node, Nodes::registry(), $this->pool, $this->conn, $this->conn->database(), ['scid' => $this->scid], $this->request);
-        }
-
-        return $this->contexts[$type];
+        return $this->scid === null ? [] : ['scid' => $this->scid];
     }
 
-    private function controller(NodeContext $ctx): NodeController
+    protected function exists(): bool
     {
-        return new ($ctx->node->controller)();
+        return $this->scid !== null;
     }
 }

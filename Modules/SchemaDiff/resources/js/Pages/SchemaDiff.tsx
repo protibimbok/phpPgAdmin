@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { errorMessage } from '@/api/request'
@@ -8,7 +8,7 @@ import Modal from '@/components/Modal'
 import SqlView from '@/components/SqlView'
 import { urls } from '@/level'
 import { notifyError } from '@/notify'
-import { compareSchemas, diffOptions, diffScript, objectDdl, type DiffOptions, type DiffResult, type DiffStatus, type Side } from '../api'
+import { compareSchemas, connectServer, diffOptions, diffScript, objectDdl, type DiffOptions, type DiffResult, type DiffServer, type DiffStatus, type Side } from '../api'
 
 const STATUSES: DiffStatus[] = ['identical', 'different', 'source_only', 'target_only']
 
@@ -18,8 +18,9 @@ const ROW_CLASS: Record<DiffStatus, string> = { identical: '', different: 'table
 const OPTION_KEYS: (keyof DiffOptions)[] = ['ignore_owner', 'ignore_whitespace', 'ignore_tablespace', 'ignore_grants']
 
 /**
- * pgAdmin's Schema Diff on the database: a source and a target schema (of this database or
- * another on the server), what to ignore, Compare; then every object of both, grouped by type,
+ * pgAdmin's Schema Diff on the database: a source and a target, each a server (the session's or
+ * another saved one, signed in to here), a database and a schema, or no schema to compare the
+ * whole databases; what to ignore, Compare; then every object of both, grouped by schema and type,
  * as identical, different, only in the source or only in the target, filtered by status. A row
  * shows the object's DDL on each side and the DDL that makes the target's like the source's;
  * the rows ticked make the script, which opens on the target database's SQL page.
@@ -28,9 +29,9 @@ export default function SchemaDiff() {
   const db = useParams().db ?? ''
   const { t } = useTranslation('schemadiff')
   const navigate = useNavigate()
-  const { data: databases } = useRequest(() => diffOptions().then((o) => o.databases), [])
-  const [source, setSource] = useState<Side>({ database: db, schema: '' })
-  const [target, setTarget] = useState<Side>({ database: db, schema: '' })
+  const { data: servers, reload: reloadServers } = useRequest(() => diffOptions().then((o) => o.servers), [])
+  const [source, setSource] = useState<Side>({ server: null, database: db, schema: '' })
+  const [target, setTarget] = useState<Side>({ server: null, database: db, schema: '' })
   const [options, setOptions] = useState<DiffOptions>({ ignore_owner: false, ignore_whitespace: false, ignore_tablespace: false, ignore_grants: false })
   const [compared, setCompared] = useState<{ request: { source: Side; target: Side } & DiffOptions; results: DiffResult[] } | null>(null)
   const [shown, setShown] = useState<Set<DiffStatus>>(new Set(['different', 'source_only', 'target_only']))
@@ -39,18 +40,23 @@ export default function SchemaDiff() {
   const [current, setCurrent] = useState<{ key: string; ddl: { source_ddl: string; target_ddl: string; diff_ddl: string } | null } | null>(null)
   const [script, setScript] = useState<string | null>(null)
 
-  const keyOf = (r: DiffResult) => `${r.type}:${r.name}`
+  const keyOf = (r: DiffResult) => `${r.schema ?? ''}:${r.type}:${r.name}`
   const visible = useMemo(() => (compared?.results ?? []).filter((r) => shown.has(r.status)), [compared, shown])
   const groups = useMemo(() => {
-    const map = new Map<string, DiffResult[]>()
-    for (const r of visible) map.set(r.label, [...(map.get(r.label) ?? []), r])
-    return [...map.entries()]
+    const map = new Map<string, { schema: string | null | undefined; label: string; rows: DiffResult[] }>()
+    for (const r of visible) {
+      const key = `${r.schema ?? ''}\u0000${r.label}`
+      const group = map.get(key) ?? { schema: r.schema, label: r.label, rows: [] }
+      group.rows.push(r)
+      map.set(key, group)
+    }
+    return [...map.values()]
   }, [visible])
   const counts = useMemo(() => Object.fromEntries(STATUSES.map((s) => [s, (compared?.results ?? []).filter((r) => r.status === s).length])) as Record<DiffStatus, number>, [compared])
 
   async function compare(e: FormEvent) {
     e.preventDefault()
-    if (!source.schema || !target.schema) return notifyError(t('choose'))
+    if (!source.database || !target.database || !source.schema !== !target.schema) return notifyError(t('choose'))
     setBusy(true)
     setCurrent(null)
     try {
@@ -108,8 +114,8 @@ export default function SchemaDiff() {
 
       <form id="schema_diff_form" onSubmit={(e) => void compare(e)}>
         <div className="row">
-          <SideCard id="source" title={t('source')} side={source} databases={databases ?? []} onChange={setSource} />
-          <SideCard id="target" title={t('target')} side={target} databases={databases ?? []} onChange={setTarget} />
+          <SideCard id="source" title={t('source')} side={source} servers={servers ?? []} onChange={setSource} onConnected={reloadServers} />
+          <SideCard id="target" title={t('target')} side={target} servers={servers ?? []} onChange={setTarget} onConnected={reloadServers} />
         </div>
         <div className="card mb-3">
           <div className="card-header">{t('options')}</div>
@@ -131,7 +137,7 @@ export default function SchemaDiff() {
 
       {compared && (
         <div className="card mb-3" id="schema_diff_results">
-          <div className="card-header">{t('results', { source: `${compared.request.source.database}.${compared.request.source.schema}`, target: `${compared.request.target.database}.${compared.request.target.schema}` })}</div>
+          <div className="card-header">{t('results', { source: sideName(compared.request.source, servers), target: sideName(compared.request.target, servers) })}</div>
           <div className="card-body">
             <div className="mb-2">
               {STATUSES.map((status) => (
@@ -170,8 +176,13 @@ export default function SchemaDiff() {
                   </tr>
                 </thead>
                 <tbody>
-                  {groups.map(([label, rows]) => [
-                    <tr key={`group:${label}`} className="table-secondary">
+                  {groups.map(({ schema, label, rows }, i) => [
+                    schema !== undefined && (i === 0 || groups[i - 1].schema !== schema) && (
+                      <tr key={`schema:${schema ?? ''}`} className="table-dark">
+                        <th colSpan={3}>{schema === null ? t('database_objects') : t('schema_group', { schema })}</th>
+                      </tr>
+                    ),
+                    <tr key={`group:${schema ?? ''}:${label}`} className="table-secondary">
                       <th colSpan={3}>
                         {label} ({rows.length})
                       </th>
@@ -218,7 +229,7 @@ export default function SchemaDiff() {
         size="lg"
         onClose={() => setScript(null)}
         footer={
-          script && compared ? (
+          script && compared && (compared.request.target.server === null || servers?.find((s) => s.id === compared.request.target.server)?.current) ? (
             <button
               type="button"
               className="btn btn-primary"
@@ -235,16 +246,54 @@ export default function SchemaDiff() {
   )
 }
 
-/** A side of the comparison: its database and one of the database's schemas. */
-function SideCard({ id, title, side, databases, onChange }: { id: string; title: string; side: Side; databases: string[]; onChange: (side: Side) => void }) {
-  const { t } = useTranslation('schemadiff')
-  const { data: schemas } = useRequest(() => (side.database ? diffOptions(side.database).then((o) => o.schemas ?? []) : Promise.resolve([])), [side.database])
+/** "server › database.schema", the server only when it is not the session's. */
+function sideName(side: Side, servers: DiffServer[] | null | undefined): string {
+  const server = servers?.find((s) => s.id === side.server && !s.current)
+  return `${server ? `${server.name} › ` : ''}${side.database}${side.schema ? `.${side.schema}` : ''}`
+}
 
-  // A side starts on the first schema of its database.
+/**
+ * A side of the comparison: its server, one of the server's databases and one of the
+ * database's schemas, or none for the whole database. Another saved server is signed in to
+ * here, as pgAdmin connects a server picked in its Schema Diff.
+ */
+function SideCard({ id, title, side, servers, onChange, onConnected }: { id: string; title: string; side: Side; servers: DiffServer[]; onChange: (side: Side) => void; onConnected: () => void }) {
+  const { t } = useTranslation('schemadiff')
+  const { data: options, reload } = useRequest(() => diffOptions(side.server, side.database), [side.server, side.database])
+  const databases = options?.databases ?? []
+  const schemas = options?.schemas ?? []
+  const [login, setLogin] = useState({ username: '', password: '' })
+  const [connecting, setConnecting] = useState(false)
+  // A side picks a schema for itself after its database changes, until one is chosen.
+  const pick = useRef(true)
+
+  // A side starts on its server's first database and on the public schema, or the first one.
   useEffect(() => {
-    if (schemas && !schemas.includes(side.schema)) onChange({ ...side, schema: schemas.includes('public') ? 'public' : (schemas[0] ?? '') })
+    if (!options || options.needs_login) return
+    if (!options.databases.includes(side.database)) {
+      pick.current = true
+      onChange({ ...side, database: options.databases[0] ?? '', schema: '' })
+    } else if (options.schemas && pick.current) {
+      pick.current = false
+      onChange({ ...side, schema: options.schemas.includes('public') ? 'public' : (options.schemas[0] ?? '') })
+    } else if (options.schemas && side.schema !== '' && !options.schemas.includes(side.schema)) onChange({ ...side, schema: '' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schemas])
+  }, [options])
+
+  async function connect() {
+    if (side.server === null) return
+    setConnecting(true)
+    try {
+      await connectServer(side.server, login.username, login.password)
+      setLogin({ username: login.username, password: '' })
+      onConnected()
+      reload()
+    } catch (err) {
+      notifyError(errorMessage(err))
+    } finally {
+      setConnecting(false)
+    }
+  }
 
   return (
     <div className="col-12 col-md-6">
@@ -252,29 +301,81 @@ function SideCard({ id, title, side, databases, onChange }: { id: string; title:
         <div className="card-header">{title}</div>
         <div className="card-body row g-3">
           <div className="col-auto">
-            <label className="form-label" htmlFor={`${id}_database`}>
-              {t('database')}
+            <label className="form-label" htmlFor={`${id}_server`}>
+              {t('server')}
             </label>
-            <select className="form-select" id={`${id}_database`} value={side.database} onChange={(e) => onChange({ database: e.target.value, schema: '' })}>
-              {databases.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+            <select
+              className="form-select"
+              id={`${id}_server`}
+              value={side.server === null ? '' : String(side.server)}
+              onChange={(e) => {
+                const picked = servers.find((s) => String(s.id) === e.target.value)
+                pick.current = true
+                onChange({ server: !picked || picked.current ? null : picked.id, database: '', schema: '' })
+              }}
+            >
+              {servers.map((s) => (
+                <option key={s.id ?? 'current'} value={s.current ? '' : String(s.id)}>
+                  {s.name}
                 </option>
               ))}
             </select>
           </div>
-          <div className="col-auto">
-            <label className="form-label" htmlFor={`${id}_schema`}>
-              {t('schema')}
-            </label>
-            <select className="form-select" id={`${id}_schema`} value={side.schema} onChange={(e) => onChange({ ...side, schema: e.target.value })}>
-              {(schemas ?? []).map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
+          {options?.needs_login ? (
+            <>
+              <div className="col-auto">
+                <label className="form-label" htmlFor={`${id}_username`}>
+                  {t('username')}
+                </label>
+                <input className="form-control" id={`${id}_username`} value={login.username} autoComplete="username" onChange={(e) => setLogin({ ...login, username: e.target.value })} />
+              </div>
+              <div className="col-auto">
+                <label className="form-label" htmlFor={`${id}_password`}>
+                  {t('password')}
+                </label>
+                <input className="form-control" id={`${id}_password`} type="password" value={login.password} autoComplete="current-password" onChange={(e) => setLogin({ ...login, password: e.target.value })} />
+              </div>
+              <div className="col-auto d-flex align-items-end">
+                <button type="button" className="btn btn-secondary" id={`${id}_connect`} disabled={connecting} onClick={() => void connect()}>
+                  {t('connect')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="col-auto">
+                <label className="form-label" htmlFor={`${id}_database`}>
+                  {t('database')}
+                </label>
+                <select className="form-select" id={`${id}_database`} value={side.database} onChange={(e) => {
+                    pick.current = true
+                    onChange({ ...side, database: e.target.value, schema: '' })
+                  }}>
+                  {databases.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-auto">
+                <label className="form-label" htmlFor={`${id}_schema`}>
+                  {t('schema')}
+                </label>
+                <select className="form-select" id={`${id}_schema`} value={side.schema} onChange={(e) => {
+                    pick.current = false
+                    onChange({ ...side, schema: e.target.value })
+                  }}>
+                  <option value="">{t('whole_database')}</option>
+                  {schemas.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

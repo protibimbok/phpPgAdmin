@@ -3,8 +3,8 @@
 The **Schema diff** tab of a database (`/db/<database>/schema-diff`) compares two schemas, after
 pgAdmin's Schema Diff tool: every object of both is listed as identical, different, only in the source or
 only in the target, each with its DDL on both sides, and the objects you tick make a script that turns
-the target into the source. The two schemas can be in the same database or in two databases of the
-server.
+the target into the source. The two schemas can be in the same database, in two databases of the
+server, or on two servers. With no schema picked on either side, the whole databases are compared.
 
 The examples compare `inventory` (the source) with `inventory_next` (the target) in bookshop, which the
 demo seed created with drift: `inventory_next.warehouses` has an extra `capacity` column and `code` is
@@ -15,9 +15,10 @@ and there is an extra `suppliers` table.
 
 ![The Source and Target cards, with the options and Compare](/media/database/schema-diff-form.png)
 
-1. In **Source**, pick the **Database** and **Schema** you want the target to look like.
-2. In **Target**, pick the database and schema to change. Both sides start on the current database and
-   its `public` schema.
+1. In **Source**, pick the **Server**, **Database** and **Schema** you want the target to look like.
+2. In **Target**, pick the server, database and schema to change. Both sides start on the server you
+   are signed in to, the current database and its `public` schema.
+   Pick **(whole database)** as the schema on both sides to compare two databases.
 3. Tick what to ignore under **Options**, and click **Compare**.
 
 | Option | Ignores |
@@ -27,9 +28,38 @@ and there is an extra `suppliers` table.
 | **Ignore tablespace** | tablespace clauses |
 | **Ignore grants/revokes** | `GRANT` and `REVOKE` |
 
-Comparing a schema with itself is refused (*The source and the target are the same schema.*). Object
-names are compared without their schema, so `inventory.stock` and `inventory_next.stock` are the same
-object.
+Comparing a schema with itself is refused (*The source and the target are the same schema.*), and so is
+a schema on one side with the whole database on the other. Object names are compared without their
+schema, so `inventory.stock` and `inventory_next.stock` are the same object.
+
+### Another server
+
+The **Server** list holds the server you are signed in to and the other saved servers (the ones a login
+has succeeded against). Picking another one asks for a **Username** and **Password** for it; **Connect**
+signs in, and the databases of that server appear. The credentials are kept in your session, like the
+session's own, until you log out; they are not saved. When the target is on another server, the script
+dialog has no button for the SQL page, which works on the server you are signed in to: copy the script
+instead.
+
+### Whole databases
+
+With **(whole database)** on both sides, the comparison takes the database's own objects first, as
+pgAdmin's database compare does: schemas, extensions, languages, foreign data wrappers, foreign servers,
+user mappings, casts, event triggers, publications and subscriptions. Then the objects of each schema,
+the schemas matched by name: a schema only in the source has all its objects *Source only*, one only in
+the target all its objects *Target only*. The results are grouped under **Database objects** and
+**Schema: …** headings.
+
+A schema that differs is altered, never dropped: its owner (`ALTER SCHEMA … OWNER TO`), its comment and
+its grants. An extension of another version gets `ALTER EXTENSION … UPDATE TO`, one in another schema
+`… SET SCHEMA`. The objects an extension owns (citext's functions and casts, for example) are never
+listed: `CREATE EXTENSION` makes them.
+
+The script of a whole-database comparison puts the database-level creates that the schemas' objects use
+first (schemas, extensions, languages, wrappers, servers, user mappings), after the drops of casts, event
+triggers, publications and subscriptions only the target has; then each schema's part, ordered as below;
+then the new casts, event triggers, publications and subscriptions; and last the drops of the
+database-level objects only the target has, schemas at the very end.
 
 ## Results
 
@@ -105,14 +135,15 @@ grants.
 
 ## What is compared
 
-Objects inside the two schemas: collations, types, domains, the four kinds of full text search objects,
+Objects inside the schemas: collations, types, domains, the four kinds of full text search objects,
 sequences, functions, procedures, trigger functions, aggregates, operators, tables (with their columns,
 constraints, indexes, triggers and comment), foreign tables, views and materialized views.
 
+With whole databases, also the database-level objects listed [above](#whole-databases).
+
 Not compared:
 
-- database-level objects: extensions, event triggers, publications, subscriptions, foreign data wrappers
-  and servers, casts, languages, and the database's own settings;
+- the database's own settings (its owner, encoding, `ALTER DATABASE … SET`);
+- database-level objects when two schemas are compared;
 - roles and tablespaces, which belong to the server;
-- data;
-- schemas of two different servers: both sides must be on the server you are signed in to.
+- data.
