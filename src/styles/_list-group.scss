@@ -1,5 +1,5 @@
-// List groups on the home page's cards: plain bulleted lists, no borders, the ones that
-// hold a form (language, theme) flush with the card instead.
+// List groups on the home page's cards: plain bulleted lists, no borders, the settings ones
+// (change password, language, theme) flush with the card instead.
 
 #maincontainer {
   .list-group {
@@ -14,6 +14,7 @@
   }
 }
 
+#li_change_password,
 #li_select_lang,
 #li_select_theme {
   &.list-group-item {

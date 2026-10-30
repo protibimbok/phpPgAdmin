@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PhpPgAdmin\Core\Facades\Route;
+use PhpPgAdmin\Modules\Auth\Http\Controllers\AccountController;
 use PhpPgAdmin\Modules\Auth\Http\Controllers\AuthController;
 use PhpPgAdmin\Modules\Auth\Http\Controllers\PreferenceController;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
@@ -20,4 +21,9 @@ Route::prefix('auth')->controller(AuthController::class)->group(function (): voi
 Route::middleware(Authenticate::class)->controller(PreferenceController::class)->group(function (): void {
     Route::get('/preferences', 'index')->setName('preferences.index');
     Route::patch('/preferences', 'update')->setName('preferences.update');
+});
+
+Route::middleware(Authenticate::class)->controller(AccountController::class)->group(function (): void {
+    Route::get('/account', 'show')->setName('account.show');
+    Route::post('/account/password', 'password')->setName('account.password');
 });

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import Icon from '@/components/Icon'
 import LocaleSelect from '@/i18n/LocaleSelect'
 import { getServerInfo, type ServerInfo } from '../api'
+import ChangePasswordModal from '../ChangePasswordModal'
 
 const REPOSITORY = 'https://github.com/protibimbok/phpPgAdmin'
 const DOCUMENTATION = 'https://protibimbok.github.io/phpPgAdmin/'
@@ -19,14 +20,16 @@ const LINKS = [
 ] as const
 
 /**
- * The home page, laid out like phpMyAdmin's: appearance settings on the left; the database
- * server, the web server and the application on the right, each a card of facts.
+ * The home page, laid out like phpMyAdmin's: general settings (Change password) and appearance
+ * settings on the left; the database server, the web server and the application on the right,
+ * each a card of facts.
  */
 export default function Home() {
   const { t } = useTranslation('server')
   const { t: tApp } = useTranslation()
   const [info, setInfo] = useState<ServerInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [changingPassword, setChangingPassword] = useState(false)
 
   useEffect(() => {
     getServerInfo().then(setInfo, (e: unknown) => setError(e instanceof Error ? e.message : String(e)))
@@ -39,6 +42,17 @@ export default function Home() {
       <div className="container-fluid">
         <div className="row mb-3">
           <div className="col-lg-7 col-12">
+            <div className="card mt-4">
+              <div className="card-header">{t('home.general_settings')}</div>
+              <ul className="list-group list-group-flush">
+                <li id="li_change_password" className="list-group-item">
+                  <a href="#change-password" id="change_password_anchor" className="ajax" onClick={(e) => { e.preventDefault(); setChangingPassword(true) }}>
+                    <Icon name="s_passwd" /> {t('password.title')}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
             <div className="card mt-4">
               <div className="card-header">{t('home.appearance_settings')}</div>
               <ul className="list-group list-group-flush">
@@ -150,6 +164,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+      <ChangePasswordModal show={changingPassword} onClose={() => setChangingPassword(false)} />
     </div>
   )
 }

@@ -76,3 +76,13 @@ export function me(): Promise<User | null> {
 export function logout(): Promise<void> {
   return request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }).then(() => undefined)
 }
+
+/** The signed-in role and the server's password_encryption, for the "Change password" form. */
+export function getAccount(): Promise<{ username: string; password_encryption: string }> {
+  return request('/api/account')
+}
+
+/** ALTER ROLE CURRENT_USER PASSWORD: a new password hashed by the method, or null for none. */
+export function changePassword(password: string | null, hashing: string): Promise<{ ok: true }> {
+  return request('/api/account/password', { method: 'POST', body: JSON.stringify({ password, hashing }) })
+}

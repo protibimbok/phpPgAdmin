@@ -25,5 +25,18 @@
     "get_support": "Get support",
     "list_of_changes": "List of changes",
     "license": "License"
+  },
+  "password": {
+    "title": "Change password",
+    "no_password": "No Password",
+    "password": "Password:",
+    "enter": "Enter:",
+    "retype": "Re-type:",
+    "hashing": "Password Hashing:",
+    "generate_label": "Generate password:",
+    "generate": "Generate",
+    "empty": "The password is empty!",
+    "mismatch": "The passwords aren't the same!",
+    "changed": "The password for your role was changed successfully."
   }
 }
