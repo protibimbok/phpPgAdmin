@@ -44,7 +44,15 @@
     "owner": "Owner",
     "go": "Go",
     "renamed": "Schema {{name}} has been renamed to {{newName}}.",
-    "saved": "Schema properties have been saved."
+    "saved": "Schema properties have been saved.",
+    "copy": "Copy schema to",
+    "copy_structure": "Structure only",
+    "copy_data": "Structure and data",
+    "copy_dataonly": "Data only (into the tables of an existing schema)",
+    "copy_sequences": "Set the sequences' values",
+    "copy_switch": "Switch to copied schema",
+    "copy_same": "Give the copy another name.",
+    "copied": "Schema {{schema}} has been copied to {{name}}."
   },
   "data_dictionary": {
     "title": "Data dictionary",

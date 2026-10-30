@@ -12,7 +12,7 @@ import { urls } from '@/level'
 import MaintenanceCard from '@maintenance/js/MaintenanceCard'
 import SecurityLabelsCard from '@/components/SecurityLabelsCard'
 import { quoteIdent } from '@sql/js/sql'
-import { dropSchema, resolveSchema, schemaModifiedSql, schemaOptions, schemaProperties, updateSchema, type SchemaData } from '../api'
+import { copySchema, dropSchema, resolveSchema, schemaModifiedSql, schemaOptions, schemaProperties, updateSchema, type SchemaData } from '../api'
 
 type Preview = { sql: string | null; error: string | null } | null
 
@@ -33,6 +33,8 @@ export default function Operations() {
   const [comment, setComment] = useState('')
   const [newName, setNewName] = useState(schema)
   const [owner, setOwner] = useState('')
+  const [copy, setCopy] = useState<{ name: string; what: 'structure' | 'data' | 'dataonly'; sequences: boolean; switchTo: boolean }>({ name: schema, what: 'data', sequences: true, switchTo: false })
+  const [copying, setCopying] = useState(false)
 
   useEffect(() => {
     if (!data) return
@@ -182,6 +184,78 @@ export default function Operations() {
           </li>
         </ul>
       </div>
+
+      <form
+        id="copy_schema_form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (copy.name.trim() === '' || copy.name === schema) return notify(t('operations.copy_same'), 'error')
+          setCopying(true)
+          copySchema(db, scid, { name: copy.name.trim(), what: copy.what, sequences: copy.sequences })
+            .then(
+              () => {
+                notifySuccess(t('operations.copied', { schema, name: copy.name.trim() }))
+                treeState.refresh()
+                if (copy.switchTo) navigate(urls.schema(db, copy.name.trim()))
+              },
+              (err: unknown) => notifyError(errorMessage(err)),
+            )
+            .finally(() => setCopying(false))
+        }}
+      >
+        <div className="card mb-2">
+          <div className="card-header">
+            <Icon name="b_edit" /> {t('operations.copy')}
+          </div>
+          <div className="card-body">
+            <div className="mb-3 row g-3">
+              <div className="col-auto">
+                <label className="visually-hidden" htmlFor="copySchemaNameInput">
+                  {t('operations.new_name')}
+                </label>
+                <input className="form-control textfield" id="copySchemaNameInput" type="text" name="newname" maxLength={63} value={copy.name} onChange={(e) => setCopy({ ...copy, name: e.target.value })} required />
+              </div>
+            </div>
+            <div className="mb-3">
+              {(['structure', 'data', 'dataonly'] as const).map((what, i) => (
+                <div className="form-check" key={what}>
+                  <input className="form-check-input" type="radio" name="what" id={`whatRadio${i + 1}`} value={what} checked={copy.what === what} onChange={() => setCopy({ ...copy, what })} />
+                  <label className="form-check-label" htmlFor={`whatRadio${i + 1}`}>
+                    {t(`operations.copy_${what}`)}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="form-check">
+              <input className="form-check-input" type="checkbox" name="sequences" id="checkbox_sequences" checked={copy.sequences} onChange={(e) => setCopy({ ...copy, sequences: e.target.checked })} />
+              <label className="form-check-label" htmlFor="checkbox_sequences">
+                {t('operations.copy_sequences')}
+              </label>
+            </div>
+            <div className="form-check">
+              <input className="form-check-input" type="checkbox" name="switch_to_new" id="checkbox_switch" checked={copy.switchTo} onChange={(e) => setCopy({ ...copy, switchTo: e.target.checked })} />
+              <label className="form-check-label" htmlFor="checkbox_switch">
+                {t('operations.copy_switch')}
+              </label>
+            </div>
+          </div>
+          <div className="card-footer text-end">
+            <input
+              className="btn btn-secondary"
+              type="button"
+              value={tApp('preview_sql')}
+              onClick={() => {
+                setPreview({ sql: null, error: null })
+                copySchema(db, scid, { name: copy.name.trim(), what: copy.what, sequences: copy.sequences }, true).then(
+                  (sql) => setPreview({ sql, error: null }),
+                  (err: unknown) => setPreview({ sql: null, error: errorMessage(err) }),
+                )
+              }}
+            />{' '}
+            <input className="btn btn-primary" type="submit" name="submit_copy" value={t('operations.go')} disabled={copying} />
+          </div>
+        </div>
+      </form>
 
       <form id="schema_properties_form" onSubmit={submitProperties}>
         <div className="card mb-2">

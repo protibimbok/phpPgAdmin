@@ -59,6 +59,28 @@ another schema. The `public` schema has the same links and no extra protection, 
 statement in the dialog before you confirm.
 :::
 
+## Copy schema to
+
+phpMyAdmin's **Copy database to** card, for a schema. PostgreSQL has no statement that copies a
+schema, so phpPgAdmin writes one from the [schema diff](/database/schema-diff): every object of the
+schema (types, domains, sequences, functions, tables with their constraints, indexes, triggers and
+grants, views…) made again under the new name, with the references to the schema itself pointing at
+the copy (`inventory.warehouses` becomes `inventory_copy.warehouses`; `public.books` stays as it is).
+
+| Field | What it does |
+| --- | --- |
+| *new name* | The copy's name; a schema of that name must not exist. |
+| **Structure only** | `CREATE SCHEMA new AUTHORIZATION <owner>` and the objects. |
+| **Structure and data** | The same, then each table's rows: `INSERT INTO new.t (…) SELECT … FROM old.t`, tables after the ones their foreign keys reference, generated columns left to compute, `OVERRIDING SYSTEM VALUE` for `GENERATED ALWAYS` identity columns. |
+| **Data only** | The rows only, into the tables of the same names of a schema that exists already (the new name is then that schema's). |
+| **Set the sequences' values** | phpMyAdmin's *Add AUTO_INCREMENT value*: `setval()` of each copied sequence to the original's position, so new rows do not collide. |
+| **Switch to copied schema** | Opens the copy's Structure page afterwards. |
+
+Everything runs in one transaction: an error (a missing extension, a role you may not grant to)
+leaves nothing behind and shows the server's message. **Preview SQL** shows the whole script.
+Extension members are not copied (their extension owns them), and objects outside the schema, such
+as event triggers, stay as they are.
+
 ## Schema properties
 
 **Schema properties** changes the **Owner**:
@@ -89,10 +111,3 @@ schema's **Privileges** tab, described on the [Privileges](/tools/privileges) pa
 The **Maintenance** card runs `VACUUM`, `ANALYZE` or `REINDEX` on every table and materialized view
 in the schema, as a background process. `CLUSTER` is offered on the database's card only. See
 [Maintenance](/tools/maintenance) for the options.
-
-## What there is not
-
-phpMyAdmin's database Operations page has a **Copy database to** card. PostgreSQL has no statement
-that copies a schema, and the schema's Operations tab has no copy card. To copy a schema, export it
-from the schema's [Export tab](/tools/export), rename the schema in the file (or rename the original
-first) and import it again.

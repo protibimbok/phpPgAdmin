@@ -111,3 +111,8 @@ export function dataDictionary(db: string, schema?: string | null): Promise<Data
 
   return api.get<DataDictionary>(`/api/databases/${encodeURIComponent(db)}/data-dictionary${query}`)
 }
+
+/** phpMyAdmin's Copy database to, for a schema; with preview only the statements come back. */
+export function copySchema(db: string, scid: number, options: { name: string; what: 'structure' | 'data' | 'dataonly'; sequences: boolean }, preview = false): Promise<string> {
+  return api.post<{ sql: string }>(`/api/databases/${encodeURIComponent(db)}/schemas/${scid}/copy`, { ...options, preview }).then((r) => r.sql)
+}

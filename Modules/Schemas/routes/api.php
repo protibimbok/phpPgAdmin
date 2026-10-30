@@ -10,6 +10,7 @@ use PhpPgAdmin\Core\Nodes\NodeContext;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Schemas\Http\Controllers\DataDictionaryController;
 use PhpPgAdmin\Modules\Schemas\Http\Controllers\SchemaController;
+use PhpPgAdmin\Modules\Schemas\Http\Controllers\SchemaCopyController;
 use Psr\Http\Message\ServerRequestInterface;
 
 // Beyond the node operations: the lists the create and alter forms offer in their selects.
@@ -29,4 +30,9 @@ Route::middleware(Authenticate::class)->group(function (): void {
 // phpMyAdmin's data dictionary: the database's tables (?schema= for one schema's) with their columns and indexes.
 Route::middleware(Authenticate::class)->controller(DataDictionaryController::class)->group(function (): void {
     Route::get('/databases/{db}/data-dictionary', 'show')->setName('schemas.data_dictionary');
+});
+
+// phpMyAdmin's Copy database to, for a schema: its objects (and rows) under a new name.
+Route::middleware(Authenticate::class)->controller(SchemaCopyController::class)->group(function (): void {
+    Route::post('/databases/{db}/schemas/{scid:number}/copy', 'copySchema')->setName('schemas.copy');
 });
