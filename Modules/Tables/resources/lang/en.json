@@ -484,5 +484,20 @@
       "detach": "Detach",
       "drop": "Drop"
     }
+  },
+  "storage": {
+    "title": "Storage parameters",
+    "fillfactor": "Fill factor (%)",
+    "parallel_workers": "Parallel workers",
+    "toast_tuple_target": "TOAST tuple target (bytes)",
+    "custom_table": "Custom auto-vacuum settings for the table",
+    "custom_toast": "Custom auto-vacuum settings for its TOAST table",
+    "enabled": "Auto-vacuum",
+    "enabled_default": "(server default)",
+    "enabled_on": "Enabled",
+    "enabled_off": "Disabled",
+    "setting": "Setting",
+    "value": "Value",
+    "default": "Server default"
   }
 }

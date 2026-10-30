@@ -23,6 +23,29 @@ export interface Table {
   size: number
   /** The parents the table inherits from, as the INHERITS clause names them (properties only). */
   coll_inherits?: string[]
+  /** Storage parameters (properties only); null when the table leaves them to the default. */
+  fillfactor?: string | null
+  parallel_workers?: string | null
+  toast_tuple_target?: string | null
+  /** autovacuum_enabled: 'x' when not set, 't' or 'f'. */
+  autovacuum_enabled?: AutovacuumEnabled
+  /** Whether any autovacuum setting is the table's own. */
+  autovacuum_custom?: boolean
+  toast_autovacuum_enabled?: AutovacuumEnabled
+  toast_autovacuum?: boolean
+  vacuum_table?: VacuumSetting[]
+  vacuum_toast?: VacuumSetting[]
+}
+
+export type AutovacuumEnabled = 'x' | 't' | 'f'
+
+/** An autovacuum setting a table may override: the server's default, and the table's value when it sets one. */
+export interface VacuumSetting {
+  name: string
+  label: string
+  column_type: 'integer' | 'number'
+  setting: string
+  value?: number
 }
 
 /** A view or materialized view, as their properties.sql describe them. */
@@ -330,6 +353,14 @@ export interface TableChanges {
   spcname?: string
   relpersistence?: boolean
   fillfactor?: string
+  parallel_workers?: string
+  toast_tuple_target?: string
+  autovacuum_custom?: boolean
+  autovacuum_enabled?: AutovacuumEnabled
+  vacuum_table?: { changed: { name: string; value: string | null }[] }
+  toast_autovacuum?: boolean
+  toast_autovacuum_enabled?: AutovacuumEnabled
+  vacuum_toast?: { changed: { name: string; value: string | null }[] }
   coll_inherits?: string[]
   columns?: Changes<ColumnData>
   primary_key?: Changes<KeyConstraintData>

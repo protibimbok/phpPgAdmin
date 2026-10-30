@@ -492,5 +492,20 @@
       "detach": "فصل",
       "drop": "حذف"
     }
+  },
+  "storage": {
+    "title": "معاملات التخزين",
+    "fillfactor": "عامل التعبئة (%)",
+    "parallel_workers": "العمال المتوازيون",
+    "toast_tuple_target": "هدف صف TOAST (بايت)",
+    "custom_table": "إعدادات تفريغ تلقائي مخصصة للجدول",
+    "custom_toast": "إعدادات تفريغ تلقائي مخصصة لجدول TOAST التابع له",
+    "enabled": "التفريغ التلقائي",
+    "enabled_default": "(افتراضي الخادم)",
+    "enabled_on": "مفعّل",
+    "enabled_off": "معطّل",
+    "setting": "الإعداد",
+    "value": "القيمة",
+    "default": "افتراضي الخادم"
   }
 }

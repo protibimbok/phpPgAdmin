@@ -10,6 +10,7 @@ import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
 import { constraints, copyTable, detachPartition, dropTable, indexes as indexesOf, partitions as partitionsOf, resolveTable, tableModifiedSql, tableOptions, tables, truncateTable, updateTable, type CopyTableOptions, type ForeignKeyRow, type Partition, type TableChanges } from '../api'
+import StorageCard from '../StorageCard'
 
 type Preview = { sql: string | null; error: string | null } | null
 
@@ -347,6 +348,9 @@ export default function TableOperations() {
           </div>
         </div>
       </form>
+
+      {/* A partitioned table has no storage of its own; its partitions set theirs. */}
+      {!properties.is_partitioned && <StorageCard properties={properties} onPreview={showPreview} onSave={(changes) => void alter(changes, tApp('query_executed'))} />}
 
       {/* pgAdmin's "Inherited from table(s)"; phpMyAdmin has no counterpart, so the card follows the options card's layout. */}
       <form id="tableInheritsForm" onSubmit={submitInherits}>
