@@ -14,6 +14,7 @@ use PhpPgAdmin\Modules\Types\Http\Controllers\FtsConfigurationController;
 use PhpPgAdmin\Modules\Types\Http\Controllers\FtsDictionaryController;
 use PhpPgAdmin\Modules\Types\Http\Controllers\FtsParserController;
 use PhpPgAdmin\Modules\Types\Http\Controllers\FtsTemplateController;
+use PhpPgAdmin\Modules\Types\Http\Controllers\OperatorClassController;
 use PhpPgAdmin\Modules\Types\Http\Controllers\TypeController;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -53,5 +54,14 @@ Route::middleware(Authenticate::class)->group(function () use ($context): void {
     })->setName('fts_configurations.tokens');
     Route::get('/databases/{db}/schemas/{scid:number}/fts_dictionaries/options', fn (ServerRequestInterface $request, array $args): array => (new FtsDictionaryController())->options($context($request, $args, 'fts_dictionary')))->setName('fts_dictionaries.options');
     Route::get('/databases/{db}/schemas/{scid:number}/fts_parsers/options', fn (ServerRequestInterface $request, array $args): array => (new FtsParserController())->options($context($request, $args, 'fts_parser')))->setName('fts_parsers.options');
+    // Operator classes, operator families and conversions: listed, exported and dropped.
+    Route::get('/databases/{db}/schemas/{scid:number}/opclasses', fn (ServerRequestInterface $request, array $args): array => ['rows' => (new OperatorClassController())->list($context($request, $args, 'type'))])->setName('opclasses.list');
+    Route::get('/databases/{db}/schemas/{scid:number}/opclasses/{kind}/{oid:number}/sql', fn (ServerRequestInterface $request, array $args): array => ['sql' => (new OperatorClassController())->sql($context($request, $args, 'type'), (string) $args['kind'], (int) $args['oid'])])->setName('opclasses.sql');
+    Route::delete('/databases/{db}/schemas/{scid:number}/opclasses/{kind}/{oid:number}', function (ServerRequestInterface $request, array $args) use ($context): array {
+        $ctx = $context($request, $args, 'type');
+        (new OperatorClassController())->delete($ctx, (string) $args['kind'], (int) $args['oid'], $ctx->flag('cascade'));
+
+        return ['ok' => true];
+    })->setName('opclasses.delete');
     Route::get('/databases/{db}/schemas/{scid:number}/fts_templates/options', fn (ServerRequestInterface $request, array $args): array => (new FtsTemplateController())->options($context($request, $args, 'fts_template')))->setName('fts_templates.options');
 });

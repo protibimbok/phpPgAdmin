@@ -138,5 +138,15 @@
     "created": "تم إنشاء {{name}}.",
     "altered": "تم تعديل {{name}}.",
     "dropped": "تم حذف {{name}}."
+  },
+  "opclasses": {
+    "title": "فئات العوامل وعائلاتها والتحويلات",
+    "none": "لا توجد فئات عوامل أو عائلات عوامل أو تحويلات لعرضها.",
+    "kinds": {
+      "opclass": "OPERATOR CLASS",
+      "opfamily": "OPERATOR FAMILY",
+      "conversion": "CONVERSION"
+    },
+    "dropped": "تم حذف {{name}}."
   }
 }

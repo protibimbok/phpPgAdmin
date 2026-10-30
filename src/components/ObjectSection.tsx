@@ -16,9 +16,10 @@ export interface ObjectSectionProps<Row extends { oid: number; name: string }> {
   title: string
   rows: Row[]
   empty: string
-  createLabel: string
-  createIcon: string
-  onCreate: () => void
+  /** The create button; a list of objects created on the SQL page has none. */
+  createLabel?: string
+  createIcon?: string
+  onCreate?: () => void
   columns: { label: string; render: (row: Row) => ReactNode }[]
   onEdit: (row: Row) => void
   onExport: (rows: Row[]) => void
@@ -83,11 +84,13 @@ export default function ObjectSection<Row extends { oid: number; name: string }>
             </div>
           </div>
         )}
-        <div className={rows.length > 0 ? 'ms-auto' : undefined}>
-          <button type="button" className="ajax add_anchor btn btn-primary" onClick={onCreate}>
-            <Icon name={createIcon} /> {createLabel}
-          </button>
-        </div>
+        {onCreate && (
+          <div className={rows.length > 0 ? 'ms-auto' : undefined}>
+            <button type="button" className="ajax add_anchor btn btn-primary" onClick={onCreate}>
+              <Icon name={createIcon ?? 'b_plus'} /> {createLabel}
+            </button>
+          </div>
+        )}
       </div>
 
       <form className="ajax" onSubmit={(e) => e.preventDefault()}>

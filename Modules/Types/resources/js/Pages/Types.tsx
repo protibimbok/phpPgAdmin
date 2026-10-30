@@ -12,7 +12,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName } from '@sql/js/sql'
-import { collations as collationsOf, dropTypeRow, ftsSqlKind, listTextSearch, listTypes, resolveSchema, textSearch, typeRowSql, type Collation, type FtsKind, type FtsRow, type TypeRow } from '../api'
+import { collations as collationsOf, dropOpclass, dropTypeRow, ftsSqlKind, listOpclasses, listTextSearch, listTypes, opclassDropSql, opclassSql, resolveSchema, textSearch, typeRowSql, type Collation, type FtsKind, type FtsRow, type OpclassRow, type TypeRow } from '../api'
 import CollationDialog from '../dialogs/CollationDialog'
 import TextSearchDialog from '../dialogs/TextSearchDialog'
 
@@ -34,9 +34,9 @@ export default function Types() {
   const { db = '', schema = '' } = useParams()
   const { data, error, reload } = useRequest(async () => {
     const scid = await resolveSchema(db, schema)
-    const [rows, collations, textSearch] = await Promise.all([listTypes(db, scid), collationsOf(db, scid).list(), listTextSearch(db, scid)])
+    const [rows, collations, textSearch, opclasses] = await Promise.all([listTypes(db, scid), collationsOf(db, scid).list(), listTextSearch(db, scid), listOpclasses(db, scid)])
 
-    return { scid, rows, collations, textSearch }
+    return { scid, rows, collations, textSearch, opclasses }
   }, [db, schema])
   const [search, setSearch] = useSearchParams()
   const [collationDialog, setCollationDialog] = useState<{ collation: Collation | null } | null>(null)
@@ -354,6 +354,37 @@ export default function Types() {
         onEdit={(row) => setFtsDialog({ kind: row.kind, object: row })}
         onExport={(rows) => exportSql(exportTitle(rows.map((r) => r.name)), rows.map((row) => textSearch(db, scid, row.kind).sql(row.oid)))}
         onDrop={(rows) => askDropSql(rows.map((row) => `DROP ${ftsSqlKind(row.kind)} ${qualifiedName(schema, row.name)};`), async (id) => { const row = rows.find((r) => r.oid === id); if (row) await textSearch(db, scid, row.kind).remove(id, cascadeRef.current) }, rows.map((r) => r.oid), rows.length === 1 ? t('fts.dropped', { name: rows[0].name }) : t('dropped_many_objects', { count: rows.length }))}
+        noneSelected={t('none_selected_object')}
+        labels={sectionLabels}
+      />
+
+      <ObjectSection<OpclassRow>
+        id="opclasses"
+        icon="b_index"
+        title={t('opclasses.title')}
+        rows={data.opclasses}
+        empty={t('opclasses.none')}
+        columns={[
+          { label: t('columns.kind'), render: (row) => t(`opclasses.kinds.${row.kind}`) },
+          {
+            label: t('columns.definition'),
+            render: (row) => (
+              <code dir="ltr">
+                {row.kind === 'conversion'
+                  ? `${row.is_default ? 'DEFAULT ' : ''}FOR '${row.source_encoding}' TO '${row.target_encoding}' FROM ${row.function}`
+                  : row.kind === 'opclass'
+                    ? `${row.is_default ? 'DEFAULT ' : ''}FOR TYPE ${row.for_type} USING ${row.amname}${row.family ? ` FAMILY ${row.family}` : ''}`
+                    : `USING ${row.amname}`}
+              </code>
+            ),
+          },
+          { label: t('columns.owner'), render: (row) => row.owner },
+          { label: t('columns.comment'), render: (row) => row.description },
+        ]}
+        canEdit={() => false}
+        onEdit={() => undefined}
+        onExport={(rows) => exportSql(exportTitle(rows.map((r) => r.name)), rows.map((row) => opclassSql(db, scid, row)))}
+        onDrop={(rows) => askDropSql(rows.map((row) => opclassDropSql(qualifiedName(schema, row.name), row)), async (id) => { const row = rows.find((r) => r.oid === id); if (row) await dropOpclass(db, scid, row, cascadeRef.current) }, rows.map((r) => r.oid), rows.length === 1 ? t('opclasses.dropped', { name: rows[0].name }) : t('dropped_many_objects', { count: rows.length }))}
         noneSelected={t('none_selected_object')}
         labels={sectionLabels}
       />

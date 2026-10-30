@@ -375,3 +375,44 @@ export function listTextSearch(db: string, scid: number): Promise<FtsRow[]> {
 export function ftsSqlKind(kind: FtsKind): string {
   return `TEXT SEARCH ${kind.slice(4).toUpperCase()}`;
 }
+
+export type OpclassKind = 'opclass' | 'opfamily' | 'conversion'
+
+/** An operator class, operator family or conversion of the schema. */
+export interface OpclassRow {
+  oid: number
+  name: string
+  kind: OpclassKind
+  schema: string
+  amname: string | null
+  for_type: string | null
+  is_default: boolean | null
+  family: string | null
+  storage: string | null
+  source_encoding: string | null
+  target_encoding: string | null
+  function: string | null
+  owner: string
+  description: string | null
+}
+
+const opclassUrl = (db: string, scid: number) => `${collectionUrl(db, 'schemas', scid, 'opclasses')}`
+
+export function listOpclasses(db: string, scid: number): Promise<OpclassRow[]> {
+  return api.get<{ rows: OpclassRow[] }>(opclassUrl(db, scid)).then((r) => r.rows)
+}
+
+export function opclassSql(db: string, scid: number, row: OpclassRow): Promise<string> {
+  return api.get<{ sql: string }>(`${opclassUrl(db, scid)}/${row.kind}/${row.oid}/sql`).then((r) => r.sql)
+}
+
+export function dropOpclass(db: string, scid: number, row: OpclassRow, cascade = false): Promise<void> {
+  return api.delete<{ ok: true }>(`${opclassUrl(db, scid)}/${row.kind}/${row.oid}${cascade ? '?cascade=1' : ''}`).then(() => undefined)
+}
+
+/** The DROP a row's kind takes. */
+export function opclassDropSql(schemaIdent: string, row: OpclassRow): string {
+  const kind = { opclass: 'OPERATOR CLASS', opfamily: 'OPERATOR FAMILY', conversion: 'CONVERSION' }[row.kind]
+
+  return `DROP ${kind} ${schemaIdent}${row.amname ? ` USING ${row.amname}` : ''};`
+}

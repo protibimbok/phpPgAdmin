@@ -138,5 +138,15 @@
     "created": "{{name}} has been created.",
     "altered": "{{name}} has been altered.",
     "dropped": "{{name}} has been dropped."
+  },
+  "opclasses": {
+    "title": "Operator classes, families and conversions",
+    "none": "There are no operator classes, operator families or conversions to display.",
+    "kinds": {
+      "opclass": "OPERATOR CLASS",
+      "opfamily": "OPERATOR FAMILY",
+      "conversion": "CONVERSION"
+    },
+    "dropped": "{{name}} has been dropped."
   }
 }
