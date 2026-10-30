@@ -22,6 +22,8 @@ export interface ViewFormProps {
   /** Rendered inside a modal: the form's own Go button is left out and submitted from outside. */
   formId?: string
   inModal?: boolean
+  /** Creating from a query run with no database chosen: the databases the view may go in, as a row above the schema. */
+  databaseChoice?: { options: string[]; onChange: (db: string) => void }
 }
 
 const CHECK_OPTIONS = ['', 'CASCADED', 'LOCAL'] as const
@@ -33,7 +35,7 @@ const CHECK_OPTIONS = ['', 'CASCADED', 'LOCAL'] as const
  * materialized view (with its tablespace and WITH DATA) and the security barrier. Go creates or
  * alters the view through its node; Preview SQL shows what it would run.
  */
-export default function ViewForm({ db, schema, view = null, initialSql = '', onSaved, formId = 'view_form', inModal = false }: ViewFormProps) {
+export default function ViewForm({ db, schema, view = null, initialSql = '', onSaved, formId = 'view_form', inModal = false, databaseChoice }: ViewFormProps) {
   const { t } = useTranslation('views')
   const { t: tApp } = useTranslation()
   const editing = view !== null
@@ -130,6 +132,22 @@ export default function ViewForm({ db, schema, view = null, initialSql = '', onS
           <legend>{legend}</legend>
           <table className="table align-middle rte_table">
             <tbody>
+              {!editing && databaseChoice && (
+                <tr>
+                  <td className="text-nowrap">
+                    <label htmlFor="view_database">{t('form.database')}</label>
+                  </td>
+                  <td>
+                    <select id="view_database" name="view[database]" value={db} onChange={(e) => databaseChoice.onChange(e.target.value)}>
+                      {databaseChoice.options.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              )}
               {!editing && (
                 <tr>
                   <td className="text-nowrap">

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import Icon from '@/components/Icon'
 import { urls } from '@/level'
-import { notAvailable } from '@/unbuilt'
 import CreateViewModal from '@views/js/CreateViewModal'
 import type { QueryResponse, RowsResult } from '../api'
 import BookmarkForm from './BookmarkForm'
@@ -80,7 +79,7 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
                       <Icon name="b_chart" /> {t('operations.display_chart')}
                     </a>
                     <span>
-                      <a href="#create-view" className="btn create_view ajax" onClick={(e) => { e.preventDefault(); if (bookmarkDatabase) setCreateView(result.sql); else notAvailable() }}>
+                      <a href="#create-view" className="btn create_view ajax" onClick={(e) => { e.preventDefault(); setCreateView(result.sql) }}>
                         <Icon name="b_view_add" /> {t('operations.create_view')}
                       </a>
                     </span>
@@ -92,7 +91,7 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
           {bookmarkDatabase && result.kind === 'rows' && <BookmarkForm database={bookmarkDatabase} sql={result.sql} />}
         </div>
       ))}
-      {bookmarkDatabase && <CreateViewModal show={createView !== null} db={bookmarkDatabase} sql={createView ?? ''} onClose={() => setCreateView(null)} />}
+      <CreateViewModal show={createView !== null} db={bookmarkDatabase ?? db} sql={createView ?? ''} onClose={() => setCreateView(null)} />
     </div>
   )
 }

@@ -31,7 +31,8 @@ instead.
 :::
 
 At the server level there is no bookmark field, no **Bookmarked SQL query** card, no completions for
-tables and columns, and **Create view** answers that it is not available.
+tables and columns, and **Create view** asks for the database to create the view in (see
+[Create a view from a result](#create-a-view-from-a-result)).
 
 ## The editor
 
@@ -377,6 +378,10 @@ full rules.
 **AS** box. Fill in **VIEW name** (and optionally the schema, **Materialized**, **OR REPLACE**, column
 names, **WITH CHECK OPTION**, **Security barrier**) and click **Go**. The new view's structure page
 opens. See [Views](/schema/views) for the form's fields.
+
+On the server's SQL page the query has no database, so the form starts with a **Database** row,
+set to the database the query ran in (the server's maintenance database). Pick another one to
+create the view there; the **Schema** list follows the database.
 
 ![The Create view dialog with SELECT id, title, price FROM books WHERE price > 36 in the AS box](/media/sql/create-view.png)
 

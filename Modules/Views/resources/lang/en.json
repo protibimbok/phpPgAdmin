@@ -15,7 +15,8 @@
     "tablespace": "Tablespace",
     "default_tablespace": "(default)",
     "created": "View {{name}} has been created.",
-    "altered": "View {{name}} has been altered."
+    "altered": "View {{name}} has been altered.",
+    "database": "Database"
   },
   "structure": {
     "edit_view": "Edit view",
