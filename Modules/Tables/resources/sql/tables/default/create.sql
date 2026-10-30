@@ -20,12 +20,7 @@
 {% if data.fillfactor or data.parallel_workers or data.toast_tuple_target or (data.autovacuum_custom and data.add_vacuum_settings_in_sql) or data.autovacuum_enabled in ['t', 'f'] or (data.toast_autovacuum and data.add_vacuum_settings_in_sql) or data.toast_autovacuum_enabled in ['t', 'f'] %}
 {% set with_clause = true%}
 {% endif %}
-CREATE {% if data.relpersistence %}UNLOGGED {% endif %}TABLE{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{conn|qtIdent(data.schema, data.name)}}{{empty_bracket}}
-{% if data.typname %}
-    OF {{ data.typname }}
-{% endif %}
-{% if data.like_relation or data.coll_inherits or data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 or data.exclude_constraint|length > 0 %}
-(
+CREATE {% if data.relpersistence %}UNLOGGED {% endif %}TABLE{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{conn|qtIdent(data.schema, data.name)}}{{empty_bracket}}{% if data.typname %}{{ "\n" }}    OF {{ data.typname }}{% endif %}{% if data.like_relation or data.coll_inherits or data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 or data.exclude_constraint|length > 0 %}{{ "\n" }}(
 {% endif %}
 {% if data.like_relation %}
     LIKE {{ data.like_relation }}{% if data.like_default_value %}
@@ -48,7 +43,6 @@ CREATE {% if data.relpersistence %}UNLOGGED {% endif %}TABLE{% if add_not_exists
 
         INCLUDING STATISTICS{% endif %}{# phpPgAdmin: a comma before constraints too, not only before columns #}{% if data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 or data.exclude_constraint|length > 0 %},
 {% endif %}
-
 {% endif %}
 {### Add columns ###}
 {% if data.columns and data.columns|length > 0 %}
@@ -80,25 +74,17 @@ CACHE {{c.seqcache|int}} {% endif %}
 {{CONSTRAINTS.FOREIGN_KEY(conn, data.foreign_key)}}{% endif %}{% if data.check_constraint|length > 0 %}{% if data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 %},{% endif %}
 {{CONSTRAINTS.CHECK(conn, data.check_constraint)}}{% endif %}{% if data.exclude_constraint|length > 0 %}{% if data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 %},{% endif %}
 {{CONSTRAINTS.EXCLUDE(conn, data.exclude_constraint)}}{% endif %}
-{% if data.like_relation or data.coll_inherits or data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 or data.exclude_constraint|length > 0 %}
-
-){% endif %}{% if data.relkind is defined and data.relkind == 'p' %} PARTITION BY {{ data.partition_scheme }}{% endif %}
-{% if not data.coll_inherits and not data.spcname and not with_clause and not data.amname %};{% endif %}
-
+{# phpPgAdmin: every clause below starts its own line and the statement ends with one
+   semicolon, whichever clause is last (OF type alone, an empty column list, LIKE…) #}
+{%- if data.like_relation or data.coll_inherits or data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 or data.exclude_constraint|length > 0 %}{% if data.like_relation or data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 or data.exclude_constraint|length > 0 %}{{ "\n" }}{% endif %}){% endif %}{% if data.relkind is defined and data.relkind == 'p' %} PARTITION BY {{ data.partition_scheme }}{% endif %}
 {### If we are inheriting it from another table(s) ###}
-{% if data.coll_inherits %}
-    INHERITS ({% for val in data.coll_inherits %}{% if loop.index != 1 %}, {% endif %}{{val}}{% endfor %}){% if not data.spcname and not with_clause and not data.amname %};{% endif %}
-{% endif %}
-
-{% if data.default_amname and data.default_amname != data.amname and data.amname is not null %}
-USING {{data.amname}}
-{% elseif data.amname and not data.default_amname %}
-USING {{data.amname}}{% if not data.spcname and not with_clause %};{% endif %}
-{% endif %}
-
-{% if with_clause %}
+{%- if data.coll_inherits %}{{ "\n" }}    INHERITS ({% for val in data.coll_inherits %}{% if loop.index != 1 %}, {% endif %}{{val}}{% endfor %}){% endif %}
+{# A blank line before the first of USING, WITH and TABLESPACE, as pgAdmin prints them. #}
+{%- set gap = "\n\n" %}
+{%- if data.default_amname and data.default_amname != data.amname and data.amname is not null %}{{ gap }}USING {{data.amname}}{% set gap = "\n" %}{% elseif data.amname and not data.default_amname %}{{ gap }}USING {{data.amname}}{% set gap = "\n" %}{% endif %}
+{%- if with_clause %}
 {% set ns = namespace({add_comma:false}) %}
-WITH (
+{{ gap }}WITH (
 {% if data.fillfactor %}{% do ns.set('add_comma', true) %}
     FILLFACTOR = {{ data.fillfactor }}{% endif %}{% if data.parallel_workers %}
 {% if ns.add_comma %},
@@ -122,15 +108,10 @@ WITH (
 {% if ns.add_comma %},
 {% endif %}
     toast.{{opt.name}} = {{opt.value}}{% do ns.set('add_comma', true) %}{% endif %}
-{% endfor %}{% endif %}
-
-{% if data.spcname %}){% else %});{% endif %}
-
-{% endif %}
+{% endfor %}{% endif %}{{ "\n" }}){% set gap = "\n" %}
+{%- endif %}
 {### SQL for Tablespace ###}
-{% if data.spcname %}
-TABLESPACE {{ conn|qtIdent(data.spcname) }};
-{% endif %}
+{%- if data.spcname %}{{ gap }}TABLESPACE {{ conn|qtIdent(data.spcname) }}{% endif %};
 {### Alter SQL for Owner ###}
 {% if data.relowner %}
 
