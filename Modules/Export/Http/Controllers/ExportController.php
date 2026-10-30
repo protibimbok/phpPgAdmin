@@ -17,6 +17,7 @@ use PhpPgAdmin\Modules\Export\Dump\ClientTools;
 use PhpPgAdmin\Modules\Export\Dump\CopyCommand;
 use PhpPgAdmin\Modules\Export\Dump\CopyFormat;
 use PhpPgAdmin\Modules\Export\Dump\CsvLineEnds;
+use PhpPgAdmin\Modules\Export\Dump\DirectoryDump;
 use PhpPgAdmin\Modules\Export\Dump\DumpCommand;
 use PhpPgAdmin\Modules\Export\Dump\DumpStream;
 use PhpPgAdmin\Modules\Export\Dump\ExportRequest;
@@ -75,6 +76,8 @@ final class ExportController
                 'usable' => $tools->major() >= $serverMajor,
                 'statistics' => $tools->version >= 180000,
                 'policies' => $tools->version >= 180000,
+                'toast_compression' => $tools->version >= 140000,
+                'table_access_method' => $tools->version >= 150000,
                 'psql' => is_executable($tools->path('psql')),
             ],
             'templates' => ExportTemplates::for(self::serverKey(), $pool->username())->all($scope),
@@ -138,7 +141,9 @@ final class ExportController
         $prefix = $plain ? $this->headerComment($export) : '';
 
         $this->detachSession();
-        $stream = DumpStream::start($command->program(), $command->arguments(), $environment, $gzip, $plain, $prefix, $filter);
+        $stream = $export->format === 'directory'
+            ? DirectoryDump::run($command->program(), $command->arguments(), $environment, substr($this->fileName($export), 0, -strlen('.tar')))
+            : DumpStream::start($command->program(), $command->arguments(), $environment, $gzip, $plain, $prefix, $filter);
 
         return $this->respond($export, $stream, $gzip);
     }
@@ -258,7 +263,8 @@ final class ExportController
 
     private function gzip(ExportRequest $export): bool
     {
-        return !$export->asText && $export->compression === 'gzip' && $export->format !== 'custom';
+        // pg_dump compresses a custom archive and a directory archive's files itself.
+        return !$export->asText && $export->compression === 'gzip' && $export->format !== 'custom' && $export->format !== 'directory';
     }
 
     /** phpMyAdmin's "Add custom comment into header", as SQL comment lines. */
@@ -293,18 +299,13 @@ final class ExportController
             return $response->withHeader('Content-Type', 'text/plain; charset=utf-8');
         }
 
-        $server = Authenticate::sessionServer();
-        $name = FileName::expand(
-            $export->filenameTemplate !== '' ? $export->filenameTemplate : FileName::DEFAULTS[$export->scope],
-            ['server' => $server?->name ?? $server?->host ?? 'localhost', 'database' => $export->database, 'schema' => $export->schema, 'table' => $export->table],
-            FileName::extension($export->format, $export->compression),
-        );
+        $name = $this->fileName($export);
         $ascii = (string) preg_replace('/[^\x20-\x7e]/', '_', $name);
 
         return $response
             ->withHeader('Content-Type', match (true) {
                 $gzip => 'application/gzip',
-                $export->format === 'tar' => 'application/x-tar',
+                $export->format === 'tar', $export->format === 'directory' => 'application/x-tar',
                 $export->format === 'custom' => 'application/octet-stream',
                 $export->format === 'tsv' => 'text/tab-separated-values',
                 $export->csv !== null => 'text/csv',
@@ -313,6 +314,18 @@ final class ExportController
                 default => 'application/sql',
             })
             ->withHeader('Content-Disposition', sprintf('attachment; filename="%s"; filename*=UTF-8\'\'%s', addcslashes($ascii, '"\\'), rawurlencode($name)));
+    }
+
+    /** The download's file name, from the request's template or the scope's default. */
+    private function fileName(ExportRequest $export): string
+    {
+        $server = Authenticate::sessionServer();
+
+        return FileName::expand(
+            $export->filenameTemplate !== '' ? $export->filenameTemplate : FileName::DEFAULTS[$export->scope],
+            ['server' => $server?->name ?? $server?->host ?? 'localhost', 'database' => $export->database, 'schema' => $export->schema, 'table' => $export->table],
+            FileName::extension($export->format, $export->compression),
+        );
     }
 
     /**

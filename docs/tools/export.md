@@ -53,14 +53,40 @@ the default template, whatever your saved compression or file-name template says
 | **SQL** | `pg_dumpall` (server) or `pg_dump --format=plain` | `.sql` | every level |
 | **PostgreSQL custom archive (pg_restore)** | `pg_dump --format=custom` | `.dump` | database, schema, relation |
 | **PostgreSQL tar archive (pg_restore)** | `pg_dump --format=tar` | `.tar` | database, schema, relation |
+| **PostgreSQL directory archive (pg_restore, downloaded as tar)** | `pg_dump --format=directory`, packed as a tar file | `.tar` | database, schema, relation |
 | **CSV** | `psql` running `COPY … TO STDOUT (FORMAT csv)` | `.csv` | database, schema, relation |
 | **CSV for MS Excel** | the same, every value quoted, CRLF line ends | `.csv` | database, schema, relation |
 | **Tab-separated values (COPY text)** | `psql` running `COPY … TO STDOUT (FORMAT text)`, a header line first | `.tsv` | database, schema, relation |
 | **HTML** | read through a cursor by phpPgAdmin: one HTML table, the column names as its first row | `.html` | relation, query |
 | **XML** | read through a cursor: the classic phpPgAdmin's `<data><header><records>` layout, which [Import](/tools/import#xml) reads back | `.xml` | relation, query |
 
-The server level offers SQL only: `pg_dumpall` writes plain SQL and nothing else. The directory
-format of `pg_dump` is not offered, because a directory cannot be streamed as one download.
+The server level offers SQL only: `pg_dumpall` writes plain SQL and nothing else.
+
+### Directory archive
+
+`pg_dump`'s directory format writes a folder of files (`toc.dat` and one file per table) instead
+of one stream, and is the only format it can write with several parallel jobs. phpPgAdmin lets
+`pg_dump` write the folder in the web server's temporary directory, packs it into a tar file whose
+one folder is the dump (named after the file, `bookshop/` in `bookshop.tar`), removes the folder
+and sends the tar file. Extract it and restore the folder:
+
+```sh
+tar -xf bookshop.tar
+pg_restore -l bookshop          # the archive's table of contents
+pg_restore -d bookshop_copy -j 4 bookshop
+```
+
+The tar file is not a `pg_restore` tar archive: extract it first. **Number of jobs:** under
+**Output** (shown for this format) is `--jobs`; each job is one more connection to the server.
+**Compression: gzipped** compresses each data file (`3456.dat.gz`, `pg_dump`'s default for this
+format); **None** writes them with `--compress=0`.
+
+::: warning The directory archive downloads only when it is finished
+Unlike the other formats the download starts once `pg_dump` has finished, so a large database
+shows nothing for a while, and the web server needs room in its temporary directory for the dump
+and its tar file at once. A failure is always an error message, never a cut-off file. **View
+output as text** is not offered for this format.
+:::
 
 ::: tip Which format to pick
 Plain SQL is readable and restores with `psql`, but must be restored whole and in order. A custom
@@ -183,7 +209,8 @@ For example `@SERVER@-@DATABASE@-@SCHEMA@-@TABLE@-%Y%m%d` downloads
 | Format | gzipped gives |
 | --- | --- |
 | SQL, tar, CSV | the output gzipped on the fly: `bookshop.sql.gz`, `bookshop.tar.gz`, `authors.csv.gz` |
-| Custom archive | `pg_dump --compress=gzip`: the archive's own compression, still `bookshop.dump` |
+| Custom archive | `pg_dump`'s own compression of the archive (its default), still `bookshop.dump` |
+| Directory archive | `pg_dump` compresses each file in the folder; the tar file itself is not gzipped |
 
 ::: info A custom archive is uncompressed by default
 With **Compression: None** a custom archive is written with `--compress=0`, unlike `pg_dump`'s own
@@ -206,6 +233,15 @@ when only structure is, the plain-SQL-only ones for an archive.
 | **Wait for a `SERIALIZABLE, READ ONLY, DEFERRABLE` snapshot** | `--serializable-deferrable` (not on the server level) |
 | **Enclose all identifiers in double quotes** | `--quote-all-identifiers` |
 | **Quote function bodies as standard strings instead of with dollar quoting** | `--disable-dollar-quoting` |
+| **Sections to dump:** **pre-data**, **data**, **post-data** | `--section=…` for each one ticked, when not all three are (not on the server level) |
+| **Leave out schemas matching:** | `--exclude-schema=…` per pattern, separated by commas; `*` and `?` are wildcards (database level) |
+| **Lock wait timeout:** | `--lock-wait-timeout`: milliseconds, or a number with `ms`, `s`, `min` or `h`; the dump fails instead of waiting longer for a table lock |
+| **Verbose** | `--verbose`: in plain SQL, comments with the start and end times of the dump and each object |
+
+Sections split a dump the way `pg_restore --section` does: **pre-data** is the definitions of
+tables, types and functions, **data** the rows, and **post-data** the indexes, triggers, rules and
+most constraints. Exporting pre-data, loading the data, then post-data is the fast way to restore a
+large database.
 
 ### Object creation options
 
@@ -223,6 +259,8 @@ when only structure is, the plain-SQL-only ones for an archive.
 | **Add `CREATE PUBLICATION` statements** | off: `--no-publications` | server and database |
 | **Add `CREATE SUBSCRIPTION` statements** | off: `--no-subscriptions` | server and database |
 | **Add role passwords** | off: `--no-role-passwords` | server |
+| **Add TOAST compression methods** | off: `--no-toast-compression` | `pg_dump` 14 or newer |
+| **Add table access methods** | off: `--no-table-access-method` | `pg_dump` 15 or newer |
 | **Add the planner statistics** | `--statistics` | `pg_dump` 18 or newer, structure and data |
 
 ::: danger Create and Drop together drop the database
@@ -243,6 +281,8 @@ For an archive, owner, `CREATE DATABASE`, `DROP` and `SET SESSION AUTHORIZATION`
 | **Dump the data of unlogged tables** | off: `--no-unlogged-table-data` |
 | **Dump large objects** | `--large-objects` / off: `--no-large-objects` (database and schema) |
 | **Load partitions through the partitioned table** | `--load-via-partition-root` |
+| **Dump only the rows row security lets the role see** | `--enable-row-security` (not on the server level). Without it a dump of a table with row security fails for a role that row security applies to. Restore such data from `INSERT` statements |
+| **`extra_float_digits` for floating-point values** | `--extra-float-digits=N`, from -15 to 3; empty keeps `pg_dump`'s default (exact values) |
 | **Function to use when dumping data:** | **COPY** (default) or **INSERT** |
 
 With **INSERT**, **`INSERT … ON CONFLICT DO NOTHING` statements** (`--on-conflict-do-nothing`) and
@@ -327,7 +367,7 @@ A failure after the download has begun can only be reported in the file: a plain
 server's error log.
 
 ::: warning A lock makes the export wait
-`pg_dump` takes an `ACCESS SHARE` lock on every table it dumps and waits for it without a timeout. When
+`pg_dump` takes an `ACCESS SHARE` lock on every table it dumps and, unless **Lock wait timeout:** is set, waits for it without a timeout. When
 another session holds an exclusive lock (an `ALTER TABLE`, a `VACUUM FULL`, a long transaction that
 altered the table), the browser shows nothing until the lock is released — in a test, a table locked
 for 20 seconds delayed the download by 22 seconds. PHP's time limit is lifted for the export.

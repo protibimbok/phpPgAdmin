@@ -77,13 +77,7 @@ final class DumpStream implements StreamInterface
             $message = trim((string) file_get_contents($stderrFile));
             @unlink($stderrFile);
             if ($status !== 0) {
-                // The program's own "error:" lines are the message; the server's warnings and
-                // notices around them (a collation version mismatch, say) are the detail.
-                $lines = array_values(array_filter(explode("\n", $message), static fn (string $line): bool => trim($line) !== ''));
-                $errors = array_values(array_filter($lines, static fn (string $line): bool => preg_match('/^(pg_dump(all)?|psql): (error|fatal):|^(ERROR|FATAL): /', $line) === 1));
-                $rest = array_values(array_diff($lines, $errors));
-
-                throw new ApiException(422, self::message(basename($program), implode("\n", $errors === [] ? $lines : $errors), $status), $errors === [] || $rest === [] ? [] : ['detail' => implode("\n", $rest)]);
+                throw self::failure(basename($program), $message, $status);
             }
 
             return new self(null, null, $stderrFile, $prefix, '', basename($program), $gzip, $plain, $filter);
@@ -239,6 +233,20 @@ final class DumpStream implements StreamInterface
         }
 
         return (string) deflate_add($this->gzip, $data, $last ? ZLIB_FINISH : ZLIB_NO_FLUSH);
+    }
+
+    /**
+     * The error response for a program that failed: its own "error:" lines are the message; the
+     * server's warnings and notices around them (a collation version mismatch, say), and a
+     * verbose dump's progress lines, are the detail.
+     */
+    public static function failure(string $program, string $stderr, int $status): ApiException
+    {
+        $lines = array_values(array_filter(explode("\n", $stderr), static fn (string $line): bool => trim($line) !== ''));
+        $errors = array_values(array_filter($lines, static fn (string $line): bool => preg_match('/^(pg_dump(all)?|psql): (error|fatal):|^(ERROR|FATAL): /', $line) === 1));
+        $rest = array_values(array_diff($lines, $errors));
+
+        return new ApiException(422, self::message($program, implode("\n", $errors === [] ? $lines : $errors), $status), $errors === [] || $rest === [] ? [] : ['detail' => implode("\n", $rest)]);
     }
 
     private static function message(string $program, string $stderr, int $status): string

@@ -33,6 +33,7 @@ registerPreferences([
       { value: 'plain', label: 'export:format.plain' },
       { value: 'custom', label: 'export:format.custom' },
       { value: 'tar', label: 'export:format.tar' },
+      { value: 'directory', label: 'export:format.directory' },
       { value: 'csv', label: 'export:format.csv' },
       { value: 'excel', label: 'export:format.excel' },
       { value: 'tsv', label: 'export:format.tsv' },

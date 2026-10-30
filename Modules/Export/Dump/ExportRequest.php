@@ -17,7 +17,10 @@ final readonly class ExportRequest
 {
     public const array SCOPES = ['server', 'database', 'schema', 'table', 'query'];
 
-    public const array FORMATS = ['plain', 'custom', 'tar', 'csv', 'excel', 'tsv', 'html', 'xml'];
+    public const array FORMATS = ['plain', 'custom', 'tar', 'directory', 'csv', 'excel', 'tsv', 'html', 'xml'];
+
+    /** pg_dump's sections, in the order of a dump. */
+    public const array SECTIONS = ['pre-data', 'data', 'post-data'];
 
     /** The formats written here from a cursor (RowStream), for one relation's rows or a query's. */
     public const array ROW_FORMATS = ['html', 'xml'];
@@ -42,6 +45,8 @@ final readonly class ExportRequest
         'policies' => '--no-policies',
         'unlogged_data' => '--no-unlogged-table-data',
         'role_passwords' => '--no-role-passwords',
+        'toast_compression' => '--no-toast-compression',
+        'table_access_method' => '--no-table-access-method',
     ];
 
     /** The options that add a flag when switched on; they are off unless the request turns them on. */
@@ -57,6 +62,8 @@ final readonly class ExportRequest
         'disable_triggers' => '--disable-triggers',
         'load_via_partition_root' => '--load-via-partition-root',
         'on_conflict_do_nothing' => '--on-conflict-do-nothing',
+        'enable_row_security' => '--enable-row-security',
+        'verbose' => '--verbose',
     ];
 
     /**
@@ -64,6 +71,8 @@ final readonly class ExportRequest
      * @param list<string>|null $structure the schemas (database scope) or relations (schema scope) whose definitions are exported; null for all
      * @param list<string>|null $data the same for their rows
      * @param array<string, bool> $flags the INCLUDE_FLAGS and ADD_FLAGS options the request set
+     * @param list<string>|null $sections the SECTIONS pg_dump dumps; null for all of them
+     * @param list<string> $excludeSchemas pg_dump patterns of the schemas a database export leaves out
      */
     public function __construct(
         public string $scope,
@@ -91,6 +100,11 @@ final readonly class ExportRequest
         public bool $htmlColumns = true,
         public string $htmlNull = 'NULL',
         public ?string $sql = null,
+        public int $jobs = 1,
+        public ?array $sections = null,
+        public array $excludeSchemas = [],
+        public ?int $extraFloatDigits = null,
+        public ?string $lockWaitTimeout = null,
     ) {
     }
 
@@ -137,6 +151,52 @@ final readonly class ExportRequest
             throw new BadRequestException('The rows per INSERT statement are a number from 1.');
         }
 
+        if ($format === 'directory' && ($input['output'] ?? 'file') === 'text') {
+            throw new BadRequestException('A directory archive is downloaded as a tar file; it cannot be shown as text.');
+        }
+
+        $jobs = $input['jobs'] ?? 1;
+        if ($jobs === '' || $jobs === null) {
+            $jobs = 1;
+        } elseif (!is_numeric($jobs) || (int) $jobs < 1 || (int) $jobs > 64) {
+            throw new BadRequestException('The number of jobs is a number from 1 to 64.');
+        }
+
+        $sections = self::names($input, 'sections');
+        if ($sections !== null) {
+            foreach ($sections as $section) {
+                if (!in_array($section, self::SECTIONS, true)) {
+                    throw new BadRequestException(sprintf('"sections" takes %s.', implode(', ', self::SECTIONS)));
+                }
+            }
+            if ($sections === []) {
+                throw new BadRequestException('Select at least one section to dump.');
+            }
+        }
+
+        $excludeSchemas = $input['exclude_schemas'] ?? [];
+        if (is_string($excludeSchemas)) {
+            // The page's field: patterns separated by commas or lines.
+            $excludeSchemas = preg_split('/[\r\n,]+/', $excludeSchemas) ?: [];
+        }
+        if (!is_array($excludeSchemas)) {
+            throw new BadRequestException('"exclude_schemas" is a list of patterns.');
+        }
+        $excludeSchemas = array_values(array_unique(array_filter(array_map(static fn (mixed $p): string => trim((string) $p), array_filter($excludeSchemas, 'is_scalar')), static fn (string $p): bool => $p !== '')));
+
+        $floatDigits = $input['extra_float_digits'] ?? null;
+        if ($floatDigits === '' || $floatDigits === null) {
+            $floatDigits = null;
+        } elseif (filter_var($floatDigits, FILTER_VALIDATE_INT, ['options' => ['min_range' => -15, 'max_range' => 3]]) === false) {
+            throw new BadRequestException('The extra float digits are a number from -15 to 3.');
+        }
+
+        $lockWait = trim((string) ($input['lock_wait_timeout'] ?? ''));
+        // A number of milliseconds, or one with a unit, as the lock_timeout setting takes it.
+        if ($lockWait !== '' && preg_match('/^\d+(\.\d+)?\s*(us|ms|s|min|h|d)?$/', $lockWait) !== 1) {
+            throw new BadRequestException(sprintf('"%s" is not a lock wait timeout: give milliseconds, or a number with us, ms, s, min, h or d.', $lockWait));
+        }
+
         $encoding = $name('encoding');
         if ($encoding !== null && preg_match('/^[A-Za-z0-9_]+$/', $encoding) !== 1) {
             throw new BadRequestException(sprintf('"%s" is not an encoding.', $encoding));
@@ -175,6 +235,11 @@ final readonly class ExportRequest
             htmlColumns: filter_var($input['htmlword_columns'] ?? true, FILTER_VALIDATE_BOOL),
             htmlNull: is_string($input['htmlword_null'] ?? null) ? $input['htmlword_null'] : 'NULL',
             sql: $sql === '' ? null : $sql,
+            jobs: (int) $jobs,
+            sections: $sections === null || count($sections) === count(self::SECTIONS) ? null : $sections,
+            excludeSchemas: $excludeSchemas,
+            extraFloatDigits: $floatDigits === null ? null : (int) $floatDigits,
+            lockWaitTimeout: $lockWait === '' ? null : $lockWait,
         );
     }
 
@@ -192,7 +257,7 @@ final readonly class ExportRequest
 
     public function isArchive(): bool
     {
-        return $this->format === 'custom' || $this->format === 'tar';
+        return $this->format === 'custom' || $this->format === 'tar' || $this->format === 'directory';
     }
 
     /** @param list<string> $allowed */

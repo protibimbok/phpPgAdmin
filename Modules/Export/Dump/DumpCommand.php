@@ -23,13 +23,14 @@ final class DumpCommand
     private const array DUMPALL_FLAGS = [
         'owner', 'privileges', 'comments', 'tablespaces', 'publications', 'subscriptions', 'security_labels', 'policies', 'unlogged_data', 'role_passwords',
         'clean', 'if_exists', 'statistics', 'set_session_authorization', 'quote_all_identifiers', 'disable_dollar_quoting', 'disable_triggers', 'load_via_partition_root', 'on_conflict_do_nothing',
+        'toast_compression', 'table_access_method', 'verbose',
     ];
 
     /** pg_dump ignores these for an archive: pg_restore applies them when the archive is restored. */
     private const array PLAIN_ONLY_FLAGS = ['owner', 'create', 'clean', 'if_exists', 'set_session_authorization'];
 
     /** The tools' version each option needs, where it is newer than PostgreSQL 13's. */
-    private const array SINCE = ['policies' => 180000, 'statistics' => 180000];
+    private const array SINCE = ['policies' => 180000, 'statistics' => 180000, 'toast_compression' => 140000, 'table_access_method' => 150000];
 
     /** Relation kinds with rows of their own for --exclude-table-data to leave out. */
     private const array WITH_DATA = ['r', 'p', 'm', 'S'];
@@ -60,9 +61,24 @@ final class DumpCommand
         $args = ['--no-password'];
         if ($r->scope !== 'server') {
             $args[] = '--format=' . $r->format;
-            if ($r->format === 'custom') {
-                $args[] = '--compress=' . ($r->compression === 'none' ? '0' : 'gzip');
+            // pg_dump compresses a custom archive and the files of a directory one with gzip
+            // unless told not to; --compress=0 is spelled the same by every version.
+            if (($r->format === 'custom' || $r->format === 'directory') && $r->compression === 'none') {
+                $args[] = '--compress=0';
             }
+            // Parallel jobs write separate files, which only the directory format has.
+            if ($r->format === 'directory' && $r->jobs > 1) {
+                $args[] = '--jobs=' . $r->jobs;
+            }
+            foreach ($r->sections ?? [] as $section) {
+                $args[] = '--section=' . $section;
+            }
+        }
+        if ($r->extraFloatDigits !== null) {
+            $args[] = '--extra-float-digits=' . $r->extraFloatDigits;
+        }
+        if ($r->lockWaitTimeout !== null) {
+            $args[] = '--lock-wait-timeout=' . str_replace(' ', '', $r->lockWaitTimeout);
         }
         if ($r->encoding !== null) {
             $args[] = '--encoding=' . $r->encoding;
@@ -119,6 +135,12 @@ final class DumpCommand
         foreach ($excluded as $pattern) {
             $args[] = $pattern;
         }
+        // Patterns as pg_dump reads them, wildcards and all: what the page's selection cannot say.
+        if ($r->scope === 'database') {
+            foreach ($r->excludeSchemas as $pattern) {
+                $args[] = '--exclude-schema=' . $pattern;
+            }
+        }
         if ($contents !== 'structure') {
             foreach ($this->oversized as [$schema, $name, $kind]) {
                 $args[] = $this->excludeData(self::qualified($schema, $name), $kind);
@@ -168,7 +190,8 @@ final class DumpCommand
             'statistics' => $contents === 'both',
             'disable_triggers' => $contents === 'data',
             'on_conflict_do_nothing' => $contents !== 'structure' && $r->dataStyle === 'insert',
-            'serializable_deferrable', 'load_via_partition_root', 'unlogged_data' => $contents !== 'structure',
+            'serializable_deferrable', 'load_via_partition_root', 'unlogged_data', 'enable_row_security' => $contents !== 'structure',
+            'toast_compression', 'table_access_method' => $contents !== 'data',
             default => true,
         };
     }

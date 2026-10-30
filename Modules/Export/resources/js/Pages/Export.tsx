@@ -58,7 +58,18 @@ const DEFAULTS: Omit<ExportSettings, 'filename_template' | 'encoding' | 'databas
   tsv_columns: true,
   htmlword_columns: true,
   htmlword_null: 'NULL',
+  jobs: '1',
+  sections: ['pre-data', 'data', 'post-data'],
+  exclude_schemas: '',
+  extra_float_digits: '',
+  lock_wait_timeout: '',
+  verbose: false,
+  enable_row_security: false,
+  toast_compression: true,
+  table_access_method: true,
 }
+
+const SECTIONS = ['pre-data', 'data', 'post-data'] as const
 
 /** What a query's rows can be exported as. */
 const QUERY_FORMATS: ExportSettings['format'][] = ['plain', 'csv', 'excel', 'tsv', 'html', 'xml']
@@ -172,6 +183,9 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
   // HTML and XML are read through a cursor here, without the client programs.
   const rowFormat = settings.format === 'html' || settings.format === 'xml' || (scope === 'query' && settings.format === 'plain')
   const query = scope === 'query'
+  // pg_dump writes a directory archive as files, which download as one tar file and never as text.
+  const directory = settings.format === 'directory'
+  const asText = settings.output === 'text' && !directory
   const tools = options.tools
   const toolsProblem = rowFormat ? null : tools === null ? t('tools.missing') : csv ? (tools.psql ? null : t('tools.no_psql', { directory: tools.directory })) : tools.usable ? null : t('tools.too_old', { version: tools.version, server: options.server_major })
 
@@ -218,7 +232,7 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
         // The template is remembered where the browser allows it.
       }
     }
-    if (custom && settings.output === 'text') {
+    if (custom && asText) {
       setRunning(true)
       exportText(request()).then(
         (output) => {
@@ -298,6 +312,7 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
       : [
           { value: 'custom' as const, label: t('format.custom') },
           { value: 'tar' as const, label: t('format.tar') },
+          { value: 'directory' as const, label: t('format.directory') },
           { value: 'csv' as const, label: t('format.csv') },
           { value: 'excel' as const, label: t('format.excel') },
           { value: 'tsv' as const, label: t('format.tsv') },
@@ -466,19 +481,21 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
             <div className="card-header">{t('output.title')}</div>
             <ul className="list-group list-group-flush">
               <li className="list-group-item">
-                <div className="form-check">
-                  <input className="form-check-input" type="radio" id="radio_view_as_text" name="output_format" value="astext" checked={settings.output === 'text'} onChange={() => set('output', 'text')} />
-                  <label className="form-check-label" htmlFor="radio_view_as_text">
-                    {t('output.as_text')}
-                  </label>
-                </div>
+                {!directory && (
+                  <div className="form-check">
+                    <input className="form-check-input" type="radio" id="radio_view_as_text" name="output_format" value="astext" checked={asText} onChange={() => set('output', 'text')} />
+                    <label className="form-check-label" htmlFor="radio_view_as_text">
+                      {t('output.as_text')}
+                    </label>
+                  </div>
+                )}
                 <div className="form-check mb-2">
-                  <input className="form-check-input" type="radio" name="output_format" value="sendit" id="radio_dump_asfile" checked={settings.output === 'file'} onChange={() => set('output', 'file')} />
+                  <input className="form-check-input" type="radio" name="output_format" value="sendit" id="radio_dump_asfile" checked={!asText} onChange={() => set('output', 'file')} />
                   <label className="form-check-label" htmlFor="radio_dump_asfile">
                     {t('output.as_file')}
                   </label>
                 </div>
-                {settings.output === 'file' && (
+                {!asText && (
                   <div className="hstack gap-3">
                     <div className="vr"></div>
                     <ul className="list-group" id="ul_save_asfile">
@@ -535,6 +552,23 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                           </div>
                         </div>
                       </li>
+                      {directory && (
+                        <li className="list-group-item">
+                          <div className="row">
+                            <div className="col-auto">
+                              <label htmlFor="text_jobs" className="col-form-label">
+                                {t('output.jobs')}
+                              </label>
+                            </div>
+                            <div className="col-auto">
+                              <input className="form-control" type="number" min={1} max={64} id="text_jobs" name="jobs" aria-describedby="jobsHelp" value={settings.jobs} onChange={(e) => set('jobs', e.target.value)} />
+                            </div>
+                          </div>
+                          <div id="jobsHelp" className="form-text">
+                            {t('output.jobs_help')}
+                          </div>
+                        </li>
+                      )}
                     </ul>
                   </div>
                 )}
@@ -680,9 +714,57 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                           </ul>
                         </li>
                       )}
+                      {scope !== 'server' && !query && (
+                        <li className="list-group-item">
+                          {t('options.sections.title')}
+                          <ul className="list-group" id="ul_sections">
+                            {SECTIONS.map((section) => (
+                              <li className="list-group-item" key={section}>
+                                <div className="form-check">
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    name="sql_sections[]"
+                                    id={`checkbox_sql_section_${section}`}
+                                    value={section}
+                                    checked={settings.sections.includes(section)}
+                                    onChange={(e) => set('sections', SECTIONS.filter((entry) => (entry === section ? e.target.checked : settings.sections.includes(entry))))}
+                                  />
+                                  <label className="form-check-label" htmlFor={`checkbox_sql_section_${section}`}>
+                                    {label(`options.sections.${section}`)}
+                                  </label>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      )}
+                      {scope === 'database' && (
+                        <li className="list-group-item">
+                          <label htmlFor="text_sql_exclude_schemas" className="form-label">
+                            {label('options.exclude_schemas')}
+                          </label>
+                          <input className="form-control" type="text" name="sql_exclude_schemas" id="text_sql_exclude_schemas" aria-describedby="excludeSchemasHelp" value={settings.exclude_schemas} onChange={(e) => set('exclude_schemas', e.target.value)} />
+                          <div id="excludeSchemasHelp" className="form-text">
+                            {t('options.exclude_schemas_help')}
+                          </div>
+                        </li>
+                      )}
+                      {!query && (
+                        <li className="list-group-item">
+                          <label htmlFor="text_sql_lock_wait_timeout" className="form-label">
+                            {t('options.lock_wait_timeout')}
+                          </label>
+                          <input className="form-control" type="text" name="sql_lock_wait_timeout" id="text_sql_lock_wait_timeout" aria-describedby="lockWaitHelp" value={settings.lock_wait_timeout} onChange={(e) => set('lock_wait_timeout', e.target.value)} />
+                          <div id="lockWaitHelp" className="form-text">
+                            {t('options.lock_wait_timeout_help')}
+                          </div>
+                        </li>
+                      )}
                       {scope !== 'server' && !query && contents !== 'structure' && toggle('serializable_deferrable', label('options.serializable_deferrable'))}
                       {!query && toggle('quote_all_identifiers', label('options.quote_all_identifiers'))}
                       {!query && toggle('disable_dollar_quoting', label('options.disable_dollar_quoting'))}
+                      {!query && toggle('verbose', label('options.verbose'))}
                     </ul>
                   </div>
 
@@ -714,6 +796,8 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                             {(scope === 'server' || scope === 'database') && toggle('publications', label('options.publications'))}
                             {(scope === 'server' || scope === 'database') && toggle('subscriptions', label('options.subscriptions'))}
                             {scope === 'server' && toggle('role_passwords', label('options.role_passwords'))}
+                            {tools?.toast_compression !== false && toggle('toast_compression', label('options.toast_compression'))}
+                            {tools?.table_access_method !== false && toggle('table_access_method', label('options.table_access_method'))}
                             {tools?.statistics !== false && contents === 'both' && toggle('statistics', label('options.statistics'))}
                           </ul>
                         </li>
@@ -729,6 +813,15 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                         {!query && toggle('unlogged_data', label('options.unlogged_data'))}
                         {(scope === 'database' || scope === 'schema') && toggle('large_objects', label('options.large_objects'))}
                         {!query && toggle('load_via_partition_root', label('options.load_via_partition_root'))}
+                        {!query && toggle('enable_row_security', label('options.enable_row_security'))}
+                        {!query && (
+                          <li className="list-group-item">
+                            <label htmlFor="text_sql_extra_float_digits" className="form-label">
+                              {label('options.extra_float_digits')}
+                            </label>
+                            <input className="form-control" type="number" min={-15} max={3} name="sql_extra_float_digits" id="text_sql_extra_float_digits" value={settings.extra_float_digits} onChange={(e) => set('extra_float_digits', e.target.value)} />
+                          </li>
+                        )}
                         <li className="list-group-item">
                           <label htmlFor="select_sql_type" className="form-label">
                             {t('options.data_style')}

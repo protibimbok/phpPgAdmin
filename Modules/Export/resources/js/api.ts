@@ -31,7 +31,7 @@ export interface ExportOptions {
   filename_template: string
   server_major: number
   /** The pg_dump found, or null when there is none. */
-  tools: { directory: string; version: string; usable: boolean; statistics: boolean; policies: boolean; psql: boolean } | null
+  tools: { directory: string; version: string; usable: boolean; statistics: boolean; policies: boolean; toast_compression: boolean; table_access_method: boolean; psql: boolean } | null
   templates: ExportTemplate[]
 }
 
@@ -39,7 +39,7 @@ export interface ExportOptions {
 export interface ExportSettings {
   method: 'quick' | 'custom'
   /** pg_dump's formats, CSV, CSV for MS Excel and tab-separated written by COPY, or HTML and XML read through a cursor. */
-  format: 'plain' | 'custom' | 'tar' | 'csv' | 'excel' | 'tsv' | 'html' | 'xml'
+  format: 'plain' | 'custom' | 'tar' | 'directory' | 'csv' | 'excel' | 'tsv' | 'html' | 'xml'
   output: 'text' | 'file'
   filename_template: string
   encoding: string
@@ -92,6 +92,18 @@ export interface ExportSettings {
   tsv_columns: boolean
   htmlword_columns: boolean
   htmlword_null: string
+  /** pg_dump's parallel jobs, for the directory format. */
+  jobs: string
+  /** pg_dump's sections: pre-data, data and post-data. */
+  sections: ('pre-data' | 'data' | 'post-data')[]
+  /** pg_dump patterns of the schemas a database export leaves out, separated by commas. */
+  exclude_schemas: string
+  extra_float_digits: string
+  lock_wait_timeout: string
+  verbose: boolean
+  enable_row_security: boolean
+  toast_compression: boolean
+  table_access_method: boolean
 }
 
 const query = (target: Record<string, string | undefined>) => new URLSearchParams(Object.entries(target).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString()
