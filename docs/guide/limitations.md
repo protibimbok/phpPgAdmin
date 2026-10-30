@@ -17,7 +17,7 @@ These options are not in the forms; use the SQL tab for them:
 
 - **Create table:** `WITH (…)` storage parameters and PostgreSQL 18 virtual generated columns ([Creating a table](/schema/create-table)).
 - **Indexes:** `NULLS NOT DISTINCT` and per-column statistics targets ([Indexes and constraints](/table/indexes-constraints#what-the-dialog-does-not-offer)).
-- **Constraints:** `NOT VALID` / `VALIDATE CONSTRAINT`, and foreign key `MATCH` and `DEFERRABLE` ([Indexes and constraints](/table/indexes-constraints)).
+- **Constraints:** foreign key `SET NULL (col)` / `SET DEFAULT (col)` column lists ([Indexes and constraints](/table/indexes-constraints#foreign-keys-relation-view)).
 
 ### Other objects
 

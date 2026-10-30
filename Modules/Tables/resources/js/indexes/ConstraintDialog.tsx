@@ -57,6 +57,7 @@ export default function ConstraintDialog({ show, db, scid, tid, columns, options
   const [where, setWhere] = useState('')
   const [deferrable, setDeferrable] = useState(false)
   const [deferred, setDeferred] = useState(false)
+  const [notValid, setNotValid] = useState(false)
   const [lookups, setLookups] = useState<ExclusionOptions>({ oper_classes: [], operators: {} })
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -77,6 +78,7 @@ export default function ConstraintDialog({ show, db, scid, tid, columns, options
     setWhere('')
     setDeferrable(false)
     setDeferred(false)
+    setNotValid(false)
   }, [show, constraint, columns])
 
   const typeOf = (columnName: string) => columns.find((c) => c.name === columnName)?.cltype ?? ''
@@ -105,7 +107,8 @@ export default function ConstraintDialog({ show, db, scid, tid, columns, options
 
   function data(): Record<string, unknown> {
     if (constraint) return { name: name || undefined, comment }
-    if (type === 'check_constraint') return { name: name || undefined, consrc: expression, comment: comment || undefined }
+    // convalidated true adds NOT VALID: the check templates read pgAdmin's inverted flag.
+    if (type === 'check_constraint') return { name: name || undefined, consrc: expression, convalidated: notValid, comment: comment || undefined }
     if (exclusion) {
       const exclude: ExclusionConstraintData = {
         name: name || undefined,
@@ -210,6 +213,13 @@ export default function ConstraintDialog({ show, db, scid, tid, columns, options
 
               {!constraint && type === 'check_constraint' &&
                 field('input_constraint_expression', t('constraint_dialog.expression'), <input type="text" id="input_constraint_expression" size={30} value={expression} onChange={(e) => setExpression(e.target.value)} placeholder="price > 0" required />)}
+
+              {!constraint && type === 'check_constraint' && (
+                <div>
+                  <input type="checkbox" id="constraint_not_valid" checked={notValid} onChange={(e) => setNotValid(e.target.checked)} />{' '}
+                  <label htmlFor="constraint_not_valid">{t('constraint_dialog.not_valid')}</label>
+                </div>
+              )}
 
               {!constraint && type !== 'check_constraint' && !exclusion &&
                 field(

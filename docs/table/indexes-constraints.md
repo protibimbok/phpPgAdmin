@@ -142,7 +142,7 @@ Pick a type in **Add a constraint of type** (**Check**, **Unique**, **Primary ke
 
 | Type | Fields | SQL |
 | --- | --- | --- |
-| **Check** | **Constraint name:**, **Expression:** (`price > 0`), **Comment:** | `ALTER TABLE t ADD CONSTRAINT n CHECK (qty > 0);` |
+| **Check** | **Constraint name:**, **Expression:** (`price > 0`), **Do not check the existing rows (NOT VALID)**, **Comment:** | `ALTER TABLE t ADD CONSTRAINT n CHECK (qty > 0);` |
 | **Unique** | **Constraint name:**, **Columns:** (Ctrl-click for several), **Comment:** | `ADD CONSTRAINT n UNIQUE (id, code);` |
 | **Primary key** | **Constraint name:**, **Columns:**, **Comment:** | `ADD PRIMARY KEY (id);` |
 | **Exclusion** | see [below](#exclusion-constraints) | `ADD CONSTRAINT n EXCLUDE USING gist (…);` |
@@ -154,13 +154,27 @@ An empty name lets PostgreSQL choose one (`t_pkey`, `t_col_key`, `t_col_check`).
 ::: info Existing rows are checked
 Adding a check, unique, primary key or exclusion constraint validates every existing row, holding a lock on the table while it does. If a row violates it, PostgreSQL refuses: *check constraint "tbl_room_qty_check" of relation "tbl_room" is violated by some row*, or *could not create unique index* for duplicates. Fix the data first (the [Search](/table/search) tab helps find the rows).
 
-PostgreSQL can skip that check for checks and foreign keys with `NOT VALID` and validate later with `ALTER TABLE t VALIDATE CONSTRAINT n;`, which takes a weaker lock. The dialogs have no **NOT VALID** box; use the SQL tab:
+PostgreSQL can skip that check for checks and foreign keys with `NOT VALID` and validate later with `ALTER TABLE t VALIDATE CONSTRAINT n;`, which takes a weaker lock. Tick **Do not check the existing rows (NOT VALID)** in the Check dialog, or **NOT VALID** on a new row of the [Relation view](#foreign-keys-relation-view):
 
 ```sql
-ALTER TABLE public.books ADD CONSTRAINT pages_sane CHECK (pages < 5000) NOT VALID;
-ALTER TABLE public.books VALIDATE CONSTRAINT pages_sane;
+ALTER TABLE IF EXISTS public.books
+    ADD CONSTRAINT pages_sane CHECK (pages < 5000)
+    NOT VALID;
 ```
+
+New rows are checked from then on; the old ones are not until you validate.
 :::
+
+### Validating a constraint
+
+A check or foreign key added `NOT VALID` shows `NOT VALID` at the end of its **Definition**, and a **Validate** link in the Constraints card (foreign keys have it in the Relation view as well). It asks, then runs:
+
+```sql
+ALTER TABLE IF EXISTS public.books
+    VALIDATE CONSTRAINT pages_sane;
+```
+
+If a row still violates the constraint, the validation fails with PostgreSQL's error (*check constraint "pages_sane" of relation "books" is violated by some row*) and the constraint stays `NOT VALID`. Fix the rows and validate again.
 
 ::: info Column order in Unique and Primary key
 The **Columns:** list is a plain multi-select: the constraint takes the columns in table order, whatever order you click them in. Selecting `code` then `id` gives `UNIQUE (id, code)`. For a different order, use the [index dialog](#creating-an-index) with **UNIQUE**, which keeps the row order, or the SQL tab.
@@ -222,9 +236,13 @@ The **Relation view** pill (above the column grid) opens phpMyAdmin's relation v
 
 | Field | What it does |
 | --- | --- |
-| Drop icon | Drops that foreign key at once, after a confirmation. |
+| **Drop** | Drops that foreign key at once, after a confirmation. |
 | **Constraint name** | Name; empty lets PostgreSQL choose (`t_col_fkey`). |
 | **ON DELETE**, **ON UPDATE** | **NO ACTION** (the default), **RESTRICT**, **CASCADE**, **SET NULL**, **SET DEFAULT**. |
+| **MATCH** | **SIMPLE** (the default: a row with any key column `NULL` is not checked) or **FULL** (all key columns `NULL`, or none). |
+| **DEFERRABLE**, **INITIALLY DEFERRED** | Allow checking the key at commit (`SET CONSTRAINTS … DEFERRED`), or check it at commit by default. Ticking **INITIALLY DEFERRED** ticks **DEFERRABLE**. |
+| **NOT VALID** (new keys) | Adds the key without checking the existing rows. An existing key added so shows **NOT VALID** with a **Validate** link instead. |
+| **Auto FK index** (new keys) | Also creates an index on the referencing columns, pgAdmin's *Auto FK index?*. The name field beside it defaults to `fki_<constraint name>` (or `fki_<table>_<columns>` for an unnamed key). |
 | **Column** | The column(s) of this table. **+ Add column** adds another pair for a multi-column key. |
 | **Schema**, **Table**, **Column** | The referenced schema, table and column(s). Any schema of the database can be chosen. |
 | **+ Add constraint** | Adds another empty row. |
@@ -234,30 +252,28 @@ The **Relation view** pill (above the column grid) opens phpMyAdmin's relation v
 ```sql
 ALTER TABLE IF EXISTS public.tbl_booking
     ADD CONSTRAINT tbl_booking_room_fkey FOREIGN KEY (room_id, room_code)
-    REFERENCES public.tbl_room (id, code)
+    REFERENCES public.tbl_room (id, code) MATCH FULL
     ON UPDATE SET NULL
-    ON DELETE CASCADE;
+    ON DELETE CASCADE
+    DEFERRABLE INITIALLY DEFERRED
+    NOT VALID;
+
+CREATE INDEX IF NOT EXISTS fki_tbl_booking_room_fkey
+    ON public.tbl_booking(room_id, room_code);
 ```
 
-Changing the actions or columns of an existing key drops and re-adds it, since PostgreSQL cannot alter them; changing only the name renames it with `RENAME CONSTRAINT`.
+Without those boxes the key is `MATCH SIMPLE`, not deferrable and validated, and no index is created.
+
+Changing the actions, match type, deferral or columns of an existing key drops and re-adds it (keeping it `NOT VALID` if it was); changing only the name renames it with `RENAME CONSTRAINT`.
 
 ::: warning Requirements PostgreSQL checks
 - The referenced columns must have a primary key or unique constraint over exactly those columns. Otherwise: *there is no unique constraint matching given keys for referenced table*.
 - Existing rows are checked. A row that points nowhere makes the save fail with *insert or update on table "…" violates foreign key constraint "…"*. Find such rows with [Check referential integrity](/table/operations#referential-integrity) on the Operations tab.
-- PostgreSQL does not create an index on the referencing columns. Add one (More → **Index**) if you delete from the referenced table or join on the key often; otherwise every delete there scans this table.
+- PostgreSQL does not create an index on the referencing columns. Tick **Auto FK index**, or add one (More → **Index**), if you delete from the referenced table or join on the key often; otherwise every delete there scans this table.
 :::
 
 ::: info Not in the relation view
-`MATCH FULL`, `DEFERRABLE`/`INITIALLY DEFERRED`, `NOT VALID` and `SET NULL (col)` column lists are not offered; the keys are created `MATCH SIMPLE`, not deferrable, and validated. Use the SQL tab:
-
-```sql
-ALTER TABLE public.order_items
-    ADD CONSTRAINT order_items_book_fk FOREIGN KEY (book_id) REFERENCES public.books (id)
-    DEFERRABLE INITIALLY DEFERRED NOT VALID;
-ALTER TABLE public.order_items VALIDATE CONSTRAINT order_items_book_fk;
-```
-
-The [Show create](/table/operations#show-create) tab shows all of these clauses for existing keys.
+`SET NULL (col)` and `SET DEFAULT (col)` column lists (PostgreSQL 15+) are not offered; use the SQL tab. The [Show create](/table/operations#show-create) tab shows all clauses of existing keys.
 :::
 
 ## Coming from phpMyAdmin

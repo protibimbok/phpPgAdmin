@@ -303,7 +303,8 @@
     "ignore": "Ignore",
     "add_columns": "Add {{count}} column(s)",
     "no_columns": "An exclusion constraint needs at least one column.",
-    "no_operator": "Each column of an exclusion constraint needs an operator."
+    "no_operator": "Each column of an exclusion constraint needs an operator.",
+    "not_valid": "Do not check the existing rows (NOT VALID)"
   },
   "relation": {
     "title": "Foreign key constraints",
@@ -321,7 +322,13 @@
     "add_constraint": "+ Add constraint",
     "dropped": "Foreign key constraint {{name}} has been dropped",
     "saved": "Foreign key constraints have been saved.",
-    "nothing": "Nothing to change."
+    "nothing": "Nothing to change.",
+    "validate": "Validate",
+    "validated": "Constraint {{name}} has been validated.",
+    "not_valid_hint": "Do not check the existing rows now; validate the key later.",
+    "auto_index": "Auto FK index",
+    "auto_index_hint": "Also create an index on the referencing columns, so that deletes and updates in the referenced table do not scan this one.",
+    "covering_index": "Covering index name"
   },
   "operations": {
     "tab": "Operations",

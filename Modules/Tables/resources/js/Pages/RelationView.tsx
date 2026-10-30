@@ -22,6 +22,15 @@ interface KeyRow {
   schema: string
   table: string
   referenced: string[]
+  /** MATCH FULL rather than MATCH SIMPLE. */
+  matchFull: boolean
+  deferrable: boolean
+  deferred: boolean
+  /** NOT VALID: a new key skips the check of the existing rows; an existing one was added so and not validated since. */
+  notValid: boolean
+  /** pgAdmin's "Auto FK index?": a new key also gets an index on its columns, named coveringIndex. */
+  autoIndex: boolean
+  coveringIndex: string
 }
 
 /** phpMyAdmin's referential actions, with PostgreSQL's confupdtype/confdeltype codes. */
@@ -53,11 +62,12 @@ export default function RelationView() {
   const [rows, setRows] = useState<KeyRow[]>([])
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [dropping, setDropping] = useState<ForeignKeyRow | null>(null)
+  const [validating, setValidating] = useState<ForeignKeyRow | null>(null)
   // The tables of each schema and the columns of each table, loaded as the selects need them.
   const [tableLists, setTableLists] = useState<Record<string, string[]>>({})
   const [columnLists, setColumnLists] = useState<Record<string, string[]>>({})
 
-  const blank = (): KeyRow => ({ existing: null, name: '', onDelete: 'a', onUpdate: 'a', local: [''], schema, table: '', referenced: [''] })
+  const blank = (): KeyRow => ({ existing: null, name: '', onDelete: 'a', onUpdate: 'a', local: [''], schema, table: '', referenced: [''], matchFull: false, deferrable: false, deferred: false, notValid: false, autoIndex: false, coveringIndex: '' })
 
   useEffect(() => {
     if (!data) return
@@ -71,6 +81,12 @@ export default function RelationView() {
         schema: key.refnsp,
         table: key.reftab,
         referenced: key.columns.map((c) => c.referenced),
+        matchFull: Boolean(key.confmatchtype),
+        deferrable: Boolean(key.condeferrable),
+        deferred: Boolean(key.condeferred),
+        notValid: key.convalidated === false,
+        autoIndex: false,
+        coveringIndex: '',
       })),
       blank(),
     ])
@@ -121,7 +137,22 @@ export default function RelationView() {
   const toData = (row: KeyRow): ForeignKeyData => {
     const pairs = row.local.map((local, i) => ({ local_column: local, referenced: row.referenced[i] ?? '' })).filter((p) => p.local_column && p.referenced)
 
-    return { name: row.name || undefined, columns: pairs, remote_schema: row.schema, remote_table: row.table, confupdtype: row.onUpdate, confdeltype: row.onDelete }
+    // The covering index is named after the key as pgAdmin names it (fki_<name>), or after the table and columns.
+    const index = row.coveringIndex.trim() || `fki_${row.name || [table, ...pairs.map((p) => p.local_column)].join('_')}`
+
+    return {
+      name: row.name || undefined,
+      columns: pairs,
+      remote_schema: row.schema,
+      remote_table: row.table,
+      confupdtype: row.onUpdate,
+      confdeltype: row.onDelete,
+      confmatchtype: row.matchFull,
+      condeferrable: row.deferrable,
+      condeferred: row.deferrable && row.deferred,
+      convalidated: !row.notValid,
+      ...(!row.existing && row.autoIndex ? { autoindex: true, coveringindex: index } : {}),
+    }
   }
 
   const same = (row: KeyRow) => {
@@ -131,6 +162,9 @@ export default function RelationView() {
     return (
       was.confdeltype === row.onDelete &&
       was.confupdtype === row.onUpdate &&
+      Boolean(was.confmatchtype) === row.matchFull &&
+      Boolean(was.condeferrable) === row.deferrable &&
+      Boolean(was.condeferred) === (row.deferrable && row.deferred) &&
       was.refnsp === row.schema &&
       was.reftab === row.table &&
       pairs.length === was.columns.length &&
@@ -186,6 +220,18 @@ export default function RelationView() {
     try {
       await updateTable(db, scid, tid, body)
       notifySuccess(t('relation.saved'))
+      reload()
+    } catch (err) {
+      notifyError(errorMessage(err))
+    }
+  }
+
+  /** ALTER TABLE … VALIDATE CONSTRAINT: the update template validates when convalidated turns true. */
+  async function validate(key: ForeignKeyRow) {
+    setValidating(null)
+    try {
+      await constraints(db, scid, tid, 'foreign_key').update(key.oid, { convalidated: true })
+      notifySuccess(t('relation.validated', { name: key.name }))
       reload()
     } catch (err) {
       notifyError(errorMessage(err))
@@ -250,8 +296,8 @@ export default function RelationView() {
                     <tr key={i}>
                       <td>
                         {row.existing && (
-                          <a className="drop_foreign_key_anchor" href="#drop" onClick={(e) => { e.preventDefault(); setDropping(row.existing) }}>
-                            <Icon name="b_drop" title={tApp('drop')} />
+                          <a className="drop_foreign_key_anchor text-nowrap" href="#drop" onClick={(e) => { e.preventDefault(); setDropping(row.existing) }}>
+                            <Icon name="b_drop" title={tApp('drop')} /> {tApp('drop')}
                           </a>
                         )}
                       </td>
@@ -280,6 +326,56 @@ export default function RelationView() {
                               ))}
                             </select>
                           </span>
+                        </div>
+                        {/* PostgreSQL's own key properties (pgAdmin's Definition tab); phpMyAdmin's MySQL keys have none. */}
+                        <div className="float-start clearfloat">
+                          <span className="formelement">
+                            MATCH
+                            <select name={`match_type[${i}]`} value={row.matchFull ? 'f' : 's'} onChange={(e) => update(i, { matchFull: e.target.value === 'f' })}>
+                              <option value="s">SIMPLE</option>
+                              <option value="f">FULL</option>
+                            </select>
+                          </span>
+                          <span className="formelement">
+                            <input type="checkbox" name={`deferrable[${i}]`} id={`fk_deferrable_${i}`} checked={row.deferrable} onChange={(e) => update(i, { deferrable: e.target.checked, deferred: e.target.checked && row.deferred })} />{' '}
+                            <label htmlFor={`fk_deferrable_${i}`}>DEFERRABLE</label>
+                          </span>
+                          <span className="formelement">
+                            <input type="checkbox" name={`deferred[${i}]`} id={`fk_deferred_${i}`} checked={row.deferred} onChange={(e) => update(i, { deferred: e.target.checked, deferrable: e.target.checked || row.deferrable })} />{' '}
+                            <label htmlFor={`fk_deferred_${i}`}>INITIALLY DEFERRED</label>
+                          </span>
+                        </div>
+                        <div className="float-start clearfloat">
+                          {row.existing ? (
+                            row.existing.convalidated === false && (
+                              <span className="formelement">
+                                <strong>NOT VALID</strong>{' '}
+                                <a className="validate_foreign_key_anchor" href="#validate" onClick={(e) => { e.preventDefault(); setValidating(row.existing) }}>
+                                  {t('relation.validate')}
+                                </a>
+                              </span>
+                            )
+                          ) : (
+                            <>
+                              <span className="formelement">
+                                <input type="checkbox" name={`not_valid[${i}]`} id={`fk_not_valid_${i}`} checked={row.notValid} onChange={(e) => update(i, { notValid: e.target.checked })} />{' '}
+                                <label htmlFor={`fk_not_valid_${i}`} title={t('relation.not_valid_hint')}>
+                                  NOT VALID
+                                </label>
+                              </span>
+                              <span className="formelement">
+                                <input type="checkbox" name={`auto_index[${i}]`} id={`fk_auto_index_${i}`} checked={row.autoIndex} onChange={(e) => update(i, { autoIndex: e.target.checked })} />{' '}
+                                <label htmlFor={`fk_auto_index_${i}`} title={t('relation.auto_index_hint')}>
+                                  {t('relation.auto_index')}
+                                </label>
+                              </span>
+                              {row.autoIndex && (
+                                <span className="formelement">
+                                  <input type="text" name={`covering_index[${i}]`} value={row.coveringIndex} placeholder={t('relation.covering_index')} aria-label={t('relation.covering_index')} maxLength={63} onChange={(e) => update(i, { coveringIndex: e.target.value })} />
+                                </span>
+                              )}
+                            </>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -359,6 +455,7 @@ export default function RelationView() {
       </form>
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />
+      <ConfirmQuery show={validating !== null} sql={`ALTER TABLE IF EXISTS ${relation} VALIDATE CONSTRAINT ${quoteIdent(validating?.name ?? '')};`} onClose={() => setValidating(null)} onConfirm={() => validating && void validate(validating)} />
       <ConfirmQuery show={dropping !== null} sql={`ALTER TABLE ${relation} DROP CONSTRAINT ${quoteIdent(dropping?.name ?? '')};`} onClose={() => setDropping(null)} onConfirm={() => dropping && void drop(dropping)} />
     </>
   )

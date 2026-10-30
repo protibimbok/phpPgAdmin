@@ -236,6 +236,28 @@ export default function TableStructure() {
     })
   }
 
+  /**
+   * A foreign key or check added NOT VALID and not validated since. The foreign key list reads
+   * pg_constraint.convalidated as it is, the check list pgAdmin's inverted flag.
+   */
+  const notValid = (type: ConstraintType, row: Constraint) => (type === 'foreign_key' ? row.convalidated === false : type === 'check_constraint' ? row.convalidated === true : false)
+
+  function validateConstraint(type: ConstraintType, row: Constraint) {
+    setConfirm({
+      sql: [`ALTER TABLE IF EXISTS ${relation} VALIDATE CONSTRAINT ${quoteIdent(row.name)};`],
+      run: async () => {
+        try {
+          // The update templates validate when the flag turns to "validated" (false for a check, as pgAdmin inverts it).
+          await constraints(db, scid, tid, type).update(row.oid, { convalidated: type === 'foreign_key' })
+          notifySuccess(t('relation.validated', { name: row.name }))
+          reload()
+        } catch (e) {
+          notifyError(errorMessage(e))
+        }
+      },
+    })
+  }
+
   const withSelected = (action: string) => {
     const cols = requireSelection()
     if (!cols) return
@@ -505,7 +527,7 @@ export default function TableStructure() {
                 <table className="table table-striped table-hover table-sm w-auto align-middle">
                   <thead>
                     <tr>
-                      <th colSpan={2} className="d-print-none">
+                      <th colSpan={3} className="d-print-none">
                         {t('structure.constraint_columns.action')}
                       </th>
                       <th>{t('structure.constraint_columns.name')}</th>
@@ -532,6 +554,13 @@ export default function TableStructure() {
                           <a href="#drop-constraint" onClick={(e) => { e.preventDefault(); dropConstraint(type, row) }}>
                             <Icon name="b_drop" /> {t('structure.index_actions.drop')}
                           </a>
+                        </td>
+                        <td className="d-print-none">
+                          {notValid(type, row) && (
+                            <a href="#validate-constraint" className="validate_constraint_anchor" onClick={(e) => { e.preventDefault(); validateConstraint(type, row) }}>
+                              <Icon name="s_okay" /> {t('relation.validate')}
+                            </a>
+                          )}
                         </td>
                         <th>{row.name}</th>
                         <td className="text-nowrap">{t(`structure.constraint_types.${type}`)}</td>

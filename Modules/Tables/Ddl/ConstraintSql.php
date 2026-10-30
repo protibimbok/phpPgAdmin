@@ -88,7 +88,13 @@ final class ConstraintSql
     {
         $folder = self::folder($type);
         $old = self::current($ctx, $type, $tid, $cid);
+        // forTemplate defaults a foreign key to validated, which an update must not read as
+        // "validate it": only a convalidated the client sent runs VALIDATE CONSTRAINT.
+        $validation = array_key_exists('convalidated', $data);
         $data = self::forTemplate($ctx, $type, $data);
+        if (!$validation) {
+            unset($data['convalidated']);
+        }
         $data['schema'] = $schema;
         $data['table'] = $table;
         if (!isset($data['name']) || trim((string) $data['name']) === '') {
