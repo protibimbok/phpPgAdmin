@@ -100,10 +100,29 @@ and **Replace existing bookmark of same name** replaces it. A bookmark cannot be
 to private or edited in place: delete it and save it again.
 :::
 
-::: info
-phpMyAdmin's bookmark variables (`[VARIABLE1]` placeholders filled in when the bookmark runs) are
-not supported. Use [Bind parameters](/tools/sql#bind-parameters) with **View only** instead.
-:::
+### Bookmark variables
+
+A bookmark can hold phpMyAdmin's variables: `[VARIABLE1]`, `[VARIABLE2]` and so on (`[VARIABLE]` is
+the first one too). When such a bookmark is picked, the card shows **Variables** with a
+**Variable 1:**, **Variable 2:**… field for each placeholder, and **Submit** runs the bookmark with
+the values in their place:
+
+```sql
+SELECT id, name FROM public.authors WHERE name = '[VARIABLE1]' /* OR id = [VARIABLE2] */
+```
+
+with *Imam Bukhari* and *1* runs
+`SELECT id, name FROM public.authors WHERE name = 'Imam Bukhari'  OR id = 1`.
+
+- A comment holding a placeholder is taken away around it, as in phpMyAdmin, so the bookmark can
+  be written to run unchanged (with the comment) from the console, and with the clause once values
+  are given.
+- A value is put in as it is typed, with its single quotes doubled (`O'Brien` becomes `O''Brien`),
+  for a placeholder inside a string literal. Outside quotes it is SQL: give numbers there only.
+- A field left empty puts nothing in. One field is shown per placeholder, so a placeholder
+  written twice gets two fields; the first fills both.
+- **View only** shows the bookmark as saved, placeholders included; the console's **Bookmarks**
+  card runs it without substitution.
 
 ## Macros
 

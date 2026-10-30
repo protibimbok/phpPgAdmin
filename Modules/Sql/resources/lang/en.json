@@ -142,6 +142,8 @@
     "submit": "Submit",
     "view_only": "View only",
     "delete": "Delete",
+    "variables": "Variables",
+    "variable": "Variable {{number}}:",
     "created": "Bookmark created.",
     "deleted": "The bookmark has been deleted."
   },

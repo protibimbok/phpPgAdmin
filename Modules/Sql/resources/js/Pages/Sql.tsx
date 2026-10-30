@@ -30,6 +30,27 @@ const AUTO_SAVE_KEY = 'autoSavedSql'
 /** phpMyAdmin's TextareaRows: how tall the column list is. */
 const TEXTAREA_ROWS = 15
 
+/** phpMyAdmin's Bookmark::getVariableCount(): every [VARIABLE] and [VARIABLE1]… placeholder counts. */
+function bookmarkVariableCount(sql: string): number {
+  return sql.match(/\[VARIABLE[0-9]*\]/g)?.length ?? 0
+}
+
+/**
+ * phpMyAdmin's Bookmark::applyVariables(): a comment around a placeholder is taken away, so that
+ * the bookmark runs as it is without values, and [VARIABLEn] ([VARIABLE] for the first) becomes
+ * the n-th value with its quotes doubled, to go inside a string literal the query writes.
+ */
+function applyBookmarkVariables(sql: string, values: string[]): string {
+  let query = sql.replace(/\/\*([\s\S]*?\[VARIABLE[0-9]*\][\s\S]*?)\*\//gi, '$1')
+  for (let i = 1; i <= bookmarkVariableCount(sql); i++) {
+    const value = (values[i - 1] ?? '').replaceAll("'", "''")
+    query = query.replaceAll(`[VARIABLE${i}]`, value)
+    if (i === 1) query = query.replaceAll('[VARIABLE]', value)
+  }
+
+  return query
+}
+
 /**
  * The SQL page (sql/query.twig) at every level: the query box with its quick buttons and
  * column list when a table is open, the options in the card's footer, then the results of the
@@ -68,6 +89,7 @@ function SqlPageAt() {
   const [bookmarkReplace, setBookmarkReplace] = useState(false)
   const [chosenBookmark, setChosenBookmark] = useState('')
   const [bookmarkAction, setBookmarkAction] = useState<'0' | '1' | '2'>('0')
+  const [bookmarkVariables, setBookmarkVariables] = useState<string[]>([])
   const [manageMacros, setManageMacros] = useState(false)
   const runner = useQueryRunner(db)
   const { data: macroData, reload: reloadMacros } = useRequest(() => listMacros(), [])
@@ -212,8 +234,10 @@ function SqlPageAt() {
 
       return
     }
-    setQuery(bookmark.sql)
-    if (bookmarkAction === '0' && !runner.busy()) execute(bookmark.sql)
+    // Submit runs the bookmark with its variables filled in; View only shows it as it was saved.
+    const sql = bookmarkAction === '0' ? applyBookmarkVariables(bookmark.sql, bookmarkVariables) : bookmark.sql
+    setQuery(sql)
+    if (bookmarkAction === '0' && !runner.busy()) execute(sql)
   }
 
   function formatQuery() {
@@ -508,10 +532,19 @@ function SqlPageAt() {
                 </label>
               </div>
               <div className="col-6">
-                <select className="form-select" name="id_bookmark" id="id_bookmark" value={chosenBookmark} onChange={(e) => setChosenBookmark(e.target.value)}>
+                <select
+                  className="form-select"
+                  name="id_bookmark"
+                  id="id_bookmark"
+                  value={chosenBookmark}
+                  onChange={(e) => {
+                    setChosenBookmark(e.target.value)
+                    setBookmarkVariables([])
+                  }}
+                >
                   <option value="">&nbsp;</option>
                   {bookmarks.map((bookmark) => (
-                    <option key={bookmark.id} value={bookmark.id}>
+                    <option key={bookmark.id} value={bookmark.id} data-varcount={bookmarkVariableCount(bookmark.sql)}>
                       {bookmark.label}
                       {bookmark.shared ? ` (${t('bookmark.shared')})` : ''}
                     </option>
@@ -527,6 +560,35 @@ function SqlPageAt() {
                 </div>
               ))}
             </div>
+
+            {(() => {
+              const chosen = bookmarks.find((b) => String(b.id) === chosenBookmark)
+              const count = chosen ? bookmarkVariableCount(chosen.sql) : 0
+
+              return (
+                count > 0 && (
+                  <div id="bookmarkVariablesSection">
+                    {t('bookmark.variables')}
+                    <div className="row row-cols-auto" id="bookmarkVariables">
+                      {Array.from({ length: count }, (_, i) => (
+                        <div className="mb-3" key={i}>
+                          <label htmlFor={`bookmarkVariable${i + 1}`}>{t('bookmark.variable', { number: i + 1 })}</label>
+                          <input
+                            className="form-control"
+                            type="text"
+                            size={10}
+                            name={`bookmark_variable[${i + 1}]`}
+                            id={`bookmarkVariable${i + 1}`}
+                            value={bookmarkVariables[i] ?? ''}
+                            onChange={(e) => setBookmarkVariables((current) => Object.assign([...current], { [i]: e.target.value }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              )
+            })()}
           </div>
           <div className="card-footer text-end">
             <input className="btn btn-secondary" type="submit" name="SQL" id="button_submit_bookmark" value={tApp('go')} />
