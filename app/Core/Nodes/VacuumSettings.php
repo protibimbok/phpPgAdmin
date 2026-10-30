@@ -63,7 +63,8 @@ final class VacuumSettings
 
             $custom = $row[$prefix . 'autovacuum_enabled'] !== 'x';
             foreach (self::OPTIONS as $option) {
-                if (!empty($row[$prefix . $option])) {
+                // A setting of 0 is in force too.
+                if (isset($row[$prefix . $option]) && $row[$prefix . $option] !== '') {
                     $custom = true;
                 }
             }

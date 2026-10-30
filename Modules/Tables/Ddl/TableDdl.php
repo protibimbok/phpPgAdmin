@@ -58,6 +58,9 @@ final class TableDdl
 
         $data = self::properties($ctx, $tid, $row);
         $data['columns'] = ColumnFormatter::forTemplate($data['columns']);
+        // pgAdmin's update_vacuum_settings in create mode: the autovacuum settings go into
+        // WITH (…) when one of them has a value, even with no other storage parameter.
+        $data['add_vacuum_settings_in_sql'] = array_filter([...$data['vacuum_table'], ...$data['vacuum_toast']], static fn (array $o): bool => array_key_exists('value', $o)) !== [];
 
         $header = Ddl::header('Table', Quoting::ident($data['schema'], $data['name']), $ctx->renderFrom('tables', 'delete.sql', ['data' => $data]));
 

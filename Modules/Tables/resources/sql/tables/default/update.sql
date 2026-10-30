@@ -86,10 +86,11 @@ ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
 {#####################################################}
 {## change fillfactor settings ##}
 {#####################################################}
-{% if data.fillfactor and data.fillfactor != o_data.fillfactor %}
+{### phpPgAdmin: a setting compared as text, so that 0 is a value and not an empty one ###}
+{% if (data.fillfactor ~ '') != '' and (data.fillfactor ~ '') != (o_data.fillfactor ~ '') %}
 ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     SET (FILLFACTOR={{data.fillfactor}});
-{% elseif (data.fillfactor == '' or data.fillfactor == null) and data.fillfactor != o_data.fillfactor %}
+{% elseif (data.fillfactor ~ '') == '' and (o_data.fillfactor ~ '') != '' %}
 ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     RESET (FILLFACTOR);
 
@@ -97,10 +98,10 @@ ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
 
 {## change parallel_workers settings ##}
 {#####################################################}
-{% if (data.parallel_workers == '' or data.parallel_workers == null) and data.parallel_workers != o_data.parallel_workers %}
+{% if (data.parallel_workers ~ '') == '' and (o_data.parallel_workers ~ '') != '' %}
 ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     RESET (parallel_workers);
-{% elseif data.parallel_workers is defined and data.parallel_workers != o_data.parallel_workers %}
+{% elseif (data.parallel_workers ~ '') != '' and (data.parallel_workers ~ '') != (o_data.parallel_workers ~ '') %}
 ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     SET (parallel_workers={{data.parallel_workers}});
 
@@ -108,10 +109,10 @@ ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
 
 {## change toast_tuple_target settings ##}
 {#####################################################}
-{% if (data.toast_tuple_target == '' or data.toast_tuple_target == null) and data.toast_tuple_target != o_data.toast_tuple_target %}
+{% if (data.toast_tuple_target ~ '') == '' and (o_data.toast_tuple_target ~ '') != '' %}
 ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     RESET (toast_tuple_target);
-{% elseif data.toast_tuple_target is defined and data.toast_tuple_target != o_data.toast_tuple_target %}
+{% elseif (data.toast_tuple_target ~ '') != '' and (data.toast_tuple_target ~ '') != (o_data.toast_tuple_target ~ '') %}
 ALTER TABLE IF EXISTS {{conn|qtIdent(data.schema, data.name)}}
     SET (toast_tuple_target={{data.toast_tuple_target}});
 

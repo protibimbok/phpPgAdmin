@@ -34,6 +34,7 @@ final class ColumnSql
     public static function createSql(NodeContext $ctx, string $schema, string $table, array $column): string
     {
         $column = self::forTemplate($column);
+        self::checkVirtual($ctx, $column);
         $column['schema'] = $schema;
         $column['table'] = $table;
 
@@ -101,6 +102,19 @@ final class ColumnSql
         }
 
         return "\n" . $target . ' SET EXPRESSION AS (' . $expression . ");\n";
+    }
+
+    /**
+     * A VIRTUAL generated column needs PostgreSQL 18; the templates write VIRTUAL whatever the
+     * server.
+     *
+     * @param array<string, mixed> $column the column after forTemplate()
+     */
+    public static function checkVirtual(NodeContext $ctx, array $column): void
+    {
+        if (($column['colconstype'] ?? null) === 'g' && ($column['genvirtual'] ?? false) === true && $ctx->version() < 180000) {
+            throw new BadRequestException(sprintf('Column "%s": VIRTUAL generated columns need PostgreSQL 18 or later; make it STORED.', (string) ($column['name'] ?? '')));
+        }
     }
 
     /**

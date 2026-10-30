@@ -17,7 +17,8 @@
 {% set empty_bracket = "\n(\n)"%}
 {% endif %}
 {% set with_clause = false%}
-{% if data.fillfactor or data.parallel_workers or data.toast_tuple_target or (data.autovacuum_custom and data.add_vacuum_settings_in_sql) or data.autovacuum_enabled in ['t', 'f'] or (data.toast_autovacuum and data.add_vacuum_settings_in_sql) or data.toast_autovacuum_enabled in ['t', 'f'] %}
+{### phpPgAdmin: a storage parameter of 0 is set, not left out ###}
+{% if (data.fillfactor ~ '') != '' or (data.parallel_workers ~ '') != '' or (data.toast_tuple_target ~ '') != '' or (data.autovacuum_custom and data.add_vacuum_settings_in_sql) or data.autovacuum_enabled in ['t', 'f'] or (data.toast_autovacuum and data.add_vacuum_settings_in_sql) or data.toast_autovacuum_enabled in ['t', 'f'] %}
 {% set with_clause = true%}
 {% endif %}
 CREATE {% if data.relpersistence %}UNLOGGED {% endif %}TABLE{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{conn|qtIdent(data.schema, data.name)}}{{empty_bracket}}{% if data.typname %}{{ "\n" }}    OF {{ data.typname }}{% endif %}{% if data.like_relation or data.coll_inherits or data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 or data.exclude_constraint|length > 0 %}{{ "\n" }}(
@@ -85,11 +86,11 @@ CACHE {{c.seqcache|int}} {% endif %}
 {%- if with_clause %}
 {% set ns = namespace({add_comma:false}) %}
 {{ gap }}WITH (
-{% if data.fillfactor %}{% do ns.set('add_comma', true) %}
-    FILLFACTOR = {{ data.fillfactor }}{% endif %}{% if data.parallel_workers %}
+{% if (data.fillfactor ~ '') != '' %}{% do ns.set('add_comma', true) %}
+    FILLFACTOR = {{ data.fillfactor }}{% endif %}{% if (data.parallel_workers ~ '') != '' %}
 {% if ns.add_comma %},
 {% endif %}
-    parallel_workers = {{ data.parallel_workers }}{% do ns.set('add_comma', true) %}{% endif %}{% if data.toast_tuple_target %}
+    parallel_workers = {{ data.parallel_workers }}{% do ns.set('add_comma', true) %}{% endif %}{% if (data.toast_tuple_target ~ '') != '' %}
 {% if ns.add_comma %},
 {% endif %}
     toast_tuple_target = {{ data.toast_tuple_target }}{% do ns.set('add_comma', true) %}{% endif %}{% if data.autovacuum_enabled in ['t', 'f'] %}

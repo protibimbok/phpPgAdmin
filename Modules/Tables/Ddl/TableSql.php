@@ -42,6 +42,9 @@ final class TableSql
         $data['schema'] = (string) ($ctx->conn->scalar($ctx->renderFrom('tables', 'get_schema.sql', ['scid' => $ctx->id('scid')])) ?? throw new BadRequestException('Unknown schema.'));
 
         $data['columns'] = self::columnsForCreate((array) ($data['columns'] ?? []));
+        foreach ($data['columns'] as $column) {
+            ColumnSql::checkVirtual($ctx, $column);
+        }
         foreach (['primary_key', 'unique_constraint', 'foreign_key', 'check_constraint', 'exclude_constraint'] as $type) {
             $data[$type] = array_values(array_map(fn (array $c): array => ConstraintSql::forTemplate($ctx, $type, $c), (array) ($data[$type] ?? [])));
         }
@@ -94,6 +97,27 @@ final class TableSql
         ];
     }
 
+    /** The storage parameters that take a whole number, with the range PostgreSQL takes. */
+    private const array NUMERIC_STORAGE_PARAMETERS = ['fillfactor' => [10, 100], 'parallel_workers' => [0, 1024], 'toast_tuple_target' => [128, 32736]];
+
+    /**
+     * One of the numeric storage parameters from the client, as the templates write it: its
+     * digits as a string (so that 0 reads as a value), or null when left empty.
+     */
+    private static function storageParameter(string $key, mixed $given): ?string
+    {
+        $value = trim((string) ($given ?? ''));
+        if ($value === '') {
+            return null;
+        }
+        [$min, $max] = self::NUMERIC_STORAGE_PARAMETERS[$key];
+        if (preg_match('/^\d+$/', $value) !== 1 || (int) $value < $min || (int) $value > $max) {
+            throw new BadRequestException(sprintf('%s takes a whole number from %d to %d.', $key, $min, $max));
+        }
+
+        return (string) (int) $value;
+    }
+
     /**
      * The WITH (…) storage parameters, which the template writes as they are: integers in the
      * ranges PostgreSQL takes, and 't' or 'f' for the autovacuum switches; empty ones go.
@@ -102,16 +126,13 @@ final class TableSql
      */
     private static function checkStorageParameters(array &$data): void
     {
-        foreach (['fillfactor' => [10, 100], 'parallel_workers' => [0, 1024], 'toast_tuple_target' => [128, 32736]] as $key => [$min, $max]) {
-            $value = trim((string) ($data[$key] ?? ''));
-            if ($value === '') {
+        foreach (array_keys(self::NUMERIC_STORAGE_PARAMETERS) as $key) {
+            $value = self::storageParameter($key, $data[$key] ?? null);
+            if ($value === null) {
                 unset($data[$key]);
-                continue;
+            } else {
+                $data[$key] = $value;
             }
-            if (preg_match('/^\d+$/', $value) !== 1 || (int) $value < $min || (int) $value > $max) {
-                throw new BadRequestException(sprintf('%s takes a whole number from %d to %d.', $key, $min, $max));
-            }
-            $data[$key] = (int) $value;
         }
         foreach (['autovacuum_enabled', 'toast_autovacuum_enabled'] as $key) {
             if (!in_array($data[$key] ?? null, ['t', 'f'], true)) {
@@ -141,6 +162,8 @@ final class TableSql
         foreach (['fillfactor', 'parallel_workers', 'toast_tuple_target', 'autovacuum_custom', 'toast_autovacuum', 'autovacuum_enabled', 'toast_autovacuum_enabled'] as $key) {
             if (!array_key_exists($key, $data)) {
                 $data[$key] = $old[$key] ?? null;
+            } elseif (isset(self::NUMERIC_STORAGE_PARAMETERS[$key])) {
+                $data[$key] = self::storageParameter($key, $data[$key]);
             }
         }
         if (isset($data['relacl']) && is_array($data['relacl']) && !array_is_list($data['relacl'])) {
