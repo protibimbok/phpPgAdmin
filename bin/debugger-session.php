@@ -75,37 +75,61 @@ $alive = static function () use (&$lastCommand, $directory): bool {
 
     return $heartbeat === false ? time() - $lastCommand < IDLE_LIMIT : time() - max($lastCommand, $heartbeat) < HEARTBEAT_LIMIT;
 };
-while (!$stopping && $alive() && !$session->done()) {
-    $session->poll();
-    $read = [$server];
-    $write = $except = null;
-    if (@stream_select($read, $write, $except, 0, 250000) < 1) {
-        continue;
-    }
-    $client = @stream_socket_accept($server, 1);
-    if ($client === false) {
-        continue;
-    }
-    $lastCommand = time();
-    stream_set_timeout($client, 5);
-    $command = json_decode((string) fgets($client), true);
+// Whatever goes wrong below, the sessions are closed and the socket removed on the way out.
+try {
+    serve($server, $session, $alive, $stopping, $lastCommand);
+} finally {
     try {
-        $reply = $session->handle(is_array($command) ? $command : []);
+        $session->close();
     } catch (Throwable $e) {
-        try {
-            $reply = ['error' => $e->getMessage()] + $session->state();
-        } catch (Throwable) {
-            // The proxy has lost the target ("select() failed waiting for target"): the call is over.
-            $session->fail($e->getMessage());
-            $reply = $session->state();
-        }
+        fwrite(STDERR, "The debugging session did not close cleanly: {$e->getMessage()}\n");
     }
-    fwrite($client, json_encode($reply, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n");
-    fclose($client);
+    fclose($server);
+    @unlink($job['socket']);
 }
-$session->close();
-fclose($server);
-@unlink($job['socket']);
+
+/**
+ * The page's commands, one connection each, until the session ends. A failure while looking at
+ * the call (pldbg_wait_for_breakpoint failing just after an in-context target arrived) ends the
+ * call with that error, which the page is shown, rather than the process.
+ *
+ * @param resource $server
+ */
+function serve($server, DebugSession $session, Closure $alive, bool &$stopping, int &$lastCommand): void
+{
+    while (!$stopping && $alive() && !$session->done()) {
+        try {
+            $session->poll();
+        } catch (Throwable $e) {
+            $session->fail($e->getMessage());
+        }
+        $read = [$server];
+        $write = $except = null;
+        if (@stream_select($read, $write, $except, 0, 250000) < 1) {
+            continue;
+        }
+        $client = @stream_socket_accept($server, 1);
+        if ($client === false) {
+            continue;
+        }
+        $lastCommand = time();
+        stream_set_timeout($client, 5);
+        $command = json_decode((string) fgets($client), true);
+        try {
+            $reply = $session->handle(is_array($command) ? $command : []);
+        } catch (Throwable $e) {
+            try {
+                $reply = ['error' => $e->getMessage()] + $session->state();
+            } catch (Throwable) {
+                // The proxy has lost the target ("select() failed waiting for target"): the call is over.
+                $session->fail($e->getMessage());
+                $reply = $session->state();
+            }
+        }
+        fwrite($client, json_encode($reply, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n");
+        fclose($client);
+    }
+}
 
 /** The two sessions of a direct debugging run and what the page is shown of it. */
 final class DebugSession
