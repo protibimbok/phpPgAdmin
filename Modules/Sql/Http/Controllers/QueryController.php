@@ -7,7 +7,9 @@ namespace PhpPgAdmin\Modules\Sql\Http\Controllers;
 use League\Route\Http\Exception\BadRequestException;
 use League\Route\Http\Exception\NotFoundException;
 use PhpPgAdmin\Core\Database\Connection;
+use PhpPgAdmin\Core\Database\ConnectionException;
 use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Core\Database\QueryException;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Sql\Sql\QueryRunner;
 use PhpPgAdmin\Modules\Sql\Sql\Relation;
@@ -81,7 +83,28 @@ final class QueryController
             throw new NotFoundException('No running query with that id.');
         }
 
-        return ['ok' => (bool) $pool->maintenance()->scalar('SELECT pg_catalog.pg_cancel_backend($1)', [$pid])];
+        try {
+            return ['ok' => (bool) $pool->maintenance()->scalar('SELECT pg_catalog.pg_cancel_backend($1)', [$pid])];
+        } catch (QueryException $e) {
+            // A query tool session connected as another role (New connection): the sign-in role
+            // may not cancel that role's backend, the role itself may.
+            foreach (QuerySessionController::otherCredentials($pool) as $credentials) {
+                try {
+                    $conn = $pool->connector()->connect($credentials, $pool->maintenance()->database());
+                } catch (ConnectionException) {
+                    continue;
+                }
+                try {
+                    if ($conn->scalar("SELECT usename FROM pg_catalog.pg_stat_activity WHERE pid = \$1", [$pid]) === $credentials->username) {
+                        return ['ok' => (bool) $conn->scalar('SELECT pg_catalog.pg_cancel_backend($1)', [$pid])];
+                    }
+                } finally {
+                    $conn->close();
+                }
+            }
+
+            throw $e;
+        }
     }
 
     /**

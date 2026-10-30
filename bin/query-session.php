@@ -146,15 +146,18 @@ $handle = static function (array $command) use ($conn, $history, $running, $stat
     }
 };
 
+// The last command that did something, for IDLE_LIMIT; a status request (the page's heartbeat,
+// the notifications poll) only shows that the page is open, which HEARTBEAT_LIMIT watches.
 $lastCommand = time();
-$alive = static function () use (&$lastCommand, $directory, $conn): bool {
+$lastContact = time();
+$alive = static function () use (&$lastCommand, &$lastContact, $directory, $conn): bool {
     if (!$conn->isAlive() || time() - $lastCommand >= IDLE_LIMIT) {
         return false;
     }
     clearstatcache(true, $directory . '/heartbeat');
     $heartbeat = @filemtime($directory . '/heartbeat');
 
-    return time() - max($lastCommand, $heartbeat === false ? 0 : $heartbeat) < HEARTBEAT_LIMIT;
+    return time() - max($lastContact, $heartbeat === false ? 0 : $heartbeat) < HEARTBEAT_LIMIT;
 };
 
 while (!$stopping && $alive()) {
@@ -169,20 +172,33 @@ while (!$stopping && $alive()) {
     if ($client === false) {
         continue;
     }
-    $lastCommand = time();
+    $lastContact = time();
     stream_set_timeout($client, 10);
     $command = json_decode((string) fgets($client), true);
+    $command = is_array($command) ? $command : [];
+    $working = ($command['command'] ?? 'status') !== 'status';
+    if ($working) {
+        $lastCommand = time();
+    }
     try {
-        $reply = $handle(is_array($command) ? $command : []);
+        $reply = $handle($command);
     } catch (QueryException $e) {
         $reply = ['error' => $e->toArray()] + $state();
     } catch (Throwable $e) {
         $reply = ['error' => ['message' => $e->getMessage()]] + $state();
     }
-    // The page may have given up waiting (a cancelled request); the reply then has nowhere to go.
-    @fwrite($client, json_encode($reply, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n");
+    // The page may have given up waiting (a cancelled request); the reply then has nowhere to
+    // go, and the notifications it carried wait for the next one.
+    $line = json_encode($reply, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
+    $written = @fwrite($client, $line);
+    if ($written !== strlen($line) && is_array($reply['notifications'] ?? null)) {
+        $notifications = [...$reply['notifications'], ...$notifications];
+    }
     fclose($client);
-    $lastCommand = time();
+    $lastContact = time();
+    if ($working) {
+        $lastCommand = time();
+    }
 }
 
 $conn->close();

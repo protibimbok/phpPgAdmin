@@ -8,6 +8,7 @@ use League\Route\Http\Exception\BadRequestException;
 use League\Route\Http\Exception\NotFoundException;
 use PhpPgAdmin\Core\Database\ConnectionPool;
 use PhpPgAdmin\Core\Database\Server;
+use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Auth\Servers;
 use Psr\Http\Message\ServerRequestInterface;
@@ -72,8 +73,16 @@ final class ServerListController
         $server = $servers->find($id) ?? throw new NotFoundException(__('auth::errors.unknown_server'));
         $body = (array) ($request->getParsedBody() ?? []);
         $username = self::username($request);
+        // The options are a role's on a server: set only for the server the session is signed
+        // in to, where the username is known to be that server's role.
+        $session = Authenticate::sessionServer();
+        if ($session === null || $session->id !== $id) {
+            throw new ApiException(403, 'Sign in to this server to change its connection options.');
+        }
+        $conn = ConnectionPool::from($request)->maintenance();
 
         $options = $server->options;
+        $serverWide = $options;
         foreach (Server::SERVER_OPTIONS as $key) {
             $value = trim(self::text($body[$key] ?? null, $key));
             if (mb_strlen($value) > 256 || preg_match('/[\x00-\x1f]/', $value) === 1) {
@@ -90,20 +99,23 @@ final class ServerListController
                 $options[$key] = $value;
             }
         }
+        // The service, application name and SSL files apply to everyone who signs in to the
+        // server (a service can even send them to another host): only a superuser changes them.
+        $changed = array_filter(Server::SERVER_OPTIONS, static fn (string $key): bool => ($options[$key] ?? null) !== ($serverWide[$key] ?? null));
+        if ($changed !== [] && $conn->scalar('SELECT rolsuper FROM pg_catalog.pg_roles WHERE rolname = session_user') !== true) {
+            throw new ApiException(403, sprintf('Only a superuser can change the server-wide options (%s).', implode(', ', $changed)));
+        }
         $own = [];
         $role = trim(self::text($body['role'] ?? null, 'role'));
         if ($role !== '') {
             if (strlen($role) > 63 || preg_match('/[\x00-\x1f]/', $role) === 1) {
                 throw new BadRequestException('role is not a valid role name.');
             }
-            // On the server the session is signed in to, a role the login role cannot become is
-            // refused here, rather than at every later sign-in.
-            $session = Authenticate::sessionServer();
-            if ($session !== null && $session->id === $id) {
-                $member = ConnectionPool::from($request)->maintenance()->scalar("SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = \$1) THEN pg_catalog.pg_has_role(session_user, \$1, 'MEMBER') END", [$role]);
-                if ($member !== true) {
-                    throw new BadRequestException($member === null ? sprintf('There is no role "%s" on this server.', $role) : sprintf('%s cannot SET ROLE to "%s".', $username, $role));
-                }
+            // A role the login role cannot become is refused here, rather than at every later
+            // sign-in: SET ROLE takes the membership's SET option from PostgreSQL 16 on.
+            $member = $conn->scalar(sprintf("SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = \$1) THEN pg_catalog.pg_has_role(session_user, \$1, '%s') END", $conn->version() >= 160000 ? 'SET' : 'MEMBER'), [$role]);
+            if ($member !== true) {
+                throw new BadRequestException($member === null ? sprintf('There is no role "%s" on this server.', $role) : sprintf('%s cannot SET ROLE to "%s".', $username, $role));
             }
             $own['role'] = $role;
         }
@@ -125,10 +137,7 @@ final class ServerListController
         $servers->setOptions($id, $options);
 
         // The session's server is read from the session: it gets the new options at once.
-        $session = Authenticate::sessionServer();
-        if ($session !== null && $session->id === $id) {
-            $_SESSION[Authenticate::SERVER] = $session->withOptions($options)->toSessionArray();
-        }
+        $_SESSION[Authenticate::SERVER] = $session->withOptions($options)->toSessionArray();
 
         return ['ok' => true];
     }

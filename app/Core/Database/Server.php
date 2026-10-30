@@ -154,8 +154,8 @@ final readonly class Server
         }
         if (!$this->isSocket()) {
             foreach (self::SSL_FILES as $key) {
-                if (isset($options[$key]) && ($path = self::sslPath($options[$key])) !== null) {
-                    $params[$key] = $path;
+                if (isset($options[$key])) {
+                    $params[$key] = self::sslPath($options[$key]) ?? throw ConnectionException::missingSslFile($key, $options[$key]);
                 }
             }
         }

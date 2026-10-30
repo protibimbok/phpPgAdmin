@@ -204,8 +204,10 @@ export async function runInQuerySession(db: string | null, request: QueryRequest
     return response
   } catch (e) {
     if (e instanceof ApiError && (e.status === 404 || e.status === 410) && entry.id === id) {
-      const lost = entry.status !== 'idle'
-      forget(entry, false)
+      // A transaction, LISTENs or another role (New connection, SET ROLE) went with the session:
+      // the batch is not run again in a new one as the sign-in's own role, only reported.
+      const lost = entry.status !== 'idle' || entry.connection !== null || entry.channels.length > 0
+      forget(entry, lost)
       // Nothing was open in the session that ended: run in a new one, as pgAdmin reconnects.
       if (!lost && !retried) return runInQuerySession(db, request, autocommit, true)
     } else if (entry.id === id) {
@@ -283,6 +285,8 @@ function setConnection(entry: Entry, connection: Entry['connection']) {
  */
 export async function reconnect(db: string | null, connection: SessionConnection): Promise<void> {
   const entry = entryFor(db)
+  // A session the first run is still starting would otherwise take the entry over afterwards.
+  if (entry.starting) await entry.starting.catch(() => null)
   const started = await startQuerySession(db, connection)
   if (entry.id !== null) void stopQuerySession(entry.id)
   entry.id = started.id

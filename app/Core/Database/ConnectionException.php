@@ -32,6 +32,15 @@ final class ConnectionException extends RuntimeException
     }
 
     /**
+     * A saved server's SSL file is not in the SSL directory (removed, renamed, or the directory
+     * no longer configured): connecting without it would skip the checks it was set for.
+     */
+    public static function missingSslFile(string $option, string $name): self
+    {
+        return new self(sprintf('The %s "%s" this server is set to connect with is not in the SSL certificate directory (PGADMIN_SSL_DIRECTORY).', $option, $name), false, false);
+    }
+
+    /**
      * True when the server was reached and turned the role or password down; false when it
      * could not be reached at all or the database could not be opened.
      */

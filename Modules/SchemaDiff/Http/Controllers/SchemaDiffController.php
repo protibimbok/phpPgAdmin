@@ -12,6 +12,7 @@ use PhpPgAdmin\Core\Database\Connector;
 use PhpPgAdmin\Core\Database\Server;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\Nodes\Catalog;
+use PhpPgAdmin\Modules\Auth\Http\Controllers\AuthController;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Auth\Servers;
 use PhpPgAdmin\Modules\SchemaDiff\Diff\DatabaseComparer;
@@ -81,12 +82,17 @@ final class SchemaDiffController
         $body = (array) ($request->getParsedBody() ?? []);
         $server = $this->savedServer($body['server'] ?? null) ?? throw new BadRequestException('Choose a saved server.');
         $username = trim((string) ($body['username'] ?? ''));
+        $password = (string) ($body['password'] ?? '');
         if ($username === '') {
             throw new BadRequestException(__('auth::errors.credentials_required'));
         }
+        // The sign-in's rules hold for the other server's sign-in too (extra_login_security).
+        if (AuthController::disallowed($username, $password)) {
+            throw new ApiException(403, __('auth::errors.login_disallowed'));
+        }
 
         try {
-            [$connection, $credentials] = Connector::for($server)->login($username, (string) ($body['password'] ?? ''));
+            [$connection, $credentials] = Connector::for($server)->login($username, $password);
         } catch (ConnectionException $e) {
             // Not 401, which the client takes as the end of its own session.
             throw new ApiException($e->credentialsRejected() ? 403 : 503, $e->responseMessage());
@@ -195,6 +201,17 @@ final class SchemaDiffController
             }
         }
         $pool = new ConnectionPool(Connector::for($server), $credentials);
+        // Credentials that no longer work (a changed password, a dropped role) ask for the
+        // sign-in again: their 401 would end the page's own session in the client.
+        try {
+            $pool->maintenance();
+        } catch (ConnectionException $e) {
+            if (!$e->credentialsRejected()) {
+                throw new ApiException(503, $e->responseMessage());
+            }
+
+            throw new ApiException(428, sprintf('Sign in to %s again: %s', $server->name ?? $server->key(), $e->responseMessage()), ['needs_login' => true]);
+        }
         $this->opened[] = [$server->id, $pool];
 
         return $pool;

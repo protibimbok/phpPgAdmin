@@ -65,6 +65,15 @@ final class Authenticate implements MiddlewareInterface
         }
     }
 
+    /** The connection pool of the sign-in the PHP session holds, or null when it holds none. */
+    public static function sessionPool(): ?ConnectionPool
+    {
+        $credentials = Credentials::fromArray((array) ($_SESSION[self::CREDENTIALS] ?? []));
+        $server = self::sessionServer();
+
+        return $credentials === null || $server === null ? null : new ConnectionPool(Connector::for($server), $credentials);
+    }
+
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $user = $_SESSION[self::USER] ?? null;
@@ -77,10 +86,34 @@ final class Authenticate implements MiddlewareInterface
 
         $pool = new ConnectionPool(Connector::for($server), $credentials);
 
+        // PHP holds the session file locked until the request ends, so a long statement (or one
+        // stopped at a debugger breakpoint) would keep every other request of the browser
+        // waiting. Only the requests that change the session keep it open; the rest read it,
+        // and $_SESSION stays readable after the lock is released.
+        if (!self::writesSession($request) && session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
         try {
             return $handler->handle($request->withAttribute(self::USER, $user)->withAttribute(ConnectionPool::ATTRIBUTE, $pool));
         } finally {
             $pool->closeAll();
         }
+    }
+
+    /**
+     * The requests that write the PHP session: signing in and out, the account and the saved
+     * servers, the query tool's and the debugger's session lists, and another server's sign-in
+     * for the schema diff.
+     */
+    private static function writesSession(ServerRequestInterface $request): bool
+    {
+        $path = $request->getUri()->getPath();
+        $method = $request->getMethod();
+
+        return preg_match('#/api/(?:auth|account|query/sessions)(?:/|$)#', $path) === 1
+            || preg_match('#/api/schema-diff/connect$#', $path) === 1
+            || preg_match('#/api/databases/[^/]+/debugger/\d+/sessions$#', $path) === 1
+            || (preg_match('#/api/debugger/sessions/[0-9a-f]{24}(?:/stop)?$#', $path) === 1 && ($method === 'DELETE' || str_ends_with($path, '/stop')));
     }
 }

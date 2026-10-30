@@ -87,6 +87,10 @@ final class AuthController
         // The server let the role in: remember it for the next login, without the password.
         $server = Servers::make()->remember($server, $username);
 
+        // A sign-in that was still in the session (no logout first) ends with what it kept:
+        // its query tool and debugger sessions must not pass to the new role.
+        self::endSignIn(Authenticate::sessionPool());
+
         // A fresh session id, so a session fixed before the login does not carry the credentials.
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
@@ -122,7 +126,7 @@ final class AuthController
      * empty passwords are refused before the server is asked, since a "trust" line in
      * pg_hba.conf would let them in with any password.
      */
-    private static function disallowed(string $username, string $password): bool
+    public static function disallowed(string $username, string $password): bool
     {
         if (!(bool) Config::get('auth.extra_login_security', false)) {
             return false;
@@ -141,9 +145,7 @@ final class AuthController
         } catch (\Throwable) {
             $pool = null;
         }
-        foreach (Modules::providing(EndsWithSignOut::class) as $module) {
-            $module->signOut($pool);
-        }
+        self::endSignIn($pool);
         unset($_SESSION[Authenticate::USER], $_SESSION[Authenticate::CREDENTIALS], $_SESSION[Authenticate::SERVER], $_SESSION[Authenticate::OTHER_CREDENTIALS]);
 
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -151,6 +153,14 @@ final class AuthController
         }
 
         return ['ok' => true];
+    }
+
+    /** What the modules keep for a sign-in (EndsWithSignOut) ends with it. */
+    private static function endSignIn(?ConnectionPool $pool): void
+    {
+        foreach (Modules::providing(EndsWithSignOut::class) as $module) {
+            $module->signOut($pool);
+        }
     }
 
     /** @return array<string, mixed> */
@@ -174,9 +184,18 @@ final class AuthController
         }
 
         try {
-            return Server::fromArray($input);
+            $server = Server::fromArray($input);
         } catch (\InvalidArgumentException $e) {
             throw new BadRequestException($e->getMessage());
         }
+        // A host and port typed in that are a saved server's sign in with its connection
+        // options (role, post-connection SQL, SSL files), as choosing it from the list does.
+        foreach (Servers::make()->all() as $saved) {
+            if ($saved->host === $server->host && $saved->port === $server->port) {
+                return $server->withOptions($saved->options);
+            }
+        }
+
+        return $server;
     }
 }

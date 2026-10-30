@@ -15,6 +15,7 @@ use PhpPgAdmin\Core\Database\Server;
 use PhpPgAdmin\Core\Facades\Config;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\Process\BackgroundProcess;
+use PhpPgAdmin\Modules\Auth\Http\Controllers\AuthController;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Sql\Sql\Splitter;
 use Psr\Http\Message\ServerRequestInterface;
@@ -60,7 +61,7 @@ final class QuerySessionController
         $conn = $database === '' ? $pool->maintenance() : $pool->for($database);
         $database = $conn->database();
 
-        [$environment, $connection, $postSql] = $this->connection($pool, $database, $body);
+        [$environment, $connection, $postSql, $credentials] = $this->connection($pool, $database, $body);
 
         $this->forgetEnded();
         $owner = $this->owner($pool);
@@ -91,7 +92,9 @@ final class QuerySessionController
             $process->remove();
             throw $e;
         }
-        $sessions[$process->id()] = ['database' => $database, 'connection' => $connection] + $owner;
+        // Another role's credentials stay with its session, as the sign-in's own stay in the PHP
+        // session: Cancel needs them, since the sign-in role may not cancel that role's backend.
+        $sessions[$process->id()] = ['database' => $database, 'connection' => $connection] + ($credentials === null ? [] : ['credentials' => $credentials->toArray()]) + $owner;
         $_SESSION[self::SESSIONS] = $sessions;
 
         return ['id' => $process->id(), 'database' => $database, 'connection' => $connection] + self::send($process, ['command' => 'status'], 10);
@@ -102,21 +105,33 @@ final class QuerySessionController
      * its post-connection SQL: the signed-in role's, or another role's of the same server.
      *
      * @param array<string, mixed> $body
-     * @return array{0: array<string, string>, 1: array{username: string, role: string|null}, 2: string|null}
+     * @return array{0: array<string, string>, 1: array{username: string, role: string|null}, 2: string|null, 3: Credentials|null}
      */
     private function connection(ConnectionPool $pool, string $database, array $body): array
     {
         $server = $pool->connector()->server;
         $username = trim((string) ($body['username'] ?? ''));
         $role = trim((string) ($body['role'] ?? ''));
+        // Names go into libpq's startup options and environment: no control characters (a
+        // newline would start another -c option), and no longer than a name can be.
+        foreach (['username' => $username, 'role' => $role] as $field => $value) {
+            if (strlen($value) > 63 || preg_match('/[\x00-\x1f\x7f]/', $value) === 1) {
+                throw new BadRequestException(sprintf('%s is not a valid role name.', $field));
+            }
+        }
         $other = $username !== '' && $username !== $pool->username();
         $environment = $pool->environment($database);
         if (!$other && $role === '') {
-            return [$environment, ['username' => $pool->username(), 'role' => null], $server->postConnectionSql($pool->username())];
+            return [$environment, ['username' => $pool->username(), 'role' => null], $server->postConnectionSql($pool->username()), null];
         }
         $username = $other ? $username : $pool->username();
         if ($other) {
-            $credentials = new Credentials($username, (string) ($body['password'] ?? ''), $database);
+            $password = (string) ($body['password'] ?? '');
+            // The sign-in's rules hold for another role too (extra_login_security).
+            if (AuthController::disallowed($username, $password)) {
+                throw new ApiException(403, __('auth::errors.login_disallowed'));
+            }
+            $credentials = new Credentials($username, $password, $database);
             $environment = $pool->connector()->environment($credentials, $database);
             try {
                 $test = $pool->connector()->connect($credentials, $database);
@@ -129,7 +144,8 @@ final class QuerySessionController
         }
         if ($role !== '') {
             try {
-                $member = $test->scalar("SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = \$1) THEN pg_catalog.pg_has_role(session_user, \$1, 'MEMBER') END", [$role]);
+                // SET ROLE takes the membership's SET option from PostgreSQL 16 on.
+                $member = $test->scalar(sprintf("SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = \$1) THEN pg_catalog.pg_has_role(session_user, \$1, '%s') END", $test->version() >= 160000 ? 'SET' : 'MEMBER'), [$role]);
             } catch (QueryException $e) {
                 throw new BadRequestException($e->getMessage());
             } finally {
@@ -145,7 +161,7 @@ final class QuerySessionController
             $test->close();
         }
 
-        return [$environment, ['username' => $username, 'role' => $role === '' ? null : $role], $server->postConnectionSql($username)];
+        return [$environment, ['username' => $username, 'role' => $role === '' ? null : $role], $server->postConnectionSql($username), $other ? $credentials : null];
     }
 
     /**
@@ -284,6 +300,29 @@ final class QuerySessionController
                 $process->remove();
             }
         }
+    }
+
+    /**
+     * The credentials of the sign-in's sessions connected as another role of its server (New
+     * connection), for cancelling what they run.
+     *
+     * @return list<Credentials>
+     */
+    public static function otherCredentials(ConnectionPool $pool): array
+    {
+        $owner = ['server' => Authenticate::sessionServer()?->key() ?? '', 'username' => $pool->username()];
+        $list = [];
+        foreach ((array) ($_SESSION[self::SESSIONS] ?? []) as $session) {
+            if (!is_array($session) || ($session['server'] ?? null) !== $owner['server'] || ($session['username'] ?? null) !== $owner['username']) {
+                continue;
+            }
+            $credentials = Credentials::fromArray((array) ($session['credentials'] ?? []));
+            if ($credentials !== null) {
+                $list[] = $credentials;
+            }
+        }
+
+        return $list;
     }
 
     /** Drop the ids of sessions whose process has ended, removing what they left behind. */

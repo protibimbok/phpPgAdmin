@@ -100,7 +100,59 @@ final class Connector
         }
 
         // The saved server's connection options: service, application name, SSL files, role.
-        return [...$env, ...$this->server->libpqEnvironment($credentials->username)];
+        $env = [...$env, ...$this->server->libpqEnvironment($credentials->username)];
+
+        // libpq lets a service's settings win over environment variables, which would send a
+        // client program elsewhere than the web connection (whose explicit parameters win over
+        // the service). The service's settings are given here instead, for what is not set.
+        if (isset($env['PGSERVICE'])) {
+            foreach (self::serviceSettings($env['PGSERVICE']) as $key => $value) {
+                $name = self::SERVICE_ENVIRONMENT[$key] ?? null;
+                if ($name !== null && !isset($env[$name])) {
+                    $env[$name] = $value;
+                }
+            }
+            unset($env['PGSERVICE']);
+        }
+
+        return $env;
+    }
+
+    /** The service file keywords a client program takes as environment variables. */
+    private const array SERVICE_ENVIRONMENT = [
+        'passfile' => 'PGPASSFILE', 'channel_binding' => 'PGCHANNELBINDING', 'options' => 'PGOPTIONS',
+        'sslmode' => 'PGSSLMODE', 'sslnegotiation' => 'PGSSLNEGOTIATION', 'sslcompression' => 'PGSSLCOMPRESSION',
+        'sslcert' => 'PGSSLCERT', 'sslkey' => 'PGSSLKEY', 'sslrootcert' => 'PGSSLROOTCERT', 'sslcrl' => 'PGSSLCRL',
+        'sslcrldir' => 'PGSSLCRLDIR', 'sslsni' => 'PGSSLSNI', 'requirepeer' => 'PGREQUIREPEER',
+        'ssl_min_protocol_version' => 'PGSSLMINPROTOCOLVERSION', 'ssl_max_protocol_version' => 'PGSSLMAXPROTOCOLVERSION',
+        'gssencmode' => 'PGGSSENCMODE', 'krbsrvname' => 'PGKRBSRVNAME', 'gsslib' => 'PGGSSLIB', 'gssdelegation' => 'PGGSSDELEGATION',
+        'client_encoding' => 'PGCLIENTENCODING', 'target_session_attrs' => 'PGTARGETSESSIONATTRS',
+        'load_balance_hosts' => 'PGLOADBALANCEHOSTS', 'require_auth' => 'PGREQUIREAUTH',
+    ];
+
+    /**
+     * A service's settings as libpq finds them: in PGSERVICEFILE or ~/.pg_service.conf first,
+     * then in PGSYSCONFDIR's (or pg_config's sysconfdir's) pg_service.conf. Host, port, user
+     * and database are left out: the saved server names them.
+     *
+     * @return array<string, string>
+     */
+    private static function serviceSettings(string $service): array
+    {
+        $home = getenv('HOME') ?: (function_exists('posix_getpwuid') ? (posix_getpwuid(posix_geteuid())['dir'] ?? '') : '');
+        $system = getenv('PGSYSCONFDIR') ?: trim((string) @shell_exec('pg_config --sysconfdir 2>/dev/null'));
+        $files = [getenv('PGSERVICEFILE') ?: ($home !== '' ? $home . '/.pg_service.conf' : ''), $system !== '' ? $system . '/pg_service.conf' : ''];
+        foreach ($files as $file) {
+            if ($file === '' || !is_readable($file)) {
+                continue;
+            }
+            $sections = @parse_ini_file($file, true, INI_SCANNER_RAW);
+            if (is_array($sections) && is_array($sections[$service] ?? null)) {
+                return array_map('strval', array_diff_key($sections[$service], array_flip(['host', 'hostaddr', 'port', 'dbname', 'user', 'password', 'service'])));
+            }
+        }
+
+        return [];
     }
 
     /**
