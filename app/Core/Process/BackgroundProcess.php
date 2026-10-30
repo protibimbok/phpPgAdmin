@@ -50,6 +50,25 @@ final readonly class BackgroundProcess
         return preg_match('/^[0-9a-f]{24}$/', $id) === 1 ? new self(self::root() . '/' . $id) : null;
     }
 
+    /**
+     * Remove the directories of ended processes of one kind (those holding the marker file),
+     * ended at least $age seconds ago. A query tool or debugger session that ends on its own
+     * (its heartbeat stopped) has nobody left to remove it; the next one started sweeps.
+     */
+    public static function removeEnded(string $marker, int $age = 600): void
+    {
+        foreach (@scandir(self::root()) ?: [] as $id) {
+            if (preg_match('/^[0-9a-f]{24}$/', $id) !== 1 || !is_file(self::root() . '/' . $id . '/' . $marker)) {
+                continue;
+            }
+            $process = new self(self::root() . '/' . $id);
+            $ended = @filemtime($process->directory . '/status.json');
+            if ($process->status()['state'] !== 'running' && $ended !== false && time() - $ended >= $age) {
+                $process->remove();
+            }
+        }
+    }
+
     public function id(): string
     {
         return basename($this->directory);

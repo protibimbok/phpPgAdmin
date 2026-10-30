@@ -72,6 +72,7 @@ final class QuerySessionController
             unset($sessions[$oldest]);
         }
 
+        BackgroundProcess::removeEnded('session.json');
         $process = BackgroundProcess::prepare();
         $socket = self::socket($process->id());
         file_put_contents($process->directory . '/session.json', json_encode(['database' => $database, 'socket' => $socket, 'post_connection_sql' => $postSql] + $owner, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));

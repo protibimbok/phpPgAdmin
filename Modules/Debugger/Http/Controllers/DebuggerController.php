@@ -82,6 +82,7 @@ final class DebuggerController
         }
         $call = $indirect ? null : $this->call($target, is_array($body['args'] ?? null) ? $body['args'] : []);
 
+        BackgroundProcess::removeEnded('debug.json');
         $process = BackgroundProcess::prepare();
         $socket = sys_get_temp_dir() . '/pga-dbg-' . $process->id() . '.sock';
         file_put_contents($process->directory . '/debug.json', json_encode(['database' => $conn->database(), 'oid' => $target['oid'], 'mode' => $indirect ? 'indirect' : 'direct', 'call' => $call, 'socket' => $socket], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
