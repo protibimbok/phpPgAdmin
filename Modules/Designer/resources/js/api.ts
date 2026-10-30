@@ -38,7 +38,8 @@ export interface View {
 
 /** Where a table sits, whether it is folded; the diagram's settings, and the view it was saved with. */
 export interface Layout {
-  tables: Record<string, { x: number; y: number; small: boolean }>
+  /** Each table's place; "note" is pgAdmin ERD's note on the table, kept with the page. */
+  tables: Record<string, { x: number; y: number; small: boolean; note?: string }>
   angular: boolean
   grid: boolean
   lines: boolean
@@ -74,3 +75,15 @@ export const relationSql = (db: string, relation: NewRelation) => api.post<{ sql
 export const createRelation = (db: string, relation: NewRelation) => api.post<{ sql: string }>(`${base(db)}/relations`, relation)
 export const dropRelation = (db: string, relation: { schema: string; table: string; name: string }) => api.post<{ sql: string }>(`${base(db)}/relations/drop`, relation)
 export const tablesSql = (db: string, tables: number[]) => api.post<{ sql: string }>(`${base(db)}/sql`, { tables }).then((r) => r.sql)
+/** phpMyAdmin's Build Query: SELECT the tables, joined on their foreign keys. */
+export const buildQuery = (db: string, tables: number[]) => api.post<{ sql: string }>(`${base(db)}/query`, { tables }).then((r) => r.sql)
+
+/** pgAdmin ERD's many-to-many link: a table holding both tables' primary keys. */
+export interface Junction {
+  schema: string
+  name: string
+  left: { schema: string; table: string }
+  right: { schema: string; table: string }
+}
+export const junctionSql = (db: string, junction: Junction) => api.post<{ sql: string }>(`${base(db)}/junction`, { ...junction, preview: true }).then((r) => r.sql)
+export const createJunction = (db: string, junction: Junction) => api.post<{ sql: string }>(`${base(db)}/junction`, junction)

@@ -221,6 +221,120 @@ final class DesignerController
         return ['ok' => true];
     }
 
+    /**
+     * phpMyAdmin's Build Query from the Designer: SELECT the columns of the tables given ("tables",
+     * OIDs, in order), each table after the first LEFT JOINed on a foreign key it has with one
+     * before it, in either direction, or added after a comma when it has none.
+     *
+     * @return array{sql: string}
+     */
+    public function query(ServerRequestInterface $request, array $args): array
+    {
+        $conn = $this->connection($request, $args);
+        $body = (array) ($request->getParsedBody() ?? []);
+        $oids = array_values(array_unique(array_map('intval', is_array($body['tables'] ?? null) ? $body['tables'] : [])));
+        if ($oids === []) {
+            throw new BadRequestException('Select the tables to query.');
+        }
+        $names = [];
+        foreach ($conn->rows("SELECT c.oid, n.nspname, c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = ANY (\$1::oid[])", ['{' . implode(',', $oids) . '}']) as $row) {
+            $names[(int) $row['oid']] = Quoting::ident((string) $row['nspname'], (string) $row['relname']);
+        }
+        $oids = array_values(array_filter($oids, static fn (int $oid): bool => isset($names[$oid])));
+        $keys = $conn->rows(<<<'SQL'
+            SELECT con.conrelid, con.confrelid,
+                   (SELECT array_agg(a.attname ORDER BY k.i) FROM unnest(con.conkey) WITH ORDINALITY k(attnum, i) JOIN pg_catalog.pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum) AS columns,
+                   (SELECT array_agg(a.attname ORDER BY k.i) FROM unnest(con.confkey) WITH ORDINALITY k(attnum, i) JOIN pg_catalog.pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.attnum) AS ref_columns
+            FROM pg_catalog.pg_constraint con
+            WHERE con.contype = 'f' AND con.conrelid = ANY ($1::oid[]) AND con.confrelid = ANY ($1::oid[]) AND con.conrelid <> con.confrelid
+            ORDER BY con.conname
+            SQL, ['{' . implode(',', $oids) . '}']);
+        $list = static fn (mixed $v): array => is_array($v) ? $v : array_filter(explode(',', trim((string) $v, '{}')), static fn (string $x): bool => $x !== '');
+        $from = '';
+        $placed = [];
+        foreach ($oids as $oid) {
+            $join = null;
+            foreach ($keys as $key) {
+                [$child, $parent] = [(int) $key['conrelid'], (int) $key['confrelid']];
+                if (($child === $oid && in_array($parent, $placed, true)) || ($parent === $oid && in_array($child, $placed, true))) {
+                    $columns = $list($key['columns']);
+                    $refs = $list($key['ref_columns']);
+                    $on = [];
+                    foreach ($columns as $i => $column) {
+                        $on[] = sprintf('%s.%s = %s.%s', $names[$child], Quoting::ident(trim($column, '"')), $names[$parent], Quoting::ident(trim($refs[$i] ?? '', '"')));
+                    }
+                    $join = sprintf("\n\tLEFT JOIN %s ON %s", $names[$oid], implode(' AND ', $on));
+                    break;
+                }
+            }
+            $from .= $join ?? (($placed === [] ? '' : "\n\t, ") . $names[$oid]);
+            $placed[] = $oid;
+        }
+        $select = implode(', ', array_map(static fn (int $oid): string => $names[$oid] . '.*', $oids));
+
+        return ['sql' => sprintf("SELECT %s\nFROM %s;", $select, $from)];
+    }
+
+    /**
+     * pgAdmin ERD's many-to-many link: a new table ("schema", "name") with the primary key
+     * columns of the two tables ("left" and "right", {schema, table}) as its own primary key, each
+     * set a foreign key to its table. With "preview" only the statement comes back.
+     *
+     * @return array{ok: true, sql: string}
+     */
+    public function junction(ServerRequestInterface $request, array $args): array
+    {
+        $conn = $this->connection($request, $args);
+        $body = (array) ($request->getParsedBody() ?? []);
+        $schema = trim((string) ($body['schema'] ?? ''));
+        $name = trim((string) ($body['name'] ?? ''));
+        if ($schema === '' || $name === '') {
+            throw new BadRequestException('Name the table that links the two.');
+        }
+        $columns = [];
+        $keys = [];
+        foreach (['left', 'right'] as $side) {
+            $ref = is_array($body[$side] ?? null) ? $body[$side] : [];
+            $refSchema = trim((string) ($ref['schema'] ?? ''));
+            $refTable = trim((string) ($ref['table'] ?? ''));
+            $pk = $conn->rows(<<<'SQL'
+                SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod) AS type
+                FROM pg_catalog.pg_index i
+                JOIN pg_catalog.pg_class c ON c.oid = i.indrelid
+                JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                JOIN unnest(i.indkey) WITH ORDINALITY k(attnum, pos) ON true
+                JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
+                WHERE i.indisprimary AND n.nspname = $1 AND c.relname = $2
+                ORDER BY k.pos
+                SQL, [$refSchema, $refTable]);
+            if ($pk === []) {
+                throw new BadRequestException(sprintf('%s.%s has no primary key to link to.', $refSchema, $refTable));
+            }
+            $local = [];
+            foreach ($pk as $column) {
+                $columnName = $refTable . '_' . $column['attname'];
+                if (isset($columns[$columnName])) {
+                    $columnName .= '_' . $side;
+                }
+                $columns[$columnName] = $column['type'];
+                $local[] = Quoting::ident($columnName);
+            }
+            $keys[] = sprintf('    FOREIGN KEY (%s) REFERENCES %s (%s)', implode(', ', $local), Quoting::ident($refSchema, $refTable), implode(', ', array_map(static fn (array $c): string => Quoting::ident((string) $c['attname']), $pk)));
+        }
+        $lines = [];
+        foreach ($columns as $column => $type) {
+            $lines[] = sprintf('    %s %s NOT NULL', Quoting::ident((string) $column), $type);
+        }
+        $lines[] = sprintf('    PRIMARY KEY (%s)', implode(', ', array_map(static fn (string $c): string => Quoting::ident($c), array_map('strval', array_keys($columns)))));
+        $sql = sprintf("CREATE TABLE %s (\n%s\n);", Quoting::ident($schema, $name), implode(",\n", [...$lines, ...$keys]));
+        if (filter_var($body['preview'] ?? false, FILTER_VALIDATE_BOOL)) {
+            return ['ok' => true, 'sql' => $sql];
+        }
+        $this->run($conn, $sql);
+
+        return ['ok' => true, 'sql' => $sql];
+    }
+
     private function run(Connection $conn, string $sql): void
     {
         try {

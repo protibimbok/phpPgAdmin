@@ -10,7 +10,9 @@ import SqlView from '@/components/SqlView'
 import { treeState } from '@/layout/tree/treeState'
 import { urls } from '@/level'
 import { notifyError, notifySuccess } from '@/notify'
-import { createRelation, deletePage, diagram, dropRelation, listPages, relationSql, savePage, tablesSql, type DesignerColumn, type DesignerPage, type DesignerTable, type Layout, type NewRelation, type View } from '../api'
+import { resolve } from '@/nodes/client'
+import { copyTable } from '@tables/js/api'
+import { buildQuery, createJunction, createRelation, deletePage, diagram, dropRelation, junctionSql, listPages, relationSql, savePage, tablesSql, type DesignerColumn, type DesignerPage, type DesignerTable, type Junction, type Layout, type NewRelation, type View } from '../api'
 import angDirect from '../../img/ang_direct.png'
 import downarrow1 from '../../img/downarrow1.png'
 import downarrow2 from '../../img/downarrow2_m.png'
@@ -28,6 +30,7 @@ import leftArrow from '../../img/2leftarrow_m.png'
 import pageAdd from '../../img/page_add.png'
 import pageDelete from '../../img/page_delete.png'
 import pageEdit from '../../img/page_edit.png'
+import queryBuilder from '../../img/query_builder.png'
 import relationIcon from '../../img/relation.png'
 import reload from '../../img/reload.png'
 import rightArrow from '../../img/2rightarrow_m.png'
@@ -191,6 +194,8 @@ export default function Designer() {
   const [dialog, setDialog] = useState<null | 'open' | 'save_as' | 'delete' | 'export' | 'help'>(null)
   const [relating, setRelating] = useState<null | { step: 'ref' } | { step: 'fk'; ref: { table: DesignerTable; column: string } }>(null)
   const [newRelation, setNewRelation] = useState<NewRelation | null>(null)
+  /** The relation dialog opened from the table menu (pgAdmin's one-to-many link): its columns are picked in it. */
+  const [editableRelation, setEditableRelation] = useState(false)
   const [dropping, setDropping] = useState<Line | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [view, setView] = useState<View>({ x: 0, y: 0, zoom: 1 })
@@ -200,6 +205,14 @@ export default function Designer() {
   const [band, setBand] = useState<null | { x0: number; y0: number; x1: number; y1: number }>(null)
   const [panning, setPanning] = useState(false)
   const [minimap, setMinimap] = useState(true)
+  /** The table menu (a right click on a box's header), pgAdmin ERD's table actions. */
+  const [tableMenu, setTableMenu] = useState<{ table: DesignerTable; x: number; y: number } | null>(null)
+  const [cloning, setCloning] = useState<{ table: DesignerTable; name: string; what: 'structure' | 'data' } | null>(null)
+  const [noting, setNoting] = useState<{ key: string; text: string } | null>(null)
+  const [linking, setLinking] = useState<{ left: DesignerTable; right: string; name: string } | null>(null)
+  const [query, setQuery] = useState<string | null>(null)
+  /** The tables the diagram knew at its last load: a reload adds the ones created since. */
+  const known = useRef<Set<string> | null>(null)
   const outer = useRef<HTMLDivElement>(null)
   const viewport = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLDivElement>(null)
@@ -211,13 +224,20 @@ export default function Designer() {
   const tables = useMemo(() => data?.tables ?? [], [data])
   const byOid = useMemo(() => new Map(tables.map((tb) => [tb.oid, tb])), [tables])
 
-  // A new diagram shows every table, laid out in columns; a reload keeps where they are.
+  // A new diagram shows every table, laid out in columns; a reload keeps where they are, and
+  // puts the tables created since the last load to the right of the others.
   useEffect(() => {
     if (!data) return
+    const before = known.current
+    known.current = new Set(tables.map(keyOf))
     setLayout((current) => {
       if (current) {
         const kept = Object.fromEntries(Object.entries(current.tables).filter(([key]) => tables.some((tb) => keyOf(tb) === key)))
-        return { ...current, tables: kept }
+        const added = before === null ? [] : tables.filter((tb) => !before.has(keyOf(tb)) && !kept[keyOf(tb)])
+        if (added.length === 0) return { ...current, tables: kept }
+        const right = Math.max(ORIGIN.x - STEP.x, ...Object.values(kept).map((p) => p.x)) + STEP.x
+        const placed = Object.fromEntries(Object.entries(autoLayout(added)).map(([key, p]) => [key, { ...p, x: p.x - ORIGIN.x + right }]))
+        return { ...current, tables: { ...kept, ...placed } }
       }
       return { tables: autoLayout(tables), angular: true, grid: false, lines: true }
     })
@@ -529,6 +549,16 @@ export default function Designer() {
     },
     { id: 'toggle_lines', icon: toggleLines, title: t('menu.toggle_lines'), onClick: () => change((l) => ({ ...l, lines: !l.lines })), active: !layout.lines },
     { id: 'exportPages', icon: exportIcon, title: t('menu.export'), onClick: () => setDialog('export') },
+    {
+      id: 'query_builder',
+      icon: queryBuilder,
+      title: t('menu.build_query'),
+      onClick: () => {
+        const chosen = shown.filter((tb) => selected.size === 0 || selected.has(keyOf(tb)))
+        if (chosen.length === 0) return notifyError(t('query.none'))
+        buildQuery(db, chosen.map((tb) => tb.oid)).then(setQuery, (e: unknown) => notifyError(errorMessage(e)))
+      },
+    },
     { id: 'key_Left_Right', icon: menuRight ? leftArrow : rightArrow, title: t('menu.move_menu'), onClick: () => setMenuRight((v) => !v) },
   ]
 
@@ -665,7 +695,12 @@ export default function Designer() {
                 style={{ position: 'absolute', left: pos.x, top: pos.y, display: 'block', zIndex: 2 + order.indexOf(key) }}
                 onMouseDown={(e) => startBoxDrag(e, key)}
               >
-                <thead>
+                <thead
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setTableMenu({ table: tb, x: e.clientX, y: e.clientY })
+                  }}
+                >
                   <tr className="header">
                     <td
                       className="small_tab"
@@ -681,6 +716,11 @@ export default function Designer() {
                     </td>
                     <td className="tab_zag text-nowrap tab_zag_noquery" title={tb.comment ?? undefined}>
                       <span className="owner">{tb.schema}</span> {tb.name}
+                      {pos.note && (
+                        <span className="designer_note ms-1" role="button" title={pos.note} onClick={() => setNoting({ key, text: pos.note ?? '' })}>
+                          <Icon name="b_comment" title={pos.note} />
+                        </span>
+                      )}
                     </td>
                   </tr>
                 </thead>
@@ -764,18 +804,175 @@ export default function Designer() {
           <li>{t('help.pan')}</li>
           <li>{t('help.zoom')}</li>
           <li>{t('help.relation')}</li>
+          <li>{t('help.menu')}</li>
           <li>{t('help.drop')}</li>
           <li>{t('help.pages')}</li>
         </ul>
       </Modal>
 
+      {tableMenu && (
+        <>
+          <div className="position-fixed top-0 start-0 w-100 h-100" style={{ zIndex: 1050 }} onMouseDown={() => setTableMenu(null)} onContextMenu={(e) => { e.preventDefault(); setTableMenu(null) }} />
+          <ul className="dropdown-menu show" id="designer_table_menu" style={{ position: 'fixed', left: tableMenu.x, top: tableMenu.y, zIndex: 1051 }} onClick={() => setTableMenu(null)}>
+            <li>
+              <Link className="dropdown-item" to={urls.relation(db, tableMenu.table.schema, tableMenu.table.name, tableMenu.table.kind === 'v' ? 'view' : tableMenu.table.kind === 'm' ? 'mview' : 'table')}>
+                <Icon name="b_props" /> {t('table_menu.edit')}
+              </Link>
+            </li>
+            {(tableMenu.table.kind === 'r' || tableMenu.table.kind === 'p') && (
+              <li>
+                <a className="dropdown-item" href="#clone" onClick={(e) => { e.preventDefault(); setCloning({ table: tableMenu.table, name: `${tableMenu.table.name}_copy`, what: 'structure' }) }}>
+                  <Icon name="b_tblops" /> {t('table_menu.clone')}
+                </a>
+              </li>
+            )}
+            <li>
+              <a className="dropdown-item" href="#note" onClick={(e) => { e.preventDefault(); setNoting({ key: keyOf(tableMenu.table), text: layout.tables[keyOf(tableMenu.table)]?.note ?? '' }) }}>
+                <Icon name="b_comment" /> {t('table_menu.note')}
+              </a>
+            </li>
+            {(tableMenu.table.kind === 'r' || tableMenu.table.kind === 'p') && (
+              <>
+                <li>
+                  <a
+                    className="dropdown-item"
+                    href="#one-to-many"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      const withKey = tables.filter((x) => x.oid !== tableMenu.table.oid && x.columns.some((c) => c.pk))
+                      const ref = withKey.find((x) => x.schema === tableMenu.table.schema) ?? withKey[0] ?? tableMenu.table
+                      setNewRelation({ schema: tableMenu.table.schema, table: tableMenu.table.name, column: tableMenu.table.columns[0]?.name ?? '', ref_schema: ref.schema, ref_table: ref.name, ref_column: ref.columns.find((c) => c.pk)?.name ?? ref.columns[0]?.name ?? '', on_delete: 'NO ACTION', on_update: 'NO ACTION' })
+                      setEditableRelation(true)
+                    }}
+                  >
+                    <Icon name="b_relations" /> {t('table_menu.one_to_many')}
+                  </a>
+                </li>
+                <li>
+                  <a className="dropdown-item" href="#many-to-many" onClick={(e) => { e.preventDefault(); setLinking({ left: tableMenu.table, right: '', name: '' }) }}>
+                    <Icon name="b_relations" /> {t('table_menu.many_to_many')}
+                  </a>
+                </li>
+              </>
+            )}
+          </ul>
+        </>
+      )}
+
+      <Modal
+        show={cloning !== null}
+        title={t('clone.title', { name: cloning ? keyOf(cloning.table) : '' })}
+        onClose={() => setCloning(null)}
+        footer={
+          <button
+            type="button"
+            className="btn btn-primary"
+            id="designer_clone_go"
+            onClick={() => {
+              const job = cloning
+              if (!job || job.name.trim() === '') return
+              setCloning(null)
+              resolve(db, 'table', { schema: job.table.schema, name: job.table.name })
+                .then((ids) => copyTable(db, ids.scid, ids.tid, { name: job.name.trim(), what: job.what, add_constraints: true }))
+                .then(
+                  () => {
+                    notifySuccess(t('clone.done', { name: `${job.table.schema}.${job.name.trim()}` }))
+                    treeState.refresh()
+                    reloadDiagram()
+                  },
+                  (e: unknown) => notifyError(errorMessage(e)),
+                )
+            }}
+          >
+            {tApp('go')}
+          </button>
+        }
+      >
+        {cloning && (
+          <>
+            <label className="form-label" htmlFor="designer_clone_name">
+              {t('clone.name')}
+            </label>
+            <input className="form-control mb-2" id="designer_clone_name" value={cloning.name} onChange={(e) => setCloning({ ...cloning, name: e.target.value })} />
+            {(['structure', 'data'] as const).map((what) => (
+              <div className="form-check" key={what}>
+                <input className="form-check-input" type="radio" name="designer_clone_what" id={`designer_clone_${what}`} checked={cloning.what === what} onChange={() => setCloning({ ...cloning, what })} />
+                <label className="form-check-label" htmlFor={`designer_clone_${what}`}>
+                  {t(`clone.${what}`)}
+                </label>
+              </div>
+            ))}
+          </>
+        )}
+      </Modal>
+
+      <Modal
+        show={noting !== null}
+        title={t('note.title', { name: noting?.key ?? '' })}
+        onClose={() => setNoting(null)}
+        footer={
+          <button
+            type="button"
+            className="btn btn-primary"
+            id="designer_note_go"
+            onClick={() => {
+              const n = noting
+              setNoting(null)
+              if (!n) return
+              change((l) => ({ ...l, tables: { ...l.tables, [n.key]: { ...l.tables[n.key], note: n.text.trim() === '' ? undefined : n.text } } }))
+            }}
+          >
+            {tApp('ok')}
+          </button>
+        }
+      >
+        {noting && (
+          <>
+            <textarea className="form-control" id="designer_note_text" rows={5} value={noting.text} onChange={(e) => setNoting({ ...noting, text: e.target.value })} />
+            <div className="form-text">{t('note.help')}</div>
+          </>
+        )}
+      </Modal>
+
+      <JunctionDialog
+        db={db}
+        tables={tables}
+        linking={linking}
+        onChange={setLinking}
+        onClose={() => setLinking(null)}
+        onCreated={() => {
+          setLinking(null)
+          treeState.refresh()
+          reloadDiagram()
+        }}
+      />
+
+      <Modal
+        show={query !== null}
+        title={t('menu.build_query')}
+        size="lg"
+        onClose={() => setQuery(null)}
+        footer={
+          <button type="button" className="btn btn-primary" id="designer_query_open" onClick={() => navigate(`${urls.database(db)}/sql?${new URLSearchParams({ sql: query ?? '' })}`)}>
+            {t('query.open')}
+          </button>
+        }
+      >
+        <SqlView sql={query ?? ''} />
+      </Modal>
+
       <RelationDialog
         db={db}
+        tables={editableRelation ? tables : undefined}
         relation={newRelation}
         onChange={setNewRelation}
-        onClose={() => setNewRelation(null)}
+        onClose={() => {
+          setNewRelation(null)
+          setEditableRelation(false)
+        }}
         onCreated={() => {
           setNewRelation(null)
+          setEditableRelation(false)
           treeState.refresh()
           reloadDiagram()
         }}
@@ -995,7 +1192,7 @@ function SaveAsDialog({ show, initial, onClose, onSave }: { show: boolean; initi
 }
 
 /** phpMyAdmin's "Create relationship" layer: the two columns, ON DELETE and ON UPDATE, OK. */
-function RelationDialog({ db, relation, onChange, onClose, onCreated }: { db: string; relation: NewRelation | null; onChange: (r: NewRelation) => void; onClose: () => void; onCreated: () => void }) {
+function RelationDialog({ db, tables, relation, onChange, onClose, onCreated }: { db: string; tables?: DesignerTable[]; relation: NewRelation | null; onChange: (r: NewRelation) => void; onClose: () => void; onCreated: () => void }) {
   const { t } = useTranslation('designer')
   const { t: tApp } = useTranslation()
   const [sql, setSql] = useState<string | null>(null)
@@ -1038,13 +1235,59 @@ function RelationDialog({ db, relation, onChange, onClose, onCreated }: { db: st
               <tr>
                 <th>{t('relation.foreign_key')}</th>
                 <td>
-                  {relation.schema}.{relation.table}.{relation.column}
+                  {tables ? (
+                    <>
+                      {relation.schema}.{relation.table}.
+                      <select id="relation_column" value={relation.column} onChange={(e) => onChange({ ...relation, column: e.target.value })}>
+                        {(tables.find((x) => x.schema === relation.schema && x.name === relation.table)?.columns ?? []).map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <>
+                      {relation.schema}.{relation.table}.{relation.column}
+                    </>
+                  )}
                 </td>
               </tr>
               <tr>
                 <th>{t('relation.references')}</th>
                 <td>
-                  {relation.ref_schema}.{relation.ref_table}.{relation.ref_column}
+                  {tables ? (
+                    <>
+                      <select
+                        id="relation_ref_table"
+                        value={`${relation.ref_schema}.${relation.ref_table}`}
+                        onChange={(e) => {
+                          const ref = tables.find((x) => keyOf(x) === e.target.value)
+                          if (ref) onChange({ ...relation, ref_schema: ref.schema, ref_table: ref.name, ref_column: ref.columns.find((c) => c.pk)?.name ?? ref.columns[0]?.name ?? '' })
+                        }}
+                      >
+                        {tables
+                          .filter((x) => x.kind === 'r' || x.kind === 'p')
+                          .map((x) => (
+                            <option key={keyOf(x)} value={keyOf(x)}>
+                              {keyOf(x)}
+                            </option>
+                          ))}
+                      </select>
+                      .
+                      <select id="relation_ref_column" value={relation.ref_column} onChange={(e) => onChange({ ...relation, ref_column: e.target.value })}>
+                        {(tables.find((x) => x.schema === relation.ref_schema && x.name === relation.ref_table)?.columns ?? []).map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <>
+                      {relation.ref_schema}.{relation.ref_table}.{relation.ref_column}
+                    </>
+                  )}
                 </td>
               </tr>
               {(['on_delete', 'on_update'] as const).map((key) => (
@@ -1063,6 +1306,101 @@ function RelationDialog({ db, relation, onChange, onClose, onCreated }: { db: st
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        )}
+      </Modal>
+      <Modal show={sql !== null} title={tApp('preview_sql')} onClose={() => setSql(null)}>
+        <SqlView sql={sql ?? ''} />
+      </Modal>
+    </>
+  )
+}
+
+/**
+ * pgAdmin ERD's many-to-many link: a new table, named after the two, whose primary key is both
+ * tables' primary keys, each a foreign key to its table.
+ */
+function JunctionDialog({ db, tables, linking, onChange, onClose, onCreated }: { db: string; tables: DesignerTable[]; linking: { left: DesignerTable; right: string; name: string } | null; onChange: (l: { left: DesignerTable; right: string; name: string }) => void; onClose: () => void; onCreated: () => void }) {
+  const { t } = useTranslation('designer')
+  const { t: tApp } = useTranslation()
+  const [sql, setSql] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const candidates = tables.filter((x) => (x.kind === 'r' || x.kind === 'p') && x.columns.some((c) => c.pk))
+  const right = linking ? candidates.find((x) => keyOf(x) === linking.right) : undefined
+  const name = linking ? linking.name || (right ? `${linking.left.name}_${right.name}` : '') : ''
+  const junction = (): Junction | null => (linking && right ? { schema: linking.left.schema, name, left: { schema: linking.left.schema, table: linking.left.name }, right: { schema: right.schema, table: right.name } } : null)
+
+  async function create() {
+    const j = junction()
+    if (!j) return notifyError(t('junction.choose'))
+    setBusy(true)
+    try {
+      await createJunction(db, j)
+      notifySuccess(t('junction.created', { name: `${j.schema}.${j.name}` }))
+      onCreated()
+    } catch (e) {
+      notifyError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <Modal
+        show={linking !== null}
+        title={t('table_menu.many_to_many')}
+        onClose={onClose}
+        footer={
+          <>
+            <button type="button" className="btn btn-primary" id="designer_junction_go" disabled={busy} onClick={() => void create()}>
+              {tApp('ok')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                const j = junction()
+                if (!j) return notifyError(t('junction.choose'))
+                junctionSql(db, j).then(setSql, (e: unknown) => notifyError(errorMessage(e)))
+              }}
+            >
+              {tApp('preview_sql')}
+            </button>
+          </>
+        }
+      >
+        {linking && (
+          <table className="table table-borderless table-sm w-auto mb-0" id="designer_junction">
+            <tbody>
+              <tr>
+                <th>{t('junction.local')}</th>
+                <td>{keyOf(linking.left)}</td>
+              </tr>
+              <tr>
+                <th>
+                  <label htmlFor="junction_right">{t('junction.referenced')}</label>
+                </th>
+                <td>
+                  <select id="junction_right" value={linking.right} onChange={(e) => onChange({ ...linking, right: e.target.value })}>
+                    <option value="" />
+                    {candidates.map((x) => (
+                      <option key={keyOf(x)} value={keyOf(x)}>
+                        {keyOf(x)}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <th>
+                  <label htmlFor="junction_name">{t('junction.name')}</label>
+                </th>
+                <td>
+                  <input id="junction_name" value={name} onChange={(e) => onChange({ ...linking, name: e.target.value })} />
+                </td>
+              </tr>
             </tbody>
           </table>
         )}

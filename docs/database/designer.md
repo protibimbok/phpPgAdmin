@@ -34,21 +34,46 @@ From top to bottom:
 | **Delete pages** | tick saved pages and click **Drop** |
 | **Create table** | opens the [create-table page](/schema/create-table) of `public` (or the first schema) |
 | **Create relationship** | see [Relationships](#relationships) |
-| **Reload** | reads the diagram again from the database, keeping the layout |
+| **Reload** | reads the diagram again from the database, keeping the layout; tables created since are added to the right of the others |
 | **Help** | the mouse and keyboard controls |
 | **Angular links / Direct links** | lines with right angles, or straight |
 | **Snap to grid** | shows a dotted grid; dragged boxes snap to it (10 px) |
 | **Small/Big All** | folds every box to its header, or unfolds them all |
 | **Toggle relationship lines** | hides or shows the lines |
 | **Export schema** | see [Export](#export) |
+| **Build Query** | the `SELECT` of the selected boxes (all of them when none is selected), see [Build Query](#build-query) |
 | **Move Menu** | moves the side menu to the right edge and back |
 
 ![The tables list with public.reviews unticked](/media/database/designer-tables-list.png)
 
 ::: info New tables and Reload
-**Reload** refreshes the columns and relationships of the boxes shown, but a table created after the
-Designer was opened is not added to the layout: tick it in the tables list, or start a **New page**.
+**Reload** refreshes the columns and relationships of the boxes shown and adds the tables created
+since the Designer read the database (here or elsewhere), in columns to the right of the others. A
+table you took off the page stays off.
 :::
+
+## The table menu
+
+Right-click a box's header for pgAdmin ERD's table actions:
+
+| Item | What it does |
+| --- | --- |
+| **Edit table** | opens the table's structure page |
+| **Clone table…** | asks for a **New table name** and **Structure only** or **Structure and data**, then copies the table into its schema (the table list's **Copy table**, with its constraints); the copy appears on the page |
+| **Add/Edit note…** | a note on the table, shown as a comment icon in its header (hover to read it, click to edit). Notes are kept in the page, so save the page to keep them; an empty note is taken away |
+| **One-to-many link…** | the relationship dialog with the box's table as the foreign-key side: pick its **column**, the referenced **table** and **column** (its primary key to begin with), and the actions, then **OK** or **Preview SQL** |
+| **Many-to-many link…** | pgAdmin ERD's many-to-many link: pick the **Referenced table** and the new table's name (`orders_books` to begin with); the new table holds both tables' primary key columns (`orders_id`, `books_id`) as its primary key, each a foreign key to its table |
+
+Tables only: views and foreign tables offer **Edit table** and the note.
+
+## Build Query
+
+**Build Query** writes the `SELECT` of the selected boxes, or of every box on the page when none is
+selected, as phpMyAdmin's Designer does: each table's columns (`public.orders.*`), the tables in the
+order of the page, each after the first `LEFT JOIN`ed on a foreign key it has with one before it (in
+either direction), or added after a comma when it has none. **Open in the SQL page** puts it in the
+query box there. For column-by-column choices and criteria, use the database's
+[Query tab](/database/query).
 
 ## Moving around
 
@@ -145,5 +170,6 @@ The file is named after the database and the page (`bookshop-tools_page.png`).
 ## Differences from phpMyAdmin
 
 - Tables of every schema are in one diagram; the schema name is shown in each header.
-- There is no "Build query" (the query by example tool) and no display-field choice.
+- **Build Query** writes the joined `SELECT` but has no query-by-example options panel (use the
+  [Query tab](/database/query)); there is no display-field choice.
 - Pages are stored by phpPgAdmin, not in a configuration storage database.

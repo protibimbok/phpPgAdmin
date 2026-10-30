@@ -26,7 +26,8 @@
     "small_big_all": "Small/Big All",
     "toggle_lines": "Toggle relationship lines",
     "export": "Export schema",
-    "move_menu": "Move Menu"
+    "move_menu": "Move Menu",
+    "build_query": "Build Query"
   },
   "hint": {
     "pick_ref": "Select referenced key",
@@ -60,7 +61,8 @@
     "zoom": "Ctrl+wheel or a pinch zooms around the pointer; + and − zoom, 0 returns to 100%, 1 fits the diagram (or the selection) on screen. The minimap moves the view.",
     "relation": "Create relationship: click the referenced key's column, then the foreign key's column, and choose the actions.",
     "drop": "Click a relationship's line to delete it.",
-    "pages": "Save the layout as a page to come back to it; pages are kept per role and database."
+    "pages": "Save the layout as a page to come back to it; pages are kept per role and database.",
+    "menu": "Right-click a table's header to edit or clone it, add a note, or link it to another table (one-to-many, or many-to-many through a new table)."
   },
   "view": {
     "zoom_in": "Zoom in (+)",
@@ -70,5 +72,34 @@
     "fit_short": "Fit",
     "minimap": "Show/hide the minimap",
     "minimap_short": "Map"
+  },
+  "query": {
+    "none": "There is no table on the page to query.",
+    "open": "Open in the SQL page"
+  },
+  "table_menu": {
+    "edit": "Edit table",
+    "clone": "Clone table…",
+    "note": "Add/Edit note…",
+    "one_to_many": "One-to-many link…",
+    "many_to_many": "Many-to-many link…"
+  },
+  "clone": {
+    "title": "Clone {{name}}",
+    "name": "New table name:",
+    "structure": "Structure only",
+    "data": "Structure and data",
+    "done": "{{name}} has been created."
+  },
+  "note": {
+    "title": "Note on {{name}}",
+    "help": "The note is kept with the page when you save it; empty takes it away."
+  },
+  "junction": {
+    "local": "Local table",
+    "referenced": "Referenced table",
+    "name": "Table name",
+    "choose": "Choose the referenced table.",
+    "created": "{{name}} has been created."
   }
 }
