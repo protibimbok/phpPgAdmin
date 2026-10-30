@@ -354,5 +354,18 @@
       "serialize_text": "Text",
       "serialize_binary": "Binary"
     }
+  },
+  "replace": {
+    "find": "Find:",
+    "replace_with": "Replace with:",
+    "column": "Column:",
+    "use_regex": "Use regular expression",
+    "hide_criteria": "Hide find and replace criteria",
+    "show_criteria": "Show find and replace criteria",
+    "preview_title": "Find and replace - preview",
+    "count": "Count",
+    "original": "Original string",
+    "replaced": "Replaced string",
+    "replace": "Replace"
   }
 }

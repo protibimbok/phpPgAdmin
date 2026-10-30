@@ -366,5 +366,18 @@
       "serialize_text": "نص",
       "serialize_binary": "ثنائي"
     }
+  },
+  "replace": {
+    "find": "بحث عن:",
+    "replace_with": "استبدال بـ:",
+    "column": "العمود:",
+    "use_regex": "استخدام تعبير نمطي",
+    "hide_criteria": "إخفاء معايير البحث والاستبدال",
+    "show_criteria": "إظهار معايير البحث والاستبدال",
+    "preview_title": "بحث واستبدال - معاينة",
+    "count": "العدد",
+    "original": "النص الأصلي",
+    "replaced": "النص المستبدل",
+    "replace": "استبدال"
   }
 }

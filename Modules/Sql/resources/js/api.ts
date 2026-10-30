@@ -305,6 +305,31 @@ export function browseForeignValues(db: string, key: ForeignKey, page: ForeignPa
   return api.get(`/api/databases/${encode(db)}/query/foreign-values?${query}`)
 }
 
+/** What the Find and replace form asks for. */
+export interface FindReplaceRequest {
+  schema: string
+  table: string
+  column: string
+  find: string
+  replace_with: string
+  use_regex: boolean
+}
+
+/** The values Find and replace would change, with their replacements and row counts, and the UPDATE it would run. */
+export interface FindReplacePreview {
+  rows: { original: string | null; replaced: string | null; count: number }[]
+  sql: string
+}
+
+export function findReplacePreview(db: string, request: FindReplaceRequest): Promise<FindReplacePreview> {
+  return api.post<FindReplacePreview>(`/api/databases/${encode(db)}/query/find-replace/preview`, request)
+}
+
+/** Run the replacement; the answer reads as a statement of the SQL page. */
+export function findReplace(db: string, request: FindReplaceRequest): Promise<CommandResult> {
+  return api.post<CommandResult>(`/api/databases/${encode(db)}/query/find-replace`, request)
+}
+
 /** One row of a table by primary key, as text, with the table's columns: what the edit form starts from. */
 export function fetchRow(db: string, schema: string, name: string, keys: RowKeys): Promise<RelationInfo & { row: Record<string, string | null> }> {
   const query = new URLSearchParams({ schema, name, keys: JSON.stringify(keys) })

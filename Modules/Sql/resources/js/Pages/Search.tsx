@@ -1,9 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
-import { notAvailable } from '@/unbuilt'
 import { urls, useLevel, type RelationKind } from '@/level'
 import { relationColumns, type RelationColumn } from '../api'
 import DateTimeInput from '../fields/DateTimeInput'
@@ -14,6 +13,7 @@ import { defaultMaxRows, type GridNav } from '../results/ResultsGrid'
 import { useGridActions } from '../results/useGridActions'
 import { qualifiedName, quoteIdent, quoteLiteral } from '../sql'
 import { useQueryRunner } from '../useQueryRunner'
+import SearchTabs from './SearchTabs'
 
 /** phpMyAdmin's operators per type class (Types::getTypeOperators), with PostgreSQL's case-insensitive and regexp forms. */
 const TEXT_OPERATORS = ['LIKE', 'LIKE %...%', 'NOT LIKE', 'NOT LIKE %...%', 'ILIKE', 'ILIKE %...%', 'NOT ILIKE', '=', '!=', 'REGEXP', 'REGEXP ^...$', 'NOT REGEXP', "= ''", "!= ''", 'IN (...)', 'NOT IN (...)', 'BETWEEN', 'NOT BETWEEN']
@@ -137,23 +137,7 @@ export default function Search() {
 
   return (
     <>
-      <ul className="nav nav-pills m-2">
-        <li className="nav-item">
-          <Link className="nav-link active disableAjax" to={`${relationUrl}/search`}>
-            <Icon name="b_search" /> {t('search.table_search')}
-          </Link>
-        </li>
-        <li className="nav-item">
-          <a className="nav-link disableAjax" href="#zoom" onClick={notAvailable}>
-            <Icon name="b_select" /> {t('search.zoom_search')}
-          </a>
-        </li>
-        <li className="nav-item">
-          <a className="nav-link disableAjax" href="#find-replace" onClick={notAvailable}>
-            <Icon name="b_find_replace" /> {t('search.find_replace')}
-          </a>
-        </li>
-      </ul>
+      <SearchTabs relationUrl={relationUrl} active="search" />
 
       <form name="insertForm" id="tbl_search_form" className="ajax lock-page" onSubmit={submit}>
         <div className="card">

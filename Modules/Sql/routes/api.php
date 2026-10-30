@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Sql\Http\Controllers\BookmarkController;
+use PhpPgAdmin\Modules\Sql\Http\Controllers\FindReplaceController;
 use PhpPgAdmin\Modules\Sql\Http\Controllers\MacroController;
 use PhpPgAdmin\Modules\Sql\Http\Controllers\QueryController;
 
@@ -19,6 +20,12 @@ Route::middleware(Authenticate::class)->controller(QueryController::class)->grou
     Route::get('/databases/{db}/query/foreign-values', 'foreignValues')->setName('sql.foreign_values');
     Route::post('/databases/{db}/query/save', 'save')->setName('sql.save');
     Route::get('/databases/{db}/query/catalog', 'catalog')->setName('sql.catalog');
+});
+
+// A table's Find and replace: the preview of the values it changes, and the UPDATE.
+Route::middleware(Authenticate::class)->controller(FindReplaceController::class)->group(function (): void {
+    Route::post('/databases/{db}/query/find-replace/preview', 'preview')->setName('sql.find_replace.preview');
+    Route::post('/databases/{db}/query/find-replace', 'replace')->setName('sql.find_replace');
 });
 
 // Saved queries and the query history are the role's, per server, not per database.

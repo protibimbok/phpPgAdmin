@@ -2,6 +2,7 @@ import { insertAfter, insertBefore, registerModule } from '@/modular'
 import Console from './console/Console'
 import Browse from './Pages/Browse'
 import Change from './Pages/Change'
+import FindReplace from './Pages/FindReplace'
 import Chart from './Pages/Chart'
 import Search from './Pages/Search'
 import SqlPage from './Pages/Sql'
@@ -38,6 +39,7 @@ registerModule({
       { path: `db/:db/schema/:schema/${kind}/:table/browse`, element: <Browse /> },
       { path: `db/:db/schema/:schema/${kind}/:table/sql`, element: <SqlPage /> },
       { path: `db/:db/schema/:schema/${kind}/:table/search`, element: <Search /> },
+      { path: `db/:db/schema/:schema/${kind}/:table/search/replace`, element: <FindReplace /> },
       { path: `db/:db/schema/:schema/${kind}/:table/insert`, element: <Change /> },
       { path: `db/:db/schema/:schema/${kind}/:table/change`, element: <Change /> },
     ]),

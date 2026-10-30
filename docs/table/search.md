@@ -9,7 +9,7 @@ columns are combined with `AND`.
 
 ## Search a table
 
-1. Open the table's **Search** tab (**Table search** is the only active sub-tab).
+1. Open the table's **Search** tab.
 2. For each column to filter on, pick an **Operator** and type a **Value**. Columns with an empty value
    are ignored, except for the operators that take no value (`IS NULL`, `= ''` …).
 3. Optionally open **Extra options** (below).
@@ -25,8 +25,8 @@ SELECT "id", "title", "price" FROM "public"."books" WHERE "title" ILIKE '%guards
 
 The grid pages, sorts and edits as on [Browse](/table/browse): when the result includes the primary
 key, rows can be edited, copied and deleted. The message's **Edit** and **Explain SQL** links open the
-table's SQL tab with the statement. **Zoom search** and **Find and replace** answer that they are not
-available yet.
+table's SQL tab with the statement. **Zoom search** answers that it is not available yet;
+[Find and replace](#find-and-replace) is described below.
 
 ## Operators
 
@@ -90,3 +90,29 @@ forms. Values are always sent as quoted literals (`'30'`), which PostgreSQL cast
 The options and criteria are kept only while you stay on the page. Use **Edit** on the result to keep
 the statement on the SQL tab, and [bookmark](/tools/history-bookmarks#bookmarks) it there.
 :::
+
+## Find and replace
+
+The **Find and replace** sub-tab changes text in one column of every row that contains it, as
+phpMyAdmin's does.
+
+1. Type the text in **Find:** and its replacement in **Replace with:** (empty removes it).
+2. Pick the **Column:**. Only text columns are offered (`text`, `varchar`, `char`, `citext`, `name`).
+3. Tick **Use regular expression** to treat **Find:** as a PostgreSQL (POSIX) regular expression.
+4. Click **Go**. The form folds away behind **Show find and replace criteria**, and
+   **Find and replace - preview** lists each distinct value found, how many rows hold it
+   (**Count**), the **Original string** and the **Replaced string**.
+5. Click **Replace** and confirm the statement. The message shows how many rows were changed and
+   the `UPDATE` that ran; it is also kept in the [query history](/tools/history-bookmarks).
+
+The statements:
+
+| | Plain text | Regular expression |
+| --- | --- | --- |
+| Rows changed | `WHERE strpos("col", 'find') > 0` | `WHERE "col" ~ 'find'` |
+| New value | `replace("col", 'find', 'with')` | `regexp_replace("col", 'find', 'with', 'g')` |
+
+A plain search is case-sensitive (phpMyAdmin compares with a binary collation for the same reason).
+A regular expression replaces every match in the value; refer to a group in **Replace with:** as
+`\1`, `\2` …, for example find `^(\w+), (\w+)$` and replace with `\2 \1`. An invalid expression shows
+PostgreSQL's error instead of the preview.

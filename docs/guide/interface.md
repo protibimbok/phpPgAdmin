@@ -139,7 +139,7 @@ Some controls are drawn and look like working controls, as phpMyAdmin would show
 
 ![A yellow notification reading "Not available yet."](/media/guide/not-available.png)
 
-Examples are the **Zoom search** and **Find and replace** tabs of a table's Search page, and **Display chart** under query results. [Known limitations](/guide/limitations) lists them all.
+Examples are the **Zoom search** tab of a table's Search page and **Export** in the results grid's "With selected:" bar. [Known limitations](/guide/limitations) lists them all.
 
 ::: warning Same note for an empty selection
 In the results grid, a "With selected:" action clicked with no row checked also answers **Not available yet.**, even though the action itself works once rows are checked.
