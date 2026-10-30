@@ -19,6 +19,14 @@ declare(strict_types=1);
  * open) has stopped for HEARTBEAT_LIMIT, or, for a client that sends none, after half an hour
  * without a command.
  *
+ * In-context (indirect) debugging, pgAdmin's "Set breakpoint", has no target session of its
+ * own: the proxy creates a listener (pldbg_create_listener), sets a global breakpoint on the
+ * routine for every session (pldbg_set_global_breakpoint) and waits for one to reach it
+ * (pldbg_wait_for_target, sent without blocking the socket). The first session that calls the
+ * routine, a trigger firing a trigger function included, stops there and is debugged as a
+ * direct call is; its messages and result stay with that session. Stop aborts its statement,
+ * as pgAdmin's does.
+ *
  *     php bin/debugger-session.php <directory holding debug.json>
  */
 
@@ -29,7 +37,7 @@ const RESULT_ROWS = 1000;
 
 $directory = $argv[1] ?? '';
 $job = is_file($directory . '/debug.json') ? json_decode((string) file_get_contents($directory . '/debug.json'), true) : null;
-if (!is_array($job) || !is_string($job['call'] ?? null) || !is_string($job['socket'] ?? null)) {
+if (!is_array($job) || !is_string($job['socket'] ?? null) || (($job['mode'] ?? 'direct') === 'direct' && !is_string($job['call'] ?? null))) {
     fwrite(STDERR, "Usage: php bin/debugger-session.php <directory holding debug.json>\n");
     exit(2);
 }
@@ -112,6 +120,11 @@ final class DebugSession
 
     private int $oid;
 
+    private bool $indirect;
+
+    /** The backend that reached the global breakpoint, in-context. */
+    private ?int $targetPid = null;
+
     /** @var array{func: int, line: int, name: string}|null */
     private ?array $frame = null;
 
@@ -133,11 +146,23 @@ final class DebugSession
     public function __construct(private readonly array $job)
     {
         $this->oid = (int) $job['oid'];
+        $this->indirect = ($job['mode'] ?? 'direct') === 'indirect';
     }
 
     public function start(): void
     {
         $conninfo = "dbname='" . addcslashes((string) $this->job['database'], "'\\") . "' application_name='phpPgAdmin debugger'";
+        if ($this->indirect) {
+            $this->proxy = pg_connect($conninfo, PGSQL_CONNECT_FORCE_NEW) ?: throw new RuntimeException('The debugging session could not connect.');
+            $this->handle = (int) pg_fetch_result($this->proxyQuery('SELECT pldbg_create_listener()'), 0, 0);
+            $this->proxyQuery(sprintf('SELECT pldbg_set_global_breakpoint(%d, %d, -1, NULL)', $this->handle, $this->oid));
+            if (!pg_send_query($this->proxy, sprintf('SELECT pldbg_wait_for_target(%d)', $this->handle))) {
+                throw new RuntimeException(trim(pg_last_error($this->proxy)));
+            }
+            $this->status = 'waiting';
+
+            return;
+        }
         $this->target = pg_connect($conninfo, PGSQL_CONNECT_FORCE_NEW) ?: throw new RuntimeException('The debugging session could not connect.');
         $this->proxy = pg_connect($conninfo, PGSQL_CONNECT_FORCE_NEW) ?: throw new RuntimeException('The debugging session could not connect.');
         pg_set_error_verbosity($this->target, PGSQL_ERRORS_DEFAULT);
@@ -185,6 +210,11 @@ final class DebugSession
     /** Messages the call raised since the last look, and the end of the call. */
     public function poll(): void
     {
+        if ($this->status === 'waiting') {
+            $this->arrived();
+
+            return;
+        }
         if ($this->target === null || $this->status === 'finished') {
             return;
         }
@@ -250,7 +280,7 @@ final class DebugSession
     /** What the page shows: where the call stands, and while it is paused the frame's details. */
     public function state(): array
     {
-        $state = ['status' => $this->status, 'messages' => $this->messages, 'result' => $this->result, 'error' => $this->error, 'frame' => $this->frame];
+        $state = ['status' => $this->status, 'mode' => $this->indirect ? 'indirect' : 'direct', 'target_pid' => $this->targetPid, 'messages' => $this->messages, 'result' => $this->result, 'error' => $this->error, 'frame' => $this->frame];
         if ($this->status === 'paused' && $this->handle !== null && $this->frame !== null) {
             $func = $this->frame['func'];
             // As the routine editor shows it: without the line breaks after "AS $$" and before the closing "$$".
@@ -277,11 +307,52 @@ final class DebugSession
         }
     }
 
+    /**
+     * In-context: once pldbg_wait_for_target has returned, the session that reached the global
+     * breakpoint, and where it stopped.
+     */
+    private function arrived(): void
+    {
+        if (pg_connection_busy($this->proxy)) {
+            return;
+        }
+        $result = pg_get_result($this->proxy);
+        while (pg_get_result($this->proxy) !== false) {
+            // A single statement.
+        }
+        $error = $result === false ? 'The debugger stopped waiting.' : pg_result_error($result);
+        if ($error !== '' && $error !== false) {
+            $this->fail(trim((string) $error));
+            $this->handle = null;
+
+            return;
+        }
+        $this->targetPid = (int) pg_fetch_result($result, 0, 0);
+        $this->frame = $this->breakpoint('pldbg_wait_for_breakpoint');
+        $this->status = 'paused';
+    }
+
     /** Abort the call: the target rolls it back and the session ends. */
     private function stop(): void
     {
+        if ($this->status === 'waiting') {
+            // No session has come: stop waiting. Closing the proxy drops the global breakpoint.
+            pg_cancel_query($this->proxy);
+            while (pg_get_result($this->proxy) !== false) {
+                // Drained.
+            }
+            $this->status = 'finished';
+
+            return;
+        }
         if ($this->status === 'paused' && $this->handle !== null) {
             @pg_query($this->proxy, sprintf('SELECT pldbg_abort_target(%d)', $this->handle));
+            if ($this->indirect) {
+                $this->status = 'finished';
+                $this->handle = null;
+
+                return;
+            }
             $this->wait();
         }
     }
@@ -293,6 +364,13 @@ final class DebugSession
         $frame = @pg_query($this->proxy, sprintf('SELECT * FROM %s(%d)', $function, (int) $this->handle));
         $row = $frame === false ? false : pg_fetch_assoc($frame);
         if ($row === false || $row === null) {
+            if ($this->indirect) {
+                // The other session's call has returned; its result is that session's.
+                $this->status = 'finished';
+                $this->handle = null;
+
+                return;
+            }
             // The proxy loses the target when the call returns: the call's own result tells how it ended.
             $this->wait();
 
@@ -389,6 +467,9 @@ final class DebugSession
     /** @return list<string> the target's new notices, the debugger's own left out of the messages */
     private function notices(): array
     {
+        if ($this->target === null) {
+            return [];
+        }
         $notices = pg_last_notice($this->target, PGSQL_NOTICE_ALL);
         pg_last_notice($this->target, PGSQL_NOTICE_CLEAR);
         $notices = is_array($notices) ? array_values($notices) : [];

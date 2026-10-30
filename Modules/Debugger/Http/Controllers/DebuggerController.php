@@ -16,7 +16,10 @@ use PhpPgAdmin\Core\Process\BackgroundProcess;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * pgAdmin's direct debugging of a PL/pgSQL function or procedure. Whether the database can
+ * pgAdmin's debugging of a PL/pgSQL function, procedure or trigger function: direct, on a call
+ * the page starts, or in-context (pgAdmin's "Set breakpoint", indirect debugging), on the first
+ * call any session makes once a global breakpoint is set, which is the only way to debug a
+ * trigger function and needs a superuser, as in pgAdmin. Whether the database can
  * (GET …/debugger/status), the routine and its arguments (GET …/debugger/{oid}), a session
  * started with the arguments' values (POST …/debugger/{oid}/sessions), and the session driven
  * (POST /api/debugger/sessions/{id}) and stopped (DELETE, or POST …/stop from the page's
@@ -33,12 +36,13 @@ final class DebuggerController
     /** How long a step may take before the request gives up waiting for it: a loop may run long. */
     private const int COMMAND_TIMEOUT = 120;
 
-    /** @return array{available: bool, reason: string|null} */
+    /** @return array{available: bool, reason: string|null, superuser: bool} */
     public function status(ServerRequestInterface $request, array $args): array
     {
-        $reason = $this->unavailable($this->connection($request, $args));
+        $conn = $this->connection($request, $args);
+        $reason = $this->unavailable($conn);
 
-        return ['available' => $reason === null, 'reason' => $reason];
+        return ['available' => $reason === null, 'reason' => $reason, 'superuser' => self::superuser($conn)];
     }
 
     /**
@@ -53,7 +57,7 @@ final class DebuggerController
         $info = $this->targetInfo($conn, (int) $args['oid']);
         unset($info['argtypes']);
 
-        return ['target' => $info, 'reason' => $this->unavailable($conn)];
+        return ['target' => $info, 'reason' => $this->unavailable($conn), 'superuser' => self::superuser($conn)];
     }
 
     /** @return array{id: string, state: array<string, mixed>} */
@@ -69,11 +73,18 @@ final class DebuggerController
             throw new ApiException(422, 'Only PL/pgSQL functions and procedures can be debugged.');
         }
         $body = (array) ($request->getParsedBody() ?? []);
-        $call = $this->call($target, is_array($body['args'] ?? null) ? $body['args'] : []);
+        $indirect = ($body['mode'] ?? 'direct') === 'indirect';
+        if ($indirect && !self::superuser($conn)) {
+            throw new ApiException(403, 'You must be a superuser to set a global breakpoint and perform indirect debugging.');
+        }
+        if (!$indirect && $target['trigger']) {
+            throw new ApiException(422, 'A trigger function cannot be called on its own: set a breakpoint and fire the trigger from another session.');
+        }
+        $call = $indirect ? null : $this->call($target, is_array($body['args'] ?? null) ? $body['args'] : []);
 
         $process = BackgroundProcess::prepare();
         $socket = sys_get_temp_dir() . '/pga-dbg-' . $process->id() . '.sock';
-        file_put_contents($process->directory . '/debug.json', json_encode(['database' => $conn->database(), 'oid' => $target['oid'], 'call' => $call, 'socket' => $socket], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        file_put_contents($process->directory . '/debug.json', json_encode(['database' => $conn->database(), 'oid' => $target['oid'], 'mode' => $indirect ? 'indirect' : 'direct', 'call' => $call, 'socket' => $socket], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
         try {
             $process->start(BackgroundProcess::php(), [dirname(__DIR__, 4) . '/bin/debugger-session.php', $process->directory], $pool->environment($conn->database()));
             for ($wait = 0; $wait < 200 && !is_file($process->directory . '/ready'); $wait++) {
@@ -152,6 +163,11 @@ final class DebuggerController
         return ['ok' => true];
     }
 
+    private static function superuser(Connection $conn): bool
+    {
+        return $conn->scalar('SELECT rolsuper FROM pg_catalog.pg_roles WHERE rolname = current_user') === true;
+    }
+
     /** Why the database cannot debug, or null when it can. */
     private function unavailable(Connection $conn): ?string
     {
@@ -176,7 +192,8 @@ final class DebuggerController
             SELECT p.oid, n.nspname AS schema, p.proname AS name, p.prokind::text AS kind, l.lanname AS language,
                    p.proargtypes::text AS in_types, p.proallargtypes, p.proargmodes::text[] AS modes, p.proargnames AS names,
                    p.pronargdefaults, pg_catalog.pg_get_expr(p.proargdefaults, 0) AS defaults,
-                   pg_catalog.pg_get_function_identity_arguments(p.oid) AS signature
+                   pg_catalog.pg_get_function_identity_arguments(p.oid) AS signature,
+                   p.prorettype IN ('pg_catalog.trigger'::regtype, 'pg_catalog.event_trigger'::regtype) AS trigger
             FROM pg_catalog.pg_proc p
             JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
             JOIN pg_catalog.pg_language l ON l.oid = p.prolang
@@ -204,7 +221,7 @@ final class DebuggerController
             $arguments[] = ['name' => $names[$i] ?? '', 'type' => $typeNames[$i], 'mode' => $modes[$i] ?? 'i', 'default' => $d === false ? null : $defaults[$d]];
         }
 
-        return ['oid' => (int) $row['oid'], 'schema' => (string) $row['schema'], 'name' => (string) $row['name'], 'kind' => $row['kind'] === 'p' ? 'procedure' : 'function', 'language' => (string) $row['language'], 'signature' => (string) $row['signature'], 'arguments' => $arguments];
+        return ['oid' => (int) $row['oid'], 'schema' => (string) $row['schema'], 'name' => (string) $row['name'], 'kind' => $row['kind'] === 'p' ? 'procedure' : 'function', 'language' => (string) $row['language'], 'signature' => (string) $row['signature'], 'trigger' => $row['trigger'] === true || $row['trigger'] === 't', 'arguments' => $arguments];
     }
 
     /**

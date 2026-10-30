@@ -67,7 +67,8 @@
     "created": "Routine {{name}} has been created.",
     "altered": "Routine {{name}} has been altered.",
     "no_statistics": "No calls have been counted: PostgreSQL counts a routine's calls only while track_functions is pl (or all, for SQL and C routines too).",
-    "debug": "Debug"
+    "debug": "Debug",
+    "set_breakpoint": "Set breakpoint"
   },
   "create_other": "Create another kind of object",
   "aggregate": {

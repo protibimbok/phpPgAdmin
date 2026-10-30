@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
@@ -9,6 +9,9 @@ import { notifyError } from '@/notify'
 import { debugCommand, debugHeartbeat, debugTarget, startDebugging, stopDebugging, stopDebuggingOnLeave, type ArgumentValue, type DebugState, type DebugTarget } from '../api'
 
 type Tab = 'parameters' | 'locals' | 'messages' | 'results' | 'stack'
+
+/** How often a page waiting in-context asks whether a session has reached the breakpoint. */
+const WAIT_POLL_MS = 1000
 
 /** How often an open page tells its session it is still there (the session gives up after three minutes of silence). */
 const HEARTBEAT_MS = 30000
@@ -19,12 +22,17 @@ const HEARTBEAT_MS = 30000
  * source with the statement it stopped at, breakpoints toggled in the gutter, the toolbar (step
  * into, step over, continue, clear all breakpoints, stop), and the Parameters, Local variables,
  * Messages, Results and Stack tabs. A variable's value can be changed while paused.
+ *
+ * With ?mode=indirect, and always for a trigger function, it is pgAdmin's "Set breakpoint"
+ * instead: a global breakpoint on the routine, then waiting until another session (an
+ * application, a statement that fires the trigger) calls it, which then stops here.
  */
 export default function Debugger() {
   const { db = '', schema = '', kind = 'function', oid = '0' } = useParams()
   const { t } = useTranslation('debugger')
+  const [params] = useSearchParams()
   const { data, error } = useRequest(() => debugTarget(db, Number(oid)), [db, oid])
-  const [session, setSession] = useState<{ id: string; call: string; state: DebugState } | null>(null)
+  const [session, setSession] = useState<{ id: string; call: string | null; state: DebugState } | null>(null)
   const sessionId = useRef<string | null>(null)
 
   // A session left behind when the page is left is stopped: on leaving it within the app, and
@@ -63,6 +71,11 @@ export default function Debugger() {
   if (!data) return null
 
   const back = `${urls.schema(db, schema)}/routines/${kind}/${oid}/edit`
+  const indirect = params.get('mode') === 'indirect' || data.target.trigger
+  const started = (s: { id: string; call: string | null; state: DebugState }) => {
+    sessionId.current = s.id
+    setSession(s)
+  }
 
   return (
     <div className="container-fluid my-3" id="debugger">
@@ -83,25 +96,63 @@ export default function Debugger() {
             setSession(null)
           }}
         />
+      ) : indirect ? (
+        <BreakpointForm
+          superuser={data.superuser}
+          onStart={() =>
+            startDebugging(db, data.target.oid, [], 'indirect').then(started, (e: unknown) => {
+              notifyError(errorMessage(e))
+            })
+          }
+        />
       ) : (
         <ArgumentsForm
           target={data.target}
           onStart={(args) =>
-            startDebugging(db, data.target.oid, args).then(
-              (started) => {
-                sessionId.current = started.id
-                setSession(started)
-              },
-              (e: unknown) => {
-                notifyError(errorMessage(e))
-              },
-            )
+            startDebugging(db, data.target.oid, args).then(started, (e: unknown) => {
+              notifyError(errorMessage(e))
+            })
           }
         />
       )}
       <p className="mt-3">
         <Link to={back}>{t('back')}</Link>
       </p>
+    </div>
+  )
+}
+
+/** In-context debugging: what will happen, and the button that sets the global breakpoint. */
+function BreakpointForm({ superuser, onStart }: { superuser: boolean; onStart: () => Promise<void> }) {
+  const { t } = useTranslation('debugger')
+  const [busy, setBusy] = useState(false)
+  if (!superuser) {
+    return (
+      <div className="alert alert-warning" role="alert">
+        <Icon name="s_attention" /> {t('indirect.superuser')}
+      </div>
+    )
+  }
+  return (
+    <div className="card mb-3" id="debugger_breakpoint">
+      <div className="card-header">{t('indirect.title')}</div>
+      <div className="card-body">
+        <p className="card-text">{t('indirect.help')}</p>
+      </div>
+      <div className="card-footer text-end">
+        <button
+          type="button"
+          className="btn btn-primary"
+          id="debug_start"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true)
+            void onStart().finally(() => setBusy(false))
+          }}
+        >
+          {t('indirect.set')}
+        </button>
+      </div>
     </div>
   )
 }
@@ -176,7 +227,7 @@ function ArgumentsForm({ target, onStart }: { target: DebugTarget; onStart: (arg
 }
 
 /** A running session: the toolbar, the source, the tabs. */
-function Session({ target, session, onState, onStopped }: { target: DebugTarget; session: { id: string; call: string; state: DebugState }; onState: (s: DebugState) => void; onStopped: () => void }) {
+function Session({ target, session, onState, onStopped }: { target: DebugTarget; session: { id: string; call: string | null; state: DebugState }; onState: (s: DebugState) => void; onStopped: () => void }) {
   const { t } = useTranslation('debugger')
   const [tab, setTab] = useState<Tab>('parameters')
   const [busy, setBusy] = useState(false)
@@ -196,6 +247,17 @@ function Session({ target, session, onState, onStopped }: { target: DebugTarget;
   useEffect(() => {
     if (state.status === 'finished') setTab(state.error ? 'messages' : 'results')
   }, [state.status, state.error])
+
+  // In-context, the page asks until a session has reached the breakpoint.
+  const waiting = state.status === 'waiting'
+  useEffect(() => {
+    if (!waiting) return
+    const timer = window.setInterval(() => {
+      debugCommand(session.id, 'state').then(onState, () => undefined)
+    }, WAIT_POLL_MS)
+    return () => window.clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, session.id])
 
   async function send(command: string, extra: Record<string, unknown> = {}) {
     setBusy(true)
@@ -240,12 +302,24 @@ function Session({ target, session, onState, onStopped }: { target: DebugTarget;
           </button>
         </div>
         <span className="ms-2" id="debugger_status">
-          {state.status === 'finished' ? (state.error ? t('status.failed') : t('status.finished')) : state.frame ? t('status.paused', { line: current, name: state.frame.name }) : t('status.running')}
+          {state.status === 'waiting'
+            ? t('status.waiting')
+            : state.status === 'finished'
+              ? state.error
+                ? t('status.failed')
+                : state.mode === 'indirect' && state.target_pid
+                  ? t('status.target_finished', { pid: state.target_pid })
+                  : t('status.finished')
+              : state.frame
+                ? t('status.paused', { line: current, name: state.frame.name }) + (state.target_pid ? ` ${t('status.in_session', { pid: state.target_pid })}` : '')
+                : t('status.running')}
         </span>
       </div>
-      <p>
-        <code>{session.call}</code>
-      </p>
+      {session.call && (
+        <p>
+          <code>{session.call}</code>
+        </p>
+      )}
 
       {state.source !== undefined && (
         <div className="card mb-3">

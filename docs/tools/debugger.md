@@ -3,7 +3,9 @@
 The debugger steps through a PL/pgSQL function or procedure line by line, as pgAdmin's debugger does:
 you give the arguments, the call stops at its first statement, and you step, set breakpoints, read and
 change variables, and see the result. It opens from a routine's editor, with the **Debug** link, at
-`/db/<db>/schema/<schema>/routines/<function|procedure>/<oid>/debug`.
+`/db/<db>/schema/<schema>/routines/<function|procedure>/<oid>/debug`. With **Set breakpoint** it waits
+instead for another session to call the routine, which is how a trigger function is debugged
+([in-context debugging](#in-context-debugging-set-breakpoint)).
 
 <Clip src="tools/debugger-session.mp4" caption="Debugging public.apply_discount: the arguments, Debug, Step over, a breakpoint on RETURN, Continue, then the local variables and the stack." />
 
@@ -150,11 +152,29 @@ any other statement: rows a procedure inserts stay. Debug routines that change d
 before the end.
 :::
 
-## What is not built
+## In-context debugging (Set breakpoint)
 
-- **Indirect (in-context) debugging**, pgAdmin's "Set breakpoint": waiting for another session — an
-  application — to call the routine and stopping it there. Only direct debugging, with a call you start
-  here, is available.
-- Global breakpoints that stop any session's call.
-- Debugging trigger functions directly: a trigger function cannot be called on its own. Debug the
-  statement that fires it only via in-context debugging, which is not built.
+pgAdmin's **Set breakpoint**, its indirect debugging: instead of starting a call yourself, you set a
+global breakpoint on the routine and wait for another session to call it. An application's request, a
+`psql` session, or a statement that fires a trigger: the first call of the routine from any session
+stops at its first statement and is debugged on this page, with the same toolbar and tabs. It is the way
+to debug a **trigger function**, which cannot be called on its own.
+
+1. Open the routine's editor. Beside **Debug** is **Set breakpoint**; a trigger function has only
+   **Set breakpoint**. The link is shown to superusers only: pldebugger's global breakpoints need one
+   (*You must be a superuser to set a global breakpoint and perform indirect debugging.*).
+2. Click **Set breakpoint** on the card that opens (`…/debug?mode=indirect`). The status reads
+   *Waiting for another session to call the routine…*.
+3. Call the routine from elsewhere, for example `INSERT INTO orders …` for a trigger function on
+   `orders`. The page stops at the routine's first statement and names the session:
+   *Paused at line 2 of audit_orders() (session 50312)*.
+4. Step, set breakpoints, read and change variables as in a direct session. A trigger function's
+   variables include `new`, `old`, `tg_op` and the other trigger variables.
+5. **Continue** to the end lets the other session's statement go on: *The call in session 50312 has
+   ended. Its result is that session's.* **Stop** aborts that session's statement
+   (*canceling statement due to user request* in it), as pgAdmin's Stop does.
+
+Only the first call is debugged; the breakpoint goes when the session ends. Click **Debug again** to wait
+for the next one. While the page waits or is paused, the other session waits too, so do this on a test
+server or with a call you make yourself. The other session's messages and result are shown there, not
+here.

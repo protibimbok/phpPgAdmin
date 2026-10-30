@@ -205,11 +205,18 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
       <h2>
         <Icon name="b_routines" /> {editing ? t('editor.edit_title', { name: data.routine!.signature }) : t('editor.create_title')}
       </h2>
-      {editing && debugging?.available && form.language === 'plpgsql' && (editKind === 'function' || editKind === 'procedure') && (
+      {editing && debugging?.available && form.language === 'plpgsql' && (
         <p>
-          <Link id="debug_routine" to={`${urls.schema(db, schema)}/routines/${editKind}/${oid}/debug`}>
-            <Icon name="b_nextpage" /> {t('editor.debug')}
-          </Link>
+          {(editKind === 'function' || editKind === 'procedure') && (
+            <Link id="debug_routine" className="me-3" to={`${urls.schema(db, schema)}/routines/${editKind}/${oid}/debug`}>
+              <Icon name="b_nextpage" /> {t('editor.debug')}
+            </Link>
+          )}
+          {debugging.superuser && (
+            <Link id="debug_set_breakpoint" to={`${urls.schema(db, schema)}/routines/${editKind}/${oid}/debug?mode=indirect`}>
+              <Icon name="b_nextpage" /> {t('editor.set_breakpoint')}
+            </Link>
+          )}
         </p>
       )}
       <form className="rte_form" onSubmit={save}>

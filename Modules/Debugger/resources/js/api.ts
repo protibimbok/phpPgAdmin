@@ -15,6 +15,8 @@ export interface DebugTarget {
   kind: 'function' | 'procedure'
   language: string
   signature: string
+  /** A trigger function: debugged only in-context, when a trigger fires it. */
+  trigger: boolean
   arguments: DebugArgument[]
 }
 
@@ -32,7 +34,11 @@ export interface Frame {
 }
 
 export interface DebugState {
-  status: 'starting' | 'paused' | 'running' | 'finished'
+  /** waiting: in-context, until another session calls the routine */
+  status: 'starting' | 'waiting' | 'paused' | 'running' | 'finished'
+  mode?: 'direct' | 'indirect'
+  /** In-context: the backend that reached the global breakpoint. */
+  target_pid?: number | null
   frame: Frame | null
   source?: string
   stack?: { level: number; name: string; func: number; line: number; args: string }[]
@@ -46,9 +52,11 @@ export interface DebugState {
 
 const db = (name: string) => `/api/databases/${encodeURIComponent(name)}/debugger`
 
-export const debuggerStatus = (database: string) => api.get<{ available: boolean; reason: string | null }>(`${db(database)}/status`)
-export const debugTarget = (database: string, oid: number) => api.get<{ target: DebugTarget; reason: string | null }>(`${db(database)}/${oid}`)
-export const startDebugging = (database: string, oid: number, args: ArgumentValue[]) => api.post<{ id: string; call: string; state: DebugState }>(`${db(database)}/${oid}/sessions`, { args })
+export const debuggerStatus = (database: string) => api.get<{ available: boolean; reason: string | null; superuser: boolean }>(`${db(database)}/status`)
+export const debugTarget = (database: string, oid: number) => api.get<{ target: DebugTarget; reason: string | null; superuser: boolean }>(`${db(database)}/${oid}`)
+/** mode indirect: pgAdmin's "Set breakpoint", a global breakpoint the next call of any session stops at. */
+export const startDebugging = (database: string, oid: number, args: ArgumentValue[], mode: 'direct' | 'indirect' = 'direct') =>
+  api.post<{ id: string; call: string | null; state: DebugState }>(`${db(database)}/${oid}/sessions`, { args, mode })
 export const debugCommand = (id: string, command: string, extra: Record<string, unknown> = {}) => api.post<DebugState>(`/api/debugger/sessions/${id}`, { command, ...extra })
 export const stopDebugging = (id: string) => api.delete<{ ok: true }>(`/api/debugger/sessions/${id}`)
 export const debugHeartbeat = (id: string) => api.post<{ ok: true }>(`/api/debugger/sessions/${id}/heartbeat`)

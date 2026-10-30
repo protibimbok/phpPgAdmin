@@ -31,7 +31,10 @@
     "paused": "Paused at line {{line}} of {{name}}",
     "running": "Running…",
     "finished": "The call has ended.",
-    "failed": "The call ended with an error."
+    "failed": "The call ended with an error.",
+    "waiting": "Waiting for another session to call the routine…",
+    "target_finished": "The call in session {{pid}} has ended. Its result is that session's.",
+    "in_session": "(session {{pid}})"
   },
   "tabs": {
     "parameters": "Parameters",
@@ -49,5 +52,11 @@
   },
   "stack": {
     "line": "line {{line}}"
+  },
+  "indirect": {
+    "title": "Set breakpoint",
+    "help": "A global breakpoint is set on the routine: the next call any session makes (an application, a statement that fires the trigger) stops here and is debugged on this page. The other session waits meanwhile; Stop aborts its statement.",
+    "set": "Set breakpoint",
+    "superuser": "You must be a superuser to set a global breakpoint and perform indirect debugging."
   }
 }
