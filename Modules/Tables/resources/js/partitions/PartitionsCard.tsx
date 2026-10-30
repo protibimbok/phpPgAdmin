@@ -7,6 +7,7 @@ import Icon from '@/components/Icon'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
+import { useSession } from '@/session'
 import { qualifiedName } from '@sql/js/sql'
 import { detachPartition, partitions as partitionsOf, type Partition } from '../api'
 import PartitionDialog from './PartitionDialog'
@@ -26,29 +27,43 @@ export interface PartitionsCardProps {
  * phpMyAdmin's Partitions block of the structure page (table/structure/display_partitions.twig):
  * "Partitioned by:", then each partition with its bounds, row estimate and comment and the
  * actions (Browse and Structure of the partition, Analyze and Vacuum on the SQL page, Detach,
- * Drop), and an "Add partition" form in the footer.
+ * Drop), and an "Add partition" form in the footer. On PostgreSQL 14+ Detach can run
+ * CONCURRENTLY, and a partition whose concurrent detach was interrupted offers FINALIZE.
  */
 export default function PartitionsCard({ db, schema, table, scid, tid, scheme, partitions, onChanged }: PartitionsCardProps) {
   const { t } = useTranslation('tables')
   const navigate = useNavigate()
   const [dialog, setDialog] = useState(false)
   const [confirm, setConfirm] = useState<{ sql: string; run: () => Promise<void> } | null>(null)
+  // The partition about to be detached, and whether CONCURRENTLY (PostgreSQL 14+).
+  const [detaching, setDetaching] = useState<Partition | null>(null)
+  const [concurrently, setConcurrently] = useState(false)
+  const serverMajor = Number.parseInt(useSession().user.server.version ?? '', 10) || 0
   const sqlPage = (sql: string) => `${urls.relation(db, schema, table, 'table')}/sql?${new URLSearchParams({ sql, run: '1' })}`
+  const detachSql = (partition: Partition, mode: '' | 'concurrently' | 'finalize') =>
+    `ALTER TABLE ${qualifiedName(schema, table)} DETACH PARTITION ${qualifiedName(partition.schema, partition.name)}${mode === '' ? '' : ` ${mode.toUpperCase()}`};`
+
+  async function detach(partition: Partition, mode: '' | 'concurrently' | 'finalize') {
+    try {
+      await detachPartition(db, scid, tid, partition.oid, mode)
+      notifySuccess(t('partitions.detached', { name: partition.name }))
+      treeState.refresh()
+      onChanged()
+    } catch (e) {
+      notifyError(errorMessage(e))
+      // An interrupted DETACH … CONCURRENTLY leaves the partition pending, which FINALIZE completes.
+      if (mode === 'concurrently') onChanged()
+    }
+  }
 
   function askDetach(partition: Partition) {
-    setConfirm({
-      sql: `ALTER TABLE ${qualifiedName(schema, table)} DETACH PARTITION ${qualifiedName(partition.schema, partition.name)};`,
-      run: async () => {
-        try {
-          await detachPartition(db, scid, tid, partition.oid)
-          notifySuccess(t('partitions.detached', { name: partition.name }))
-          treeState.refresh()
-          onChanged()
-        } catch (e) {
-          notifyError(errorMessage(e))
-        }
-      },
-    })
+    if (partition.inhdetachpending) {
+      setConfirm({ sql: detachSql(partition, 'finalize'), run: () => detach(partition, 'finalize') })
+
+      return
+    }
+    setConcurrently(false)
+    setDetaching(partition)
   }
 
   function askDrop(partition: Partition) {
@@ -103,6 +118,7 @@ export default function PartitionsCard({ db, schema, table, scid, tid, scheme, p
                         {partition.schema !== schema ? `${partition.schema}.` : ''}
                         {partition.name}
                         {partition.is_partitioned && <span className="badge bg-secondary ms-2">{t('partitions.sub_partitioned')}</span>}
+                        {partition.inhdetachpending && <span className="badge bg-warning text-dark ms-2">{t('partitions.detach_pending')}</span>}
                       </th>
                       <td>
                         <code dir="ltr">{partition.partition_value}</code>
@@ -131,7 +147,7 @@ export default function PartitionsCard({ db, schema, table, scid, tid, scheme, p
                       </td>
                       <td className="d-print-none">
                         <a href="#detach" onClick={(e) => { e.preventDefault(); askDetach(partition) }}>
-                          <Icon name="s_unlink" /> {t('partitions.actions.detach')}
+                          <Icon name="s_unlink" /> {partition.inhdetachpending ? t('partitions.actions.finalize') : t('partitions.actions.detach')}
                         </a>
                       </td>
                       <td className="d-print-none">
@@ -154,6 +170,25 @@ export default function PartitionsCard({ db, schema, table, scid, tid, scheme, p
       </div>
 
       <PartitionDialog show={dialog} db={db} scid={scid} tid={tid} scheme={scheme} onClose={() => setDialog(false)} onSaved={() => { setDialog(false); treeState.refresh(); onChanged() }} />
+      <ConfirmQuery
+        show={detaching !== null}
+        sql={detaching ? detachSql(detaching, concurrently ? 'concurrently' : '') : ''}
+        onClose={() => setDetaching(null)}
+        onConfirm={() => {
+          const partition = detaching
+          setDetaching(null)
+          if (partition) void detach(partition, concurrently ? 'concurrently' : '')
+        }}
+      >
+        {serverMajor >= 14 && (
+          <div className="form-check mt-2">
+            <input className="form-check-input" type="checkbox" id="detach_concurrently" checked={concurrently} onChange={(e) => setConcurrently(e.target.checked)} />
+            <label className="form-check-label" htmlFor="detach_concurrently">
+              {t('partitions.detach_concurrently')}
+            </label>
+          </div>
+        )}
+      </ConfirmQuery>
       <ConfirmQuery show={confirm !== null} sql={confirm?.sql ?? ''} onClose={() => setConfirm(null)} onConfirm={() => { const pending = confirm; setConfirm(null); if (pending) void pending.run() }} />
     </div>
   )

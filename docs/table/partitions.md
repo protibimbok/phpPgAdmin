@@ -96,7 +96,9 @@ The values you type in **FROM**, **TO** and **IN** are inserted as you wrote the
 **Detach** runs `ALTER TABLE parent DETACH PARTITION child;` after a confirmation. The partition becomes an ordinary table with its data, and shows up again in the schema's table list. **Drop** runs `DROP TABLE child;`, deleting the partition and its rows.
 
 ::: info Detaching locks the parent
-A plain `DETACH PARTITION` takes an `ACCESS EXCLUSIVE` lock on the parent, blocking all queries on it until it finishes. PostgreSQL 14+ can `DETACH PARTITION … CONCURRENTLY`, which only blocks briefly, but that form cannot run in a transaction block and is not offered here; run it on the SQL tab as a statement of its own.
+A plain `DETACH PARTITION` takes an `ACCESS EXCLUSIVE` lock on the parent, blocking all queries on it until it finishes. On PostgreSQL 14+ the confirmation has a **Detach without blocking queries on the table (CONCURRENTLY)** box, which runs `ALTER TABLE parent DETACH PARTITION child CONCURRENTLY;` instead: it only takes a `SHARE UPDATE EXCLUSIVE` lock and waits for the queries that use the partition to finish. PostgreSQL refuses it when the table has a default partition.
+
+If a concurrent detach is interrupted (cancelled, or the server stops), the partition stays attached in a *detach pending* state: the list shows a **detach pending** badge and its **Detach** link becomes **Finalize detach**, which runs `ALTER TABLE parent DETACH PARTITION child FINALIZE;` to complete it.
 :::
 
 ## Partition maintenance

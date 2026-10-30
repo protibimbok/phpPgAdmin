@@ -616,6 +616,8 @@ export interface Partition {
   is_partitioned: boolean
   partition_scheme: string
   relpersistence: boolean
+  /** A DETACH … CONCURRENTLY that did not finish (PostgreSQL 14+); FINALIZE completes it. */
+  inhdetachpending?: boolean
 }
 
 /**

@@ -464,7 +464,8 @@
       "analyze": "Analyze",
       "vacuum": "Vacuum",
       "detach": "Detach",
-      "drop": "Drop"
+      "drop": "Drop",
+      "finalize": "Finalize detach"
     },
     "sub_partitioned": "partitioned",
     "add_label": "Add a partition:",
@@ -486,6 +487,8 @@
     "created": "Partition {{name}} has been created.",
     "attached": "Table {{name}} has been attached as a partition.",
     "detached": "Partition {{name}} has been detached.",
+    "detach_pending": "detach pending",
+    "detach_concurrently": "Detach without blocking queries on the table (CONCURRENTLY)",
     "dropped": "Partition {{name}} has been dropped.",
     "partition_by": "Partition by:",
     "expression_hint": "Expression or column list",

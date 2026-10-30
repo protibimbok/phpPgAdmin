@@ -472,7 +472,8 @@
       "analyze": "تحليل",
       "vacuum": "تفريغ",
       "detach": "فصل",
-      "drop": "حذف"
+      "drop": "حذف",
+      "finalize": "إتمام الفصل"
     },
     "sub_partitioned": "مقسّم",
     "add_label": "إضافة قسم:",
@@ -494,6 +495,8 @@
     "created": "تم إنشاء القسم {{name}}.",
     "attached": "تم إلحاق الجدول {{name}} كقسم.",
     "detached": "تم فصل القسم {{name}}.",
+    "detach_pending": "فصل معلّق",
+    "detach_concurrently": "الفصل دون حجب الاستعلامات على الجدول (CONCURRENTLY)",
     "dropped": "تم حذف القسم {{name}}.",
     "partition_by": "التقسيم حسب:",
     "expression_hint": "تعبير أو قائمة أعمدة",

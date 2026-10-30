@@ -18,7 +18,6 @@ These options are not in the forms; use the SQL tab for them:
 - **Create table:** `UNLOGGED`, `GENERATED ALWAYS` identity, generated stored columns, compression, storage, `WITH (…)` parameters and `LIKE` ([Creating a table](/schema/create-table)).
 - **Indexes:** `NULLS NOT DISTINCT` and per-column statistics targets ([Indexes and constraints](/table/indexes-constraints#what-the-dialog-does-not-offer)).
 - **Constraints:** `NOT VALID` / `VALIDATE CONSTRAINT`, and foreign key `MATCH` and `DEFERRABLE` ([Indexes and constraints](/table/indexes-constraints)).
-- **Partitions:** `DETACH PARTITION … CONCURRENTLY` ([Partitions](/table/partitions)).
 - **Row level security:** the `ENABLE` / `FORCE ROW LEVEL SECURITY` switch ([Triggers, rules and policies](/table/triggers#row-security-policies)).
 
 ### Other objects
