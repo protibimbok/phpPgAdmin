@@ -1,6 +1,7 @@
 SELECT
     oid as conoid, conname, contype,
-    pg_catalog.BTRIM(substring(pg_catalog.pg_get_constraintdef(oid, true) from '\(.+\)'), '()') as consrc,
+    {### phpPgAdmin: the expression as the check constraint templates read it, not the definition with every bracket trimmed from its ends ###}
+    pg_catalog.pg_get_expr(conbin, conrelid, true) as consrc,
     connoinherit, convalidated, conislocal
 FROM
     pg_catalog.pg_constraint

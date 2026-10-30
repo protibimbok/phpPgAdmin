@@ -3,6 +3,12 @@
 {% import 'macros/variable.macros' as VARIABLE %}
 {% set is_columns = [] %}
 {% if data %}
+{### phpPgAdmin: a partition takes its columns from its parent and names its bound ###}
+{% if data.partition_of %}
+CREATE FOREIGN TABLE{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{ conn|qtIdent(data.basensp, data.name) }}
+    PARTITION OF {{ data.partition_of }}
+    {{ data.partition_bound }}
+{% else %}
 CREATE FOREIGN TABLE{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{ conn|qtIdent(data.basensp, data.name) }}(
 {% if data.columns %}
 {% for c in data.columns %}
@@ -27,6 +33,7 @@ CREATE FOREIGN TABLE{% if add_not_exists_clause %} IF NOT EXISTS{% endif %} {{ c
 {% if data.inherits %}
     INHERITS ({% for i in data.inherits %}{% if i %}{{i}}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %})
 {% endif %}
+{% endif %}
     SERVER {{ conn|qtIdent(data.ftsrvname) }}{% if data.ftoptions %}
 
 {% for o in data.ftoptions %}
@@ -40,9 +47,22 @@ ALTER FOREIGN TABLE {{ conn|qtIdent(data.basensp, data.name) }}
 {% endif -%}
 {% if data.constraints %}
 {% for c in data.constraints %}
+{### phpPgAdmin: a constraint inherited from a parent comes with it ###}
+{% if c.conislocal is not defined or c.conislocal %}
 
 ALTER FOREIGN TABLE {{ conn|qtIdent(data.basensp, data.name) }}
     ADD CONSTRAINT {{ conn|qtIdent(c.conname) }} CHECK ({{ c.consrc }}){% if not c.convalidated %} NOT VALID{% endif %}{% if c.connoinherit %} NO INHERIT{% endif %};
+{% endif %}
+{% endfor %}
+{% endif %}
+{### phpPgAdmin: the options of a column that comes from a parent, which the column list above leaves out ###}
+{% if data.columns %}
+{% for c in data.columns %}
+{% if c.inheritedfrom and c.coloptions %}
+
+ALTER FOREIGN TABLE {{ conn|qtIdent(data.basensp, data.name) }}
+    ALTER COLUMN {{ conn|qtIdent(c.name) }} OPTIONS ({% for o in c.coloptions %}{% if not loop.first %}, {% endif %}ADD {{ o.option }} {{ o.value|qtLiteral(conn) }}{% endfor %});
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if data.description %}

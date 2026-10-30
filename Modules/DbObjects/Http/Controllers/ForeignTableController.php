@@ -162,8 +162,13 @@ final class ForeignTableController extends NodeController
             'coloptions' => ForeignOptions::fromCatalog($c['attfdwoptions']),
             'inheritedfrom' => $c['inheritedfrom'],
         ], $ctx->rows('get_columns.sql', ['foid' => (int) $row['oid']]));
-        // pgAdmin's Inherits and Constraints (CHECK) of a foreign table.
-        $row['inherits'] = array_column($ctx->rows('get_tables.sql', ['attrelid' => (int) $row['oid']]), 'inherits');
+        // pgAdmin's Inherits and Constraints (CHECK) of a foreign table. A partition's parent
+        // is its partition_of, with partition_bound its FOR VALUES or DEFAULT, not a table it
+        // inherits from.
+        $row['is_partition'] = (bool) ($row['is_partition'] ?? false);
+        $row['partition_of'] = $row['is_partition'] ? $row['partition_of'] : null;
+        $row['partition_bound'] = $row['is_partition'] ? $row['partition_bound'] : null;
+        $row['inherits'] = $row['is_partition'] ? [] : array_column($ctx->rows('get_tables.sql', ['attrelid' => (int) $row['oid']]), 'inherits');
         $row['constraints'] = array_map(static fn (array $c): array => [
             'conname' => (string) $c['conname'],
             'consrc' => (string) $c['consrc'],
@@ -243,7 +248,11 @@ final class ForeignTableController extends NodeController
             $changes['ftoptions'] = array_map(static fn (array $list): array => self::quotedOptions(array_map(static fn (array $o): array => ['option' => $o['option'], 'value' => $o['value']], $list)), $diff);
         }
         if (array_key_exists('inherits', $data)) {
-            $changes['inherits'] = $this->inheritsOf($ctx, $data, $oid);
+            if ($old['is_partition']) {
+                self::checkPartitionInherits($old, $data);
+            } else {
+                $changes['inherits'] = $this->inheritsOf($ctx, $data, $oid);
+            }
         }
         if (array_key_exists('constraints', $data)) {
             $changes['constraints'] = self::constraintChanges($old['constraints'], $this->constraintsOf($data));
@@ -352,6 +361,22 @@ final class ForeignTableController extends NodeController
     }
 
     /**
+     * A partition inherits only from the table it is a partition of, which ATTACH and DETACH
+     * PARTITION change: the client may send no parents, or that one as the properties named
+     * it before partitions had their own field, and nothing else.
+     *
+     * @param array<string, mixed> $old
+     * @param array<string, mixed> $data
+     */
+    private static function checkPartitionInherits(array $old, array $data): void
+    {
+        $given = array_values(array_filter(array_map(static fn (mixed $v): string => trim((string) $v), is_array($data['inherits'] ?? null) ? $data['inherits'] : []), static fn (string $v): bool => $v !== ''));
+        if ($given !== [] && $given !== [$old['partition_of']]) {
+            throw new BadRequestException(sprintf('This foreign table is a partition of %s: it cannot inherit from other tables.', $old['partition_of']));
+        }
+    }
+
+    /**
      * The client's CHECK constraints: conname, consrc (the expression), convalidated (false
      * adds it NOT VALID), connoinherit.
      *
@@ -380,9 +405,9 @@ final class ForeignTableController extends NodeController
     }
 
     /**
-     * update.sql's constraint changes: the ones gone are dropped, the new ones added, one
-     * whose expression or NO INHERIT changed dropped and added again, and one now validated
-     * VALIDATEd, as pgAdmin's dialog does.
+     * update.sql's constraint changes, inherited constraints left out on both sides: the ones
+     * gone are dropped, the new ones added, one whose expression or NO INHERIT changed dropped
+     * and added again, and one now validated VALIDATEd, as pgAdmin's dialog does.
      *
      * @param list<array<string, mixed>> $old
      * @param list<array<string, mixed>> $new
@@ -391,7 +416,10 @@ final class ForeignTableController extends NodeController
     private static function constraintChanges(array $old, array $new): array
     {
         $oldByName = array_column(array_filter($old, static fn (array $c): bool => $c['conislocal'] ?? true), null, 'conname');
-        $newByName = array_column($new, null, 'conname');
+        // A constraint inherited from a parent is the parent's to change: one the client sends
+        // back with the rest is left as it is, not added again.
+        $inherited = array_column(array_filter($old, static fn (array $c): bool => !($c['conislocal'] ?? true)), 'conname');
+        $newByName = array_diff_key(array_column($new, null, 'conname'), array_flip($inherited));
         $changes = ['added' => [], 'changed' => [], 'deleted' => []];
         foreach ($oldByName as $name => $c) {
             if (!isset($newByName[$name])) {

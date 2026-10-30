@@ -61,6 +61,7 @@
     "user": "User",
     "columns": "Columns",
     "inherits": "Inherits",
+    "partition_of": "Partition of",
     "checks": "Check constraints"
   },
   "extension": {
@@ -160,7 +161,8 @@
     "edit_title": "Edit foreign table {{name}}",
     "no_servers": "There is no foreign server yet: add one on the database's Objects page.",
     "options_hint": "Where the wrapper finds the rows, such as schema_name and table_name for postgres_fdw.",
-    "inherits_hint": "Tables (and foreign tables) whose columns it inherits; Ctrl-click to pick several. The columns they have are not repeated in Columns."
+    "inherits_hint": "Tables (and foreign tables) whose columns it inherits; Ctrl-click to pick several. The columns they have are not repeated in Columns.",
+    "partition_hint": "The partitioned table it is a partition of, and its bound. ATTACH PARTITION and DETACH PARTITION on the parent change it."
   },
   "import_schema": {
     "button": "Import foreign schema",

@@ -173,8 +173,12 @@ export interface ForeignTable {
   ftoptions: OptionPair[]
   description: string | null
   columns: { attnum: number; name: string; cltype: string; attnotnull: boolean; defval: string; coloptions: OptionPair[]; inheritedfrom: string | null }[]
-  /** The tables it inherits from, schema-qualified. */
+  /** The tables it inherits from, schema-qualified; none for a partition. */
   inherits: string[]
+  /** For a partition: its parent, schema-qualified, and its bound (FOR VALUES … or DEFAULT). */
+  is_partition: boolean
+  partition_of: string | null
+  partition_bound: string | null
   /** Its CHECK constraints; conislocal false for one inherited from a parent. */
   constraints: { conname: string; consrc: string; convalidated: boolean; connoinherit: boolean; conislocal: boolean }[]
 }
