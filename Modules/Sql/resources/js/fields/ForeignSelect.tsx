@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
 import { preference } from '@/preferences'
-import { notAvailable } from '@/unbuilt'
 import { foreignValues, type ForeignKey, type ForeignValues } from '../api'
 import { LIMIT_CHARS } from '../preferences'
+import BrowseForeign from './BrowseForeign'
 
 export interface ForeignSelectProps {
   db: string
@@ -30,19 +31,38 @@ export function useForeignValues(db: string, key: ForeignKey | null | undefined)
  * The control phpMyAdmin gives a foreign key column: a dropdown of the referenced column's
  * values while there are no more than ForeignKeyMaxLimit of them, each listed twice as
  * "description - key" and then "key - description" (ForeignKeyDropdownOrder), a text field
- * with the "Browse foreign values" link beyond that.
+ * with the "Browse foreign values" link beyond that, which opens the window to pick one from.
  */
 export default function ForeignSelect({ db, foreignKey, value, onChange, id, name, className, tabIndex, label }: ForeignSelectProps) {
   const { t } = useTranslation('sql')
   const data = useForeignValues(db, foreignKey)
+  const [browsing, setBrowsing] = useState(false)
 
   if (data?.truncated) {
     return (
       <>
         <input type="text" id={id} name={name} className="textfield" tabIndex={tabIndex} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label ?? name} />
-        <a className="ajax browse_foreign" href="#browse-foreign" onClick={notAvailable}>
+        <a
+          className="ajax browse_foreign"
+          href="#browse-foreign"
+          onClick={(e) => {
+            e.preventDefault()
+            setBrowsing(true)
+          }}
+        >
           <Icon name="b_browse" title={t('fields.browse_foreign')} />
         </a>
+        <BrowseForeign
+          show={browsing}
+          db={db}
+          foreignKey={foreignKey}
+          value={value}
+          onPick={(key) => {
+            setBrowsing(false)
+            onChange(key)
+          }}
+          onClose={() => setBrowsing(false)}
+        />
       </>
     )
   }

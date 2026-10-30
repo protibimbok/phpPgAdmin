@@ -202,7 +202,11 @@
     "tip_date": "PostgreSQL accepts additional values not selectable by the datepicker; key in those values directly if desired",
     "tip_time": "PostgreSQL accepts additional values not selectable by the slider; key in those values directly if desired",
     "cell_edit_hint": "Press escape to cancel editing.",
-    "cell_edit_hint_newline": "- Shift+Enter for a newline."
+    "cell_edit_hint_newline": "- Shift+Enter for a newline.",
+    "browse_search": "Search:",
+    "keyname": "Keyname",
+    "description": "Description",
+    "use_this_value": "Use this value"
   },
   "calendar": {
     "prev": "Prev",

@@ -81,6 +81,21 @@ phpMyAdmin's list (`UNHEX`, `PASSWORD`, `AES_ENCRYPT` …) are not offered.
 The checks above run in the browser and block **Go** until fixed; everything else is checked by the
 server when the row is saved.
 
+### Browse foreign values
+
+When a foreign key's referenced table has more than 100 values, the text box is followed by the
+**Browse foreign values** icon. It opens a window listing the values 25 to a page (the **Number of
+rows** setting): the keys sorted on the left with their descriptions, the same values sorted by
+description on the right. The description is the first text column of the referenced table.
+
+- **Search:** with **Go** keeps the values whose key or description contains the text, ignoring
+  case (`ILIKE '%text%'`; `%` and `_` are matched literally).
+- **Page number:** jumps to another page; **Show all** lists every matching value at once.
+- Clicking a key or a description puts the key into the field and closes the window. The field's
+  current value is shown in bold.
+
+The same window opens from the foreign key fields of the [Search](/table/search#value-boxes) tab.
+
 ::: info For phpMyAdmin users
 - `boolean` has no check box or list. phpMyAdmin's `TINYINT(1)` habit of typing `1` works, as does
   `true`.

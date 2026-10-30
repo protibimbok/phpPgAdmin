@@ -214,7 +214,11 @@
     "tip_date": "يقبل PostgreSQL قيمًا إضافية لا يمكن اختيارها من منتقي التاريخ؛ أدخل تلك القيم مباشرة إن رغبت",
     "tip_time": "يقبل PostgreSQL قيمًا إضافية لا يمكن اختيارها من شريط التمرير؛ أدخل تلك القيم مباشرة إن رغبت",
     "cell_edit_hint": "اضغط Escape لإلغاء التحرير.",
-    "cell_edit_hint_newline": "- Shift+Enter لسطر جديد."
+    "cell_edit_hint_newline": "- Shift+Enter لسطر جديد.",
+    "browse_search": "بحث:",
+    "keyname": "اسم المفتاح",
+    "description": "الوصف",
+    "use_this_value": "استخدم هذه القيمة"
   },
   "calendar": {
     "prev": "السابق",

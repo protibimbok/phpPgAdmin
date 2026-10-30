@@ -287,6 +287,24 @@ export function foreignValues(db: string, key: ForeignKey): Promise<ForeignValue
   return api.get(`/api/databases/${encode(db)}/query/foreign-values?${query}`)
 }
 
+export interface ForeignPageRequest {
+  /** Keep the values whose key or description contains this. */
+  search: string
+  offset: number
+  /** Rows per page; ignored when "all" is set. */
+  limit: number
+  all: boolean
+}
+
+/** One page of a foreign key's values for the "Browse foreign values" window, sorted by description, with the count of matches. */
+export function browseForeignValues(db: string, key: ForeignKey, page: ForeignPageRequest): Promise<ForeignValues & { total: number }> {
+  const query = new URLSearchParams({ schema: key.schema, name: key.table, column: key.column, limit: String(page.limit), offset: String(page.offset), order: 'display', total: '1' })
+  if (page.search !== '') query.set('search', page.search)
+  if (page.all) query.set('all', '1')
+
+  return api.get(`/api/databases/${encode(db)}/query/foreign-values?${query}`)
+}
+
 /** One row of a table by primary key, as text, with the table's columns: what the edit form starts from. */
 export function fetchRow(db: string, schema: string, name: string, keys: RowKeys): Promise<RelationInfo & { row: Record<string, string | null> }> {
   const query = new URLSearchParams({ schema, name, keys: JSON.stringify(keys) })

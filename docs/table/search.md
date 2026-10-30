@@ -70,7 +70,8 @@ regular expression operators.
 
 ### Value boxes
 
-A foreign key column offers the referenced values in a list (up to 100), an enum its labels, a date or
+A foreign key column offers the referenced values in a list (up to 100; beyond that a text box with
+the [Browse foreign values](/table/insert#browse-foreign-values) window), an enum its labels, a date or
 timestamp column the date picker. Integer and numeric columns are checked for numbers before the form
 is sent — every item of an `IN` or `BETWEEN` list too — unless the operator is one of the `LIKE`
 forms. Values are always sent as quoted literals (`'30'`), which PostgreSQL casts to the column's type.

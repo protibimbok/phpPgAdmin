@@ -108,8 +108,13 @@ final class QueryController
      * (phpMyAdmin's ForeignKeyMaxLimit, 100). "truncated" says there are more, in which case the
      * form shows a text field instead.
      *
+     * The "Browse foreign values" window pages through them as phpMyAdmin's browse_foreigners
+     * does: "search" keeps the values whose key or description contains it (case-insensitively,
+     * as MySQL's LIKE compares), "offset" skips that many, "all" lifts the limit,
+     * "order=display" sorts by the description, and "total=1" adds how many match in all.
+     *
      * @param array{db: string} $args
-     * @return array{column: string, display_column: string|null, values: list<array{key: string|null, display: string|null}>, truncated: bool}
+     * @return array{column: string, display_column: string|null, values: list<array{key: string|null, display: string|null}>, truncated: bool, total?: int}
      */
     public function foreignValues(ServerRequestInterface $request, array $args): array
     {
@@ -130,22 +135,44 @@ final class QueryController
         }
 
         $conn = $this->connection(ConnectionPool::from($request), $args);
-        $sql = sprintf(
-            'SELECT %1$s::text, %2$s FROM %3$s ORDER BY %1$s LIMIT %4$d',
-            $conn->escapeIdentifier($key),
-            $display === null ? 'NULL::text' : $conn->escapeIdentifier($display) . '::text',
-            $relation->quotedName(),
-            $limit + 1,
-        );
-        $rows = $conn->query($sql)->textRows();
-        $truncated = count($rows) > $limit;
+        $keySql = $conn->escapeIdentifier($key);
+        $displaySql = $display === null ? null : $conn->escapeIdentifier($display);
+        $all = !empty($query['all']);
+        $offset = max(0, (int) ($query['offset'] ?? 0));
+        $search = (string) ($query['search'] ?? '');
 
-        return [
+        $params = [];
+        $where = '';
+        if ($search !== '') {
+            // LIKE's own wildcards in the text are matched literally.
+            $params[] = '%' . addcslashes($search, '\\%_') . '%';
+            $where = sprintf(' WHERE %s::text ILIKE $1%s', $keySql, $displaySql === null ? '' : sprintf(' OR %s::text ILIKE $1', $displaySql));
+        }
+        $order = ($query['order'] ?? '') === 'display' && $displaySql !== null ? sprintf('%s, %s', $displaySql, $keySql) : $keySql;
+
+        $sql = sprintf(
+            'SELECT %1$s::text, %2$s FROM %3$s%4$s ORDER BY %5$s%6$s',
+            $keySql,
+            $displaySql === null ? 'NULL::text' : $displaySql . '::text',
+            $relation->quotedName(),
+            $where,
+            $order,
+            $all ? '' : sprintf(' LIMIT %d OFFSET %d', $limit + 1, $offset),
+        );
+        $rows = $conn->query($sql, $params)->textRows();
+        $truncated = !$all && count($rows) > $limit;
+
+        $answer = [
             'column' => $key,
             'display_column' => $display,
-            'values' => array_map(static fn (array $row): array => ['key' => $row[0], 'display' => $row[1]], array_slice($rows, 0, $limit)),
+            'values' => array_map(static fn (array $row): array => ['key' => $row[0], 'display' => $row[1]], $all ? $rows : array_slice($rows, 0, $limit)),
             'truncated' => $truncated,
         ];
+        if (!empty($query['total'])) {
+            $answer['total'] = (int) $conn->scalar(sprintf('SELECT count(*) FROM %s%s', $relation->quotedName(), $where), $params);
+        }
+
+        return $answer;
     }
 
     /** The largest request body PHP accepts, which bounds a file uploaded into a bytea column. */
