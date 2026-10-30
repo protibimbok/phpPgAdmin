@@ -139,6 +139,7 @@ The links under a message:
 | **Edit inline** | Turns the statement into a text box with **Go** and **Cancel**; **Go** runs the edited text as a new query. |
 | **Edit** | Puts the statement back in the query box and scrolls up. From the Browse page it opens the table's SQL tab with the statement. |
 | **Explain SQL** | For `SELECT`, `WITH`, `VALUES` and `TABLE` statements: runs `EXPLAIN` on it. On an `EXPLAIN` result it reads **Skip Explain SQL** and runs the statement without `EXPLAIN`. |
+| **Explain analyze** | For the same statements, unless they write through a `WITH` clause: runs `EXPLAIN (ANALYZE, BUFFERS)`, which executes the statement. |
 | **Refresh** | Runs the statement again with the same page and order; under a batch, that statement alone. |
 
 Below a row-returning statement come the [results grid](/table/browse) — the same
@@ -147,8 +148,8 @@ grid as the Browse tab — the **Query results operations** card and the
 
 **Query results operations** has **Print**, **Copy to clipboard** (the rows on this page as
 tab-separated text with a header line, `NULL` written out), **Export**, **Display chart** and
-**Create view**. **Export** and **Display chart** answer that they are not available yet; use the
-[Export](/tools/export) tab for a query's rows.
+**Create view**. **Export** opens the [Export page for the query's rows](/tools/export#query-results)
+(every row, not only this page). **Display chart** answers that it is not available yet.
 
 ### How paging and ordering work
 
@@ -282,9 +283,10 @@ plan comes back as rows of one **QUERY PLAN** column. Switch the grid's **Extra 
 
 ![The plan of SELECT * FROM books WHERE author_id = 3: an Append over a Seq Scan on books and one on ebooks, each with Filter: (author_id = 3)](/media/sql/explain.png)
 
-For actual times and row counts type the options yourself, for example
-`EXPLAIN (ANALYZE, BUFFERS) SELECT …`. `ANALYZE` executes the statement, writes included; wrap an
-`UPDATE` in **Rollback when finished** to measure it without keeping the change.
+For actual times and row counts use **Explain analyze**, which runs
+`EXPLAIN (ANALYZE, BUFFERS) SELECT …`; the console's **Explain analyze** does the same. `ANALYZE`
+executes the statement, writes included, so for an `UPDATE` type it yourself and wrap it in
+**Rollback when finished** to measure it without keeping the change.
 `EXPLAIN (FORMAT JSON)` returns one cell: use **Full texts** or **Copy to clipboard** to read it.
 **Skip Explain SQL** strips `EXPLAIN` and its options and runs the statement itself.
 

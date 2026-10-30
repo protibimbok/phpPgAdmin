@@ -104,6 +104,16 @@ Use **Log out** in the navigation panel's header (the door icon next to **Home**
 
 ![The user menu open: postgres@localhost, phpPgAdmin documentation, PostgreSQL documentation and Log out](/media/guide/user-menu.png)
 
+## Changing your password
+
+**Change password** in the **General settings** card of the home page opens phpMyAdmin's change
+password dialog for the role you are signed in as: **No Password**, or a new password entered
+twice; **Password Hashing** (SCRAM-SHA-256 or MD5, the server's `password_encryption` first); and
+**Generate** for a random one. It runs `ALTER ROLE CURRENT_USER PASSWORD` with the hashed form,
+computed by phpPgAdmin, so the password itself does not reach the server's log (a password with
+characters outside printable ASCII is sent for the server to hash). The session goes on with the
+new password.
+
 ## Passwords and sessions
 
 - **The password is kept in the PHP session while you are signed in**, on the web server, so that each request can open connections as your role. It is never written to phpPgAdmin's storage database, and it is passed to `pg_dump`, `psql` and `pg_restore` in the `PGPASSWORD` environment variable rather than on their command line. Logging out removes it from the session.

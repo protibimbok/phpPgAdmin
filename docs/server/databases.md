@@ -77,13 +77,19 @@ CREATE DATABASE srv_scratch
     IS_TEMPLATE = false;
 ```
 
-The card has no **Preview SQL** button and no locale, collation, tablespace or connection-limit
-fields. Set those afterwards on the database's [Operations](/database/operations) tab, or write the
-statement yourself in the [SQL editor](/tools/sql).
+**Preview SQL** shows the statement before it runs. **More options** adds a second row:
+
+| Field | SQL |
+|---|---|
+| **Collation (LC_COLLATE)** and **Character type (LC_CTYPE)**, suggested from the libc locales the server has | `LC_COLLATE 'C'`, `LC_CTYPE 'C'` |
+| **Locale provider**: libc, icu (PostgreSQL 15+) or builtin (17+), with its **ICU locale** or **Builtin locale** | `LOCALE_PROVIDER 'icu'`, `ICU_LOCALE 'en-US'` |
+| **Tablespace** | `TABLESPACE ts` |
+| **Connection limit** (-1 for none) | `CONNECTION LIMIT 5` |
+
+A locale other than the template's needs `template0` as the template.
 
 ::: warning The encoding must match the server's locale
-The new database inherits the locale (`LC_COLLATE` / `LC_CTYPE`) of its template, and the card cannot
-change it. An encoding the locale does not support is refused by PostgreSQL, for example on a
+Unless **More options** sets them, the new database inherits the locale (`LC_COLLATE` / `LC_CTYPE`) of its template. An encoding the locale does not support is refused by PostgreSQL, for example on a
 cluster initialised with `C.UTF-8`:
 
 ```

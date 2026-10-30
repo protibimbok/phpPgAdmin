@@ -33,19 +33,38 @@ Functions, operators and types that an extension installed into the schema (here
 filter box to find your routines.
 :::
 
-::: info Aggregates and operators are read-only
-Aggregates and operators have only **Export** and **Drop**. Create or change them on the
-[SQL tab](/tools/sql) (`CREATE AGGREGATE`, `CREATE OPERATOR`), as in pgAdmin. For example,
-Export on `total_price(numeric)` shows:
+## Aggregates and operators
+
+The arrow next to **Create new routine** opens **Create aggregate** and **Create operator**; the
+**Edit** link of an aggregate or operator row, or a click on one in the navigation panel, opens the
+same dialog filled in. **Preview SQL** shows the statements before **Go** runs them.
+
+The aggregate dialog has the fields of `CREATE AGGREGATE`: the name, the **Kind** (normal,
+ordered-set or hypothetical-set), the **Input types**, the **State function** and **State type**,
+the state data size and **Initial condition**, the final, combine, serialization and
+deserialization functions, the **Sort operator**, **Parallel**, and with **Moving-aggregate mode**
+ticked the `MSFUNC`/`MINVFUNC`/`MSTYPE` set. For example:
 
 ```sql
-CREATE OR REPLACE AGGREGATE public.total_price(numeric) (
+CREATE AGGREGATE public.total_price(numeric) (
     SFUNC = price_sum_state,
     STYPE = numeric,
     INITCOND = '0'
 );
 ```
-:::
+
+Saving an existing aggregate runs `CREATE OR REPLACE AGGREGATE` under its old signature when a
+definition field changed, then `ALTER AGGREGATE` for a new owner, name or schema and
+`COMMENT ON AGGREGATE`. PostgreSQL keeps an aggregate's kind, input types and result type, so the
+first two are read-only when editing; a change of the final function's result type is refused by
+the server.
+
+The operator dialog has the name, **Function**, the left and right operand types (no left type
+for a prefix operator), **Commutator**, **Negator**, the restriction and join selectivity
+functions, **HASHES** and **MERGES**. A commutator or negator given without a schema is taken from
+the operator's own schema. `ALTER OPERATOR` changes only the selectivity functions, owner, schema
+and comment; changing anything else drops the operator and creates it again, which the preview
+shows under a warning comment, and fails while an index or another object depends on it.
 
 ## The routine editor
 

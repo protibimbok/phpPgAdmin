@@ -176,6 +176,18 @@ When you edit an existing object, only **Name**, **Statistics target** and **Com
 
 With a single column and no expression, the dialog answers *At least 2 columns must be specified for multi-column statistics.* (plain per-column statistics need no object).
 
+## Referenced by and inheritance
+
+After the Constraints card, as on the classic phpPgAdmin's table Info page:
+
+- **Referenced by** lists the foreign keys of other tables (or of the table itself) that point at
+  it: the table, the constraint, its columns, the columns they reference and the definition.
+- **Inheritance** lists the tables the table inherits from (**Parent**) and those that inherit
+  from it (**Child**), or the partition it is (**Parent**, with the partitioned table). A
+  partitioned table's partitions are on the [Partitions card](/table/partitions) instead.
+
+A card with nothing to list is not shown.
+
 ## The Information card
 
 ![The Information card of books: space usage, row statistics and the activity counters](/media/table/information.png)

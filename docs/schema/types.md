@@ -262,6 +262,23 @@ match. There is no button for it here: rebuild the indexes that use the collatio
 Dropping a collation that a column or index uses fails unless you tick
 **Also the objects that depend on it (CASCADE)**.
 
+## Operator classes, families and conversions
+
+The last list on the Types tab holds the schema's operator classes, operator families and
+conversions, each with its **Kind**, a **Definition** summary (`FOR TYPE integer USING btree`,
+`USING btree`, `FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8`), owner and comment. There is
+no create or edit dialog: create them on the [SQL tab](/tools/sql).
+
+- **Export** shows the `CREATE OPERATOR CLASS` with its operators, support functions and
+  `STORAGE`, the `CREATE OPERATOR FAMILY` with an `ALTER OPERATOR FAMILY … ADD` for the members
+  that belong to no class, or the `CREATE CONVERSION`, as `pg_dump` writes them.
+- **Drop** runs `DROP OPERATOR CLASS … USING …`, `DROP OPERATOR FAMILY … USING …` or
+  `DROP CONVERSION`, with **CASCADE** when ticked. Creating an operator class without `FAMILY`
+  also creates a family of the same name, which stays when the class is dropped.
+
+The built-in ones are in `pg_catalog`, which the list shows with
+[Show system objects](/server/settings#navigation-panel) on.
+
 ## Opening a dialog from a link
 
 The navigation panel opens a collation or text search object with a link of the form

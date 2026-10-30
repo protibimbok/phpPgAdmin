@@ -118,6 +118,11 @@ The list includes the `AccessShareLock` on `pg_locks` taken by the query that re
 lock wait, cancel or terminate the holding session on the [Processes](#processes) page; its PID is in
 the waiting session's **Blocked by** column.
 
+## A database's processes and locks {#database-processes}
+
+Each database has a **Processes** tab with **Processes** and **Locks** pills: the two pages above,
+limited to that database, as the classic phpPgAdmin's database Processes and Locks pages were.
+
 ## Prepared transactions
 
 **Prepared transactions** (`/server/status/prepared`) lists `pg_prepared_xacts`: transactions

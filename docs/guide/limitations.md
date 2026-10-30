@@ -8,8 +8,6 @@ Controls for unbuilt features still appear, as they do in phpMyAdmin. Clicking o
 
 ### Server and databases
 
-- The create-database card has no locale, tablespace or connection-limit fields, and no **Preview SQL** ([Databases](/server/databases#create-a-database)).
-- Per-database `SET` parameters (`ALTER DATABASE … SET`) are shown in **Show create** but cannot be edited ([Database operations](/database/operations#database-properties)).
 - Prepared transactions are listed only when `max_prepared_transactions` is above 0, which needs a server restart ([Status](/server/status#prepared-transactions)).
 - Saved servers cannot be renamed or removed from the UI ([Signing in](/guide/signing-in#renaming-and-removing-saved-servers)).
 
@@ -22,13 +20,12 @@ These options are not in the forms; use the SQL tab for them:
 - **Constraints:** `NOT VALID` / `VALIDATE CONSTRAINT`, and foreign key `MATCH` and `DEFERRABLE` ([Indexes and constraints](/table/indexes-constraints)).
 - **Partitions:** `DETACH PARTITION … CONCURRENTLY` ([Partitions](/table/partitions)).
 - **Row level security:** the `ENABLE` / `FORCE ROW LEVEL SECURITY` switch ([Triggers, rules and policies](/table/triggers#row-security-policies)).
-- **Table operations:** storage parameters ([Table operations](/table/operations)).
 
 ### Other objects
 
 - **Views:** the create form has no `security_invoker`, `RECURSIVE` or storage options. There is no **Create view** link in the tree or on the schema page; views are created from query results or the create-view address ([Views](/schema/views#create-a-view)).
-- **Routines:** there are no fields for `WINDOW` or `SUPPORT`. Aggregates and operators are read-only: you can view their DDL and drop them ([Functions and procedures](/schema/routines)).
-- **Sequences:** there are no data type or `RESTART` fields ([Sequences](/schema/sequences)).
+- **Routines:** there are no fields for `WINDOW` or `SUPPORT`. Operator classes, operator families and conversions are listed with their DDL and Drop, but are created on the SQL tab ([Functions and procedures](/schema/routines), [Types](/schema/types#operator-classes-families-and-conversions)).
+- **Sequences:** there is no data type field ([Sequences](/schema/sequences)).
 - **Collations:** there is no **Refresh version** button ([Types](/schema/types#collations)).
 - **Schemas:** the create-schema card has no comment field, and there is no copy-schema card ([Schemas](/database/schemas), [Schema operations](/schema/operations)).
 - **Foreign data:** there is no `IMPORT FOREIGN SCHEMA`. Privileges cannot be edited on languages, foreign data wrappers or foreign servers. Foreign tables are not listed on the schema's table list ([Foreign data](/database/foreign-data)).
@@ -37,14 +34,14 @@ These options are not in the forms; use the SQL tab for them:
 ### Export, import and tools
 
 - **Export:** the `pg_dump` directory format is not offered. A schema or database CSV export puts every table in one file ([Export](/tools/export)).
-- **Import:** restricted mode rejects backslash commands, so a `pg_dumpall` file (which uses `\connect`) cannot be imported. CSV import is only available for a single table; there is no new-table-from-CSV at database or schema level. ODS, XML and other phpMyAdmin formats are not offered ([Import](/tools/import#restricted-mode)).
+- **Import:** restricted mode rejects backslash commands, so a `pg_dumpall` file (which uses `\connect`) cannot be imported. CSV import is only available for a single table; there is no new-table-from-CSV at database or schema level. ODS and the other phpMyAdmin formats are not offered ([Import](/tools/import#restricted-mode)).
 - **Debugger:** only direct debugging, on a call you start, is available. There is no in-context debugging, no global breakpoints, and trigger functions cannot be debugged ([Debugger](/tools/debugger#what-is-not-built)).
 - **Designer:** **Reload** does not add tables created after the layout was saved ([Designer](/database/designer)).
 - **Schema diff:** both schemas must be on the server you are signed in to. Database-level objects, roles, tablespaces and data are not compared ([Schema diff](/database/schema-diff#what-is-compared)).
 
 ### SQL editor and results
 
-- Results cannot be exported straight from the grid, and there is no **Display chart** ([SQL editor](/tools/sql#results)).
+- There is no **Display chart** under a result ([SQL editor](/tools/sql#results)).
 - The error position is not marked in the editor ([SQL editor](/tools/sql#errors)).
 
 ## Behaviour to know about

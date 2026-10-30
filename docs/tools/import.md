@@ -187,8 +187,8 @@ again where no key stops them. With `--clean --if-exists` the objects are droppe
 
 ## Table rows: CSV, COPY text and COPY binary
 
-On a table the format list starts with **CSV**, **PostgreSQL COPY binary format** and
-**PostgreSQL COPY text format**. The rows are loaded by `psql` running `COPY … FROM STDIN`; the file is
+On a table the format list starts with **CSV**, **PostgreSQL COPY binary format**,
+**Tab-separated values (PostgreSQL COPY text format)** and **XML**. The rows are loaded by `psql` running `COPY … FROM STDIN`; the file is
 data, never a script, so nothing in it can run as a command.
 
 ![The CSV options of a table import](/media/tools/import-csv-options.png)
@@ -211,6 +211,26 @@ Options the server is too old for are hidden. Generated columns are never import
 **Column names:** is refused.
 
 ![ON_ERROR ignore: one row with "abc" for a numeric price skipped, reported as a NOTICE, two rows copied](/media/tools/import-on-error.png)
+
+### XML
+
+**XML** reads the classic phpPgAdmin's layout, which the [Export](/tools/export#formats) page writes:
+
+```xml
+<data>
+<header><column name="id" type="int4" /><column name="note" type="text" /></header>
+<records>
+  <row><column name="id">1</column><column name="note" null="null" /></row>
+</records>
+</data>
+```
+
+and the data of phpMyAdmin's XML export, where each `<table name="…">` inside a `<database>` is a
+row; only the rows whose table name is the table imported into are taken. The columns are the
+header's, or the first row's in their order; a column a row leaves out is `NULL`. The file is
+converted to `COPY`'s text format and loaded as above, with the duplicate, row limit and
+`ON_ERROR` options. A column the table lacks, or a file that is not well-formed, is refused before
+anything is loaded. The file declares its own encoding.
 
 ### Updating duplicates and the row limit
 
@@ -284,5 +304,6 @@ without reloading.
 - There is no partial import that resumes from an offset after a timeout, and no "Allow the
   interruption of an import" switch: the import is not bound by PHP's time limit, because it runs outside
   the web request.
-- ODS, XML, ESRI shape and MediaWiki formats are not offered.
+- ODS, ESRI shape and MediaWiki formats are not offered; XML is read in the classic
+  phpPgAdmin's layout and in phpMyAdmin's data layout.
 - The SQL compatibility modes of phpMyAdmin do not exist; the file must be PostgreSQL SQL.

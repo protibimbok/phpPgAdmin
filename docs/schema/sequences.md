@@ -93,6 +93,17 @@ by sessions and never used are skipped: sequences are not gap-free, and a rolled
 does not give its value back either.
 :::
 
+### Restart and next value
+
+Below the form, the **Actions** card has the classic phpPgAdmin's sequence actions:
+
+- **Restart** runs `ALTER SEQUENCE … RESTART`, at the value in **Restart at**, or at the start
+  value when the field is empty. The next `nextval()` returns that value.
+- **Next value** calls `nextval()` once and shows the value it returned. Like any `nextval()`,
+  the value is used up even though nothing stores it.
+
+The **Schema** select of an existing sequence moves it with `ALTER SEQUENCE … SET SCHEMA`.
+
 ### Statistics, Dependencies and Dependents
 
 Below the form: **Statistics** (**Blocks read** and **Blocks hit** from

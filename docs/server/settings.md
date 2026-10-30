@@ -83,6 +83,7 @@ The limit is applied when the next statement is recorded: with the length set to
 | **Maximum items on first level** | 100 | Databases per page in the tree. phpMyAdmin's `FirstLevelNavigationItems`. |
 | **Maximum items in branch** | 50 | Items per page in every other list of the tree (schemas, tables, functions…). phpMyAdmin's `MaxNavigationItems`. |
 | **Minimum number of items to display the filter box** | 30 | A list gets the **Type to filter these** box once it has this many items. It applies to the database list too, not only to tables, views and routines as the description says. phpMyAdmin's `NavigationTreeDisplayItemFilterMinimum`. |
+| **Show system objects** | off | Lists `pg_catalog`, `information_schema`, the template databases, the predefined `pg_*` roles and the other built-in objects in the tree and on the object lists. The classic phpPgAdmin's `show_system`. |
 
 See [Long lists: fast filter and pages](/guide/interface#long-lists-fast-filter-and-pages) for what the helpers look like.
 
@@ -91,6 +92,8 @@ See [Long lists: fast filter and pages](/guide/interface#long-lists-fast-filter-
 | Setting | Default | Effect |
 |---|---|---|
 | **Number of rows** | 25 | Rows per page when browsing a table, on table search results and on SQL query results, at least 1. With 5, `SELECT generate_series(1, 40)` showed 5 rows and the page links. phpMyAdmin's `MaxRows`. |
+| **Limit column characters** | 50 | How much of a long value a grid cell shows in **Partial texts** mode, and of a foreign key's description in its select. phpMyAdmin's `LimitChars`. |
+| **Show column comments** | on | A table column's comment under its name in the results grid. phpMyAdmin's `ShowBrowseComments`. |
 
 The **Number of rows** select above a result still changes it for that result only.
 

@@ -36,6 +36,8 @@ The server home page's **Database server** card shows which server you are on; t
 | `PGADMIN_PG_BIN_DIR` | `tools.bin_dir` | none (searched) | The directory holding `pg_dump`, `pg_dumpall`, `pg_restore` and `psql`. |
 | `PGADMIN_PHP_BINARY` | `tools.php_binary` | none | The PHP command-line binary that runs the background scripts in `bin/`. |
 | `PGADMIN_DEBUGGER` | `tools.debugger` | on | Set to `0` to switch the PL/pgSQL debugger off. |
+| `PGADMIN_EXTRA_LOGIN_SECURITY` | `auth.extra_login_security` | off | Set to `1` to refuse the usual superuser names and empty passwords at login ([Login security](#login-security)). |
+| `PGADMIN_OWNED_ONLY` | `auth.owned_only` | off | Set to `1` to list only the databases the signed-in role owns ([Login security](#login-security)). |
 | `APP_DEBUG` | (read in `public/index.php`) | `false` | `true` adds the exception class, message and stack trace to API error responses. |
 
 ::: danger APP_DEBUG in production
@@ -93,6 +95,18 @@ The storage file is small and holds everything phpPgAdmin knows that PostgreSQL 
 | `debugger` | `true` | `PGADMIN_DEBUGGER=0` switches it off; the debugger's status then reports "The debugger is switched off (PGADMIN_DEBUGGER=0)." and no **Debug** button appears. |
 
 The debugger also needs the `pldbgapi` extension and `shared_preload_libraries = 'plugin_debugger'` on the server; see [Debugger](/tools/debugger).
+
+## Login security (`config/auth.php`) {#login-security}
+
+Two settings of the classic phpPgAdmin:
+
+- **`extra_login_security`** (`PGADMIN_EXTRA_LOGIN_SECURITY=1`) refuses to sign in `postgres`,
+  `pgsql`, `root` and `administrator`, and any role with an empty password, before the server is
+  asked: *Login disallowed for security reasons*. A `trust` line in `pg_hba.conf` would otherwise
+  let anyone who reaches the site in with any password.
+- **`owned_only`** (`PGADMIN_OWNED_ONLY=1`) lists only the databases the signed-in role owns, in
+  the navigation panel and on the Databases page. Superusers still see every database. It hides
+  names only; PostgreSQL's privileges still decide what a role can connect to.
 
 ## Languages (`config/i18n.php`)
 

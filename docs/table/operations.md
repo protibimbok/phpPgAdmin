@@ -51,13 +51,30 @@ COMMENT ON TABLE public.tbl_demo2
 To give a table to another role you must be a member of that role (or a superuser), and the new owner needs `CREATE` on the schema. The owner can always drop and alter the table, whatever the [privileges](/tools/privileges) say.
 :::
 
-### Storage parameters, UNLOGGED and row security
+### Storage parameters
 
-These table settings have no field on this tab. Use the table's [SQL tab](/tools/sql):
+The **Storage parameters** card sets **Fill factor**, **Parallel workers** and **TOAST tuple
+target**, and, with **Custom auto-vacuum settings for the table** (or **for its TOAST table**)
+switched on, **Auto-vacuum** (enabled, disabled or the server default) and each autovacuum
+setting, with the server's default shown beside it. An emptied field is `RESET`; switching the
+custom settings off resets them all:
 
 ```sql
-ALTER TABLE public.orders_2025 SET (fillfactor = 80, autovacuum_vacuum_scale_factor = 0.05);
-ALTER TABLE public.orders_2025 RESET (fillfactor);
+ALTER TABLE IF EXISTS public.orders_2025
+    SET (FILLFACTOR=80);
+ALTER TABLE IF EXISTS public.orders_2025 SET (
+    autovacuum_enabled = false,
+    autovacuum_vacuum_scale_factor = 0.05
+);
+```
+
+A partitioned table has no storage of its own and does not show the card.
+
+### UNLOGGED and row security
+
+These have no field on this tab. Use the table's [SQL tab](/tools/sql):
+
+```sql
 ALTER TABLE public.audit_log SET UNLOGGED;     -- or SET LOGGED
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 ```
@@ -127,6 +144,7 @@ The **Table maintenance** card has links that open the table's SQL tab and run t
 | **Vacuum and analyze table** | `VACUUM (ANALYZE) "public"."books"` |
 | **Reindex table** | `REINDEX TABLE "public"."books"` |
 | **Cluster the table on …** | `CLUSTER "public"."books"`; only shown when an index (a plain index, or a primary key's or unique constraint's) is marked as the clustering index |
+| **Cluster the table using index:** | `CLUSTER "public"."books" USING "books_pkey"`, with the index chosen in the select (B-tree and GiST indexes); it also marks that index as the clustering one |
 
 For `VACUUM FULL`, `VACUUM (VERBOSE)`, `REINDEX … CONCURRENTLY` and maintenance of several tables, use the [Maintenance](/tools/maintenance) tool.
 

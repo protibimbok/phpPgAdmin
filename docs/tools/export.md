@@ -55,6 +55,9 @@ the default template, whatever your saved compression or file-name template says
 | **PostgreSQL tar archive (pg_restore)** | `pg_dump --format=tar` | `.tar` | database, schema, relation |
 | **CSV** | `psql` running `COPY … TO STDOUT (FORMAT csv)` | `.csv` | database, schema, relation |
 | **CSV for MS Excel** | the same, every value quoted, CRLF line ends | `.csv` | database, schema, relation |
+| **Tab-separated values (COPY text)** | `psql` running `COPY … TO STDOUT (FORMAT text)`, a header line first | `.tsv` | database, schema, relation |
+| **HTML** | read through a cursor by phpPgAdmin: one HTML table, the column names as its first row | `.html` | relation, query |
+| **XML** | read through a cursor: the classic phpPgAdmin's `<data><header><records>` layout, which [Import](/tools/import#xml) reads back | `.xml` | relation, query |
 
 The server level offers SQL only: `pg_dumpall` writes plain SQL and nothing else. The directory
 format of `pg_dump` is not offered, because a directory cannot be streamed as one download.
@@ -137,7 +140,23 @@ ticked tables preselected (`?table=authors&table=books` in the address) and **Cu
 
 On a table, view or materialized view **Dump table:** chooses **structure**, **data** or
 **structure and data**. A partitioned table takes its partitions along; a view's export is its
-`CREATE VIEW`.
+`CREATE VIEW`. A view's or foreign table's **data**, which `pg_dump` cannot write, is read
+through a cursor and written as `INSERT` statements or `COPY … FROM stdin`, with the same
+**Data creation options**.
+
+HTML and XML read the rows through a cursor in a read-only repeatable-read transaction, a thousand
+at a time, so a large table is streamed rather than held in memory. HTML has **Replace NULL with:**
+and **Put columns names in the first row**, after phpMyAdmin's Word format; XML has no options.
+
+### Query results
+
+**Export** under a query's results on the [SQL page](/tools/sql#results), and **With selected:
+Export** in a results grid (the rows ticked, selected by their key), open the Export page for that
+statement's rows (`/db/<database>/export/query`). It offers SQL (`INSERT` or `COPY` statements, for
+the table all the columns come from, or `query_result`), CSV, CSV for MS Excel, tab-separated, HTML
+and XML. The statement must be one `SELECT`, `VALUES` or `TABLE`; it is declared as a cursor in a
+read-only transaction first, so one that writes, even in a `WITH` clause, is refused before
+anything is read.
 
 ## Output
 
@@ -325,6 +344,6 @@ other proxies may need their read timeouts raised for long dumps.
 - The SQL is PostgreSQL's own `pg_dump` output, including `\restrict` / `\unrestrict` lines
   (`pg_dump` 18 and the 2025 minor releases), not phpMyAdmin's generated SQL. Restore it with `psql`
   or phpPgAdmin's [Import](/tools/import), which handles those lines.
-- There are no JSON, XML, LaTeX, PDF, ODS or Word formats; use CSV, or a query's results on the
-  [SQL page](/tools/sql).
+- There are no JSON, LaTeX, PDF, ODS or Word formats; HTML stands in for Word, and XML is the
+  classic phpPgAdmin's layout rather than phpMyAdmin's.
 - A server export is a cluster dump: roles and tablespaces are part of it.

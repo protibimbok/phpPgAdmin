@@ -130,6 +130,24 @@ the recorded and current versions and offers to run
 have reindexed the indexes on text columns, or they can return wrong results.
 :::
 
+## Parameters
+
+**Parameters** lists the settings the database gives its sessions (`pg_db_role_setting`): each
+row's name, value and role, *(all roles)* for `ALTER DATABASE … SET` or one role for
+`ALTER ROLE … IN DATABASE … SET`. **Add parameter** adds a row, with the setting names suggested;
+**Remove** takes one away, which runs `RESET`. **Preview SQL** shows the statements, **Go** runs
+them:
+
+```sql
+ALTER DATABASE dpt_library
+    SET work_mem TO '8MB';
+ALTER ROLE library IN DATABASE dpt_library
+    SET statement_timeout TO '30s';
+```
+
+The settings apply to new sessions only. **Show all settings (SHOW ALL)** runs `SHOW ALL` in the
+database on the SQL tab, the values a session there starts with.
+
 ## Database properties
 
 **Database properties** changes what `ALTER DATABASE` can change after creation:
