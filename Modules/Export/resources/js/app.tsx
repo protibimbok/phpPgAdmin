@@ -19,6 +19,9 @@ registerModule({
   },
   routes: [
     { path: 'server/export', element: <Export scope="server" /> },
+    // A query's rows, from the SQL page's "Export" link or a grid's "With selected: Export".
+    { path: 'server/export/query', element: <Export scope="query" /> },
+    { path: 'db/:db/export/query', element: <Export scope="query" /> },
     { path: 'db/:db/export', element: <Export scope="database" /> },
     { path: 'db/:db/schema/:schema/export', element: <Export scope="schema" /> },
     ...KINDS.map((kind) => ({ path: `db/:db/schema/:schema/${kind}/:table/export`, element: <Export scope="table" /> })),

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { useParams, useSearchParams } from 'react-router'
+import { useLocation, useParams, useSearchParams } from 'react-router'
 import { errorMessage, type ApiError } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import Icon from '@/components/Icon'
@@ -60,6 +60,9 @@ const DEFAULTS: Omit<ExportSettings, 'filename_template' | 'encoding' | 'databas
   htmlword_null: 'NULL',
 }
 
+/** What a query's rows can be exported as. */
+const QUERY_FORMATS: ExportSettings['format'][] = ['plain', 'csv', 'excel', 'tsv', 'html', 'xml']
+
 /** The formats written as rows of data only: COPY's CSV and text, and the HTML and XML read through a cursor. */
 const DATA_FORMATS: ExportSettings['format'][] = ['csv', 'excel', 'tsv', 'html', 'xml']
 
@@ -82,6 +85,7 @@ function rememberedFilename(scope: ExportScope): string | null {
 function preferredFormat(scope: ExportScope): ExportSettings['format'] {
   const format = preference<ExportSettings['format']>(FORMAT)
   if (scope === 'server') return 'plain'
+  if (scope === 'query') return QUERY_FORMATS.includes(format) ? format : 'plain'
   if ((format === 'html' || format === 'xml') && scope !== 'table') return 'plain'
 
   return format
@@ -92,13 +96,27 @@ function preferredFormat(scope: ExportScope): ExportSettings['format'] {
  * server/database/table/export/index.twig's selection card: the export templates, Quick or
  * Custom, the format, what to export, the output, and the format's options: pg_dump's (and
  * pg_dumpall's for the server), or CSV's, which COPY writes. The export downloads as it is
- * written, or shows as text.
+ * written, or shows as text. The query scope exports the rows of one statement, which comes in
+ * the navigation state (or ?sql=) from the SQL page's results.
  */
 export default function Export({ scope }: { scope: ExportScope }) {
   const params = useParams()
   const [search] = useSearchParams()
-  const target: ExportTarget = scope === 'server' ? {} : scope === 'database' ? { database: params.db } : scope === 'schema' ? { database: params.db, schema: params.schema } : { database: params.db, schema: params.schema, table: params.table }
-  const { data: options, error } = useRequest(() => exportOptions(target), [scope, params.db, params.schema, params.table])
+  const location = useLocation()
+  const sql = scope === 'query' ? ((location.state as { sql?: string } | null)?.sql ?? search.get('sql') ?? '') : ''
+  const target: ExportTarget =
+    scope === 'server' ? {} : scope === 'query' ? { database: params.db, sql_query: sql } : scope === 'database' ? { database: params.db } : scope === 'schema' ? { database: params.db, schema: params.schema } : { database: params.db, schema: params.schema, table: params.table }
+  const { data: options, error } = useRequest(() => exportOptions(target, scope), [scope, params.db, params.schema, params.table])
+
+  if (scope === 'query' && sql.trim() === '') {
+    return (
+      <div className="container">
+        <div className="alert alert-primary my-3" role="alert">
+          <Icon name="s_notice" /> <QueryMissing />
+        </div>
+      </div>
+    )
+  }
 
   if (error) {
     return (
@@ -125,6 +143,7 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
     ...DEFAULTS,
     // The role's defaults, where the scope offers them: pg_dump's archives and CSV need a database.
     method: preselected.length > 0 ? 'custom' : preference<ExportSettings['method']>(METHOD),
+    contents: scope === 'query' ? 'data' : DEFAULTS.contents,
     format: preferredFormat(scope),
     compression: preference<ExportSettings['compression']>(COMPRESSION),
     filename_template: rememberedFilename(scope) ?? options.filename_template,
@@ -151,7 +170,8 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
   // CSV is data only, as in phpMyAdmin: what is ticked under Data goes in. So are tab-separated, HTML and XML.
   const csv = DATA_FORMATS.includes(settings.format)
   // HTML and XML are read through a cursor here, without the client programs.
-  const rowFormat = settings.format === 'html' || settings.format === 'xml'
+  const rowFormat = settings.format === 'html' || settings.format === 'xml' || (scope === 'query' && settings.format === 'plain')
+  const query = scope === 'query'
   const tools = options.tools
   const toolsProblem = rowFormat ? null : tools === null ? t('tools.missing') : csv ? (tools.psql ? null : t('tools.no_psql', { directory: tools.directory })) : tools.usable ? null : t('tools.too_old', { version: tools.version, server: options.server_major })
 
@@ -268,9 +288,10 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
     database: t('title.database', { name: target.database }),
     schema: t('title.schema', { name: target.schema }),
     table: t('title.table', { name: target.table }),
+    query: t('title.query'),
   }[scope]
 
-  const formats: { value: ExportSettings['format']; label: string }[] = [
+  const formats: { value: ExportSettings['format']; label: string }[] = query ? QUERY_FORMATS.map((value) => ({ value, label: t(`format.${value}`) })) : [
     { value: 'plain', label: t('format.plain') },
     ...(scope === 'server'
       ? []
@@ -317,78 +338,91 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
         </div>
       )}
 
-      <div className="card mb-3">
-        <div className="card-header">{t('templates.title')}</div>
-        <div className="card-body row gy-3">
-          <form className="col-12 col-md" onSubmit={(e) => void saveTemplate(e)}>
-            <fieldset>
-              <legend>{t('templates.new')}</legend>
-              <div className="row g-3 align-items-center">
-                <div className="col-auto">
-                  <label htmlFor="templateName" className="col-form-label">
-                    {t('templates.name')}
-                  </label>
-                </div>
-                <div className="col-auto">
-                  <input className="form-control" type="text" name="templateName" id="templateName" maxLength={64} placeholder={t('templates.name')} required value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
-                </div>
-                <div className="col-auto">
-                  <input className="btn btn-secondary" type="submit" name="createTemplate" id="createTemplate" value={t('templates.create')} />
-                </div>
-              </div>
-            </fieldset>
-          </form>
-
-          <form
-            className="col-12 col-md"
-            id="existingTemplatesForm"
-            onSubmit={(e) => {
-              e.preventDefault()
-              // Update and Delete are both the form's submit buttons, as in phpMyAdmin.
-              const submitter = (e.nativeEvent as SubmitEvent).submitter
-              void (submitter?.id === 'deleteTemplate' ? removeTemplate() : overwriteTemplate())
-            }}
-          >
-            <fieldset>
-              <legend>{t('templates.existing')}</legend>
-              <div className="row g-3 align-items-center">
-                <div className="col-auto">
-                  <label htmlFor="template" className="col-form-label">
-                    {t('templates.template')}
-                  </label>
-                </div>
-                <div className="col-auto">
-                  <select
-                    className="form-select"
-                    name="template"
-                    id="template"
-                    required
-                    value={templateId}
-                    onChange={(e) => {
-                      setTemplateId(e.target.value)
-                      const template = templates.find((entry) => String(entry.id) === e.target.value)
-                      if (template) apply(template)
-                    }}
-                  >
-                    <option value="">-- {t('templates.select')} --</option>
-                    {templates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-auto">
-                  <input className="btn btn-secondary" type="submit" name="updateTemplate" id="updateTemplate" value={t('templates.update')} />
-                </div>
-                <div className="col-auto">
-                  <input className="btn btn-secondary" type="submit" name="deleteTemplate" id="deleteTemplate" value={t('templates.delete')} />
-                </div>
-              </div>
-            </fieldset>
-          </form>
+      {query && (
+        <div className="card mb-3" id="export_query">
+          <div className="card-header">{t('query.title')}</div>
+          <div className="card-body">
+            <pre className="mb-0 text-wrap" dir="ltr">
+              <code>{target.sql_query}</code>
+            </pre>
+          </div>
         </div>
-      </div>
+      )}
+
+      {!query && (
+        <div className="card mb-3">
+          <div className="card-header">{t('templates.title')}</div>
+          <div className="card-body row gy-3">
+            <form className="col-12 col-md" onSubmit={(e) => void saveTemplate(e)}>
+              <fieldset>
+                <legend>{t('templates.new')}</legend>
+                <div className="row g-3 align-items-center">
+                  <div className="col-auto">
+                    <label htmlFor="templateName" className="col-form-label">
+                      {t('templates.name')}
+                    </label>
+                  </div>
+                  <div className="col-auto">
+                    <input className="form-control" type="text" name="templateName" id="templateName" maxLength={64} placeholder={t('templates.name')} required value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
+                  </div>
+                  <div className="col-auto">
+                    <input className="btn btn-secondary" type="submit" name="createTemplate" id="createTemplate" value={t('templates.create')} />
+                  </div>
+                </div>
+              </fieldset>
+            </form>
+
+            <form
+              className="col-12 col-md"
+              id="existingTemplatesForm"
+              onSubmit={(e) => {
+                e.preventDefault()
+                // Update and Delete are both the form's submit buttons, as in phpMyAdmin.
+                const submitter = (e.nativeEvent as SubmitEvent).submitter
+                void (submitter?.id === 'deleteTemplate' ? removeTemplate() : overwriteTemplate())
+              }}
+            >
+              <fieldset>
+                <legend>{t('templates.existing')}</legend>
+                <div className="row g-3 align-items-center">
+                  <div className="col-auto">
+                    <label htmlFor="template" className="col-form-label">
+                      {t('templates.template')}
+                    </label>
+                  </div>
+                  <div className="col-auto">
+                    <select
+                      className="form-select"
+                      name="template"
+                      id="template"
+                      required
+                      value={templateId}
+                      onChange={(e) => {
+                        setTemplateId(e.target.value)
+                        const template = templates.find((entry) => String(entry.id) === e.target.value)
+                        if (template) apply(template)
+                      }}
+                    >
+                      <option value="">-- {t('templates.select')} --</option>
+                      {templates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-auto">
+                    <input className="btn btn-secondary" type="submit" name="updateTemplate" id="updateTemplate" value={t('templates.update')} />
+                  </div>
+                  <div className="col-auto">
+                    <input className="btn btn-secondary" type="submit" name="deleteTemplate" id="deleteTemplate" value={t('templates.delete')} />
+                  </div>
+                </div>
+              </fieldset>
+            </form>
+          </div>
+        </div>
+      )}
 
       <form method="post" name="dump" onSubmit={submit}>
         <div className="card mb-3" id="quick_or_custom">
@@ -506,7 +540,7 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                 )}
               </li>
 
-              {scope !== 'server' && (
+              {scope !== 'server' && !query && (
                 <li className="list-group-item">
                   <label htmlFor="maxsize" className="form-label">
                     {t('output.max_size')}
@@ -646,9 +680,9 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                           </ul>
                         </li>
                       )}
-                      {scope !== 'server' && contents !== 'structure' && toggle('serializable_deferrable', label('options.serializable_deferrable'))}
-                      {toggle('quote_all_identifiers', label('options.quote_all_identifiers'))}
-                      {toggle('disable_dollar_quoting', label('options.disable_dollar_quoting'))}
+                      {scope !== 'server' && !query && contents !== 'structure' && toggle('serializable_deferrable', label('options.serializable_deferrable'))}
+                      {!query && toggle('quote_all_identifiers', label('options.quote_all_identifiers'))}
+                      {!query && toggle('disable_dollar_quoting', label('options.disable_dollar_quoting'))}
                     </ul>
                   </div>
 
@@ -691,10 +725,10 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                     <div id="sql_data">
                       <h5 className="card-title mt-4 mb-2">{t('options.data_title')}</h5>
                       <ul className="list-group">
-                        {contents === 'data' && toggle('disable_triggers', label('options.disable_triggers'))}
-                        {toggle('unlogged_data', label('options.unlogged_data'))}
+                        {contents === 'data' && !query && toggle('disable_triggers', label('options.disable_triggers'))}
+                        {!query && toggle('unlogged_data', label('options.unlogged_data'))}
                         {(scope === 'database' || scope === 'schema') && toggle('large_objects', label('options.large_objects'))}
-                        {toggle('load_via_partition_root', label('options.load_via_partition_root'))}
+                        {!query && toggle('load_via_partition_root', label('options.load_via_partition_root'))}
                         <li className="list-group-item">
                           <label htmlFor="select_sql_type" className="form-label">
                             {t('options.data_style')}
@@ -758,6 +792,13 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
       )}
     </div>
   )
+}
+
+/** What the query export page says when it is opened without a statement. */
+function QueryMissing() {
+  const { t } = useTranslation('export')
+
+  return <>{t('query.missing')}</>
 }
 
 /** server/export/index.twig's Databases card: a multiple select with Select all / Unselect all. */

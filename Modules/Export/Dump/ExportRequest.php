@@ -15,12 +15,15 @@ use League\Route\Http\Exception\BadRequestException;
  */
 final readonly class ExportRequest
 {
-    public const array SCOPES = ['server', 'database', 'schema', 'table'];
+    public const array SCOPES = ['server', 'database', 'schema', 'table', 'query'];
 
     public const array FORMATS = ['plain', 'custom', 'tar', 'csv', 'excel', 'tsv', 'html', 'xml'];
 
-    /** The formats written here from a cursor (RowStream), for one relation's rows. */
+    /** The formats written here from a cursor (RowStream), for one relation's rows or a query's. */
     public const array ROW_FORMATS = ['html', 'xml'];
+
+    /** What a query's rows can be exported as: INSERT or COPY statements (plain), COPY's CSV and text, HTML and XML. */
+    public const array QUERY_FORMATS = ['plain', 'csv', 'excel', 'tsv', 'html', 'xml'];
 
     public const array COMPRESSIONS = ['none', 'gzip'];
 
@@ -87,6 +90,7 @@ final readonly class ExportRequest
         public ?CsvOptions $csv = null,
         public bool $htmlColumns = true,
         public string $htmlNull = 'NULL',
+        public ?string $sql = null,
     ) {
     }
 
@@ -101,7 +105,9 @@ final readonly class ExportRequest
         $database = $name('database');
         $schema = $name('schema');
         $table = $name('table');
+        $sql = trim((string) ($input['sql_query'] ?? ''));
         $scope = match (true) {
+            $sql !== '' => 'query',
             $database === null => 'server',
             $schema === null => 'database',
             $table === null => 'schema',
@@ -112,8 +118,11 @@ final readonly class ExportRequest
         if ($scope === 'server' && $format !== 'plain') {
             throw new BadRequestException('pg_dumpall writes plain SQL only.');
         }
-        if (in_array($format, self::ROW_FORMATS, true) && $scope !== 'table') {
-            throw new BadRequestException('HTML and XML exports are of one table or view.');
+        if (in_array($format, self::ROW_FORMATS, true) && $scope !== 'table' && $scope !== 'query') {
+            throw new BadRequestException('HTML and XML exports are of one table, view or query.');
+        }
+        if ($scope === 'query' && !in_array($format, self::QUERY_FORMATS, true)) {
+            throw new BadRequestException(sprintf('A query\'s rows are exported as one of %s.', implode(', ', self::QUERY_FORMATS)));
         }
 
         $maxSize = $input['max_size'] ?? null;
@@ -155,7 +164,7 @@ final readonly class ExportRequest
             databases: self::names($input, 'databases'),
             structure: self::names($input, 'structure'),
             data: self::names($input, 'data'),
-            contents: self::choice($input, 'contents', ['both', 'structure', 'data'], 'both'),
+            contents: $scope === 'query' ? 'data' : self::choice($input, 'contents', ['both', 'structure', 'data'], 'both'),
             globals: self::choice($input, 'globals', ['all', 'globals', 'roles', 'tablespaces'], 'all'),
             largeObjects: filter_var($input['large_objects'] ?? true, FILTER_VALIDATE_BOOL),
             dataStyle: self::choice($input, 'data_style', ['copy', 'insert'], 'copy'),
@@ -165,6 +174,7 @@ final readonly class ExportRequest
             csv: in_array($format, ['csv', 'excel', 'tsv'], true) ? CsvOptions::fromArray($input, $format) : null,
             htmlColumns: filter_var($input['htmlword_columns'] ?? true, FILTER_VALIDATE_BOOL),
             htmlNull: is_string($input['htmlword_null'] ?? null) ? $input['htmlword_null'] : 'NULL',
+            sql: $sql === '' ? null : $sql,
         );
     }
 
@@ -174,10 +184,10 @@ final readonly class ExportRequest
         return $this->flags[$name] ?? array_key_exists($name, self::INCLUDE_FLAGS);
     }
 
-    /** Whether the rows are read through a cursor here: HTML and XML. */
+    /** Whether the rows are read through a cursor here: HTML and XML, and a query's INSERT or COPY statements. */
     public function isRowFormat(): bool
     {
-        return in_array($this->format, self::ROW_FORMATS, true);
+        return in_array($this->format, self::ROW_FORMATS, true) || ($this->scope === 'query' && $this->format === 'plain');
     }
 
     public function isArchive(): bool

@@ -22,8 +22,8 @@ final class FileName
         'D' => 'm/d/y', 'F' => 'Y-m-d', 'T' => 'H:i:s', 'R' => 'H:i',
     ];
 
-    /** The default template of each scope, phpMyAdmin's for the server, a database and a table. */
-    public const array DEFAULTS = ['server' => '@SERVER@', 'database' => '@DATABASE@', 'schema' => '@SCHEMA@', 'table' => '@TABLE@'];
+    /** The default template of each scope, phpMyAdmin's for the server, a database and a table; a query's rows are "query_result". */
+    public const array DEFAULTS = ['server' => '@SERVER@', 'database' => '@DATABASE@', 'schema' => '@SCHEMA@', 'table' => '@TABLE@', 'query' => 'query_result'];
 
     /** @param array{server: string, database?: ?string, schema?: ?string, table?: ?string} $names */
     public static function expand(string $template, array $names, string $extension, ?DateTimeImmutable $now = null): string

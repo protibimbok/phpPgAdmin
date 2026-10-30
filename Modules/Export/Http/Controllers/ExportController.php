@@ -9,6 +9,7 @@ use League\Route\Http\Exception\NotFoundException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Core\Database\QueryException;
 use PhpPgAdmin\Core\Database\Quoting;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
@@ -25,6 +26,7 @@ use PhpPgAdmin\Modules\Export\Dump\RowStream;
 use PhpPgAdmin\Modules\Export\Dump\SqlInsertFormat;
 use PhpPgAdmin\Modules\Export\Dump\XmlFormat;
 use PhpPgAdmin\Modules\Export\Storage\ExportTemplates;
+use PhpPgAdmin\Modules\Sql\Sql\Splitter;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
@@ -45,7 +47,7 @@ final class ExportController
         $database = self::name($query, 'database');
         $schema = self::name($query, 'schema');
         $table = self::name($query, 'table');
-        $scope = $database === null ? 'server' : ($schema === null ? 'database' : ($table === null ? 'schema' : 'table'));
+        $scope = ($query['scope'] ?? null) === 'query' ? 'query' : ($database === null ? 'server' : ($schema === null ? 'database' : ($table === null ? 'schema' : 'table')));
         $conn = $database === null ? $pool->maintenance() : $pool->for($database);
         $tools = ClientTools::locate();
         $serverMajor = intdiv($pool->version(), 10000);
@@ -54,7 +56,7 @@ final class ExportController
             'server' => array_map(static fn (string $name): array => ['name' => $name], array_keys($this->databases($conn))),
             'database' => array_map(static fn (string $name): array => ['name' => $name], array_keys($this->schemas($conn))),
             'schema' => array_map(static fn (string $name, string $kind): array => ['name' => $name, 'kind' => $kind], array_keys($rel = $this->relations($conn, (string) $schema)), $rel),
-            'table' => [],
+            'table', 'query' => [],
         };
         if ($scope === 'table' && $this->relationKind($conn, (string) $schema, (string) $table) === null) {
             throw new NotFoundException(sprintf('There is no relation "%s"."%s".', $schema, $table));
@@ -93,6 +95,9 @@ final class ExportController
         }
         $export = ExportRequest::fromArray($body);
         $pool = ConnectionPool::from($request);
+        if ($export->scope === 'query') {
+            return $this->queryExport($export, $pool);
+        }
 
         $conn = $export->database === null ? $pool->maintenance() : $pool->for($export->database);
         $tableKind = $export->scope === 'table'
@@ -119,7 +124,7 @@ final class ExportController
             'server' => $this->databases($conn),
             'database' => $this->schemas($conn),
             'schema' => $this->relations($conn, (string) $export->schema),
-            'table' => [],
+            'table', 'query' => [],
         };
         $oversized = $export->maxSize !== null && $export->scope !== 'server' ? $this->oversized($conn, $export) : [];
 
@@ -149,9 +154,7 @@ final class ExportController
         $format = match ($export->format) {
             'html' => new HtmlFormat($title, $export->htmlColumns, $export->htmlNull, $export->encoding ?? 'UTF-8'),
             'xml' => new XmlFormat($export->encoding ?? 'UTF-8'),
-            default => $export->dataStyle === 'insert'
-                ? new SqlInsertFormat($relation, in_array($export->insertSyntax, ['columns', 'both'], true), in_array($export->insertSyntax, ['multi', 'both'], true) ? $export->rowsPerInsert : 1, $export->flag('on_conflict_do_nothing'))
-                : new CopyFormat($relation),
+            default => $this->sqlFormat($export, $relation),
         };
         $plain = $export->format === 'plain';
         $gzip = $this->gzip($export);
@@ -160,6 +163,97 @@ final class ExportController
         $stream = RowStream::start($pool->detached($export->database), 'SELECT * FROM ' . $relation, $format, $gzip, $plain ? $this->headerComment($export) : '', $plain ? '-- ' : '', $export->encoding);
 
         return $this->respond($export, $stream, $gzip);
+    }
+
+    /**
+     * The rows of a query from the SQL page or a result grid. It must be one statement that
+     * DECLARE takes, a SELECT or VALUES without data-modifying WITH clauses, which is checked
+     * in a read-only transaction before anything is written. CSV and tab-separated text are
+     * COPY (query) through psql, in a session that is read-only by default; the rest is read
+     * through a cursor. INSERT statements name the table the columns all come from, or
+     * query_result.
+     */
+    private function queryExport(ExportRequest $export, ConnectionPool $pool): ResponseInterface
+    {
+        $statements = Splitter::split((string) $export->sql);
+        if (count($statements) !== 1) {
+            throw new BadRequestException('Export the rows of one statement at a time.');
+        }
+        $sql = rtrim(trim($statements[0]->sql), ';');
+        if (!Splitter::isSelect($sql)) {
+            throw new ApiException(422, 'Only the rows of a SELECT, VALUES or TABLE statement can be exported.');
+        }
+        $conn = $pool->for($export->database);
+
+        try {
+            $conn->exec('BEGIN READ ONLY');
+            $conn->exec('DECLARE pga_check NO SCROLL CURSOR FOR ' . $sql);
+            $columns = $conn->query('FETCH FORWARD 0 FROM pga_check')->columns();
+        } catch (QueryException $e) {
+            throw new ApiException(422, $e->getMessage());
+        } finally {
+            try {
+                $conn->exec('ROLLBACK');
+            } catch (QueryException) {
+                // Nothing was begun.
+            }
+        }
+
+        if ($export->csv !== null) {
+            $tools = ClientTools::locate() ?? throw new ApiException(503, 'psql was not found. Set PGADMIN_PG_BIN_DIR (config/tools.php) to the directory of the PostgreSQL client programs.');
+            if (!is_executable($tools->path('psql'))) {
+                throw new ApiException(503, sprintf('psql was not found in %s.', $tools->directory));
+            }
+            $relation = ['schema' => '', 'name' => '', 'kind' => 'q', 'columns' => array_map(static fn ($column): string => $column->name, $columns), 'query' => $sql];
+            $command = new CopyCommand($export, $export->csv, $tools, [$relation]);
+            $environment = $pool->environment($export->database ?? $conn->database()) + ['PGOPTIONS' => '-c default_transaction_read_only=on'];
+            $filter = $export->csv->terminated !== "\n" ? (new CsvLineEnds($export->csv->enclosed, $export->csv->escaped, $export->csv->terminated))(...) : null;
+            $gzip = $this->gzip($export);
+
+            $this->detachSession();
+            $stream = DumpStream::start($command->program(), $command->arguments(), $environment, $gzip, false, '', $filter);
+
+            return $this->respond($export, $stream, $gzip);
+        }
+
+        $target = $this->sourceTable($conn, $columns) ?? 'query_result';
+        $format = match ($export->format) {
+            'html' => new HtmlFormat('Query result', $export->htmlColumns, $export->htmlNull, $export->encoding ?? 'UTF-8'),
+            'xml' => new XmlFormat($export->encoding ?? 'UTF-8'),
+            default => $this->sqlFormat($export, $target),
+        };
+        $plain = $export->format === 'plain';
+        $prefix = $plain ? $this->headerComment($export) . '-- ' . str_replace("\n", "\n-- ", $sql) . "\n\n" : '';
+        $gzip = $this->gzip($export);
+
+        $this->detachSession();
+        $stream = RowStream::start($pool->detached($export->database), $sql, $format, $gzip, $prefix, $plain ? '-- ' : '', $export->encoding);
+
+        return $this->respond($export, $stream, $gzip);
+    }
+
+    /**
+     * The table every column of a result is read from, schema-qualified, or null when they come
+     * from several tables or from expressions.
+     *
+     * @param list<\PhpPgAdmin\Core\Database\Column> $columns
+     */
+    private function sourceTable(Connection $conn, array $columns): ?string
+    {
+        $tables = array_unique(array_map(static fn ($column): ?int => $column->tableOid, $columns));
+        if (count($tables) !== 1 || $tables[0] === null) {
+            return null;
+        }
+        $row = $conn->row('SELECT n.nspname, c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = $1', [$tables[0]]);
+
+        return $row === null ? null : Quoting::ident((string) $row['nspname'], (string) $row['relname']);
+    }
+
+    private function sqlFormat(ExportRequest $export, string $relation): SqlInsertFormat|CopyFormat
+    {
+        return $export->dataStyle === 'insert'
+            ? new SqlInsertFormat($relation, in_array($export->insertSyntax, ['columns', 'both'], true), in_array($export->insertSyntax, ['multi', 'both'], true) ? $export->rowsPerInsert : 1, $export->flag('on_conflict_do_nothing'))
+            : new CopyFormat($relation);
     }
 
     private function gzip(ExportRequest $export): bool

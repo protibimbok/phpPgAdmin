@@ -16,8 +16,9 @@ use PhpPgAdmin\Core\Database\Quoting;
 final readonly class CopyCommand
 {
     /**
-     * @param list<array{schema: string, name: string, kind: string, columns: list<string>}> $relations
-     *        what to export, each with its columns (needed when line breaks are taken out of the values)
+     * @param list<array{schema: string, name: string, kind: string, columns: list<string>, query?: string}> $relations
+     *        what to export, each with its columns (needed when line breaks are taken out of the values);
+     *        a query's rows are one entry with the query
      */
     public function __construct(
         private ExportRequest $request,
@@ -51,9 +52,7 @@ final readonly class CopyCommand
     public function statement(array $relation): string
     {
         $csv = $this->csv;
-        $name = Quoting::ident($relation['schema'], $relation['name']);
-        // A table's own rows, as COPY reads a table; a partitioned table with its partitions.
-        $from = ($relation['kind'] === 'r' ? 'ONLY ' : '') . $name;
+        $from = self::from($relation);
         $select = $csv->removeCrLf && $relation['columns'] !== []
             ? implode(', ', array_map(static fn (string $column): string => sprintf("regexp_replace(%s::text, '[\\r\\n]', '', 'g') AS %s", Quoting::ident($column), Quoting::ident($column)), $relation['columns']))
             : '*';
@@ -77,6 +76,21 @@ final readonly class CopyCommand
     }
 
     /**
+     * What the rows are read from: a table's own rows, as COPY reads a table (a partitioned
+     * table with its partitions), or a query as a subquery.
+     *
+     * @param array{schema: string, name: string, kind: string, columns: list<string>, query?: string} $relation
+     */
+    private static function from(array $relation): string
+    {
+        if (isset($relation['query'])) {
+            return '(' . rtrim(trim($relation['query']), ';') . ') AS query_result';
+        }
+
+        return ($relation['kind'] === 'r' ? 'ONLY ' : '') . Quoting::ident($relation['schema'], $relation['name']);
+    }
+
+    /**
      * Tab-separated: COPY's text format. Its HEADER needs PostgreSQL 15, so the column names
      * are a COPY of their own, a one-row SELECT that COPY escapes like the data.
      *
@@ -85,7 +99,7 @@ final readonly class CopyCommand
      */
     private function textStatements(array $relation): array
     {
-        $from = ($relation['kind'] === 'r' ? 'ONLY ' : '') . Quoting::ident($relation['schema'], $relation['name']);
+        $from = self::from($relation);
         $options = ['FORMAT text', 'NULL ' . Quoting::literal($this->csv->null)];
         if ($this->request->encoding !== null) {
             $options[] = 'ENCODING ' . Quoting::literal($this->request->encoding);

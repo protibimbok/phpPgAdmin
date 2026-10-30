@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router'
 import { errorMessage } from '@/api/request'
 import PreviewSql from '@/components/PreviewSql'
 import { notifyError, notifySuccess } from '@/notify'
-import { notAvailable } from '@/unbuilt'
 import { previewRows, saveRows, type ResultColumn, type RowKeys, type RowsResult, type Source } from '../api'
 import { fieldKind } from '../fields/kinds'
 import { quoteIdent, quoteLiteral } from '../sql'
+import { exportQueryUrl } from './QueryResults'
 import type { CellEditor, ResultsGridProps } from './ResultsGrid'
 
 export interface GridActionsOptions {
@@ -51,6 +51,12 @@ export function useGridActions({ db, source, result, reload, changeUrl }: GridAc
     `DELETE FROM ${quoteIdent(source.schema)}.${quoteIdent(source.table)} WHERE ${Object.entries(keys)
       .map(([k, v]) => `${quoteIdent(k)} ${v === null ? 'IS NULL' : `= ${quoteLiteral(v)}`}`)
       .join(' AND ')}`
+
+  /** The rows ticked, as one SELECT by their keys, for "With selected: Export". */
+  const selectStatement = (keys: RowKeys[]) =>
+    `SELECT * FROM ${quoteIdent(source.schema)}.${quoteIdent(source.table)} WHERE ${keys
+      .map((k) => `(${Object.entries(k).map(([name, v]) => `${quoteIdent(name)} ${v === null ? 'IS NULL' : `= ${quoteLiteral(v)}`}`).join(' AND ')})`)
+      .join(' OR ')}`
 
   async function remove(keys: RowKeys[]) {
     try {
@@ -105,7 +111,7 @@ export function useGridActions({ db, source, result, reload, changeUrl }: GridAc
       { label: t('grid.edit'), icon: 'b_edit', onClick: (rows) => openForm(rows, false) },
       { label: t('grid.copy'), icon: 'b_insrow', onClick: (rows) => openForm(rows, true) },
       { label: t('grid.delete'), icon: 'b_drop', onClick: confirmBulkDelete },
-      { label: t('grid.export'), icon: 'b_tblexport', onClick: () => notAvailable() },
+      { label: t('grid.export'), icon: 'b_tblexport', onClick: (rows) => navigate(exportQueryUrl(db), { state: { sql: selectStatement(rows.map(keysOf)) } }) },
     ],
     cellEditor,
     modal: (

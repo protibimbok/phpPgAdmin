@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate, useParams } from 'react-router'
 import Icon from '@/components/Icon'
+import { urls } from '@/level'
 import { notAvailable } from '@/unbuilt'
 import CreateViewModal from '@views/js/CreateViewModal'
 import type { QueryResponse, RowsResult } from '../api'
@@ -25,6 +27,11 @@ export interface QueryResultsProps {
   bookmarkDatabase?: string
 }
 
+/** The page that exports a query's rows, in the database the query ran in (the server's maintenance database without one). */
+export function exportQueryUrl(db: string | undefined): string {
+  return db === undefined ? '/server/export/query' : `${urls.database(db)}/export/query`
+}
+
 /**
  * What a run shows: one message per statement, and under a row-returning one its grid and the
  * "Query results operations" card, as phpMyAdmin's sql/sql_query_results.twig lays it out.
@@ -33,6 +40,8 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
   const { t } = useTranslation('sql')
   const { t: tApp } = useTranslation()
   const [createView, setCreateView] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const { db } = useParams()
   // A batch that failed inside a transaction took its earlier statements with it.
   const failed = response.results[response.results.length - 1]?.kind === 'error'
 
@@ -64,7 +73,7 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
                     <a href="#copy" className="btn" id="copyToClipBoard" onClick={(e) => { e.preventDefault(); copyGrid(result) }}>
                       <Icon name="b_insrow" /> {tApp('copy_to_clipboard')}
                     </a>
-                    <a href="#export" className="btn" onClick={notAvailable}>
+                    <a href="#export" className="btn" onClick={(e) => { e.preventDefault(); navigate(exportQueryUrl(db), { state: { sql: result.sql } }) }}>
                       <Icon name="b_tblexport" /> {t('operations.export')}
                     </a>
                     <a href="#chart" className="btn" onClick={notAvailable}>

@@ -1,12 +1,13 @@
 import { api, ApiError, type ApiErrorBody } from '@/api/request'
 
-export type ExportScope = 'server' | 'database' | 'schema' | 'table'
+export type ExportScope = 'server' | 'database' | 'schema' | 'table' | 'query'
 
-/** Where an export starts: nothing for the server, then a database, a schema, a relation. */
+/** Where an export starts: nothing for the server, then a database, a schema, a relation; or a query's rows. */
 export interface ExportTarget {
   database?: string
   schema?: string
   table?: string
+  sql_query?: string
 }
 
 export interface ExportObject {
@@ -93,10 +94,12 @@ export interface ExportSettings {
   htmlword_null: string
 }
 
-const query = (target: ExportTarget) => new URLSearchParams(Object.entries(target).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString()
+const query = (target: Record<string, string | undefined>) => new URLSearchParams(Object.entries(target).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString()
 
-export function exportOptions(target: ExportTarget): Promise<ExportOptions> {
-  return api.get<ExportOptions>(`/api/export/options?${query(target)}`)
+export function exportOptions(target: ExportTarget, scope?: ExportScope): Promise<ExportOptions> {
+  const { sql_query: _sql, ...where } = target
+
+  return api.get<ExportOptions>(`/api/export/options?${query(scope === 'query' ? { ...where, scope } : where)}`)
 }
 
 export function createTemplate(type: ExportScope, name: string, data: Partial<ExportSettings>): Promise<ExportTemplate> {
