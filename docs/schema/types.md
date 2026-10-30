@@ -266,8 +266,34 @@ Dropping a collation that a column or index uses fails unless you tick
 
 The last list on the Types tab holds the schema's operator classes, operator families and
 conversions, each with its **Kind**, a **Definition** summary (`FOR TYPE integer USING btree`,
-`USING btree`, `FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8`), owner and comment. There is
-no create or edit dialog: create them on the [SQL tab](/tools/sql).
+`USING btree`, `FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8`), owner and comment.
+
+**Create new operator class, family or conversion** opens one dialog for the three, with
+**Preview SQL**:
+
+- An **operator class** has its access method, **For data type**, **DEFAULT**, an existing
+  **Operator family** (or a new one of the same name) and **Storage type**, then its members: each
+  an `OPERATOR` by strategy number or a `FUNCTION` by support number, with optional left and right
+  types and, for an ordering operator, **FOR ORDER BY**. A B-tree class starts with rows for the
+  five strategies and comparison function 1. A function is written with its argument types,
+  `btint4cmp(integer, integer)`.
+- An **operator family** has only its access method.
+- A **conversion** has its source and destination encodings, the conversion function and
+  **DEFAULT**.
+
+```sql
+CREATE OPERATOR CLASS claude_v.int_ops
+    FOR TYPE integer USING btree AS
+    OPERATOR 1 <,
+    OPERATOR 2 <=,
+    OPERATOR 3 =,
+    OPERATOR 4 >=,
+    OPERATOR 5 >,
+    FUNCTION 1 btint4cmp(integer, integer);
+```
+
+They are not altered here: run `ALTER OPERATOR FAMILY … ADD` or `DROP` on the [SQL tab](/tools/sql)
+to change a family's members.
 
 - **Export** shows the `CREATE OPERATOR CLASS` with its operators, support functions and
   `STORAGE`, the `CREATE OPERATOR FAMILY` with an `ALTER OPERATOR FAMILY … ADD` for the members

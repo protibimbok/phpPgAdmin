@@ -147,6 +147,28 @@
       "opfamily": "OPERATOR FAMILY",
       "conversion": "CONVERSION"
     },
-    "dropped": "تم حذف {{name}}."
+    "dropped": "تم حذف {{name}}.",
+    "create_new": "إنشاء فئة عوامل أو عائلة أو تحويل",
+    "create_title": "إنشاء فئة عوامل أو عائلة أو تحويل",
+    "created": "تم إنشاء {{name}}.",
+    "name": "الاسم",
+    "method": "طريقة الوصول",
+    "for_type": "لنوع البيانات",
+    "family": "عائلة العوامل",
+    "new_family": "(عائلة جديدة بالاسم نفسه)",
+    "storage": "نوع التخزين",
+    "source_encoding": "ترميز المصدر",
+    "target_encoding": "ترميز الوجهة",
+    "function": "دالة التحويل",
+    "members": "العوامل ودوال الدعم",
+    "member_type": "العضو",
+    "number": "رقم الاستراتيجية / الدعم",
+    "member_name": "العامل أو الدالة",
+    "left_type": "النوع الأيسر",
+    "right_type": "النوع الأيمن",
+    "remove": "إزالة",
+    "add_operator": "إضافة عامل",
+    "add_function": "إضافة دالة",
+    "members_hint": "تُكتب الدالة مع أنواع معاملاتها، \"btint4cmp(integer, integer)\". يمكن ترك أنواع المعاملات فارغة إن كانت نوع بيانات الفئة. تُهمل الصفوف التي بلا اسم."
   }
 }

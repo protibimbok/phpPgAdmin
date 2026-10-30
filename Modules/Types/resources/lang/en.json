@@ -147,6 +147,28 @@
       "opfamily": "OPERATOR FAMILY",
       "conversion": "CONVERSION"
     },
-    "dropped": "{{name}} has been dropped."
+    "dropped": "{{name}} has been dropped.",
+    "create_new": "Create new operator class, family or conversion",
+    "create_title": "Create operator class, family or conversion",
+    "created": "{{name}} has been created.",
+    "name": "Name",
+    "method": "Access method",
+    "for_type": "For data type",
+    "family": "Operator family",
+    "new_family": "(a new family of the same name)",
+    "storage": "Storage type",
+    "source_encoding": "Source encoding",
+    "target_encoding": "Destination encoding",
+    "function": "Conversion function",
+    "members": "Operators and support functions",
+    "member_type": "Member",
+    "number": "Strategy / support number",
+    "member_name": "Operator or function",
+    "left_type": "Left type",
+    "right_type": "Right type",
+    "remove": "Remove",
+    "add_operator": "Add operator",
+    "add_function": "Add function",
+    "members_hint": "A function is written with its argument types, \"btint4cmp(integer, integer)\". The operand types can be left empty when they are the class's data type. Rows without a name are left out."
   }
 }

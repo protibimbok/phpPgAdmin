@@ -37,7 +37,7 @@ The classic phpPgAdmin's last release supports PostgreSQL up to 13, but most of 
 | Procedures | No | [Yes](/schema/routines) |
 | Aggregates | Create, drop | [Create, edit, drop](/schema/routines#aggregates-and-operators) |
 | Operators | Create, drop | [Create, edit, drop](/schema/routines#aggregates-and-operators) |
-| Operator classes and families, conversions | List | [List, DDL, drop](/schema/types#operator-classes-families-and-conversions) |
+| Operator classes and families, conversions | List | [Create, DDL, drop](/schema/types#operator-classes-families-and-conversions) |
 | Sequences, domains, enum and composite types | Yes | [Yes](/schema/types), with sequence [Restart and Next value](/schema/sequences#restart-and-next-value) |
 | Range types, collations | No | [Yes](/schema/types) |
 | Full text search configurations and dictionaries | Yes | [Yes, with parsers and templates](/schema/text-search) |

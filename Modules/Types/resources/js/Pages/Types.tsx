@@ -14,6 +14,7 @@ import { urls } from '@/level'
 import { qualifiedName } from '@sql/js/sql'
 import { collations as collationsOf, dropOpclass, dropTypeRow, ftsSqlKind, listOpclasses, listTextSearch, listTypes, opclassDropSql, opclassSql, resolveSchema, textSearch, typeRowSql, type Collation, type FtsKind, type FtsRow, type OpclassRow, type TypeRow } from '../api'
 import CollationDialog from '../dialogs/CollationDialog'
+import OpclassDialog from '../dialogs/OpclassDialog'
 import TextSearchDialog from '../dialogs/TextSearchDialog'
 
 /** The kinds the editor can open; the others (base, shell, multirange) are shown and dropped only. */
@@ -41,6 +42,7 @@ export default function Types() {
   const [search, setSearch] = useSearchParams()
   const [collationDialog, setCollationDialog] = useState<{ collation: Collation | null } | null>(null)
   const [ftsDialog, setFtsDialog] = useState<{ kind: FtsKind; object: FtsRow | null } | null>(null)
+  const [opclassDialog, setOpclassDialog] = useState(false)
   const [filter, setFilter] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [confirm, setConfirm] = useState<{ sql: string[]; run: () => Promise<void> } | null>(null)
@@ -364,6 +366,9 @@ export default function Types() {
         title={t('opclasses.title')}
         rows={data.opclasses}
         empty={t('opclasses.none')}
+        createLabel={t('opclasses.create_new')}
+        createIcon="b_plus"
+        onCreate={() => setOpclassDialog(true)}
         columns={[
           { label: t('columns.kind'), render: (row) => t(`opclasses.kinds.${row.kind}`) },
           {
@@ -390,6 +395,7 @@ export default function Types() {
       />
 
       <CollationDialog show={collationDialog !== null} db={db} scid={scid} collation={collationDialog?.collation ?? null} onClose={() => setCollationDialog(null)} onSaved={() => { setCollationDialog(null); changed() }} />
+      <OpclassDialog show={opclassDialog} db={db} scid={scid} onClose={() => setOpclassDialog(false)} onSaved={() => { setOpclassDialog(false); changed() }} />
       <TextSearchDialog show={ftsDialog !== null} db={db} scid={scid} kind={ftsDialog?.kind ?? 'fts_configuration'} object={ftsDialog?.object ?? null} onClose={() => setFtsDialog(null)} onSaved={() => { setFtsDialog(null); changed() }} />
 
       <Modal show={exported !== null} title={exported?.title ?? ''} size="lg" onClose={() => setExported(null)}>

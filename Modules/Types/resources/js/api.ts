@@ -416,3 +416,49 @@ export function opclassDropSql(schemaIdent: string, row: OpclassRow): string {
 
   return `DROP ${kind} ${schemaIdent}${row.amname ? ` USING ${row.amname}` : ''};`
 }
+
+/** What the operator class, family and conversion form offers. */
+export interface OpclassOptions {
+  methods: string[]
+  encodings: string[]
+  families: { name: string; amname: string }[]
+}
+
+/** An operator (by strategy number) or a support function (by support number) of a new operator class. */
+export interface OpclassMember {
+  type: 'operator' | 'function'
+  number: string
+  /** An operator name, or a function with its argument types: "btint4cmp(integer, integer)". */
+  name: string
+  lefttype: string
+  righttype: string
+  /** An ordering operator's sort family: FOR ORDER BY. */
+  order_by: string
+}
+
+/** What CREATE OPERATOR CLASS, OPERATOR FAMILY or CONVERSION takes; each kind reads its own fields. */
+export interface OpclassData {
+  name: string
+  description: string
+  amname?: string
+  for_type?: string
+  is_default?: boolean
+  family?: string
+  storage?: string
+  members?: OpclassMember[]
+  source_encoding?: string
+  target_encoding?: string
+  function?: string
+}
+
+export function opclassOptions(db: string, scid: number): Promise<OpclassOptions> {
+  return api.get<OpclassOptions>(`${opclassUrl(db, scid)}/options`)
+}
+
+export function createOpclass(db: string, scid: number, kind: OpclassKind, data: OpclassData): Promise<void> {
+  return api.post<{ ok: true }>(`${opclassUrl(db, scid)}/${kind}`, data).then(() => undefined)
+}
+
+export function opclassCreateSql(db: string, scid: number, kind: OpclassKind, data: OpclassData): Promise<string> {
+  return api.post<{ sql: string }>(`${opclassUrl(db, scid)}/${kind}/msql`, data).then((r) => r.sql)
+}

@@ -56,6 +56,13 @@ Route::middleware(Authenticate::class)->group(function () use ($context): void {
     Route::get('/databases/{db}/schemas/{scid:number}/fts_parsers/options', fn (ServerRequestInterface $request, array $args): array => (new FtsParserController())->options($context($request, $args, 'fts_parser')))->setName('fts_parsers.options');
     // Operator classes, operator families and conversions: listed, exported and dropped.
     Route::get('/databases/{db}/schemas/{scid:number}/opclasses', fn (ServerRequestInterface $request, array $args): array => ['rows' => (new OperatorClassController())->list($context($request, $args, 'type'))])->setName('opclasses.list');
+    Route::get('/databases/{db}/schemas/{scid:number}/opclasses/options', fn (ServerRequestInterface $request, array $args): array => (new OperatorClassController())->options($context($request, $args, 'type')))->setName('opclasses.options');
+    Route::post('/databases/{db}/schemas/{scid:number}/opclasses/{kind}/msql', fn (ServerRequestInterface $request, array $args): array => ['sql' => (new OperatorClassController())->createSql($context($request, $args, 'type'), (string) $args['kind'], (array) ($request->getParsedBody() ?? []))])->setName('opclasses.msql');
+    Route::post('/databases/{db}/schemas/{scid:number}/opclasses/{kind}', function (ServerRequestInterface $request, array $args) use ($context): array {
+        (new OperatorClassController())->create($context($request, $args, 'type'), (string) $args['kind'], (array) ($request->getParsedBody() ?? []));
+
+        return ['ok' => true];
+    })->setName('opclasses.create');
     Route::get('/databases/{db}/schemas/{scid:number}/opclasses/{kind}/{oid:number}/sql', fn (ServerRequestInterface $request, array $args): array => ['sql' => (new OperatorClassController())->sql($context($request, $args, 'type'), (string) $args['kind'], (int) $args['oid'])])->setName('opclasses.sql');
     Route::delete('/databases/{db}/schemas/{scid:number}/opclasses/{kind}/{oid:number}', function (ServerRequestInterface $request, array $args) use ($context): array {
         $ctx = $context($request, $args, 'type');
