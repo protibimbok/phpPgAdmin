@@ -74,6 +74,37 @@ something from the console or reload the page.
 stored history is kept. Queries you run afterwards appear as usual. Turning **History** off and on
 again brings the hidden entries back, except the failed ones; reloading the page brings back all.
 
+### Download the history
+
+**Download** in the console's toolbar saves the history list as `history.sql`, as the classic
+phpPgAdmin's history window does: the statements oldest first, each ending with `;` and preceded by
+a comment with the time (UTC), the database and *(failed)* for one that failed:
+
+```sql
+-- phpPgAdmin SQL history, 2026-10-30T10:02:50.430Z
+
+-- 2026-10-30T09:42:13Z bookshop
+SELECT * FROM "public"."authors";
+```
+
+It writes the list as loaded (the newest 50 statements, loading them first if the history has not
+been shown), including entries **Clear** hid. The file is built in the browser.
+
+## Debug SQL
+
+**Debug SQL** opens phpMyAdmin's Debug SQL card: the statements you ran since the page was loaded
+(from the SQL tab, the console, Browse and the other grids, as recorded in the history), each with
+**Time taken:** in milliseconds, and a summary line such as *3 statements run in 4.2 ms since this
+page was loaded.* **Execution order** lists them as they ran, **Time taken** slowest first, and
+**Count** groups the runs of the same statement in the same database with their **Count:** and
+their time together. **Refresh** reloads the list; each entry has **Requery**.
+
+::: info Only your own statements
+phpMyAdmin's Debug SQL (with `$cfg['DBG']['sql']`) lists every query the page's requests sent,
+phpMyAdmin's own included. phpPgAdmin records the statements you run, with the time the server took
+for them, not the catalog queries the pages make. Reloading the page starts the list again.
+:::
+
 ## Options
 
 **Options** opens the console's settings, the same ones as

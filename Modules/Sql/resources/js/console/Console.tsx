@@ -32,7 +32,36 @@ interface Message {
   bookmark?: Bookmark
 }
 
-type Card = 'options' | 'bookmarks' | 'add' | null
+type Card = 'options' | 'bookmarks' | 'add' | 'debug' | null
+
+/** When this page was loaded: the Debug SQL card lists the statements run since. */
+const PAGE_LOADED = Date.now()
+
+type DebugOrder = 'count' | 'exec' | 'time'
+
+/** A statement in the Debug SQL card: one run, or (ordered by count) every run of the same text in the same database. */
+interface DebugQuery {
+  key: string
+  sql: string
+  database: string | null
+  count: number
+  /** Milliseconds, all runs together. */
+  time: number
+  failed: boolean
+  started: string
+}
+
+/** The history as a .sql file, oldest first, as the classic phpPgAdmin's history Download writes it. */
+function historyFile(entries: HistoryEntry[]): string {
+  const lines = [`-- phpPgAdmin SQL history, ${new Date().toISOString()}`, '']
+  for (const entry of [...entries].reverse()) {
+    lines.push(`-- ${entry.started_at}${entry.database ? ` ${entry.database}` : ''}${entry.status === 'error' ? ' (failed)' : ''}`)
+    const sql = entry.sql.trimEnd()
+    lines.push(sql.endsWith(';') ? sql : `${sql};`, '')
+  }
+
+  return lines.join('\n')
+}
 
 /** Below this height a drag folds the console, as phpMyAdmin's resizer does. */
 const MIN_HEIGHT = 32
@@ -79,6 +108,7 @@ export default function Console() {
   const [bookmarks, setBookmarks] = useState<Bookmark[] | null>(null)
   const [newBookmark, setNewBookmark] = useState({ label: '', database: '', shared: false, sql: '' })
   const [confirming, setConfirming] = useState<{ sql: string; database: string | null } | null>(null)
+  const [debugOrder, setDebugOrder] = useState<DebugOrder>('exec')
   const editor = useRef<SqlEditorHandle>(null)
   const content = useRef<HTMLDivElement>(null)
 
@@ -105,6 +135,46 @@ export default function Console() {
   useEffect(() => {
     if (card === 'bookmarks' && bookmarks === null) loadBookmarks()
   }, [card, bookmarks, loadBookmarks])
+
+  useEffect(() => {
+    if (card === 'debug') loadHistory()
+  }, [card, loadHistory])
+
+  /** phpMyAdmin's Debug SQL: the statements run since the page was loaded, with the time each took. */
+  const debugQueries = useMemo<DebugQuery[]>(() => {
+    const runs = (history ?? [])
+      .filter((entry) => Date.parse(entry.started_at) >= PAGE_LOADED - 1000)
+      .reverse()
+      .map((entry): DebugQuery => ({ key: `d${entry.id}`, sql: entry.sql, database: entry.database, count: 1, time: entry.duration_ms ?? 0, failed: entry.status === 'error', started: entry.started_at }))
+    if (debugOrder === 'exec') return runs
+    if (debugOrder === 'time') return [...runs].sort((a, b) => b.time - a.time)
+    const groups = new Map<string, DebugQuery>()
+    for (const run of runs) {
+      const key = `${run.database ?? ''}\u0000${run.sql}`
+      const group = groups.get(key)
+      groups.set(key, group ? { ...group, count: group.count + 1, time: group.time + run.time, failed: group.failed || run.failed } : { ...run, key: `g${run.key}` })
+    }
+
+    return [...groups.values()].sort((a, b) => b.count - a.count)
+  }, [history, debugOrder])
+
+  /** Download the history already loaded (or the last 50 statements) as a .sql file. */
+  async function downloadHistory() {
+    try {
+      const entries = history ?? (await listHistory(50))
+      if (history === null) setHistory(entries)
+      const url = URL.createObjectURL(new Blob([historyFile(entries)], { type: 'application/sql' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'history.sql'
+      document.body.append(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      notifyError(errorMessage(e))
+    }
+  }
 
   // The list scrolls to its end as phpMyAdmin's does, so the newest message and the box are in view.
   useEffect(() => {
@@ -292,11 +362,17 @@ export default function Console() {
           >
             <span>{t('console.history')}</span>
           </div>
+          <div className="button download_history" title={t('console.download_history_title')} onClick={() => void downloadHistory()}>
+            <span>{t('console.download_history')}</span>
+          </div>
           <div className={`button options${card === 'options' ? ' active' : ''}`} onClick={() => setCard(card === 'options' ? null : 'options')}>
             <span>{t('console.options')}</span>
           </div>
           <div className={`button bookmarks${card === 'bookmarks' || card === 'add' ? ' active' : ''}`} onClick={() => setCard(card === null ? 'bookmarks' : null)}>
             <span>{t('console.bookmarks')}</span>
+          </div>
+          <div className={`button debug${card === 'debug' ? ' active' : ''}`} onClick={() => { setOpen(true); setCard(card === 'debug' ? null : 'debug') }}>
+            <span>{t('console.debug')}</span>
           </div>
         </div>
 
@@ -364,6 +440,60 @@ export default function Console() {
                       <SqlEditor value={newBookmark.sql} onChange={(sql) => setNewBookmark((b) => ({ ...b, sql }))} ariaLabel={t('console.add_bookmark')} lineNumbers={false} className="console-editor" />
                     </span>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={`card${card === 'debug' ? ' show' : ''} ${debugOrder === 'count' ? 'grouped' : 'ungrouped'}`} id="debug_console">
+              <div className="toolbar">
+                <div className="switch_button" onClick={() => setCard(null)}>
+                  <span>{t('console.debug')}</span>
+                </div>
+                {(['count', 'exec', 'time'] as const).map((order) => (
+                  <div key={order} className={`button order_by sort_${order}${debugOrder === order ? ' active' : ''}`} onClick={() => setDebugOrder(order)}>
+                    <span>{t(`console.debug_sort_${order}`)}</span>
+                  </div>
+                ))}
+                <div className="button refresh" onClick={loadHistory}>
+                  <span>{t('console.refresh')}</span>
+                </div>
+              </div>
+              <div className="content debug">
+                <div className="message welcome">
+                  <span>
+                    {debugQueries.length === 0
+                      ? t('console.debug_none')
+                      : t('console.debug_summary', {
+                          count: debugQueries.reduce((sum, query) => sum + query.count, 0),
+                          time: debugQueries.reduce((sum, query) => sum + query.time, 0).toLocaleString(undefined, { maximumFractionDigits: 1 }),
+                        })}
+                  </span>
+                </div>
+                <div className="debugLog">
+                  {debugQueries.map((query) => (
+                    <div key={query.key} className={`message ${expanded.has(query.key) || options.alwaysExpand ? 'expanded' : 'collapsed'}${query.failed ? ' failed' : ''}`} onClick={() => toggleExpanded(query.key)}>
+                      <div className="action_content" onClick={(e) => e.stopPropagation()}>
+                        <span className="action collapse" onClick={() => toggleExpanded(query.key)}>
+                          {t('console.collapse')}
+                        </span>
+                        <span className="action expand" onClick={() => toggleExpanded(query.key)}>
+                          {t('console.expand')}
+                        </span>
+                        <span className="action requery" onClick={() => execute(query.sql, query.database)}>
+                          {t('console.requery')}
+                        </span>
+                        {debugOrder === 'count' && <span className="text count">{t('console.debug_count', { count: query.count })}</span>}
+                        <span className="text time">{t('console.debug_time', { time: query.time.toLocaleString(undefined, { maximumFractionDigits: 3 }) })}</span>
+                        {query.failed && <span className="text failed">{t('console.failed')}</span>}
+                        {query.database && (
+                          <span className="text targetdb">
+                            {t('console.database')}: <span>{query.database}</span>
+                          </span>
+                        )}
+                      </div>
+                      <span className="query">{query.sql}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

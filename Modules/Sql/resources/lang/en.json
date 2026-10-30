@@ -175,7 +175,17 @@
     "always_expand": "Always expand query messages",
     "start_history": "Show query history at start",
     "enter_executes": "Execute queries on Enter and insert new line with Shift+Enter.",
-    "explain_analyze": "Explain analyze"
+    "explain_analyze": "Explain analyze",
+    "download_history": "Download",
+    "download_history_title": "Download the history as a .sql file",
+    "debug": "Debug SQL",
+    "debug_sort_count": "Count",
+    "debug_sort_exec": "Execution order",
+    "debug_sort_time": "Time taken",
+    "debug_none": "No statement has run since this page was loaded.",
+    "debug_summary": "{{count}} statements run in {{time}} ms since this page was loaded.",
+    "debug_count": "Count: {{count}}",
+    "debug_time": "Time taken: {{time}} ms"
   },
   "fields": {
     "binary_do_not_edit": "Binary - do not edit",

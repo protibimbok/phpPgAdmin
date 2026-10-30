@@ -187,7 +187,17 @@
     "always_expand": "توسيع رسائل الاستعلام دائمًا",
     "start_history": "إظهار سجل الاستعلامات عند البدء",
     "enter_executes": "تنفيذ الاستعلامات بـ Enter وإدراج سطر جديد بـ Shift+Enter.",
-    "explain_analyze": "شرح مع التحليل"
+    "explain_analyze": "شرح مع التحليل",
+    "download_history": "تنزيل",
+    "download_history_title": "تنزيل السجل كملف .sql",
+    "debug": "تصحيح SQL",
+    "debug_sort_count": "العدد",
+    "debug_sort_exec": "ترتيب التنفيذ",
+    "debug_sort_time": "الوقت المستغرق",
+    "debug_none": "لم تُنفَّذ أي عبارة منذ تحميل هذه الصفحة.",
+    "debug_summary": "نُفّذت {{count}} عبارة في {{time}} م.ث منذ تحميل هذه الصفحة.",
+    "debug_count": "العدد: {{count}}",
+    "debug_time": "الوقت المستغرق: {{time}} م.ث"
   },
   "fields": {
     "binary_do_not_edit": "ثنائي - لا تُحرِّر",
