@@ -5,13 +5,14 @@ import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
 import Icon from '@/components/Icon'
+import PreviewSql from '@/components/PreviewSql'
 import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { formatStatistic } from '@/components/StatisticsPanel'
 import { formatSize } from '@/format'
 import { urls } from '@/level'
 import { quoteIdent } from '@sql/js/sql'
-import { collationRemedy, createDatabase, databaseOptions, databases as databaseNodes, dropDatabase, listDatabases, type CollationRemedy, type Database, type NewDatabase } from '../api'
+import { collationRemedy, createDatabase, databaseModifiedSql, databaseOptions, databases as databaseNodes, dropDatabase, listDatabases, type CollationRemedy, type Database, type NewDatabase } from '../api'
 import CollationRefreshDialog from '../CollationRefreshDialog'
 
 /**
@@ -269,7 +270,10 @@ export default function Databases() {
 
 /**
  * phpMyAdmin's "Create database" card: the name, a select or two and Create in one row; here
- * the template, owner and encoding where phpMyAdmin has the collation.
+ * the template, owner and encoding where phpMyAdmin has the collation. "More options" adds a
+ * second row with what CREATE DATABASE also takes (the collation and character type, the
+ * locale provider and its locale, the tablespace and the connection limit), and Preview SQL
+ * shows the statement.
  */
 function CreateDatabaseCard({ onCreated }: { onCreated: () => void }) {
   const { t } = useTranslation('databases')
@@ -278,6 +282,14 @@ function CreateDatabaseCard({ onCreated }: { onCreated: () => void }) {
   const [template, setTemplate] = useState('')
   const [owner, setOwner] = useState('')
   const [encoding, setEncoding] = useState('')
+  const [more, setMore] = useState(false)
+  const [collate, setCollate] = useState('')
+  const [ctype, setCtype] = useState('')
+  const [provider, setProvider] = useState('')
+  const [providerLocale, setProviderLocale] = useState('')
+  const [tablespace, setTablespace] = useState('')
+  const [connLimit, setConnLimit] = useState('')
+  const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
   /** A create the server turned down for the template's collation version, waiting for the user's say. */
   const [refresh, setRefresh] = useState<{ data: NewDatabase; remedy: CollationRemedy } | null>(null)
@@ -298,10 +310,37 @@ function CreateDatabaseCard({ onCreated }: { onCreated: () => void }) {
     }
   }
 
+  function data(): NewDatabase {
+    const base: NewDatabase = { name, template: template || undefined, datowner: owner || undefined, encoding: encoding || undefined }
+    if (!more) return base
+
+    return {
+      ...base,
+      datcollate: collate || undefined,
+      datctype: ctype || undefined,
+      datlocaleprovider: provider || undefined,
+      daticulocale: provider === 'icu' ? providerLocale || undefined : undefined,
+      datbuiltinlocale: provider === 'builtin' ? providerLocale || undefined : undefined,
+      spcname: tablespace || undefined,
+      datconnlimit: connLimit || undefined,
+    }
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault()
-    void create({ name, template: template || undefined, datowner: owner || undefined, encoding: encoding || undefined })
+    void create(data())
   }
+
+  function showPreview() {
+    setPreview({ sql: null, error: null })
+    databaseModifiedSql(data()).then(
+      (sql) => setPreview({ sql, error: null }),
+      (err: unknown) => setPreview({ sql: null, error: errorMessage(err) }),
+    )
+  }
+
+  const version = options?.version ?? 0
+  const providers = ['libc', ...(version >= 150000 ? ['icu'] : []), ...(version >= 170000 ? ['builtin'] : [])]
 
   function refreshAndCreate() {
     const pending = refresh
@@ -355,8 +394,67 @@ function CreateDatabaseCard({ onCreated }: { onCreated: () => void }) {
           <div className="col-12">
             <input id="buttonGo" className="btn btn-primary" type="submit" value={t('create.create')} disabled={busy} />
           </div>
+          <div className="col-12">
+            <input className="btn btn-secondary preview_sql" type="button" value={t('create.preview_sql')} onClick={showPreview} />
+          </div>
+          <div className="col-12">
+            <a href="#more" onClick={(e) => { e.preventDefault(); setMore((m) => !m) }}>
+              {more ? t('create.fewer_options') : t('create.more_options')}
+            </a>
+          </div>
+          {more && (
+            <div className="w-100 row row-cols-md-auto g-3 align-items-center mt-0" id="create_database_more">
+              <datalist id="create_db_locales">
+                {(options?.locales ?? []).map((locale) => (
+                  <option key={locale} value={locale} />
+                ))}
+              </datalist>
+              <div className="col-12">
+                <input type="text" name="datcollate" className="form-control" list="create_db_locales" dir="ltr" placeholder={t('create.collate')} aria-label={t('create.collate')} value={collate} onChange={(e) => setCollate(e.target.value)} />
+              </div>
+              <div className="col-12">
+                <input type="text" name="datctype" className="form-control" list="create_db_locales" dir="ltr" placeholder={t('create.ctype')} aria-label={t('create.ctype')} value={ctype} onChange={(e) => setCtype(e.target.value)} />
+              </div>
+              {providers.length > 1 && (
+                <div className="col-12">
+                  <select name="datlocaleprovider" className="form-select" aria-label={t('create.provider')} value={provider} onChange={(e) => setProvider(e.target.value)}>
+                    <option value="">{t('create.provider')}</option>
+                    {providers.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {(provider === 'icu' || provider === 'builtin') && (
+                <div className="col-12">
+                  <datalist id="create_db_icu_locales">
+                    {(provider === 'icu' ? (options?.icu_locales ?? []) : ['C', 'C.UTF-8', ...(version >= 180000 ? ['PG_UNICODE_FAST'] : [])]).map((locale) => (
+                      <option key={locale} value={locale} />
+                    ))}
+                  </datalist>
+                  <input type="text" name="provider_locale" className="form-control" list="create_db_icu_locales" dir="ltr" placeholder={t(provider === 'icu' ? 'create.icu_locale' : 'create.builtin_locale')} aria-label={t(provider === 'icu' ? 'create.icu_locale' : 'create.builtin_locale')} value={providerLocale} onChange={(e) => setProviderLocale(e.target.value)} required />
+                </div>
+              )}
+              <div className="col-12">
+                <select name="spcname" className="form-select" aria-label={t('create.tablespace')} value={tablespace} onChange={(e) => setTablespace(e.target.value)}>
+                  <option value="">{t('create.tablespace')}</option>
+                  {(options?.tablespaces ?? []).filter((space) => space !== 'pg_global').map((space) => (
+                    <option key={space} value={space}>
+                      {space}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-12">
+                <input type="number" name="datconnlimit" className="form-control" min={-1} placeholder={t('create.conn_limit')} aria-label={t('create.conn_limit')} value={connLimit} onChange={(e) => setConnLimit(e.target.value)} />
+              </div>
+            </div>
+          )}
         </form>
       </div>
+      <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />
       <CollationRefreshDialog remedy={refresh?.remedy ?? null} onConfirm={refreshAndCreate} onClose={() => setRefresh(null)} />
     </div>
   )

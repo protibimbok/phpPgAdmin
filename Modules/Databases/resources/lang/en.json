@@ -65,7 +65,17 @@
     "create": "Create",
     "created": "Database {{name}} has been created.",
     "collation_mismatch": "Template database {{template}} was created with collation version {{recorded}}, but the operating system now provides version {{actual}}. PostgreSQL will not use it until its recorded version is refreshed.",
-    "refresh_and_create": "Refresh and create"
+    "refresh_and_create": "Refresh and create",
+    "preview_sql": "Preview SQL",
+    "more_options": "More options",
+    "fewer_options": "Fewer options",
+    "collate": "Collation (LC_COLLATE)",
+    "ctype": "Character type (LC_CTYPE)",
+    "provider": "Locale provider",
+    "icu_locale": "ICU locale",
+    "builtin_locale": "Builtin locale",
+    "tablespace": "Tablespace",
+    "conn_limit": "Connection limit"
   },
   "drop": {
     "warning": "You are about to DESTROY a complete database!",

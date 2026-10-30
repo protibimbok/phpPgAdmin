@@ -69,7 +69,17 @@
     "create": "إنشاء",
     "created": "تم إنشاء قاعدة البيانات {{name}}.",
     "collation_mismatch": "أُنشئت قاعدة البيانات القالب {{template}} بإصدار الترتيب {{recorded}}، بينما يوفّر نظام التشغيل الآن الإصدار {{actual}}. لن يستخدمها PostgreSQL حتى يُحدَّث الإصدار المسجّل.",
-    "refresh_and_create": "تحديث وإنشاء"
+    "refresh_and_create": "تحديث وإنشاء",
+    "preview_sql": "معاينة SQL",
+    "more_options": "خيارات إضافية",
+    "fewer_options": "خيارات أقل",
+    "collate": "الترتيب (LC_COLLATE)",
+    "ctype": "نوع الأحرف (LC_CTYPE)",
+    "provider": "مزوّد الإعدادات المحلية",
+    "icu_locale": "إعداد ICU المحلي",
+    "builtin_locale": "الإعداد المحلي المضمّن",
+    "tablespace": "مساحة الجداول",
+    "conn_limit": "حد الاتصالات"
   },
   "drop": {
     "warning": "أنت على وشك تدمير قاعدة بيانات كاملة!",

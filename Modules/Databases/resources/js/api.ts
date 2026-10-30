@@ -85,6 +85,10 @@ export interface DatabaseOptions {
   tablespaces: string[]
   encodings: string[]
   templates: string[]
+  /** libc locales (LC_COLLATE, LC_CTYPE) and ICU locales the server knows, as suggestions. */
+  locales: string[]
+  icu_locales: string[]
+  version: number
 }
 
 export function databaseOptions(): Promise<DatabaseOptions> {
@@ -99,6 +103,12 @@ export interface NewDatabase {
   encoding?: string
   spcname?: string
   datconnlimit?: number | string
+  datcollate?: string
+  datctype?: string
+  /** libc, icu (PostgreSQL 15+) or builtin (17+). */
+  datlocaleprovider?: string
+  daticulocale?: string
+  datbuiltinlocale?: string
   is_template?: boolean
   comments?: string
   /** Run ALTER DATABASE ... REFRESH COLLATION VERSION on the template first (see CollationRemedy). */
