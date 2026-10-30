@@ -486,6 +486,10 @@
     "copy_query": "Copy query",
     "submit_query": "Submit query",
     "nothing_selected": "Nothing selected",
-    "empty_query": "The query is empty."
+    "empty_query": "The query is empty.",
+    "criteria_column": "Choose the column a criterion compares (not *), and for \"Another column\" that column too.",
+    "between_values": "BETWEEN takes two values separated by a comma.",
+    "between_column": "BETWEEN compares with two values, not with another column.",
+    "sort_clear": "Click the chosen sort again to sort no more on this column."
   }
 }

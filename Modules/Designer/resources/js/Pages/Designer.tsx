@@ -53,7 +53,11 @@ const ZOOM = { min: 0.1, max: 3, step: 1.2 }
 const THRESHOLD = 3
 const MINIMAP = { width: 180, height: 120 }
 
-const keyOf = (t: { schema: string; name: string }) => `${t.schema}.${t.name}`
+/**
+ * A table's key in the layout, "schema.table" as saved pages hold it; when a dot is in either
+ * name, which would make two tables one key, their names as a JSON pair.
+ */
+const keyOf = (t: { schema: string; name: string }) => (t.schema.includes('.') || t.name.includes('.') ? JSON.stringify([t.schema, t.name]) : `${t.schema}.${t.name}`)
 
 /** A box's measures, read from the page: its width and height, and where each column's row is. */
 interface Geometry {
@@ -209,7 +213,7 @@ export default function Designer() {
   const [tableMenu, setTableMenu] = useState<{ table: DesignerTable; x: number; y: number } | null>(null)
   const [cloning, setCloning] = useState<{ table: DesignerTable; name: string; what: 'structure' | 'data' } | null>(null)
   const [noting, setNoting] = useState<{ key: string; text: string } | null>(null)
-  const [linking, setLinking] = useState<{ left: DesignerTable; right: string; name: string } | null>(null)
+  const [linking, setLinking] = useState<{ left: DesignerTable; right: string; name: string | null } | null>(null)
   const [query, setQuery] = useState<string | null>(null)
   /** The tables the diagram knew at its last load: a reload adds the ones created since. */
   const known = useRef<Set<string> | null>(null)
@@ -849,7 +853,7 @@ export default function Designer() {
                   </a>
                 </li>
                 <li>
-                  <a className="dropdown-item" href="#many-to-many" onClick={(e) => { e.preventDefault(); setLinking({ left: tableMenu.table, right: '', name: '' }) }}>
+                  <a className="dropdown-item" href="#many-to-many" onClick={(e) => { e.preventDefault(); setLinking({ left: tableMenu.table, right: '', name: null }) }}>
                     <Icon name="b_relations" /> {t('table_menu.many_to_many')}
                   </a>
                 </li>
@@ -1321,14 +1325,15 @@ function RelationDialog({ db, tables, relation, onChange, onClose, onCreated }: 
  * pgAdmin ERD's many-to-many link: a new table, named after the two, whose primary key is both
  * tables' primary keys, each a foreign key to its table.
  */
-function JunctionDialog({ db, tables, linking, onChange, onClose, onCreated }: { db: string; tables: DesignerTable[]; linking: { left: DesignerTable; right: string; name: string } | null; onChange: (l: { left: DesignerTable; right: string; name: string }) => void; onClose: () => void; onCreated: () => void }) {
+function JunctionDialog({ db, tables, linking, onChange, onClose, onCreated }: { db: string; tables: DesignerTable[]; linking: { left: DesignerTable; right: string; name: string | null } | null; onChange: (l: { left: DesignerTable; right: string; name: string | null }) => void; onClose: () => void; onCreated: () => void }) {
   const { t } = useTranslation('designer')
   const { t: tApp } = useTranslation()
   const [sql, setSql] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const candidates = tables.filter((x) => (x.kind === 'r' || x.kind === 'p') && x.columns.some((c) => c.pk))
   const right = linking ? candidates.find((x) => keyOf(x) === linking.right) : undefined
-  const name = linking ? linking.name || (right ? `${linking.left.name}_${right.name}` : '') : ''
+  // The default name follows the tables chosen until the name is typed in (even emptied).
+  const name = linking ? (linking.name ?? (right ? `${linking.left.name}_${right.name}` : '')) : ''
   const junction = (): Junction | null => (linking && right ? { schema: linking.left.schema, name, left: { schema: linking.left.schema, table: linking.left.name }, right: { schema: right.schema, table: right.name } } : null)
 
   async function create() {

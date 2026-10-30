@@ -224,7 +224,7 @@ final class DesignerController
     /**
      * phpMyAdmin's Build Query from the Designer: SELECT the columns of the tables given ("tables",
      * OIDs, in order), each table after the first LEFT JOINed on a foreign key it has with one
-     * before it, in either direction, or added after a comma when it has none.
+     * before it, in either direction, or CROSS JOINed when it has none.
      *
      * @return array{sql: string}
      */
@@ -243,13 +243,15 @@ final class DesignerController
         $oids = array_values(array_filter($oids, static fn (int $oid): bool => isset($names[$oid])));
         $keys = $conn->rows(<<<'SQL'
             SELECT con.conrelid, con.confrelid,
-                   (SELECT array_agg(a.attname ORDER BY k.i) FROM unnest(con.conkey) WITH ORDINALITY k(attnum, i) JOIN pg_catalog.pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum) AS columns,
-                   (SELECT array_agg(a.attname ORDER BY k.i) FROM unnest(con.confkey) WITH ORDINALITY k(attnum, i) JOIN pg_catalog.pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.attnum) AS ref_columns
+                   (SELECT json_agg(a.attname ORDER BY k.i) FROM unnest(con.conkey) WITH ORDINALITY k(attnum, i) JOIN pg_catalog.pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum) AS columns,
+                   (SELECT json_agg(a.attname ORDER BY k.i) FROM unnest(con.confkey) WITH ORDINALITY k(attnum, i) JOIN pg_catalog.pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.attnum) AS ref_columns
             FROM pg_catalog.pg_constraint con
             WHERE con.contype = 'f' AND con.conrelid = ANY ($1::oid[]) AND con.confrelid = ANY ($1::oid[]) AND con.conrelid <> con.confrelid
             ORDER BY con.conname
             SQL, ['{' . implode(',', $oids) . '}']);
-        $list = static fn (mixed $v): array => is_array($v) ? $v : array_filter(explode(',', trim((string) $v, '{}')), static fn (string $x): bool => $x !== '');
+        // The column names as JSON: array text would need its quoting undone (a comma or a
+        // double quote in a name).
+        $list = static fn (mixed $v): array => is_array($v) ? $v : (array) (json_decode((string) $v, true) ?? []);
         $from = '';
         $placed = [];
         foreach ($oids as $oid) {
@@ -261,13 +263,15 @@ final class DesignerController
                     $refs = $list($key['ref_columns']);
                     $on = [];
                     foreach ($columns as $i => $column) {
-                        $on[] = sprintf('%s.%s = %s.%s', $names[$child], Quoting::ident(trim($column, '"')), $names[$parent], Quoting::ident(trim($refs[$i] ?? '', '"')));
+                        $on[] = sprintf('%s.%s = %s.%s', $names[$child], Quoting::ident((string) $column), $names[$parent], Quoting::ident((string) ($refs[$i] ?? '')));
                     }
                     $join = sprintf("\n\tLEFT JOIN %s ON %s", $names[$oid], implode(' AND ', $on));
                     break;
                 }
             }
-            $from .= $join ?? (($placed === [] ? '' : "\n\t, ") . $names[$oid]);
+            // CROSS JOIN, not a comma: a comma binds looser than the LEFT JOINs after it, which
+            // then could not refer to the tables before it.
+            $from .= $join ?? (($placed === [] ? '' : "\n\tCROSS JOIN ") . $names[$oid]);
             $placed[] = $oid;
         }
         $select = implode(', ', array_map(static fn (int $oid): string => $names[$oid] . '.*', $oids));

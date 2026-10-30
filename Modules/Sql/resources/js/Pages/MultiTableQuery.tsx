@@ -15,7 +15,7 @@ const WITHOUT_ARGUMENT: Operator[] = ['IS NULL', 'IS NOT NULL']
 
 interface Column {
   id: number
-  /** "schema.table", the table's key; "" when none is chosen. */
+  /** The table's key (keyOf); "" when none is chosen. */
   table: string
   column: string
   show: boolean
@@ -34,16 +34,48 @@ interface Column {
 
 const blank = (id: number): Column => ({ id, table: '', column: '', show: true, tableAlias: '', columnAlias: '', criteria: false, sort: '', logical: 'AND', opColumn: '', op: '=', rhs: 'text', text: '', rhsTable: '', rhsColumn: '' })
 
-const keyOf = (t: DesignerTable) => `${t.schema}.${t.name}`
+/** A table's key: its schema and name, kept apart (a dot may be in either). */
+const keyOf = (t: DesignerTable) => JSON.stringify([t.schema, t.name])
+const labelOf = (t: DesignerTable) => `${t.schema}.${t.name}`
+
+/** A criterion that cannot make SQL: the message key says why. */
+export class CriteriaError extends Error {}
+
+/** The operator written between a column and another column, as for a value. */
+function columnCondition(lhs: string, op: Operator, rhs: string): string {
+  switch (op) {
+    case 'LIKE %...%':
+      return `${lhs} LIKE '%' || ${rhs} || '%'`
+    case 'NOT LIKE %...%':
+      return `${lhs} NOT LIKE '%' || ${rhs} || '%'`
+    case 'IN (...)':
+      return `${lhs} IN (${rhs})`
+    case 'NOT IN (...)':
+      return `${lhs} NOT IN (${rhs})`
+    case 'BETWEEN':
+    case 'NOT BETWEEN':
+      throw new CriteriaError('mtq.between_column')
+    case 'REGEXP':
+      return `${lhs} ~ ${rhs}`
+    case 'REGEXP ^...$':
+      return `${lhs} ~ ('^' || ${rhs} || '$')`
+    case 'NOT REGEXP':
+      return `${lhs} !~ ${rhs}`
+    default:
+      return `${lhs} ${op} ${rhs}`
+  }
+}
 
 /** A criterion's right-hand side for text: one literal, a list (IN), two (BETWEEN), with LIKE's and REGEXP's wrapping. */
-function condition(c: Column, ref: string, tables: Map<string, DesignerTable>, aliasOf: (key: string) => string): string {
-  const lhs = `${ref}.${quoteIdent(c.opColumn || c.column)}`
+function condition(c: Column, ref: string, aliasOf: (key: string) => string): string {
+  const column = c.opColumn || c.column
+  if (column === '' || column === '*') throw new CriteriaError('mtq.criteria_column')
+  const lhs = `${ref}.${quoteIdent(column)}`
   if (WITHOUT_ARGUMENT.includes(c.op)) return `${lhs} ${c.op}`
   if (c.rhs === 'anotherColumn') {
-    const other = tables.get(c.rhsTable)
-    const otherRef = other ? aliasOf(c.rhsTable) : quoteIdent(c.rhsTable)
-    return `${lhs} ${c.op.replace(/ .*$/, '').replace('REGEXP', '~')} ${otherRef}.${quoteIdent(c.rhsColumn)}`
+    if (c.rhsTable === '' || c.rhsColumn === '' || c.rhsColumn === '*') throw new CriteriaError('mtq.criteria_column')
+
+    return columnCondition(lhs, c.op, `${aliasOf(c.rhsTable)}.${quoteIdent(c.rhsColumn)}`)
   }
   const values = c.text.split(',').map((v) => v.trim())
   switch (c.op) {
@@ -56,7 +88,9 @@ function condition(c: Column, ref: string, tables: Map<string, DesignerTable>, a
       return `${lhs} ${c.op.replace(' (...)', '')} (${[...new Set(values)].map(quoteLiteral).join(', ')})`
     case 'BETWEEN':
     case 'NOT BETWEEN':
-      return `${lhs} ${c.op} ${quoteLiteral(values[0] ?? '')} AND ${quoteLiteral(values[1] ?? '')}`
+      if (values.length !== 2 || values.some((v) => v === '')) throw new CriteriaError('mtq.between_values')
+
+      return `${lhs} ${c.op} ${quoteLiteral(values[0])} AND ${quoteLiteral(values[1])}`
     case 'REGEXP':
       return `${lhs} ~ ${quoteLiteral(c.text)}`
     case 'REGEXP ^...$':
@@ -71,14 +105,19 @@ function condition(c: Column, ref: string, tables: Map<string, DesignerTable>, a
 /**
  * The query the columns make, as phpMyAdmin's query_generator.ts writes it: the columns shown
  * (with their aliases), FROM the tables used, each table after the first LEFT JOINed on a
- * foreign key it has with one already in the query (a comma otherwise), WHERE the criteria
- * joined by their AND/OR, ORDER BY the sorted columns.
+ * foreign key it has with one already in the query (CROSS JOIN otherwise: a comma would bind
+ * looser than the joins after it, so they could not refer to the tables before it), WHERE the
+ * criteria joined by their AND/OR, ORDER BY the sorted columns. A card counts once its table
+ * and a column (or a criterion's column) are chosen; a criterion's other column brings its
+ * table into FROM. Throws a CriteriaError for a criterion that cannot be written.
  */
 export function generateQuery(columns: Column[], tables: Map<string, DesignerTable>): string | null {
-  const used = columns.filter((c) => c.table !== '' && c.column !== '')
+  const used = columns.filter((c) => c.table !== '' && (c.column !== '' || (c.criteria && c.opColumn !== '')))
   if (used.length === 0) return null
+  const criteria = used.filter((c) => c.criteria)
   const aliases = new Map<string, string>()
   for (const c of used) if (!aliases.has(c.table) || (c.tableAlias && !aliases.get(c.table))) aliases.set(c.table, c.tableAlias)
+  for (const c of criteria) if (c.rhs === 'anotherColumn' && c.rhsTable !== '' && !aliases.has(c.rhsTable)) aliases.set(c.rhsTable, '')
   const name = (key: string) => {
     const t = tables.get(key)
     return t ? `${quoteIdent(t.schema)}.${quoteIdent(t.name)}` : quoteIdent(key)
@@ -86,7 +125,7 @@ export function generateQuery(columns: Column[], tables: Map<string, DesignerTab
   const aliasOf = (key: string) => (aliases.get(key) ? quoteIdent(aliases.get(key) as string) : name(key))
 
   const select = used
-    .filter((c) => c.show)
+    .filter((c) => c.show && c.column !== '')
     .map((c) => `${aliasOf(c.table)}.${c.column === '*' ? '*' : quoteIdent(c.column)}${c.columnAlias ? ` AS ${quoteIdent(c.columnAlias)}` : ''}`)
   const from: string[] = []
   const placed: string[] = []
@@ -109,17 +148,16 @@ export function generateQuery(columns: Column[], tables: Map<string, DesignerTab
         break
       }
     }
-    from.push(join || `${placed.length > 0 ? '\n\t, ' : ''}${name(key)}${alias}`)
+    from.push(join || `${placed.length > 0 ? '\n\tCROSS JOIN ' : ''}${name(key)}${alias}`)
     placed.push(key)
   }
 
   let where = ''
-  used
-    .filter((c) => c.criteria)
-    .forEach((c, i) => {
-      where += `${i > 0 ? ` ${c.logical} ` : ''}${condition(c, aliasOf(c.table), tables, aliasOf)}`
-    })
-  const order = used.filter((c) => c.sort !== '' && c.column !== '*').map((c) => `${aliasOf(c.table)}.${quoteIdent(c.column)} ${c.sort}`)
+  criteria.forEach((c, i) => {
+    where += `${i > 0 ? ` ${c.logical} ` : ''}${condition(c, aliasOf(c.table), aliasOf)}`
+  })
+  // The sort radios belong to the criteria: a card without them is not sorted on.
+  const order = criteria.filter((c) => c.sort !== '' && c.column !== '' && c.column !== '*').map((c) => `${aliasOf(c.table)}.${quoteIdent(c.column)} ${c.sort}`)
 
   return `SELECT ${select.length > 0 ? select.join(', ') : '*'}\nFROM ${from.join('')}${where ? `\nWHERE ${where}` : ''}${order.length > 0 ? `\nORDER BY ${order.join(', ')}` : ''};`
 }
@@ -166,14 +204,20 @@ export default function MultiTableQuery() {
       <option value="">{t('mtq.select_table')}</option>
       {[...tables.keys()].map((key) => (
         <option key={key} value={key}>
-          {key}
+          {labelOf(tables.get(key) as DesignerTable)}
         </option>
       ))}
     </>
   )
 
   function update() {
-    const sql = generateQuery(columns, tables)
+    let sql: string | null
+    try {
+      sql = generateQuery(columns, tables)
+    } catch (e) {
+      if (e instanceof CriteriaError) return notify(t(e.message), 'error')
+      throw e
+    }
     if (sql === null) return notify(t('mtq.nothing_selected'), 'error')
     setQuery(sql)
   }
@@ -219,10 +263,10 @@ export default function MultiTableQuery() {
                                   <tr className="sort_order">
                                     <td>{t('mtq.sort')}</td>
                                     <td>
-                                      <input type="radio" name={`sort_${c.id}`} checked={c.sort === 'ASC'} onChange={() => set(c.id, { sort: 'ASC' })} /> {t('mtq.ascending')}
+                                      <input type="radio" name={`sort_${c.id}`} checked={c.sort === 'ASC'} onChange={() => set(c.id, { sort: 'ASC' })} onClick={() => c.sort === 'ASC' && set(c.id, { sort: '' })} title={t('mtq.sort_clear')} /> {t('mtq.ascending')}
                                     </td>
                                     <td>
-                                      <input type="radio" name={`sort_${c.id}`} checked={c.sort === 'DESC'} onChange={() => set(c.id, { sort: 'DESC' })} /> {t('mtq.descending')}
+                                      <input type="radio" name={`sort_${c.id}`} checked={c.sort === 'DESC'} onChange={() => set(c.id, { sort: 'DESC' })} onClick={() => c.sort === 'DESC' && set(c.id, { sort: '' })} title={t('mtq.sort_clear')} /> {t('mtq.descending')}
                                     </td>
                                   </tr>
                                   <tr className="logical_operator">

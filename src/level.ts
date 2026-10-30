@@ -25,22 +25,31 @@ export type LevelName = Level['name']
 
 const KINDS: readonly RelationKind[] = ['table', 'view', 'mview']
 
+/** A path segment as the name it encodes; matchPath leaves location.pathname's escapes in. */
+function decode(segment: string): string {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return segment
+  }
+}
+
 export function parseLevel(pathname: string): Level {
   for (const kind of KINDS) {
     const match = matchPath({ path: `/db/:db/schema/:schema/${kind}/:table`, end: false }, pathname)
     if (match?.params.db && match.params.schema && match.params.table) {
-      return { name: 'table', db: match.params.db, schema: match.params.schema, table: match.params.table, kind }
+      return { name: 'table', db: decode(match.params.db), schema: decode(match.params.schema), table: decode(match.params.table), kind }
     }
   }
 
   const schema = matchPath({ path: '/db/:db/schema/:schema', end: false }, pathname)
   if (schema?.params.db && schema.params.schema) {
-    return { name: 'schema', db: schema.params.db, schema: schema.params.schema }
+    return { name: 'schema', db: decode(schema.params.db), schema: decode(schema.params.schema) }
   }
 
   const db = matchPath({ path: '/db/:db', end: false }, pathname)
   if (db?.params.db) {
-    return { name: 'database', db: db.params.db }
+    return { name: 'database', db: decode(db.params.db) }
   }
 
   return { name: 'server' }
