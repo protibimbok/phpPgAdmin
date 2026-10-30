@@ -57,6 +57,8 @@ final class Constraints
                 ];
             }
             $fk['columns'] = $columns;
+            // PostgreSQL 15's ON DELETE SET NULL / SET DEFAULT (columns); absent before.
+            $fk['confdelsetcols'] = array_key_exists('confdelsetcols', $fk) ? Options::list($fk['confdelsetcols']) : [];
             $fk['remote_schema'] = $fk['refnsp'];
             $fk['remote_table'] = $fk['reftab'];
         }

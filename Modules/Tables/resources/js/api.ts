@@ -316,6 +316,7 @@ export interface ForeignKeyData {
   /** 'a' NO ACTION, 'r' RESTRICT, 'c' CASCADE, 'n' SET NULL, 'd' SET DEFAULT. */
   confupdtype?: string
   confdeltype?: string
+  confdelsetcols?: string[]
   /** True for MATCH FULL. */
   confmatchtype?: boolean
   condeferrable?: boolean
@@ -389,6 +390,8 @@ export interface IndexColumnData {
   nulls?: boolean
   collspcname?: string | null
   op_class?: string | null
+  /** An expression column's statistics target (ALTER INDEX … SET STATISTICS); -1 or null for the default. */
+  statistics?: number | string | null
 }
 
 /** The index's properties with its columns, as the dialog edits them. */
@@ -548,6 +551,8 @@ export interface ForeignKeyRow extends Constraint {
   refnsp: string
   reftab: string
   columns: { local_column: string; referenced: string; references: number }[]
+  /** PostgreSQL 15: the columns ON DELETE SET NULL / SET DEFAULT sets; empty for all of them. */
+  confdelsetcols?: string[]
 }
 
 /** A trigger as pgAdmin's triggers/properties.sql describes it, with the firing definition decoded. */

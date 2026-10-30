@@ -288,7 +288,10 @@
     "nulls": "القيم الفارغة",
     "default_class": "الافتراضي",
     "expression": "تعبير",
-    "created": "تم إنشاء الفهرس {{name}}."
+    "created": "تم إنشاء الفهرس {{name}}.",
+    "nulls_not_distinct": "NULLS NOT DISTINCT (تُعدّ القيم NULL متساوية، PostgreSQL 15 فما بعد)",
+    "statistics": "الإحصاءات",
+    "statistics_hint": "هدف إحصاءات التعبير: ‎-1 أو فارغ للافتراضي، حتى 10000."
   },
   "constraint_dialog": {
     "add_title": "إضافة قيد {{type}}",
@@ -340,7 +343,8 @@
     "not_valid_hint": "لا تتحقق من الصفوف الموجودة الآن؛ تحقق من المفتاح لاحقًا.",
     "auto_index": "فهرس تلقائي للمفتاح الخارجي",
     "auto_index_hint": "أنشئ أيضًا فهرسًا على الأعمدة المرجِعة، حتى لا يفحص الحذف والتحديث في الجدول المرجَع هذا الجدول كاملًا.",
-    "covering_index": "اسم الفهرس المغطي"
+    "covering_index": "اسم الفهرس المغطي",
+    "set_columns": "الأعمدة التي يضبطها SET NULL / SET DEFAULT (بلا اختيار: كلها)"
   },
   "operations": {
     "tab": "عمليات",

@@ -207,6 +207,20 @@ final class ConstraintSql
                 $data['remote_table'] = $parent['table'] ?? null;
             }
             $data['convalidated'] = (bool) ($data['convalidated'] ?? true);
+            // ON DELETE SET NULL (a, b): only the key's own columns, written with qtIdent.
+            $local = array_map(static fn (array $c): string => (string) ($c['local_column'] ?? ''), array_filter((array) ($data['columns'] ?? []), 'is_array'));
+            $data['confdelsetcols'] = array_values(array_filter(array_map(static fn ($c): string => trim((string) $c), (array) ($data['confdelsetcols'] ?? [])), static fn (string $c): bool => $c !== ''));
+            foreach ($data['confdelsetcols'] as $column) {
+                if (!in_array($column, $local, true)) {
+                    throw new BadRequestException(sprintf('"%s" is not a column of the foreign key: SET NULL and SET DEFAULT take only its own columns.', $column));
+                }
+            }
+            if ($data['confdelsetcols'] !== [] && !in_array($data['confdeltype'] ?? '', ['n', 'd'], true)) {
+                $data['confdelsetcols'] = [];
+            }
+            if ($data['confdelsetcols'] !== [] && $ctx->version() < 150000) {
+                throw new BadRequestException('Column lists for ON DELETE SET NULL and SET DEFAULT need PostgreSQL 15 or later.');
+            }
         }
 
         if (self::folder($type) === 'exclusion_constraint') {

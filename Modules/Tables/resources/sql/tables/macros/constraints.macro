@@ -68,7 +68,7 @@
  RESTRICT{% elseif data.confdeltype  == 'c' %}
  CASCADE{% elseif data.confdeltype  == 'n' %}
  SET NULL{% elseif data.confdeltype  == 'd' %}
- SET DEFAULT{% endif %}
+ SET DEFAULT{% endif %}{% if data.confdelsetcols and data.confdeltype in ['n', 'd'] %} ({% for c in data.confdelsetcols %}{% if not loop.first %}, {% endif %}{{ conn|qtIdent(c) }}{% endfor %}){% endif %}
 {% if data.condeferrable %}
 
         DEFERRABLE{% if data.condeferred %}

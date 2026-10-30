@@ -110,12 +110,15 @@ CREATE INDEX tbl_demo_renamed_idx
 
 Rebuilding an index on a large table locks writes to the table until it finishes.
 
+On an existing index, each **Expression** row also has a **Statistics** box (pgAdmin's per-column statistics target, which PostgreSQL takes only on expression columns of an index): a number up to 10000, or empty (`-1`) for the default. A change is altered in place: `ALTER INDEX i ALTER COLUMN 1 SET STATISTICS 500;`.
+
+With **Index choice:** **UNIQUE** on PostgreSQL 15 and later, **NULLS NOT DISTINCT** makes NULLs count as equal, so a second row with NULL in the column is refused (`CREATE UNIQUE INDEX … (c) NULLS NOT DISTINCT`). Changing it rebuilds the index.
+
 ### What the dialog does not offer
 
 | Feature | SQL to use on the [SQL tab](/tools/sql) |
 | --- | --- |
-| `NULLS NOT DISTINCT` (PostgreSQL 15+) | `CREATE UNIQUE INDEX ON t (c) NULLS NOT DISTINCT;` |
-| Statistics target of an expression column | `ALTER INDEX i ALTER COLUMN 1 SET STATISTICS 500;` |
+| The statistics target of a new index's expression column | Save the index, then **Edit** it, or `ALTER INDEX i ALTER COLUMN 1 SET STATISTICS 500;` |
 | Rebuilding an existing index without blocking writes | `REINDEX INDEX CONCURRENTLY i;` (the database and schema [Maintenance](/tools/maintenance) cards offer `REINDEX … CONCURRENTLY`) |
 
 The drag handles next to the column rows are decoration: the rows cannot be reordered by dragging. To change the column order, pick the columns again in the selects.
@@ -143,7 +146,7 @@ Pick a type in **Add a constraint of type** (**Check**, **Unique**, **Primary ke
 | Type | Fields | SQL |
 | --- | --- | --- |
 | **Check** | **Constraint name:**, **Expression:** (`price > 0`), **Do not check the existing rows (NOT VALID)**, **Comment:** | `ALTER TABLE t ADD CONSTRAINT n CHECK (qty > 0);` |
-| **Unique** | **Constraint name:**, **Columns:** (Ctrl-click for several), **Comment:** | `ADD CONSTRAINT n UNIQUE (id, code);` |
+| **Unique** | **Constraint name:**, **Columns:** (Ctrl-click for several), **NULLS NOT DISTINCT** (PostgreSQL 15+), **Comment:** | `ADD CONSTRAINT n UNIQUE NULLS NOT DISTINCT (id, code);` |
 | **Primary key** | **Constraint name:**, **Columns:**, **Comment:** | `ADD PRIMARY KEY (id);` |
 | **Exclusion** | see [below](#exclusion-constraints) | `ADD CONSTRAINT n EXCLUDE USING gist (…);` |
 
@@ -273,7 +276,7 @@ Changing the actions, match type, deferral or columns of an existing key drops a
 :::
 
 ::: info Not in the relation view
-`SET NULL (col)` and `SET DEFAULT (col)` column lists (PostgreSQL 15+) are not offered; use the SQL tab. The [Show create](/table/operations#show-create) tab shows all clauses of existing keys.
+On PostgreSQL 15 and later, a key of several columns whose **ON DELETE** is **SET NULL** or **SET DEFAULT** shows a list of its columns under the action: pick the ones the action sets (`ON DELETE SET NULL (customer_id)`), or none for all of them. Only the key's own columns are taken. The [Show create](/table/operations#show-create) tab shows all clauses of existing keys.
 :::
 
 ## Coming from phpMyAdmin

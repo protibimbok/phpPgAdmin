@@ -35,6 +35,8 @@ interface Row {
   collation: string
   desc: boolean
   nullsFirst: boolean
+  /** An existing expression column's statistics target; '' for the default. */
+  statistics: string
 }
 
 /** The value of the column select's "-- Expression --" choice. */
@@ -60,7 +62,7 @@ type BooleanParameter = keyof typeof BOOLEAN_DEFAULTS
 /** The type's default collation, which an index column needs no COLLATE for. */
 const DEFAULT_COLLATION = 'pg_catalog."default"'
 
-const emptyRow = (name = ''): Row => ({ name, isExp: false, expression: '', opClass: '', collation: '', desc: false, nullsFirst: false })
+const emptyRow = (name = ''): Row => ({ name, isExp: false, expression: '', opClass: '', collation: '', desc: false, nullsFirst: false, statistics: '' })
 
 /**
  * phpMyAdmin's index dialog (modals/index_dialog_modal.twig with table/index_form.twig): the
@@ -88,6 +90,8 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
   const [where, setWhere] = useState('')
   const [comment, setComment] = useState('')
   const [clustered, setClustered] = useState(false)
+  /** PostgreSQL 15's NULLS NOT DISTINCT of a unique index: NULLs count as equal. */
+  const [nullsNotDistinct, setNullsNotDistinct] = useState(false)
   const [concurrently, setConcurrently] = useState(false)
   const [rows, setRows] = useState<Row[]>([])
   const [addCount, setAddCount] = useState(1)
@@ -116,6 +120,7 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
       setWhere(index.indconstraint ?? '')
       setComment(index.description ?? '')
       setClustered(Boolean(index.indisclustered))
+      setNullsNotDistinct(Boolean((index as IndexProperties & { indnullsnotdistinct?: boolean }).indnullsnotdistinct))
       setRows(
         index.columns.map((c) => ({
           name: c.is_exp ? '' : c.colname,
@@ -125,6 +130,7 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
           collation: c.collspcname && c.collspcname !== DEFAULT_COLLATION ? c.collspcname : '',
           desc: Boolean(c.sort_order),
           nullsFirst: Boolean(c.nulls),
+          statistics: c.statistics === null || c.statistics === undefined || Number(c.statistics) < 0 ? '' : String(c.statistics),
         })),
       )
     } else {
@@ -189,6 +195,7 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
       name: name || undefined,
       amname: method,
       indisunique: choice === 'UNIQUE',
+      indnullsnotdistinct: choice === 'UNIQUE' && (options?.version ?? 0) >= 150000 ? nullsNotDistinct : undefined,
       isconcurrent: !index && concurrently ? true : undefined,
       columns: chosen.map(
         (row): IndexColumnData => ({
@@ -198,6 +205,7 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
           collspcname: collatable(row) ? row.collation || undefined : undefined,
           sort_order: btree ? row.desc : undefined,
           nulls: btree ? row.nullsFirst : undefined,
+          ...(index && row.isExp ? { statistics: row.statistics === '' ? -1 : row.statistics } : {}),
         }),
       ),
       include: takesInclude ? include : [],
@@ -400,6 +408,7 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
                   .map((param) => (
                     <Fragment key={param}>{checkbox(`input_${param}`, t(`index_dialog.${param}`), flags[param], (checked) => setFlags((current) => ({ ...current, [param]: checked })))}</Fragment>
                   ))}
+                {choice === 'UNIQUE' && (options?.version ?? 0) >= 150000 && checkbox('input_nulls_not_distinct', t('index_dialog.nulls_not_distinct'), nullsNotDistinct, setNullsNotDistinct)}
                 {!primary && CLUSTERABLE.includes(method) && checkbox('input_clustered', t('index_dialog.clustered'), clustered, setClustered)}
                 {!primary && !index && checkbox('input_concurrently', t('index_dialog.concurrently'), concurrently, setConcurrently)}
               </div>
@@ -440,6 +449,10 @@ export default function IndexDialog({ show, db, scid, tid, columns, options, ind
                         </select>
                         {row.isExp && !primary && (
                           <input type="text" className="ms-1" name="index[columns][expressions][]" size={20} dir="ltr" placeholder="lower(email)" aria-label={t('index_dialog.expression')} value={row.expression} onChange={(e) => updateRow(i, { expression: e.target.value })} />
+                        )}
+                        {row.isExp && !primary && index && (
+                          // pgAdmin's per-column statistics target, which PostgreSQL takes on expression columns of an index.
+                          <input type="number" className="ms-1" name="index[columns][statistics][]" min={-1} max={10000} style={{ width: '7em' }} placeholder={t('index_dialog.statistics')} title={t('index_dialog.statistics_hint')} aria-label={t('index_dialog.statistics')} value={row.statistics} onChange={(e) => updateRow(i, { statistics: e.target.value })} />
                         )}
                       </td>
                       {!primary && (

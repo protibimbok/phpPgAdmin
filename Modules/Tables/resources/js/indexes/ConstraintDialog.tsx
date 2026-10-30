@@ -58,6 +58,7 @@ export default function ConstraintDialog({ show, db, scid, tid, columns, options
   const [deferrable, setDeferrable] = useState(false)
   const [deferred, setDeferred] = useState(false)
   const [notValid, setNotValid] = useState(false)
+  const [nullsNotDistinct, setNullsNotDistinct] = useState(false)
   const [lookups, setLookups] = useState<ExclusionOptions>({ oper_classes: [], operators: {} })
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -79,6 +80,7 @@ export default function ConstraintDialog({ show, db, scid, tid, columns, options
     setDeferrable(false)
     setDeferred(false)
     setNotValid(false)
+    setNullsNotDistinct(false)
   }, [show, constraint, columns])
 
   const typeOf = (columnName: string) => columns.find((c) => c.name === columnName)?.cltype ?? ''
@@ -131,7 +133,12 @@ export default function ConstraintDialog({ show, db, scid, tid, columns, options
       return exclude as unknown as Record<string, unknown>
     }
 
-    return { name: name || undefined, columns: chosen.filter(Boolean).map((column) => ({ column })), comment: comment || undefined }
+    return {
+      name: name || undefined,
+      columns: chosen.filter(Boolean).map((column) => ({ column })),
+      comment: comment || undefined,
+      ...(type === 'unique_constraint' && nullsNotDistinct ? { indnullsnotdistinct: true } : {}),
+    }
   }
 
   /** The reason the exclusion form cannot be saved yet, if any. */
@@ -218,6 +225,13 @@ export default function ConstraintDialog({ show, db, scid, tid, columns, options
                 <div>
                   <input type="checkbox" id="constraint_not_valid" checked={notValid} onChange={(e) => setNotValid(e.target.checked)} />{' '}
                   <label htmlFor="constraint_not_valid">{t('constraint_dialog.not_valid')}</label>
+                </div>
+              )}
+
+              {!constraint && type === 'unique_constraint' && (options?.version ?? 0) >= 150000 && (
+                <div>
+                  <input type="checkbox" id="constraint_nulls_not_distinct" checked={nullsNotDistinct} onChange={(e) => setNullsNotDistinct(e.target.checked)} />{' '}
+                  <label htmlFor="constraint_nulls_not_distinct">NULLS NOT DISTINCT</label>
                 </div>
               )}
 

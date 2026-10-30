@@ -17,6 +17,8 @@ interface KeyRow {
   existing: ForeignKeyRow | null
   name: string
   onDelete: string
+  /** ON DELETE SET NULL / SET DEFAULT (columns), PostgreSQL 15; empty for every column of the key. */
+  setColumns: string[]
   onUpdate: string
   local: string[]
   schema: string
@@ -57,7 +59,7 @@ export default function RelationView() {
     const { scid, tid } = await resolveTable(db, schema, table)
     const [cols, keys, options] = await Promise.all([columnsOf(db, scid, tid).list(), constraints(db, scid, tid, 'foreign_key').list() as Promise<ForeignKeyRow[]>, tableOptions(db, scid)])
 
-    return { scid, tid, columns: cols, keys, schemas: options.schemas }
+    return { scid, tid, columns: cols, keys, schemas: options.schemas, version: options.version }
   }, [db, schema, table])
   const [rows, setRows] = useState<KeyRow[]>([])
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
@@ -67,7 +69,7 @@ export default function RelationView() {
   const [tableLists, setTableLists] = useState<Record<string, string[]>>({})
   const [columnLists, setColumnLists] = useState<Record<string, string[]>>({})
 
-  const blank = (): KeyRow => ({ existing: null, name: '', onDelete: 'a', onUpdate: 'a', local: [''], schema, table: '', referenced: [''], matchFull: false, deferrable: false, deferred: false, notValid: false, autoIndex: false, coveringIndex: '' })
+  const blank = (): KeyRow => ({ existing: null, name: '', onDelete: 'a', setColumns: [], onUpdate: 'a', local: [''], schema, table: '', referenced: [''], matchFull: false, deferrable: false, deferred: false, notValid: false, autoIndex: false, coveringIndex: '' })
 
   useEffect(() => {
     if (!data) return
@@ -76,6 +78,7 @@ export default function RelationView() {
         existing: key,
         name: key.name,
         onDelete: key.confdeltype,
+        setColumns: key.confdelsetcols ?? [],
         onUpdate: key.confupdtype,
         local: key.columns.map((c) => c.local_column),
         schema: key.refnsp,
@@ -147,6 +150,7 @@ export default function RelationView() {
       remote_table: row.table,
       confupdtype: row.onUpdate,
       confdeltype: row.onDelete,
+      ...((row.onDelete === 'n' || row.onDelete === 'd') && row.setColumns.length > 0 ? { confdelsetcols: row.setColumns.filter((c) => pairs.some((p) => p.local_column === c)) } : {}),
       confmatchtype: row.matchFull,
       condeferrable: row.deferrable,
       condeferred: row.deferrable && row.deferred,
@@ -161,6 +165,7 @@ export default function RelationView() {
 
     return (
       was.confdeltype === row.onDelete &&
+      ((row.onDelete === 'n' || row.onDelete === 'd' ? row.setColumns : []).join('\n') === (was.confdelsetcols ?? []).join('\n')) &&
       was.confupdtype === row.onUpdate &&
       Boolean(was.confmatchtype) === row.matchFull &&
       Boolean(was.condeferrable) === row.deferrable &&
@@ -315,6 +320,25 @@ export default function RelationView() {
                                 </option>
                               ))}
                             </select>
+                            {(row.onDelete === 'n' || row.onDelete === 'd') && data.version >= 150000 && row.local.filter(Boolean).length > 1 && (
+                              // PostgreSQL 15: SET NULL / SET DEFAULT on only some of the key's columns.
+                              <select
+                                name={`on_delete_columns[${i}]`}
+                                className="d-block mt-1"
+                                multiple
+                                size={Math.min(4, row.local.filter(Boolean).length)}
+                                title={t('relation.set_columns')}
+                                aria-label={t('relation.set_columns')}
+                                value={row.setColumns}
+                                onChange={(e) => update(i, { setColumns: Array.from(e.target.selectedOptions, (o) => o.value) })}
+                              >
+                                {row.local.filter(Boolean).map((c) => (
+                                  <option key={c} value={c}>
+                                    {c}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                           </span>
                           <span className="formelement">
                             {t('relation.on_update')}

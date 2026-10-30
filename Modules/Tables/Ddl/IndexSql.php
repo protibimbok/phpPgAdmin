@@ -111,7 +111,42 @@ final class IndexSql
             }
         }
 
-        return ['sql' => $ctx->renderFrom('indexes', 'update.sql', ['data' => $data, 'o_data' => $old, 'update_column' => false, 'update_column_data' => []]), 'recreated' => false];
+        $statistics = self::statisticsChanges($data, $old);
+
+        return ['sql' => $ctx->renderFrom('indexes', 'update.sql', ['data' => $data, 'o_data' => $old, 'update_column' => $statistics !== [], 'update_column_data' => $statistics]), 'recreated' => false];
+    }
+
+    /**
+     * pgAdmin's per-column statistics target of an index: ALTER INDEX … ALTER COLUMN n SET
+     * STATISTICS for each expression column whose "statistics" the client changed (-1 for the
+     * default). PostgreSQL takes it only on expression columns.
+     *
+     * @param array<string, mixed> $data
+     * @param array<string, mixed> $old
+     * @return list<array{col_num: int, statistics: int}>
+     */
+    private static function statisticsChanges(array $data, array $old): array
+    {
+        $changes = [];
+        foreach (array_values((array) ($data['columns'] ?? [])) as $i => $column) {
+            if (!is_array($column) || !array_key_exists('statistics', $column) || $column['statistics'] === null || $column['statistics'] === '') {
+                continue;
+            }
+            $was = $old['columns'][$i] ?? null;
+            if (!is_array($was) || empty($was['is_exp'])) {
+                continue;
+            }
+            $value = filter_var($column['statistics'], FILTER_VALIDATE_INT, ['options' => ['min_range' => -1, 'max_range' => 10000]]);
+            if ($value === false) {
+                throw new BadRequestException('A statistics target is a whole number from -1 (the default) to 10000.');
+            }
+            $current = $was['statistics'] === null ? -1 : (int) $was['statistics'];
+            if ($value !== $current) {
+                $changes[] = ['col_num' => (int) $was['col_num'], 'statistics' => $value];
+            }
+        }
+
+        return $changes;
     }
 
     public static function deleteSql(NodeContext $ctx, string $schema, string $name, bool $cascade): string
