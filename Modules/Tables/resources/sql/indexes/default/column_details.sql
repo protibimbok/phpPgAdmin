@@ -11,7 +11,11 @@ SELECT
     pg_catalog.pg_get_indexdef(i.indexrelid, i.attnum, true) as attdef,
     CASE WHEN pg_catalog.pg_get_indexdef(i.indexrelid, i.attnum, true) = pg_catalog.quote_ident(a.attname) THEN FALSE ELSE TRUE END AS is_exp,
     a.attstattarget as statistics,
-    CASE WHEN (o.opcdefault = FALSE) THEN o.opcname ELSE null END AS opcname,
+    {# phpPgAdmin: schema-qualified when not on the search_path (an extension's, read with an empty one) #}
+    CASE WHEN (o.opcdefault = FALSE) THEN
+        CASE WHEN pg_catalog.pg_opclass_is_visible(o.oid) THEN pg_catalog.quote_ident(o.opcname)
+        ELSE pg_catalog.concat(pg_catalog.quote_ident(opcn.nspname), '.', pg_catalog.quote_ident(o.opcname)) END
+    ELSE null END AS opcname,
     op.oprname AS oprname,
 	CASE WHEN length(nspc.nspname::text) > 0 AND length(coll.collname::text) > 0  THEN
 	  pg_catalog.concat(pg_catalog.quote_ident(nspc.nspname), '.', pg_catalog.quote_ident(coll.collname))
@@ -25,6 +29,7 @@ FROM (
       WHERE i.indexrelid = {{idx}}::OID
 ) i
     LEFT JOIN pg_catalog.pg_opclass o ON (o.oid = i.indclass[i.attnum - 1])
+    LEFT JOIN pg_catalog.pg_namespace opcn ON (opcn.oid = o.opcnamespace)
     LEFT OUTER JOIN pg_catalog.pg_constraint c ON (c.conindid = i.indexrelid)
     LEFT OUTER JOIN pg_catalog.pg_operator op ON (op.oid = c.conexclop[i.attnum])
     LEFT JOIN pg_catalog.pg_attribute a ON (a.attrelid = i.indexrelid AND a.attnum = i.attnum)

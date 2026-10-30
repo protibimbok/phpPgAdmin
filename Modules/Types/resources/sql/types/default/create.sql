@@ -24,7 +24,7 @@ CREATE TYPE {% if data.schema %}{{ conn|qtIdent(data.schema, data.name) }}{% els
     SUBTYPE_OPCLASS = {{ data.opcname }}{% endif %}{% if data.rngcanonical %},
     CANONICAL = {{ data.rngcanonical }}{% endif %}{% if data.rngsubdiff %},
     SUBTYPE_DIFF = {{ data.rngsubdiff }}{% endif %}{% if data.rngmultirangetype %},
-    MULTIRANGE_TYPE_NAME = {{ data.rngmultirangetype }}{% endif %}
+    MULTIRANGE_TYPE_NAME = {% if data.schema %}{{ conn|qtIdent(data.schema, data.rngmultirangetype) }}{% else %}{{ conn|qtIdent(data.rngmultirangetype) }}{% endif %}{% endif %}
 
 );
 {% endif %}

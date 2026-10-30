@@ -32,6 +32,8 @@ JOIN pg_catalog.pg_namespace nr ON nr.oid=cr.relnamespace
 LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=ct.oid AND des.classoid='pg_constraint'::regclass)
 WHERE contype='f' AND
 conrelid = {{tid}}::oid
+-- Not the copies PostgreSQL makes of a key for each partition it references or is on.
+AND ct.conparentid = 0
 {% if cid %}
 AND ct.oid = {{cid}}::oid
 {% endif %}

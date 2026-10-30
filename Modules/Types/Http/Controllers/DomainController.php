@@ -66,6 +66,9 @@ final class DomainController extends NodeController
     {
         $data = $this->properties($ctx, $oid);
         $header = sprintf("-- DOMAIN: %s.%s\n\n-- DROP DOMAIN IF EXISTS %s;", $data['basensp'], $data['name'], Quoting::ident((string) $data['basensp'], (string) $data['name']));
+        // The base type as format_type() wrote it, already SQL: schema-qualified, and quoted
+        // where it needs to be, when the type is not on the search_path.
+        $data['basetype_sql'] = (string) $data['basetype'];
 
         return Ddl::assemble([$header, $ctx->render('create.sql', ['data' => $data])]);
     }

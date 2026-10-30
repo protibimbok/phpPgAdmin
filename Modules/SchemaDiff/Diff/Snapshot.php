@@ -174,12 +174,17 @@ abstract class Snapshot
         $conn->scalar("SELECT pg_catalog.set_config('search_path', \$1, false)", [$before]);
     }
 
-    /** @return array<int, true> the OIDs of the objects an extension owns, and of identity columns' sequences */
+    /**
+     * @return array<int, true> the OIDs of the objects an extension owns, and of those made with
+     * another and gone with it (an internal dependency): identity columns' sequences, a range
+     * type's multirange type and constructor functions
+     */
     private function extensionMembers(): array
     {
         if ($this->members === null) {
             $this->members = [];
-            foreach ($this->conn->rows("SELECT DISTINCT objid FROM pg_catalog.pg_depend WHERE deptype = 'e' OR (deptype = 'i' AND classid = 'pg_catalog.pg_class'::regclass AND refclassid = 'pg_catalog.pg_class'::regclass AND refobjsubid > 0)") as $row) {
+            // Not a table's internal dependency on itself (a partition key's columns).
+            foreach ($this->conn->rows("SELECT DISTINCT objid FROM pg_catalog.pg_depend WHERE deptype = 'e' OR (deptype = 'i' AND NOT (classid = refclassid AND objid = refobjid))") as $row) {
                 $this->members[(int) $row['objid']] = true;
             }
         }
