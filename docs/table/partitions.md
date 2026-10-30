@@ -56,6 +56,7 @@ Click **Go** after **Add a partition:** to open the **Add partition** dialog. It
 | **FROM** / **TO** | Range bounds. Lower inclusive, upper exclusive. Quote literals: `'2027-01-01'`. `MINVALUE` and `MAXVALUE` work too. |
 | **IN** | List values, comma-separated and quoted: `'de', 'fr'`. |
 | **MODULUS** / **REMAINDER** | Hash partitions: one partition per remainder `0 … modulus-1`. |
+| **Partitioned table?** | pgAdmin's sub-partitioning: the new partition is partitioned in its turn. **Partition type** (`RANGE`, `LIST` or `HASH`) and **Partition keys**, each a **Column** of the table or an **Expression** (`lower(name)`); **Add a key** for more (not for `LIST`, which takes one). The partition is created with `PARTITION BY RANGE (placed_at)` and gets its own Partitions card. New tables only. |
 | **Comment** | Comment of the new partition. |
 
 The statements it generates:
@@ -187,6 +188,6 @@ The Inheritance card also appears on partitioned tables and partitions, but Post
 | **Partition by** with partition definitions in the create form | Only **Partition by:** in the create form; partitions are added afterwards on the Partitions card. |
 | `PARTITION BY KEY`, `LINEAR HASH` | **HASH** (with MODULUS/REMAINDER). |
 | `PARTITIONS 4` | Add the four hash partitions one by one (remainders 0–3, modulus 4). |
-| Subpartitions | A partition can itself be created `PARTITION BY` on the SQL tab; it shows with a **partitioned** badge. |
+| Subpartitions | Tick **Partitioned table?** in the Add partition dialog; the partition shows with a **partitioned** badge and takes its own partitions. |
 | Maintenance: **Optimize**, **Rebuild**, **Repair**, **Check**, **Coalesce** | **Analyze**, **Vacuum**, **Truncate**, **Detach**, **Drop**. |
 | **Remove partitioning** | Not available. Create a plain table and copy the data. |

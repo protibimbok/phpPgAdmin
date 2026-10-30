@@ -531,7 +531,7 @@
       "drop": "Drop",
       "finalize": "Finalize detach"
     },
-    "sub_partitioned": "partitioned",
+    "sub_partitioned": "Partitioned table?",
     "add_label": "Add a partition:",
     "add_button": "Go",
     "add_title": "Add partition",
@@ -564,7 +564,14 @@
       "truncate": "Truncate",
       "detach": "Detach",
       "drop": "Drop"
-    }
+    },
+    "sub_type": "Partition type",
+    "sub_keys": "Partition keys",
+    "key_column": "Column",
+    "key_expression": "Expression",
+    "add_key": "Add a key",
+    "sub_hint": "The new partition is partitioned in its turn: add its own partitions on its structure page.",
+    "remove_key": "Remove"
   },
   "storage": {
     "title": "Storage parameters",

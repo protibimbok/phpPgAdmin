@@ -709,6 +709,17 @@ export interface PartitionData {
   values_modulus?: string
   values_remainder?: string
   description?: string
+  /** pgAdmin's Partitioned table?: the new partition is partitioned in its turn. */
+  is_sub_partitioned?: boolean
+  sub_partition_type?: 'range' | 'list' | 'hash'
+  sub_partition_keys?: SubPartitionKey[]
+}
+
+/** A key of a partition's own PARTITION BY: a column, or an expression. */
+export interface SubPartitionKey {
+  key_type: 'column' | 'expression'
+  pt_column?: string
+  expression?: string
 }
 
 export function partitions(db: string, scid: number, tid: number) {

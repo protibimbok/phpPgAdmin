@@ -20,6 +20,8 @@ export interface PartitionsCardProps {
   tid: number
   scheme: string
   partitions: Partition[]
+  /** The table's columns, which a partitioned partition's keys are picked from. */
+  columns?: string[]
   onChanged: () => void
 }
 
@@ -30,7 +32,7 @@ export interface PartitionsCardProps {
  * Drop), and an "Add partition" form in the footer. On PostgreSQL 14+ Detach can run
  * CONCURRENTLY, and a partition whose concurrent detach was interrupted offers FINALIZE.
  */
-export default function PartitionsCard({ db, schema, table, scid, tid, scheme, partitions, onChanged }: PartitionsCardProps) {
+export default function PartitionsCard({ db, schema, table, scid, tid, scheme, partitions, columns = [], onChanged }: PartitionsCardProps) {
   const { t } = useTranslation('tables')
   const navigate = useNavigate()
   const [dialog, setDialog] = useState(false)
@@ -169,7 +171,7 @@ export default function PartitionsCard({ db, schema, table, scid, tid, scheme, p
         </form>
       </div>
 
-      <PartitionDialog show={dialog} db={db} scid={scid} tid={tid} scheme={scheme} onClose={() => setDialog(false)} onSaved={() => { setDialog(false); treeState.refresh(); onChanged() }} />
+      <PartitionDialog show={dialog} db={db} scid={scid} tid={tid} scheme={scheme} columns={columns} onClose={() => setDialog(false)} onSaved={() => { setDialog(false); treeState.refresh(); onChanged() }} />
       <ConfirmQuery
         show={detaching !== null}
         sql={detaching ? detachSql(detaching, concurrently ? 'concurrently' : '') : ''}

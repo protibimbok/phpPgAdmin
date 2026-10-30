@@ -95,7 +95,12 @@ final class PartitionDdl
         $data['schema'] = trim((string) ($row['schema'] ?? '')) ?: $parentSchema;
         $data['name'] = $name;
         $data['relispartition'] = true;
-        if (!empty($row['is_sub_partitioned']) && !empty($row['sub_partition_scheme'])) {
+        if (!empty($row['is_sub_partitioned']) && !empty($row['sub_partition_type'])) {
+            // pgAdmin's Partitioned table? of a partition: its own PARTITION BY, from the type
+            // and the keys, each a column (quoted here) or an expression (in parentheses).
+            $data['is_partitioned'] = true;
+            $data['partition_scheme'] = self::subPartitionScheme((string) $row['sub_partition_type'], is_array($row['sub_partition_keys'] ?? null) ? $row['sub_partition_keys'] : []);
+        } elseif (!empty($row['is_sub_partitioned']) && !empty($row['sub_partition_scheme'])) {
             $data['is_partitioned'] = true;
             $data['partition_scheme'] = $row['sub_partition_scheme'];
         }
@@ -108,6 +113,42 @@ final class PartitionDdl
         $data['vacuum_table'] = $data['vacuum_toast'] = [];
 
         return $ctx->renderFrom('partitions', 'create.sql', ['data' => $data]);
+    }
+
+    /**
+     * "RANGE (created_at)" from pgAdmin's sub_partition_type and sub_partition_keys, each key
+     * {key_type: 'column', pt_column} or {key_type: 'expression', expression}.
+     *
+     * @param list<mixed> $keys
+     */
+    private static function subPartitionScheme(string $type, array $keys): string
+    {
+        $type = strtoupper(trim($type));
+        if (!in_array($type, ['RANGE', 'LIST', 'HASH'], true)) {
+            throw new BadRequestException('A partition is partitioned by RANGE, LIST or HASH.');
+        }
+        $parts = [];
+        foreach ($keys as $key) {
+            if (!is_array($key)) {
+                continue;
+            }
+            if (($key['key_type'] ?? 'column') === 'expression') {
+                $expression = trim((string) ($key['expression'] ?? ''));
+                if ($expression !== '') {
+                    $parts[] = '(' . $expression . ')';
+                }
+            } elseif (($column = trim((string) ($key['pt_column'] ?? ''))) !== '') {
+                $parts[] = Quoting::ident($column);
+            }
+        }
+        if ($parts === []) {
+            throw new BadRequestException('A partitioned partition needs at least one partition key.');
+        }
+        if ($type === 'LIST' && count($parts) > 1) {
+            throw new BadRequestException('LIST partitioning takes a single key.');
+        }
+
+        return sprintf('%s (%s)', $type, implode(', ', $parts));
     }
 
     /** ALTER TABLE … DETACH PARTITION, plain, CONCURRENTLY or FINALIZE. */

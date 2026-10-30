@@ -539,7 +539,7 @@
       "drop": "حذف",
       "finalize": "إتمام الفصل"
     },
-    "sub_partitioned": "مقسّم",
+    "sub_partitioned": "جدول مُقسَّم؟",
     "add_label": "إضافة قسم:",
     "add_button": "تنفيذ",
     "add_title": "إضافة قسم",
@@ -572,7 +572,14 @@
       "truncate": "إفراغ",
       "detach": "فصل",
       "drop": "حذف"
-    }
+    },
+    "sub_type": "نوع التقسيم",
+    "sub_keys": "مفاتيح التقسيم",
+    "key_column": "عمود",
+    "key_expression": "تعبير",
+    "add_key": "إضافة مفتاح",
+    "sub_hint": "يُقسَّم القسم الجديد بدوره: أضف أقسامه من صفحة بنيته.",
+    "remove_key": "إزالة"
   },
   "storage": {
     "title": "معاملات التخزين",

@@ -592,7 +592,7 @@ export default function TableStructure() {
 
         <RelationsCard db={db} relations={data.relations} partitioned={data.table.is_partitioned} />
 
-        {data.table.is_partitioned && <PartitionsCard db={db} schema={schema} table={table} scid={scid} tid={tid} scheme={data.table.partition_scheme ?? ''} partitions={data.partitions} onChanged={reload} />}
+        {data.table.is_partitioned && <PartitionsCard db={db} schema={schema} table={table} scid={scid} tid={tid} scheme={data.table.partition_scheme ?? ''} partitions={data.partitions} columns={data.columns.map((c) => c.name)} onChanged={reload} />}
 
         <Information table={data.table} statistics={data.statistics} />
       </div>
