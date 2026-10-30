@@ -71,15 +71,55 @@ the copy (`inventory.warehouses` becomes `inventory_copy.warehouses`; `public.bo
 | --- | --- |
 | *new name* | The copy's name; a schema of that name must not exist. |
 | **Structure only** | `CREATE SCHEMA new AUTHORIZATION <owner>` and the objects. |
-| **Structure and data** | The same, then each table's rows: `INSERT INTO new.t (…) SELECT … FROM old.t`, tables after the ones their foreign keys reference, generated columns left to compute, `OVERRIDING SYSTEM VALUE` for `GENERATED ALWAYS` identity columns. |
+| **Structure and data** | The same, with each table's rows: `INSERT INTO new.t (…) SELECT … FROM ONLY old.t`. |
 | **Data only** | The rows only, into the tables of the same names of a schema that exists already (the new name is then that schema's). |
-| **Set the sequences' values** | phpMyAdmin's *Add AUTO_INCREMENT value*: `setval()` of each copied sequence to the original's position, so new rows do not collide. |
+| **Set the sequences' values** | phpMyAdmin's *Add AUTO_INCREMENT value*: `setval()` of each copied sequence, and of each identity column's sequence, to the original's position, so new rows do not collide. |
 | **Switch to copied schema** | Opens the copy's Structure page afterwards. |
+
+The script runs in this order:
+
+1. `CREATE SCHEMA`, then the types, domains, sequences and routines;
+2. the tables without their foreign keys, indexes, triggers, rules and policies (an inheritance
+   parent before its children, a partitioned table with its partitions);
+3. with data, the rows of each table;
+4. the views and materialized views, which so hold the copied rows;
+5. the indexes, then the foreign keys, checked once against all the rows (two tables that reference
+   each other copy too), then the triggers, rules, policies and row level security: an audit trigger
+   on the original does not fire for the copied rows;
+6. the sequences' `OWNED BY`, and with **Set the sequences' values** their positions.
+
+How the rows are copied:
+
+- by column name, generated columns left to compute, `OVERRIDING SYSTEM VALUE` for `GENERATED
+  ALWAYS` identity columns;
+- a column of one of the schema's own types (an enum, a composite, a domain, or an array of one) is
+  cast through `text` to the copy's type of the same name;
+- each table's own rows: `FROM ONLY`, so an inheritance parent does not take its children's rows
+  again; a partitioned table's `INSERT` takes all its partitions' rows, which go to the copy's
+  partitions;
+- an identity column keeps its own sequence (no stray `CREATE SEQUENCE` beside it), moved past the
+  copied values.
+
+**Data only** writes into tables that already have their constraints and triggers: the rows go in
+after those of the tables their foreign keys reference, under `SET CONSTRAINTS ALL DEFERRED`, and the
+target's triggers fire.
 
 Everything runs in one transaction: an error (a missing extension, a role you may not grant to)
 leaves nothing behind and shows the server's message. **Preview SQL** shows the whole script.
 Extension members are not copied (their extension owns them), and objects outside the schema, such
-as event triggers, stay as they are.
+as event triggers, stay as they are. Definitions are read with an empty `search_path`, so a view of
+`public.items` copied from `public` reads the copy's `items`, and a reference to an extension's member
+in the schema (`public.citext`) keeps naming the original.
+
+::: warning Routine bodies are copied as they are
+Only real references to the schema are renamed: names, types, defaults, view queries and
+`'…'::regclass` literals. String literals (a default of `'see inventory.t docs'`, a comment) are kept,
+and so are routine bodies, which PostgreSQL stores as opaque text: a copied function whose body reads
+`inventory.stock` still reads the original's table. A routine with its own `SET search_path` gets the
+copy's schema there instead of the original's; one without keeps none. Check the copied triggers'
+functions in particular: an audit function that inserts into `inventory.audit_log` keeps writing to the
+original's log.
+:::
 
 ## Schema properties
 
