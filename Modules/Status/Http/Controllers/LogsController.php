@@ -9,6 +9,7 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\ConnectionPool;
 use PhpPgAdmin\Core\Database\QueryException;
+use PhpPgAdmin\Core\Http\ChunkStream;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -127,18 +128,33 @@ final class LogsController
         ];
     }
 
-    /** The whole file, as an attachment, read a megabyte at a time. */
+    /**
+     * The whole file, as an attachment, read a megabyte at a time while the response is sent:
+     * on a connection of its own, since the request's connections close before the body goes out.
+     */
     public function download(ServerRequestInterface $request, array $args): ResponseInterface
     {
-        $conn = ConnectionPool::from($request)->maintenance();
+        $pool = ConnectionPool::from($request);
         $name = (string) $args['name'];
-        [$path, $size, $format] = $this->file($conn, $name);
+        [$path, $size, $format] = $this->file($pool->maintenance(), $name);
+
+        $conn = $pool->detached();
+        $offset = 0;
+        $body = new ChunkStream(function () use ($conn, $path, $size, &$offset): ?string {
+            if ($offset >= $size) {
+                return null;
+            }
+            @set_time_limit(60);
+            $chunk = $this->read($conn, $path, $offset, min(self::DOWNLOAD_CHUNK, $size - $offset));
+            if ($chunk === '') {
+                return null;
+            }
+            $offset += strlen($chunk);
+
+            return $chunk;
+        }, $conn->close(...), $size);
 
         $factory = new Psr17Factory();
-        $body = $factory->createStream();
-        for ($offset = 0; $offset < $size; $offset += self::DOWNLOAD_CHUNK) {
-            $body->write($this->read($conn, $path, $offset, min(self::DOWNLOAD_CHUNK, $size - $offset)));
-        }
 
         return $factory->createResponse()
             ->withHeader('Content-Type', match ($format) { 'csvlog' => 'text/csv', 'jsonlog' => 'application/x-ndjson', default => 'text/plain' })
@@ -164,7 +180,12 @@ final class LogsController
      */
     private function currentFiles(Connection $conn): array
     {
-        $row = $conn->row("SELECT pg_catalog.pg_current_logfile('stderr') AS stderr, pg_catalog.pg_current_logfile('csvlog') AS csvlog, pg_catalog.pg_current_logfile('jsonlog') AS jsonlog") ?? [];
+        // jsonlog is a destination from PostgreSQL 15 on; asking an older server for it is an error.
+        $sql = "SELECT pg_catalog.pg_current_logfile('stderr') AS stderr, pg_catalog.pg_current_logfile('csvlog') AS csvlog";
+        if ($conn->version() >= 150000) {
+            $sql .= ", pg_catalog.pg_current_logfile('jsonlog') AS jsonlog";
+        }
+        $row = $conn->row($sql) ?? [];
 
         return array_values(array_map(basename(...), array_filter($row, static fn (?string $path): bool => $path !== null)));
     }
