@@ -248,6 +248,44 @@ final class QuerySessionController
         $process->remove();
     }
 
+    /**
+     * Signing out ends the sign-in's sessions, so a transaction left open does not hold its locks
+     * until the heartbeat runs out: what a session runs is cancelled first (the process answers
+     * a signal only between statements), then the process is told to stop.
+     */
+    public static function endAll(?ConnectionPool $pool): void
+    {
+        $ids = array_keys((array) ($_SESSION[self::SESSIONS] ?? []));
+        $processes = [];
+        foreach ($ids as $id) {
+            $process = BackgroundProcess::find((string) $id);
+            if ($process === null) {
+                continue;
+            }
+            $pid = (int) @file_get_contents($process->directory . '/backend_pid');
+            if ($pid > 0 && $pool !== null) {
+                try {
+                    $pool->maintenance()->scalar('SELECT pg_catalog.pg_cancel_backend($1)', [$pid]);
+                } catch (\Throwable) {
+                    // The session's backend may be gone already.
+                }
+            }
+            $process->stop();
+            $processes[] = $process;
+        }
+        unset($_SESSION[self::SESSIONS]);
+        // A moment for the processes to close their connections; what still runs after it ends
+        // on its own and is cleaned up with the other finished processes.
+        for ($wait = 0; $wait < 20 && array_filter($processes, static fn (BackgroundProcess $p): bool => $p->status()['state'] === 'running') !== []; $wait++) {
+            usleep(100000);
+        }
+        foreach ($processes as $process) {
+            if ($process->status()['state'] !== 'running') {
+                $process->remove();
+            }
+        }
+    }
+
     /** Drop the ids of sessions whose process has ended, removing what they left behind. */
     private function forgetEnded(): void
     {

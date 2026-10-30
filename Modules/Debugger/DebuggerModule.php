@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Debugger;
 
+use PhpPgAdmin\Core\Contracts\EndsWithSignOut;
 use PhpPgAdmin\Core\Contracts\Module;
 use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
 use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
+use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Modules\Debugger\Http\Controllers\DebuggerController;
 
 /**
  * Debugger: pgAdmin's PL/pgSQL debugger, direct debugging of a function or procedure called
@@ -16,7 +19,7 @@ use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
  * variables and the stack. It takes EDB's pldebugger (the pldbgapi extension and
  * plugin_debugger preloaded); without it, routines offer no Debug.
  */
-final class DebuggerModule implements Module, ProvidesApiRoutes, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
+final class DebuggerModule implements Module, EndsWithSignOut, ProvidesApiRoutes, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
 {
     public function name(): string
     {
@@ -46,5 +49,10 @@ final class DebuggerModule implements Module, ProvidesApiRoutes, ProvidesTransla
     public function frontendScripts(): array
     {
         return ['resources/js/app.tsx'];
+    }
+
+    public function signOut(?ConnectionPool $pool): void
+    {
+        DebuggerController::endAll();
     }
 }

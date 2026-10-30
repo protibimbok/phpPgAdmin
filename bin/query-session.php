@@ -89,6 +89,8 @@ if ($server === false) {
     exit(1);
 }
 chmod($job['socket'], 0600);
+// The backend's PID, for signing out to cancel what the session runs before stopping it.
+file_put_contents($directory . '/backend_pid', (string) $conn->backendPid());
 file_put_contents($directory . '/ready', '1');
 
 // pgAdmin's Notifications: what NOTIFY sent to the channels the session LISTENs on, kept

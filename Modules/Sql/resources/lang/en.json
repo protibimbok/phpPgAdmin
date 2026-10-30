@@ -417,7 +417,8 @@
     "committed": "The transaction has been committed.",
     "rolled_back": "The transaction has been rolled back.",
     "commit_rolled_back": "The transaction had failed, so COMMIT rolled it back.",
-    "ended": "The query tool session has ended; a transaction left open in it was rolled back."
+    "ended": "The query tool session has ended; a transaction left open in it was rolled back.",
+    "unavailable": "This server keeps no query tool sessions (PGADMIN_QUERY_SESSIONS=0, or background processes are unavailable), so every run commits on a connection of its own: turn Auto commit back on."
   },
   "gis": {
     "title": "Display GIS Visualization",

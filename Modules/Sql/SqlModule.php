@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Sql;
 
+use PhpPgAdmin\Core\Contracts\EndsWithSignOut;
 use PhpPgAdmin\Core\Contracts\Module;
 use PhpPgAdmin\Core\Contracts\ProvidesApiRoutes;
 use PhpPgAdmin\Core\Contracts\ProvidesFrontendScripts;
 use PhpPgAdmin\Core\Contracts\ProvidesMigrations;
 use PhpPgAdmin\Core\Contracts\ProvidesTranslations;
 use PhpPgAdmin\Core\Contracts\ProvidesViteEntries;
+use PhpPgAdmin\Core\Database\ConnectionPool;
+use PhpPgAdmin\Modules\Sql\Http\Controllers\QuerySessionController;
 
 /**
  * Running SQL: pgAdmin's query tool behind phpMyAdmin's SQL page and Browse grid. The query
  * endpoint splits a batch, runs it statement by statement, paginates a lone SELECT, and
  * describes the columns well enough for the client to know whether the rows can be edited.
  */
-final class SqlModule implements Module, ProvidesApiRoutes, ProvidesMigrations, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
+final class SqlModule implements Module, EndsWithSignOut, ProvidesApiRoutes, ProvidesMigrations, ProvidesTranslations, ProvidesViteEntries, ProvidesFrontendScripts
 {
     public function name(): string
     {
@@ -51,5 +54,10 @@ final class SqlModule implements Module, ProvidesApiRoutes, ProvidesMigrations, 
     public function frontendScripts(): array
     {
         return ['resources/js/app.tsx'];
+    }
+
+    public function signOut(?ConnectionPool $pool): void
+    {
+        QuerySessionController::endAll($pool);
     }
 }

@@ -144,6 +144,28 @@ final class DebuggerController
         return ['ok' => true];
     }
 
+    /** Signing out ends the sign-in's debugging sessions, which also drops their breakpoints. */
+    public static function endAll(): void
+    {
+        $processes = [];
+        foreach (array_keys((array) ($_SESSION[self::SESSIONS] ?? [])) as $id) {
+            $process = BackgroundProcess::find((string) $id);
+            if ($process !== null) {
+                $process->stop();
+                $processes[] = $process;
+            }
+        }
+        unset($_SESSION[self::SESSIONS]);
+        for ($wait = 0; $wait < 20 && array_filter($processes, static fn (BackgroundProcess $p): bool => $p->status()['state'] === 'running') !== []; $wait++) {
+            usleep(100000);
+        }
+        foreach ($processes as $process) {
+            if ($process->status()['state'] !== 'running') {
+                $process->remove();
+            }
+        }
+    }
+
     /** @return array{ok: true} the call aborted and the session ended */
     public function stop(ServerRequestInterface $request, array $args): array
     {

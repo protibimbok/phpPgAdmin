@@ -6,11 +6,14 @@ namespace PhpPgAdmin\Modules\Auth\Http\Controllers;
 
 use League\Route\Http\Exception\BadRequestException;
 use League\Route\Http\Exception\NotFoundException;
+use PhpPgAdmin\Core\Contracts\EndsWithSignOut;
 use PhpPgAdmin\Core\Database\ConnectionException;
+use PhpPgAdmin\Core\Database\ConnectionPool;
 use PhpPgAdmin\Core\Database\Connector;
 use PhpPgAdmin\Core\Database\Server;
 use PhpPgAdmin\Core\Facades\Config;
 use PhpPgAdmin\Core\Facades\Lang;
+use PhpPgAdmin\Core\Facades\Modules;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\I18n\LocaleResolver;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
@@ -131,6 +134,16 @@ final class AuthController
     /** @return array<string, mixed> */
     public function logout(ServerRequestInterface $request): array
     {
+        // The modules' background sessions (query tool, debugger) end with the sign-in, so an
+        // open transaction does not outlive it holding its locks.
+        try {
+            $pool = ConnectionPool::from($request);
+        } catch (\Throwable) {
+            $pool = null;
+        }
+        foreach (Modules::providing(EndsWithSignOut::class) as $module) {
+            $module->signOut($pool);
+        }
         unset($_SESSION[Authenticate::USER], $_SESSION[Authenticate::CREDENTIALS], $_SESSION[Authenticate::SERVER], $_SESSION[Authenticate::OTHER_CREDENTIALS]);
 
         if (session_status() === PHP_SESSION_ACTIVE) {

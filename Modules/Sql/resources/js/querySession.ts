@@ -171,9 +171,10 @@ async function ensure(entry: Entry, db: string | null): Promise<string | null> {
     },
     (e: unknown) => {
       entry.starting = null
-      // A role that may not connect gets the usual error; a server that cannot keep sessions
-      // runs each query on a connection of its own.
-      if (e instanceof ApiError && (e.status === 401 || e.status === 403 || e.status === 503)) throw e
+      // Only a server that cannot keep sessions (switched off, or its background process does
+      // not start) runs each query on a connection of its own from now on; any other failure
+      // is reported, and the next run tries again.
+      if (!(e instanceof ApiError && (e.status === 422 || e.status === 500))) throw e
       unavailable = true
 
       return null
@@ -187,7 +188,12 @@ async function ensure(entry: Entry, db: string | null): Promise<string | null> {
 export async function runInQuerySession(db: string | null, request: QueryRequest, autocommit: boolean, retried = false): Promise<QueryResponse> {
   const entry = entryFor(db)
   const id = await ensure(entry, db)
-  if (id === null) return runQuery(db, request)
+  if (id === null) {
+    // A connection of its own commits each run: "Auto commit" off cannot be honoured.
+    if (!autocommit) throw new Error(i18next.t('sql:session.unavailable'))
+
+    return runQuery(db, request)
+  }
   try {
     const response = await runInSession(id, { ...request, autocommit })
     if (entry.id === id) {
