@@ -49,7 +49,8 @@ final class QueryController
 
         $runner = new QueryRunner(
             $this->connection($pool, $args),
-            $input + ['sql' => $sql],
+            // The string wins over whatever the body held under "sql" (a number is not a query).
+            ['sql' => $sql] + $input,
             QueryHistory::for($server, $pool->username()),
             RunningQueries::for($server, $pool->username()),
         );

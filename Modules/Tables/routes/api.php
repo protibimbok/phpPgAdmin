@@ -41,7 +41,7 @@ Route::middleware(Authenticate::class)->group(function () use ($context, $flag):
         $ctx = $context($request, $args);
         $params = $ctx->queryParams();
 
-        return (new TableController())->exclusionOptions($ctx, trim((string) ($params['am'] ?? '')), array_map(strval(...), (array) ($params['types'] ?? [])));
+        return (new TableController())->exclusionOptions($ctx, is_string($params['am'] ?? null) ? trim($params['am']) : '', array_values(array_filter((array) ($params['types'] ?? []), is_string(...))));
     })->setName('tables.exclusion_options');
 
     // The lists the trigger and policy editors offer, for a table's or a view's triggers.

@@ -49,8 +49,10 @@ final class ApiStrategy extends JsonStrategy
                 } catch (QueryException | ApiException $e) {
                     return $this->json($e->httpStatus(), $e->toArray());
                 } catch (ConnectionException $e) {
-                    return $this->json($e->httpStatus(), ['message' => $e->getMessage()]);
+                    return $this->json($e->httpStatus(), ['message' => $e->responseMessage()]);
                 } catch (Throwable $e) {
+                    // The response hides the failure unless debugging; the server's log must not.
+                    error_log(sprintf('phpPgAdmin: %s %s: %s: %s in %s:%d', $request->getMethod(), $request->getUri()->getPath(), $e::class, $e->getMessage(), $e->getFile(), $e->getLine()));
                     $payload = ['status_code' => 500, 'reason_phrase' => 'Internal Server Error'];
                     if ($this->debug) {
                         $payload['exception'] = $e::class;

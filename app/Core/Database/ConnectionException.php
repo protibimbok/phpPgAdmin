@@ -43,15 +43,38 @@ final class ConnectionException extends RuntimeException
     /**
      * The HTTP status that fits the failure: 401 when the role or password itself is turned down
      * (the client takes it as the end of the session), 403 when the server refuses this
-     * connection only (pg_hba.conf, the role's connection limit), 503 for everything else.
+     * connection only (pg_hba.conf, the role's connection limit, CONNECT privilege), 404 when the
+     * database does not exist, 503 for everything else.
      */
     public function httpStatus(): int
     {
+        if ($this->databaseUnavailable) {
+            return match (true) {
+                preg_match('/database "[^"]*" does not exist/i', $this->getMessage()) === 1 => 404,
+                preg_match('/permission denied for database/i', $this->getMessage()) === 1 => 403,
+                default => 503,
+            };
+        }
         if (!$this->credentialsRejected) {
             return 503;
         }
 
         return preg_match('/no pg_hba\.conf entry|too many connections for role/i', $this->getMessage()) === 1 ? 403 : 401;
+    }
+
+    /**
+     * The message for a response: when the server was reached but the database could not be
+     * opened, only the server's reason ("database "x" does not exist"), without libpq's
+     * "connection to server at …" framing; otherwise the whole message, which says what could
+     * not be reached.
+     */
+    public function responseMessage(): string
+    {
+        if ($this->databaseUnavailable && preg_match('/FATAL:\s*(.+)$/s', $this->getMessage(), $m) === 1) {
+            return trim($m[1]);
+        }
+
+        return $this->getMessage();
     }
 
     /** Strip ext-pgsql's "pg_connect(): Unable to connect to PostgreSQL server: " framing. */
