@@ -25,6 +25,7 @@
   "dismiss_notification": "Click to dismiss",
   "copy_to_clipboard": "Copy to clipboard",
   "copied": "Copied",
+  "copy_failed": "The text could not be copied to the clipboard.",
   "tree": {
     "filter": "Type to filter these",
     "clear_filter": "Clear fast filter",

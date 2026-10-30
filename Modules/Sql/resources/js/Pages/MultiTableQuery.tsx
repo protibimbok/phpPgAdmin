@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { useRequest } from '@/api/useRequest'
 import { urls } from '@/level'
-import { notify, notifySuccess } from '@/notify'
+import { copyText } from '@/clipboard'
+import { notify, notifyError, notifySuccess } from '@/notify'
 import { diagram, type DesignerTable } from '@designer/js/api'
 import { quoteIdent, quoteLiteral } from '../sql'
 
@@ -314,8 +315,7 @@ export default function MultiTableQuery() {
                   value={t('mtq.copy_query')}
                   onClick={() => {
                     if (query === '') return notify(t('mtq.empty_query'), 'error')
-                    void navigator.clipboard?.writeText(query)
-                    notifySuccess(tApp('copied'))
+                    void copyText(query).then((ok) => (ok ? notifySuccess(tApp('copied')) : notifyError(tApp('copy_failed'))))
                   }}
                 />{' '}
                 <input

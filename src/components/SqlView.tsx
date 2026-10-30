@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { copyText } from '@/clipboard'
+import { notifyError } from '@/notify'
 import Icon from './Icon'
 
 export interface SqlViewProps {
@@ -16,7 +18,8 @@ export default function SqlView({ sql, title }: SqlViewProps) {
   const [copied, setCopied] = useState(false)
 
   function copy() {
-    void navigator.clipboard?.writeText(sql).then(() => {
+    void copyText(sql).then((ok) => {
+      if (!ok) return notifyError(t('copy_failed'))
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     })

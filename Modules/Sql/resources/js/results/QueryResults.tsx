@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
+import i18next from 'i18next'
+import { copyText } from '@/clipboard'
 import Icon from '@/components/Icon'
 import { urls } from '@/level'
+import { notifyError } from '@/notify'
 import CreateViewModal from '@views/js/CreateViewModal'
 import type { QueryResponse, RowsResult } from '../api'
 import BookmarkForm from './BookmarkForm'
@@ -107,5 +110,7 @@ export default function QueryResults({ response, nav, onNavigate, edit, onExplai
 /** The grid as tab-separated text, header first, the way phpMyAdmin's "Copy to clipboard" copies it. */
 function copyGrid(result: RowsResult): void {
   const lines = [result.columns.map((c) => c.name).join('\t'), ...result.rows.map((row) => row.map((v) => (v === null ? 'NULL' : v)).join('\t'))]
-  void navigator.clipboard?.writeText(lines.join('\n'))
+  void copyText(lines.join('\n')).then((ok) => {
+    if (!ok) notifyError(i18next.t('copy_failed'))
+  })
 }

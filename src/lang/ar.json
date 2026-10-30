@@ -25,6 +25,7 @@
   "dismiss_notification": "انقر للإغلاق",
   "copy_to_clipboard": "نسخ إلى الحافظة",
   "copied": "تم النسخ",
+  "copy_failed": "تعذّر نسخ النص إلى الحافظة.",
   "tree": {
     "filter": "اكتب للتصفية",
     "clear_filter": "مسح التصفية",
