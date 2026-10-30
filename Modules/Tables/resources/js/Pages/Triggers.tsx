@@ -181,7 +181,14 @@ export default function Triggers() {
           {t('triggers.all')}{' '}
           <a href="#enable-all" onClick={(e) => { e.preventDefault(); void setAllTriggers(true) }}>{t('triggers.enable_all')}</a>
           {' | '}
-          <a href="#disable-all" onClick={(e) => { e.preventDefault(); void setAllTriggers(false) }}>{t('triggers.disable_all')}</a>
+          <a
+            href="#disable-all"
+            onClick={(e) => {
+              e.preventDefault()
+              // DISABLE TRIGGER ALL switches off the foreign key triggers too: asked first, with the statement.
+              setConfirm({ sql: [`ALTER TABLE ${relation} DISABLE TRIGGER ALL;`], run: () => setAllTriggers(false) })
+            }}
+          >{t('triggers.disable_all')}</a>
         </p>
       )}
 
