@@ -367,7 +367,11 @@ export default function SchemaStructure() {
     <p className="d-print-none">
       <a href="#print" onClick={(e) => { e.preventDefault(); window.print() }}>
         <Icon name="b_print" /> {tApp('print')}
-      </a>
+      </a>{' '}
+      {/* phpMyAdmin's link under the table list: this schema's part of the data dictionary. */}
+      <Link to={`${urls.database(db)}/data-dictionary?${new URLSearchParams({ schema })}`} id="data_dictionary_link">
+        <Icon name="b_tblanalyse" /> {tApp('schemas:data_dictionary.title')}
+      </Link>
     </p>
 
     <CreateTableCard />
