@@ -59,7 +59,9 @@
     "type": "النوع",
     "server": "الخادم الأجنبي",
     "user": "المستخدم",
-    "columns": "الأعمدة"
+    "columns": "الأعمدة",
+    "inherits": "يرث من",
+    "checks": "قيود التحقق"
   },
   "extension": {
     "title": "الامتدادات",
@@ -157,7 +159,8 @@
     "create_title": "إضافة جدول أجنبي",
     "edit_title": "تحرير الجدول الأجنبي {{name}}",
     "no_servers": "لا يوجد خادم أجنبي بعد: أضف واحدًا في صفحة الكائنات لقاعدة البيانات.",
-    "options_hint": "أين يجد المغلّف الصفوف، مثل schema_name وtable_name في postgres_fdw."
+    "options_hint": "أين يجد المغلّف الصفوف، مثل schema_name وtable_name في postgres_fdw.",
+    "inherits_hint": "الجداول (والجداول الخارجية) التي يرث أعمدتها؛ اضغط Ctrl لاختيار أكثر من واحد. لا تُكرَّر أعمدتها في الأعمدة."
   },
   "import_schema": {
     "button": "استيراد مخطط أجنبي",
@@ -202,5 +205,12 @@
       "username": "التشغيل باسم",
       "return_message": "الرسالة"
     }
+  },
+  "checks": {
+    "name": "الاسم",
+    "check": "التحقق",
+    "validated": "مُتحقَّق؟",
+    "no_inherit": "بلا وراثة؟",
+    "add": "إضافة قيد تحقق"
   }
 }

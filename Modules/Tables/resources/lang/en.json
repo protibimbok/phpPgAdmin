@@ -21,7 +21,8 @@
     "table": "Table",
     "partitioned": "Partitioned table",
     "view": "View",
-    "mview": "Materialized view"
+    "mview": "Materialized view",
+    "foreign": "Foreign table"
   },
   "total_one": "{{count}} table",
   "total_other": "{{count}} tables",

@@ -104,6 +104,14 @@ export default function ForeignTables() {
     { key: 'ftoptions', label: t('fields.options'), kind: 'options', hint: t('foreign_table.options_hint') },
     { key: 'description', label: t('fields.comment'), kind: 'textarea' },
     { key: 'columns', label: t('fields.columns'), kind: 'columns' },
+    {
+      key: 'inherits',
+      label: t('fields.inherits'),
+      kind: 'multiselect',
+      options: data.options.tables.filter((name) => !row || name.replaceAll(`"`, "") !== `${schema}.${row.name}`).map((name) => ({ value: name, label: name })),
+      hint: t('foreign_table.inherits_hint'),
+    },
+    { key: 'constraints', label: t('fields.checks'), kind: 'checks' },
   ]
   const initial: Values = {
     name: row?.name ?? '',
@@ -112,6 +120,8 @@ export default function ForeignTables() {
     ftoptions: row?.ftoptions ?? [],
     description: row?.description ?? '',
     columns: (row?.columns ?? []).filter((c) => c.inheritedfrom === null).map(({ attnum, name, cltype, attnotnull, defval, coloptions }) => ({ attnum, name, cltype, attnotnull, defval, coloptions })),
+    inherits: row?.inherits ?? [],
+    constraints: (row?.constraints ?? []).filter((c) => c.conislocal).map(({ conname, consrc, convalidated, connoinherit }) => ({ conname, consrc, convalidated, connoinherit, existing: true })),
   }
 
   // IMPORT FOREIGN SCHEMA: the foreign tables of a remote schema created in one statement.

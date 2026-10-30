@@ -154,9 +154,12 @@ A schema's **Foreign tables** tab (`/db/<database>/schema/<schema>/foreign-table
 foreign tables with **Rows** (a **Browse** link), **Server**, **Columns**, **Options** and
 **Comment**, and **Privileges**, **Edit**, **Export** and **Drop** per row.
 
-::: info Not in the schema's table list
-Foreign tables are listed only on this tab. The schema's [Structure tab](/schema/structure) leaves
-them out (a schema holding only foreign tables says *No tables found in schema.*).
+::: info In the schema's table list too
+The schema's [Structure tab](/schema/structure) lists foreign tables among its tables, with the type
+**Foreign table**: **Browse** and **Search** work as for a table (each a query on the remote server),
+**Structure** opens the table's dialog here, and **Drop**, **Show create**, **Export** and the prefix
+actions of **With selected** include them. **Insert**, **Empty**, **Copy table**, **Analyze** and
+**Vacuum** leave them out.
 :::
 
 ![The Foreign tables list with dbo_authors on server dbo_bookshop, its columns and options](/media/database/foreign-tables.png)
@@ -172,13 +175,15 @@ them out (a schema holding only foreign tables says *No tables found in schema.*
 | **Foreign server** | Read-only on Edit. Without any server the hint says to add one on the Objects tab. |
 | **Options** | Where the wrapper finds the rows. For `postgres_fdw`: `schema_name` and `table_name` (default: the local names). |
 | **Comment** | |
+| **Inherits** | pgAdmin's Inherits: the tables (and foreign tables) whose columns it inherits, Ctrl-click for several. On Edit, a table added is `INHERIT`ed and one removed `NO INHERIT`ed. |
+| **Check constraints** | pgAdmin's Constraints › Check: a row per constraint with **Name**, **Check** (the expression, `price > 0`), **Validated?** (unticked: `NOT VALID`) and **No inherit?**. On Edit, a removed constraint is dropped, a new one added, one whose expression or **No inherit?** changed dropped and added again, and one ticked **Validated?** `VALIDATE`d. Constraints inherited from a parent are not shown. |
 | **Columns** | A row per column: **Name**, **Type** (with suggestions for common types; any type name works), **Not null**, **Default**, and column **Options** (for `postgres_fdw`, `column_name` maps a local column to a differently named remote one). **Add column** adds a row; **Remove** deletes one. |
 
 The columns do not have to match the remote table one to one: you can leave remote columns out, and
 `postgres_fdw` matches by name (or `column_name`), not by position.
 
 ::: info Constraints are not checked
-`NOT NULL` and defaults on a foreign table are declarations for the planner and for `INSERT`s
+`NOT NULL`, `CHECK` constraints and defaults on a foreign table are declarations for the planner and for `INSERT`s
 through the table; PostgreSQL does not verify that the remote rows obey them.
 :::
 
@@ -286,5 +291,4 @@ The rows come from `bookshop` at query time. To import every table of a remote s
 
 ## Limitations
 
-- Foreign-table constraints (`CHECK`), partitions of a partitioned table
-  that are foreign tables, and security labels on foreign objects have no form.
+- Partitions of a partitioned table that are foreign tables, and security labels on foreign objects have no form.

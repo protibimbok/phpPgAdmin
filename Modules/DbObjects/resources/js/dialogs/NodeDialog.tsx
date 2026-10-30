@@ -22,14 +22,24 @@ export interface ColumnRow {
   coloptions: OptionPair[]
 }
 
-export type Value = string | boolean | OptionPair[] | ColumnRow[]
+/** A CHECK constraint of a foreign table: NOT VALID until convalidated, NO INHERIT with connoinherit. */
+export interface CheckRow {
+  conname: string
+  consrc: string
+  convalidated: boolean
+  connoinherit: boolean
+  /** An existing constraint whose expression is fixed but may still be validated. */
+  existing?: boolean
+}
+
+export type Value = string | boolean | string[] | OptionPair[] | ColumnRow[] | CheckRow[]
 
 export type Values = Record<string, Value>
 
 export interface Field {
   key: string
   label: string
-  kind: 'text' | 'select' | 'checkbox' | 'textarea' | 'options' | 'columns'
+  kind: 'text' | 'select' | 'checkbox' | 'textarea' | 'options' | 'columns' | 'multiselect' | 'checks'
   options?: { value: string; label: string }[]
   /** The label of the empty choice a select starts with; none when left out. */
   empty?: string
@@ -144,7 +154,17 @@ export default function NodeDialog({ show, id, title, fields, initial, onValuesC
                         <label htmlFor={name}>{field.label}</label>
                       </td>
                       <td>
-                        {field.kind === 'columns' ? (
+                        {field.kind === 'multiselect' ? (
+                          <select id={name} name={field.key} multiple size={Math.min(8, Math.max(3, field.options?.length ?? 0))} value={Array.isArray(value) ? (value as string[]) : []} onChange={(e) => set(field.key, [...e.target.selectedOptions].map((o) => o.value))}>
+                            {(field.options ?? []).map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : field.kind === 'checks' ? (
+                          <ChecksInput id={name} checks={Array.isArray(value) ? (value as CheckRow[]) : []} onChange={(checks) => set(field.key, checks)} />
+                        ) : field.kind === 'columns' ? (
                           <ColumnsInput id={name} columns={Array.isArray(value) ? (value as ColumnRow[]) : []} onChange={(columns) => set(field.key, columns)} />
                         ) : field.kind === 'options' ? (
                           <OptionsInput id={name} pairs={Array.isArray(value) ? (value as OptionPair[]) : []} readOnly={field.readOnly} onChange={(pairs) => set(field.key, pairs)} />
@@ -185,6 +205,61 @@ export default function NodeDialog({ show, id, title, fields, initial, onValuesC
       </Modal>
       <PreviewSql show={sql !== null} sql={sql?.sql ?? null} error={sql?.error} onClose={() => setSql(null)} />
     </>
+  )
+}
+
+/**
+ * pgAdmin's Constraints › Check tab of a foreign table: a row per constraint with its name, its
+ * expression, Validated? (unticked: NOT VALID) and No inherit?, a button to remove it and one to
+ * add a row. An existing constraint whose expression or NO INHERIT changes is dropped and added
+ * again.
+ */
+function ChecksInput({ id, checks, onChange }: { id: string; checks: CheckRow[]; onChange: (checks: CheckRow[]) => void }) {
+  const { t } = useTranslation('dbobjects')
+  const update = (index: number, change: Partial<CheckRow>) => onChange(checks.map((c, i) => (i === index ? { ...c, ...change } : c)))
+
+  return (
+    <table className="table table-sm table-borderless mb-0" id={id}>
+      <thead>
+        <tr>
+          <th>{t('checks.name')}</th>
+          <th>{t('checks.check')}</th>
+          <th>{t('checks.validated')}</th>
+          <th>{t('checks.no_inherit')}</th>
+          <th />
+        </tr>
+      </thead>
+      <tbody>
+        {checks.map((c, index) => (
+          <tr key={index}>
+            <td>
+              <input type="text" name={`${id}_name_${index}`} value={c.conname} onChange={(e) => update(index, { conname: e.target.value })} readOnly={c.existing} />
+            </td>
+            <td>
+              <input type="text" name={`${id}_check_${index}`} size={30} value={c.consrc} onChange={(e) => update(index, { consrc: e.target.value })} />
+            </td>
+            <td>
+              <input type="checkbox" aria-label={t('checks.validated')} checked={c.convalidated} onChange={(e) => update(index, { convalidated: e.target.checked })} />
+            </td>
+            <td>
+              <input type="checkbox" aria-label={t('checks.no_inherit')} checked={c.connoinherit} onChange={(e) => update(index, { connoinherit: e.target.checked })} />
+            </td>
+            <td>
+              <button type="button" className="btn btn-link p-0" title={t('options.remove')} onClick={() => onChange(checks.filter((_, i) => i !== index))}>
+                <Icon name="b_drop" /> {t('options.remove')}
+              </button>
+            </td>
+          </tr>
+        ))}
+        <tr>
+          <td colSpan={5}>
+            <button type="button" className="btn btn-link p-0" id={`${id}_add`} onClick={() => onChange([...checks, { conname: '', consrc: '', convalidated: true, connoinherit: false }])}>
+              <Icon name="b_plus" /> {t('checks.add')}
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   )
 }
 

@@ -173,10 +173,14 @@ export interface ForeignTable {
   ftoptions: OptionPair[]
   description: string | null
   columns: { attnum: number; name: string; cltype: string; attnotnull: boolean; defval: string; coloptions: OptionPair[]; inheritedfrom: string | null }[]
+  /** The tables it inherits from, schema-qualified. */
+  inherits: string[]
+  /** Its CHECK constraints; conislocal false for one inherited from a parent. */
+  constraints: { conname: string; consrc: string; convalidated: boolean; connoinherit: boolean; conislocal: boolean }[]
 }
 
 export const foreignTables = (db: string, scid: number) => collection<ForeignTable>(collectionUrl(db, 'schemas', scid, 'foreign_tables'))
-export const foreignTableOptions = (db: string, scid: number) => api.get<{ servers: string[]; roles: string[]; schemas: string[] }>(`${collectionUrl(db, 'schemas', scid, 'foreign_tables')}/options`)
+export const foreignTableOptions = (db: string, scid: number) => api.get<{ servers: string[]; roles: string[]; schemas: string[]; tables: string[] }>(`${collectionUrl(db, 'schemas', scid, 'foreign_tables')}/options`)
 
 /** What IMPORT FOREIGN SCHEMA takes: tables are names one per line, mode 'all', 'limit' (LIMIT TO) or 'except'. */
 export interface ForeignSchemaImport {

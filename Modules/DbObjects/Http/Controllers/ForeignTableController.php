@@ -83,7 +83,9 @@ final class ForeignTableController extends NodeController
     /** @return array{servers: list<string>, roles: list<string>, schemas: list<string>} the foreign servers a table may read from, the roles, and the schemas a foreign schema may be imported into */
     public function options(NodeContext $ctx): array
     {
-        return ['servers' => array_column($ctx->rows('get_foreign_servers.sql'), 'srvname'), 'roles' => Catalog::roles($ctx->conn), 'schemas' => Catalog::schemas($ctx->conn)];
+        $foid = isset($ctx->queryParams()['foid']) && is_numeric($ctx->queryParams()['foid']) ? (int) $ctx->queryParams()['foid'] : null;
+
+        return ['servers' => array_column($ctx->rows('get_foreign_servers.sql'), 'srvname'), 'roles' => Catalog::roles($ctx->conn), 'schemas' => Catalog::schemas($ctx->conn), 'tables' => $this->inheritable($ctx, $foid)];
     }
 
     /**
@@ -160,7 +162,15 @@ final class ForeignTableController extends NodeController
             'coloptions' => ForeignOptions::fromCatalog($c['attfdwoptions']),
             'inheritedfrom' => $c['inheritedfrom'],
         ], $ctx->rows('get_columns.sql', ['foid' => (int) $row['oid']]));
-        unset($row['inherits']);
+        // pgAdmin's Inherits and Constraints (CHECK) of a foreign table.
+        $row['inherits'] = array_column($ctx->rows('get_tables.sql', ['attrelid' => (int) $row['oid']]), 'inherits');
+        $row['constraints'] = array_map(static fn (array $c): array => [
+            'conname' => (string) $c['conname'],
+            'consrc' => (string) $c['consrc'],
+            'convalidated' => (bool) $c['convalidated'],
+            'connoinherit' => (bool) $c['connoinherit'],
+            'conislocal' => (bool) $c['conislocal'],
+        ], $ctx->rows('get_constraints.sql', ['foid' => (int) $row['oid']]));
 
         return $row;
     }
@@ -201,6 +211,8 @@ final class ForeignTableController extends NodeController
             'description' => trim((string) ($data['description'] ?? '')),
             'ftoptions' => ForeignOptions::fromClient($data['ftoptions'] ?? []),
             'columns' => array_map(fn (array $c): array => $this->column($c), $this->columnList($data)),
+            'inherits' => $this->inheritsOf($ctx, $data, null),
+            'constraints' => $this->constraintsOf($data),
         ];
 
         return $this->templateData($out);
@@ -229,6 +241,12 @@ final class ForeignTableController extends NodeController
         if (array_key_exists('ftoptions', $data)) {
             $diff = ForeignOptions::diff($old['ftoptions'], ForeignOptions::fromClient($data['ftoptions']), '');
             $changes['ftoptions'] = array_map(static fn (array $list): array => self::quotedOptions(array_map(static fn (array $o): array => ['option' => $o['option'], 'value' => $o['value']], $list)), $diff);
+        }
+        if (array_key_exists('inherits', $data)) {
+            $changes['inherits'] = $this->inheritsOf($ctx, $data, $oid);
+        }
+        if (array_key_exists('constraints', $data)) {
+            $changes['constraints'] = self::constraintChanges($old['constraints'], $this->constraintsOf($data));
         }
         $sql = $ctx->render('update.sql', ['data' => $changes, 'o_data' => $old]);
 
@@ -302,6 +320,97 @@ final class ForeignTableController extends NodeController
             . ($options === [] ? '' : ' OPTIONS (' . implode(', ', $options) . ')')
             . ($column['attnotnull'] ? ' NOT NULL' : '')
             . ($column['defval'] !== '' ? ' DEFAULT ' . $column['defval'] : '');
+    }
+
+    /** @return list<string> the tables a foreign table may inherit from, schema-qualified and quoted as INHERITS names them */
+    private function inheritable(NodeContext $ctx, ?int $foid): array
+    {
+        return array_column($ctx->rows('get_tables.sql', ['attrelid' => null, 'foid' => $foid]), 'label');
+    }
+
+    /**
+     * The client's "inherits": names from the list of tables a foreign table may inherit from,
+     * which the templates write as they are, so nothing else is taken.
+     *
+     * @param array<string, mixed> $data
+     * @return list<string>
+     */
+    private function inheritsOf(NodeContext $ctx, array $data, ?int $foid): array
+    {
+        $given = array_values(array_filter(array_map(static fn (mixed $v): string => trim((string) $v), is_array($data['inherits'] ?? null) ? $data['inherits'] : []), static fn (string $v): bool => $v !== ''));
+        if ($given === []) {
+            return [];
+        }
+        $known = $this->inheritable($ctx, $foid);
+        foreach ($given as $name) {
+            if (!in_array($name, $known, true)) {
+                throw new BadRequestException(sprintf('"%s" is not a table this foreign table can inherit from.', $name));
+            }
+        }
+
+        return array_values(array_unique($given));
+    }
+
+    /**
+     * The client's CHECK constraints: conname, consrc (the expression), convalidated (false
+     * adds it NOT VALID), connoinherit.
+     *
+     * @param array<string, mixed> $data
+     * @return list<array{conname: string, consrc: string, convalidated: bool, connoinherit: bool}>
+     */
+    private function constraintsOf(array $data): array
+    {
+        $out = [];
+        foreach (is_array($data['constraints'] ?? null) ? $data['constraints'] : [] as $c) {
+            if (!is_array($c)) {
+                continue;
+            }
+            $name = trim((string) ($c['conname'] ?? ''));
+            $expression = trim((string) ($c['consrc'] ?? ''));
+            if ($name === '' && $expression === '') {
+                continue;
+            }
+            if ($name === '' || $expression === '') {
+                throw new BadRequestException('Each check constraint needs a name and an expression.');
+            }
+            $out[] = ['conname' => $name, 'consrc' => $expression, 'convalidated' => filter_var($c['convalidated'] ?? true, FILTER_VALIDATE_BOOL), 'connoinherit' => filter_var($c['connoinherit'] ?? false, FILTER_VALIDATE_BOOL)];
+        }
+
+        return $out;
+    }
+
+    /**
+     * update.sql's constraint changes: the ones gone are dropped, the new ones added, one
+     * whose expression or NO INHERIT changed dropped and added again, and one now validated
+     * VALIDATEd, as pgAdmin's dialog does.
+     *
+     * @param list<array<string, mixed>> $old
+     * @param list<array<string, mixed>> $new
+     * @return array{added: list<array<string, mixed>>, changed: list<array<string, mixed>>, deleted: list<array<string, mixed>>}
+     */
+    private static function constraintChanges(array $old, array $new): array
+    {
+        $oldByName = array_column(array_filter($old, static fn (array $c): bool => $c['conislocal'] ?? true), null, 'conname');
+        $newByName = array_column($new, null, 'conname');
+        $changes = ['added' => [], 'changed' => [], 'deleted' => []];
+        foreach ($oldByName as $name => $c) {
+            if (!isset($newByName[$name])) {
+                $changes['deleted'][] = $c;
+            }
+        }
+        foreach ($newByName as $name => $c) {
+            $was = $oldByName[$name] ?? null;
+            if ($was === null) {
+                $changes['added'][] = $c;
+            } elseif ($was['consrc'] !== $c['consrc'] || $was['connoinherit'] !== $c['connoinherit']) {
+                $changes['deleted'][] = $was;
+                $changes['added'][] = $c;
+            } elseif (!$was['convalidated'] && $c['convalidated']) {
+                $changes['changed'][] = $c;
+            }
+        }
+
+        return $changes;
     }
 
     /** @return list<array<string, mixed>> */

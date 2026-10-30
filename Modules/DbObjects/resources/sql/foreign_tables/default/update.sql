@@ -33,7 +33,8 @@ ALTER FOREIGN TABLE IF EXISTS {{ conn|qtIdent(o_data.basensp, name) }} INHERIT {
 {% set inherits = data.inherits %}
 {% endif %}
 {% for i in o_data.inherits %}{% if i not in inherits %}{% if i %}
-ALTER FOREIGN TABLE IF EXISTS {{ conn|qtIdent(o_data.basensp, name) }} NO INHERIT {{i}};{% endif %}
+ALTER FOREIGN TABLE IF EXISTS {{ conn|qtIdent(o_data.basensp, name) }} NO INHERIT {{i}};
+{% endif %}
 {% endif %}
 {% endfor %}
 {% endif %}

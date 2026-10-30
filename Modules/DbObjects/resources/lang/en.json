@@ -59,7 +59,9 @@
     "type": "Type",
     "server": "Foreign server",
     "user": "User",
-    "columns": "Columns"
+    "columns": "Columns",
+    "inherits": "Inherits",
+    "checks": "Check constraints"
   },
   "extension": {
     "title": "Extensions",
@@ -157,7 +159,8 @@
     "create_title": "Add foreign table",
     "edit_title": "Edit foreign table {{name}}",
     "no_servers": "There is no foreign server yet: add one on the database's Objects page.",
-    "options_hint": "Where the wrapper finds the rows, such as schema_name and table_name for postgres_fdw."
+    "options_hint": "Where the wrapper finds the rows, such as schema_name and table_name for postgres_fdw.",
+    "inherits_hint": "Tables (and foreign tables) whose columns it inherits; Ctrl-click to pick several. The columns they have are not repeated in Columns."
   },
   "import_schema": {
     "button": "Import foreign schema",
@@ -202,5 +205,12 @@
       "username": "Run as",
       "return_message": "Message"
     }
+  },
+  "checks": {
+    "name": "Name",
+    "check": "Check",
+    "validated": "Validated?",
+    "no_inherit": "No inherit?",
+    "add": "Add a check constraint"
   }
 }

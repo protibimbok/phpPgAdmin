@@ -15,6 +15,7 @@ import { notAvailable } from '@/unbuilt'
 import { formatSize } from '@/format'
 import { urls, type RelationKind } from '@/level'
 import { qualifiedName } from '@sql/js/sql'
+import { foreignTables, type ForeignTable } from '@dbobjects/js/api'
 import { copyTables, countRows, dropTable, materializedViews, resolveSchema, tableOptions, tables, truncateTable, updateTable, views, type Table, type View } from '../api'
 import BulkTableDialog, { copiedPrefix, replacedPrefix, type BulkAction, type BulkValues } from '../BulkTableDialog'
 
@@ -22,7 +23,9 @@ interface Row {
   oid: number
   name: string
   kind: RelationKind
-  typeKey: 'table' | 'partitioned' | 'view' | 'mview'
+  typeKey: 'table' | 'partitioned' | 'view' | 'mview' | 'foreign'
+  /** A foreign table: listed with the tables, edited in its dialog on the Foreign tables page. */
+  foreign?: boolean
   /** The estimated row count, or null when it is not known. */
   rows: number | null
   size: number
@@ -42,6 +45,13 @@ function fromTable(table: Table): Row {
     system: table.is_sys_table,
   }
 }
+
+function fromForeign(table: ForeignTable): Row {
+  return { oid: table.oid, name: table.name, kind: 'table', typeKey: 'foreign', foreign: true, rows: null, size: 0, comment: table.description, system: false }
+}
+
+/** A table that holds its rows here: not a view, and not a foreign table. */
+const isLocalTable = (row: Row) => row.kind === 'table' && !row.foreign
 
 function fromView(view: View, kind: 'view' | 'mview'): Row {
   return { oid: view.oid, name: view.name, kind, typeKey: kind, rows: null, size: view.size, comment: view.comment, system: false }
@@ -63,11 +73,18 @@ export default function SchemaStructure() {
   const favorites = usePreference<number>(NUM_FAVORITE_TABLES) > 0
   const { data, error, reload } = useRequest(async () => {
     const scid = await resolveSchema(db, schema)
-    const [tableRows, viewRows, mviewRows] = await Promise.all([tables(db, scid).list(), views(db, scid).list(), materializedViews(db, scid).list()])
+    const [tableRows, viewRows, mviewRows, foreignRows] = await Promise.all([
+      tables(db, scid).list(),
+      views(db, scid).list(),
+      materializedViews(db, scid).list(),
+      foreignTables(db, scid)
+        .list()
+        .catch(() => [] as ForeignTable[]),
+    ])
 
     return {
       scid,
-      rows: [...tableRows.map(fromTable), ...viewRows.map((v) => fromView(v, 'view')), ...mviewRows.map((v) => fromView(v, 'mview'))].sort((a, b) =>
+      rows: [...tableRows.map(fromTable), ...viewRows.map((v) => fromView(v, 'view')), ...mviewRows.map((v) => fromView(v, 'mview')), ...foreignRows.map(fromForeign)].sort((a, b) =>
         a.name.localeCompare(b.name),
       ),
     }
@@ -114,7 +131,7 @@ export default function SchemaStructure() {
 
   const sumRows = rows.reduce((sum, row) => sum + (exact[row.oid] ?? row.rows ?? 0), 0)
   const sumSize = rows.reduce((sum, row) => sum + row.size, 0)
-  const keyOf = (row: Row) => `${row.kind}_${row.oid}`
+  const keyOf = (row: Row) => `${row.foreign ? 'foreign' : row.kind}_${row.oid}`
   const allChecked = rows.length > 0 && rows.every((row) => checked.has(keyOf(row)))
 
   function count(row: Row) {
@@ -129,7 +146,7 @@ export default function SchemaStructure() {
 
   /** TRUNCATE the tables among the rows, after phpMyAdmin's warning. */
   function askEmpty(selected: Row[]) {
-    const targets = selected.filter((row) => row.kind === 'table')
+    const targets = selected.filter(isLocalTable)
     if (targets.length === 0) return notify(t('schema_structure.none_selected'), 'error')
     setConfirm({
       warning: t('operations.truncate_warning'),
@@ -154,7 +171,7 @@ export default function SchemaStructure() {
   /** DROP the tables and views among the rows, after phpMyAdmin's warning. */
   function askDrop(selected: Row[]) {
     if (selected.length === 0) return notify(t('schema_structure.none_selected'), 'error')
-    const statement = (row: Row) => `DROP ${row.kind === 'table' ? 'TABLE' : row.kind === 'view' ? 'VIEW' : 'MATERIALIZED VIEW'} ${qualifiedName(schema, row.name)};`
+    const statement = (row: Row) => `DROP ${row.foreign ? 'FOREIGN TABLE' : row.kind === 'table' ? 'TABLE' : row.kind === 'view' ? 'VIEW' : 'MATERIALIZED VIEW'} ${qualifiedName(schema, row.name)};`
     setConfirm({
       warning: t('operations.drop_warning'),
       sql: selected.map(statement),
@@ -162,7 +179,8 @@ export default function SchemaStructure() {
         let done = 0
         try {
           for (const row of selected) {
-            if (row.kind === 'table') await dropTable(db, scid, row.oid)
+            if (row.foreign) await foreignTables(db, scid).remove(row.oid)
+            else if (row.kind === 'table') await dropTable(db, scid, row.oid)
             else if (row.kind === 'view') await views(db, scid).remove(row.oid)
             else await materializedViews(db, scid).remove(row.oid)
             done++
@@ -181,7 +199,7 @@ export default function SchemaStructure() {
   function showCreateOf(selected: Row[]) {
     if (selected.length === 0) return notify(t('schema_structure.none_selected'), 'error')
     setShowCreate('')
-    Promise.all(selected.map((row) => (row.kind === 'table' ? tables(db, scid).sql(row.oid) : row.kind === 'view' ? views(db, scid).sql(row.oid) : materializedViews(db, scid).sql(row.oid)))).then(
+    Promise.all(selected.map((row) => (row.foreign ? foreignTables(db, scid).sql(row.oid) : row.kind === 'table' ? tables(db, scid).sql(row.oid) : row.kind === 'view' ? views(db, scid).sql(row.oid) : materializedViews(db, scid).sql(row.oid)))).then(
       (parts) => setShowCreate(parts.join('\n\n')),
       (e: unknown) => {
         setShowCreate(null)
@@ -193,7 +211,7 @@ export default function SchemaStructure() {
   /** phpMyAdmin's Copy table and Prefix actions: their form in the bulk action modal first. */
   function askBulk(action: BulkAction, selected: Row[]) {
     // Only tables are copied; the prefix actions rename views and materialized views too.
-    const targets = action === 'copy_tbl' || action === 'copy_tbl_change_prefix' ? selected.filter((row) => row.kind === 'table') : selected
+    const targets = action === 'copy_tbl' || action === 'copy_tbl_change_prefix' ? selected.filter(isLocalTable) : selected
     if (targets.length === 0) return notify(t('schema_structure.none_selected'), 'error')
     if (action === 'copy_tbl') {
       setBulkSchemas([schema])
@@ -209,7 +227,7 @@ export default function SchemaStructure() {
     const targets = bulk?.rows ?? []
     setBulk(null)
     const rename = (row: Row, name: string) =>
-      row.kind === 'table' ? updateTable(db, scid, row.oid, { name }) : row.kind === 'view' ? views(db, scid).update(row.oid, { name }) : materializedViews(db, scid).update(row.oid, { name })
+      row.foreign ? foreignTables(db, scid).update(row.oid, { name }) : row.kind === 'table' ? updateTable(db, scid, row.oid, { name }) : row.kind === 'view' ? views(db, scid).update(row.oid, { name }) : materializedViews(db, scid).update(row.oid, { name })
     try {
       if (action === 'copy_tbl') {
         await copyTables(db, scid, targets.map((row) => ({ oid: row.oid, name: row.name })), { schema: values.schema, what: values.what, drop_if_exists: values.drop_if_exists, add_constraints: values.add_constraints })
@@ -231,7 +249,7 @@ export default function SchemaStructure() {
 
   function withSelected(action: string) {
     const selected = rows.filter((row) => checked.has(keyOf(row)))
-    const names = selected.filter((row) => row.kind === 'table').map((row) => qualifiedName(schema, row.name))
+    const names = selected.filter(isLocalTable).map((row) => qualifiedName(schema, row.name))
     switch (action) {
       case 'show_create':
         return showCreateOf(selected)
@@ -311,12 +329,14 @@ export default function SchemaStructure() {
           <tbody>
             {rows.map((row) => {
               const href = urls.relation(db, schema, row.name, row.kind)
-              const isTable = row.kind === 'table'
+              // A foreign table's structure is its dialog on the schema's Foreign tables page.
+              const structure = row.foreign ? `${urls.schema(db, schema)}/foreign-tables?${new URLSearchParams({ open: String(row.oid) })}` : href
+              const isTable = isLocalTable(row)
               // phpMyAdmin greys the Browse, Search and Empty icons of a table known to be empty.
               const mayHaveRows = row.rows !== 0
 
               return (
-                <tr key={`${row.kind}_${row.oid}`} className={isTable ? undefined : 'is_view'}>
+                <tr key={keyOf(row)} className={row.kind === 'table' ? undefined : 'is_view'}>
                   <td className="text-center d-print-none">
                     <input type="checkbox" name="selected_tbl[]" className="checkall" value={row.name} checked={checked.has(keyOf(row))} onChange={(e) => toggle(keyOf(row), e.target.checked)} />
                   </td>
@@ -331,7 +351,7 @@ export default function SchemaStructure() {
                     </Link>
                   </td>
                   <td className="text-center d-print-none">
-                    <Link to={href}>
+                    <Link to={structure}>
                       <Icon name="b_props" title={t('actions.structure')} /> {t('actions.structure')}
                     </Link>
                   </td>

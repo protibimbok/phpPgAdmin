@@ -21,7 +21,8 @@
     "table": "جدول",
     "partitioned": "جدول مقسّم",
     "view": "عرض",
-    "mview": "عرض مادي"
+    "mview": "عرض مادي",
+    "foreign": "جدول خارجي"
   },
   "total_one": "جدول واحد",
   "total_other": "{{count}} جداول",
