@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { registerPreferenceGroups, registerPreferences } from '@/preferences'
+import { SHOW_SYSTEM } from '@/nodes/client'
 
 /**
  * The navigation tree's state across pages, kept in sessionStorage the way phpMyAdmin's
@@ -27,6 +28,7 @@ registerPreferences([
   { key: FIRST_LEVEL_PAGE_SIZE, type: 'number', default: 100, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.first_level_items', description: 'settings:navigation.first_level_items_help' },
   { key: PAGE_SIZE, type: 'number', default: 50, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.max_items', description: 'settings:navigation.max_items_help' },
   { key: FILTER_MINIMUM, type: 'number', default: 30, min: 1, page: 'navigation', group: 'tree', label: 'settings:navigation.filter_minimum', description: 'settings:navigation.filter_minimum_help' },
+  { key: SHOW_SYSTEM, type: 'boolean', default: false, page: 'navigation', group: 'tree', label: 'settings:navigation.show_system', description: 'settings:navigation.show_system_help' },
 ])
 
 type Listener = () => void

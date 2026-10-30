@@ -8,7 +8,9 @@ import Icon from '@/components/Icon'
 import Modal from '@/components/Modal'
 import SqlView from '@/components/SqlView'
 import { treeState } from '@/layout/tree/treeState'
+import { SHOW_SYSTEM } from '@/nodes/client'
 import { notify, notifyError, notifySuccess } from '@/notify'
+import { preference } from '@/preferences'
 import { dropDatabase, listDatabases } from '@databases/js/api'
 import { quoteIdent } from '@sql/js/sql'
 import { roles as rolesApi, type Role } from '../api'
@@ -23,13 +25,13 @@ export const roleUrl = (name: string) => `${ROLES_PATH}/${encodeURIComponent(nam
  * users_overview.twig): a striped table with a checkbox per role, its name, whether it may log
  * in and has a password, its attributes in <code>, what it is a member of and the Edit / Export
  * actions; the "With selected" export, the "New" card and the "Remove selected" card. The
- * predefined pg_* roles are listed only on request.
+ * predefined pg_* roles are listed only on request, or with "Show system objects" on.
  */
 export default function Roles() {
   const { t } = useTranslation('roles')
   const { t: tApp } = useTranslation()
   const { data: roles, error, reload } = useRequest(() => rolesApi.list(), [])
-  const [showSystem, setShowSystem] = useState(false)
+  const [showSystem, setShowSystem] = useState(() => preference<boolean>(SHOW_SYSTEM))
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [dropDatabases, setDropDatabases] = useState(false)
   const [dropping, setDropping] = useState<{ roles: Role[]; databases: { did: number; name: string }[] } | null>(null)

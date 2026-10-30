@@ -1,4 +1,5 @@
 import { api } from '@/api/request'
+import { preference } from '@/preferences'
 
 /**
  * The node API: pgAdmin's object model behind /api/databases/{db}/…, addressed by OIDs. A
@@ -42,6 +43,18 @@ export interface Statistics {
 
 const encode = encodeURIComponent
 
+/**
+ * The "Show system objects" setting (classic phpPgAdmin's show_system): lists and the tree
+ * then include pg_catalog, information_schema, template databases and the other objects
+ * pgAdmin hides as system ones. Registered with the tree's settings in treeState.
+ */
+export const SHOW_SYSTEM = 'navigation.show_system'
+
+/** A list URL, asking for the system objects too when the setting is on. */
+function listing(url: string): string {
+  return preference<boolean>(SHOW_SYSTEM) ? `${url}?system_objects=1&templates=1` : url
+}
+
 /** The root the node routes hang from: a database by name, or the server for server-level nodes. */
 function root(db: string | null): string {
   return db === null ? '/api/server' : `/api/databases/${encode(db)}`
@@ -71,8 +84,8 @@ export function resolve(db: string | null, type: string, params: Record<string, 
 /** The operations on one collection, given its URL (see collectionUrl). */
 export function collection<Props extends object = Record<string, unknown>, Meta = Record<string, unknown>>(url: string) {
   return {
-    list: () => api.get<{ rows: Props[] }>(url).then((r) => r.rows),
-    nodes: () => api.get<{ nodes: TreeNode<Meta>[] }>(`${url}/nodes`).then((r) => r.nodes),
+    list: () => api.get<{ rows: Props[] }>(listing(url)).then((r) => r.rows),
+    nodes: () => api.get<{ nodes: TreeNode<Meta>[] }>(listing(`${url}/nodes`)).then((r) => r.nodes),
     node: (oid: number) => api.get<{ node: TreeNode<Meta> }>(`${url}/${oid}/node`).then((r) => r.node),
     properties: (oid: number) => api.get<{ properties: Props }>(`${url}/${oid}`).then((r) => r.properties),
     create: (data: unknown) => api.post<{ node: TreeNode<Meta> }>(url, data).then((r) => r.node),

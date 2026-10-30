@@ -8,6 +8,7 @@ use League\Route\Http\Exception\BadRequestException;
 use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\QueryException;
 use PhpPgAdmin\Core\Database\Quoting;
+use PhpPgAdmin\Core\Facades\Config;
 use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\Nodes\Acl;
 use PhpPgAdmin\Core\Nodes\Catalog;
@@ -35,9 +36,10 @@ final class DatabaseController extends NodeController
     public function list(NodeContext $ctx): array
     {
         $rows = [];
+        $owner = $this->ownedOnly($ctx);
         foreach ($ctx->rows('properties.sql', ['last_system_oid' => $this->lastSystemOid($ctx)]) as $row) {
             $row['is_sys_obj'] = (int) $row['did'] <= self::LAST_SYSTEM_OID;
-            if ($this->skip($ctx, $row)) {
+            if ($this->skip($ctx, $row) || ($owner !== null && $row['datowner'] !== $owner['rolname'])) {
                 continue;
             }
             $row['can_drop'] = $row['name'] !== $ctx->conn->database();
@@ -50,9 +52,10 @@ final class DatabaseController extends NodeController
     public function nodes(NodeContext $ctx): array
     {
         $nodes = [];
+        $owner = $this->ownedOnly($ctx);
         foreach ($ctx->rows('nodes.sql', ['last_system_oid' => $this->lastSystemOid($ctx)]) as $row) {
             $row['is_sys_obj'] = (int) $row['did'] <= self::LAST_SYSTEM_OID;
-            if (!$this->skip($ctx, $row)) {
+            if (!$this->skip($ctx, $row) && ($owner === null || (int) $row['owner'] === (int) $owner['oid'])) {
                 $nodes[] = $this->toNode($ctx, $row);
             }
         }
@@ -448,6 +451,23 @@ final class DatabaseController extends NodeController
     private function lastSystemOid(NodeContext $ctx): int
     {
         return $ctx->flag('system_objects') ? 0 : self::LAST_SYSTEM_OID;
+    }
+
+    /**
+     * The signed-in role when only the databases it owns are listed (the classic phpPgAdmin's
+     * owned_only, config auth.owned_only); null when every database is, as for a superuser.
+     *
+     * @return array{oid: int|string, rolname: string}|null
+     */
+    private function ownedOnly(NodeContext $ctx): ?array
+    {
+        if (!(bool) Config::get('auth.owned_only', false)) {
+            return null;
+        }
+
+        $role = $ctx->conn->row('SELECT oid, rolname, rolsuper FROM pg_catalog.pg_roles WHERE rolname = current_user');
+
+        return $role === null || $role['rolsuper'] ? null : ['oid' => $role['oid'], 'rolname' => (string) $role['rolname']];
     }
 
     /** @param array<string, mixed> $row */

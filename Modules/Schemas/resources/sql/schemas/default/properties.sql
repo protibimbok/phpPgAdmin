@@ -47,9 +47,9 @@ WHERE
     nspname NOT LIKE E'pg\\_%' AND
     {% endif %}
     {% endif %}
-    NOT (
+    {% if show_sysobj %}true{% else %}NOT (
 {{ CATALOGS.LIST('nsp') }}
-    )
+    ){% endif %}
     {% if schema_restrictions %}
         AND
         nsp.nspname in ({{schema_restrictions}})

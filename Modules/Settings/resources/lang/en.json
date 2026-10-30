@@ -88,7 +88,9 @@
     "max_items": "Maximum items in branch",
     "max_items_help": "The number of items that can be displayed on each page of the navigation tree.",
     "filter_minimum": "Minimum number of items to display the filter box",
-    "filter_minimum_help": "Defines the minimum number of items (tables, views, routines and events) to display a filter box."
+    "filter_minimum_help": "Defines the minimum number of items (tables, views, routines and events) to display a filter box.",
+    "show_system": "Show system objects",
+    "show_system_help": "List the system schemas (pg_catalog, information_schema), the template databases and the other built-in objects in the navigation tree and on the object lists."
   },
   "export": {
     "method": "Export method",

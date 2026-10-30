@@ -9,7 +9,9 @@ use League\Route\Http\Exception\NotFoundException;
 use PhpPgAdmin\Core\Database\ConnectionException;
 use PhpPgAdmin\Core\Database\Connector;
 use PhpPgAdmin\Core\Database\Server;
+use PhpPgAdmin\Core\Facades\Config;
 use PhpPgAdmin\Core\Facades\Lang;
+use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\I18n\LocaleResolver;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Auth\Preferences;
@@ -55,6 +57,10 @@ final class AuthController
 
         if ($username === '') {
             throw new BadRequestException(__('auth::errors.credentials_required'));
+        }
+
+        if (self::disallowed($username, $password)) {
+            throw new ApiException(403, __('auth::errors.login_disallowed'));
         }
 
         $server = $this->server($input['server'] ?? null);
@@ -105,6 +111,20 @@ final class AuthController
         }
 
         return ['user' => $_SESSION[Authenticate::USER], 'locale' => Lang::locale()->code];
+    }
+
+    /**
+     * The classic phpPgAdmin's extra_login_security: with it on, the usual superuser names and
+     * empty passwords are refused before the server is asked, since a "trust" line in
+     * pg_hba.conf would let them in with any password.
+     */
+    private static function disallowed(string $username, string $password): bool
+    {
+        if (!(bool) Config::get('auth.extra_login_security', false)) {
+            return false;
+        }
+
+        return $password === '' || in_array(strtolower($username), ['postgres', 'pgsql', 'root', 'administrator'], true);
     }
 
     /** @return array<string, mixed> */
