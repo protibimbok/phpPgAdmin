@@ -52,6 +52,8 @@
     "title": "CREATE statements for {{database}}"
   },
   "actions": {
+    "check_privileges": "Check privileges",
+    "check_privileges_title": "Check privileges for database \"{{name}}\".",
     "sql": "SQL",
     "drop": "Drop"
   },

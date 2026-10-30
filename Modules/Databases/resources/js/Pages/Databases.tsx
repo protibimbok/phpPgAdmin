@@ -18,7 +18,8 @@ import CollationRefreshDialog from '../CollationRefreshDialog'
 /**
  * The server's databases, laid out like phpMyAdmin's "Databases" tab (server/databases/
  * index.twig): the heading, the "Create database" card, the check-all and Drop bar with the
- * search box, a striped table with a checkbox per row and the action links, the total
+ * search box, a striped table with a checkbox per row and the action links (Check privileges,
+ * which opens the database's Privileges tab, SQL and Drop), the total
  * underneath. What is listed comes from pg_database, as in pgAdmin; a drop asks first, with
  * phpMyAdmin's warning, and runs DROP DATABASE for each checked database.
  */
@@ -156,7 +157,7 @@ export default function Databases() {
                   </th>
                 ))}
                 <th>{t('columns.comment')}</th>
-                <th colSpan={1}>{t('columns.action')}</th>
+                <th colSpan={2}>{t('columns.action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -202,6 +203,13 @@ export default function Databases() {
                     </td>
                   ))}
                   <td>{database.comments}</td>
+                  <td className="tool">
+                    {database.datallowconn && (
+                      <Link to={`${urls.database(database.name)}/privileges`} title={t('actions.check_privileges_title', { name: database.name })}>
+                        <Icon name="s_rights" /> {t('actions.check_privileges')}
+                      </Link>
+                    )}
+                  </td>
                   <td className="tool text-nowrap">
                     {database.datallowconn && (
                       <Link to={`${urls.database(database.name)}/ddl`}>

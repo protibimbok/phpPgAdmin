@@ -9,7 +9,9 @@ creates new ones and drops them. It is laid out like phpMyAdmin's Databases tab:
 ## The list
 
 Each row shows the database's **Owner**, **Encoding**, **Collation** (`datcollate`), **Size**
-(`pg_database_size`) and **Comment**. The name links to the database; **SQL** opens its
+(`pg_database_size`) and **Comment**. The name links to the database; **Check privileges** opens
+the database's [Privileges](/tools/privileges) tab (`CONNECT`, `CREATE`, `TEMPORARY` and the
+default privileges), as phpMyAdmin's link of the same name does; **SQL** opens its
 **Show create** page (the `CREATE DATABASE` statement and the statements for its settings and
 privileges); **Drop** drops it. **Total** counts the rows shown.
 
