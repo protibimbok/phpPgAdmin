@@ -491,7 +491,11 @@ function SqlPageAt() {
                         </div>
                       )}
                       <div className="btn-group me-2" role="group">
-                        <input type="button" value={t('buttons.clear')} id="clear" className="btn btn-secondary button sqlbutton" onClick={() => setQuery('')} />
+                        <input type="button" value={t('buttons.clear')} id="clear" className="btn btn-secondary button sqlbutton" onClick={() => {
+                          setQuery('')
+                          // A cleared box is no longer the file that was opened.
+                          setFileName('query.sql')
+                        }} />
                         <input type="button" value={t('buttons.format')} id="format" className="btn btn-secondary button sqlbutton" onClick={formatQuery} />
                       </div>
                       {/* pgAdmin's query tool Open File and Save File: a .sql file of this computer into the box, the box into one. */}
