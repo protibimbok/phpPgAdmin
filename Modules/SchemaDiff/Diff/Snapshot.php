@@ -17,7 +17,8 @@ use Psr\Http\Message\ServerRequestInterface;
  * compares them, after pgAdmin's fetch_objects_to_compare: for each node type, its objects by
  * the name the navigation panel gives them, and on demand an object's DDL, which the node's
  * controller writes as its SQL tab does. An extension's members are left out, as pgAdmin's
- * schema_diff queries leave them out: CREATE EXTENSION makes them.
+ * schema_diff queries leave them out: CREATE EXTENSION makes them; so are the sequences of
+ * identity columns, which the column's GENERATED … AS IDENTITY makes.
  */
 abstract class Snapshot
 {
@@ -154,12 +155,31 @@ abstract class Snapshot
         return $ids === [] ? $ctx : new NodeContext($ctx->node, $ctx->registry, $ctx->pool, $ctx->conn, $ctx->database, [...$ctx->ids, ...$ids], $ctx->request);
     }
 
-    /** @return array<int, true> the OIDs of the objects an extension owns */
+    /**
+     * Has the connection write every name with its schema, as pg_dump does: pg_get_viewdef,
+     * format_type and pg_get_expr leave out the schema of whatever is on the search_path, and a
+     * view of public's tables would read "items" where the script needs "public.items". The
+     * connection's search_path before, to set back with restoreSearchPath().
+     */
+    public static function qualifyNames(Connection $conn): string
+    {
+        $before = (string) $conn->scalar("SELECT pg_catalog.current_setting('search_path')");
+        $conn->scalar("SELECT pg_catalog.set_config('search_path', '', false)");
+
+        return $before;
+    }
+
+    public static function restoreSearchPath(Connection $conn, string $before): void
+    {
+        $conn->scalar("SELECT pg_catalog.set_config('search_path', \$1, false)", [$before]);
+    }
+
+    /** @return array<int, true> the OIDs of the objects an extension owns, and of identity columns' sequences */
     private function extensionMembers(): array
     {
         if ($this->members === null) {
             $this->members = [];
-            foreach ($this->conn->rows("SELECT DISTINCT objid FROM pg_catalog.pg_depend WHERE deptype = 'e'") as $row) {
+            foreach ($this->conn->rows("SELECT DISTINCT objid FROM pg_catalog.pg_depend WHERE deptype = 'e' OR (deptype = 'i' AND classid = 'pg_catalog.pg_class'::regclass AND refclassid = 'pg_catalog.pg_class'::regclass AND refobjsubid > 0)") as $row) {
                 $this->members[(int) $row['objid']] = true;
             }
         }

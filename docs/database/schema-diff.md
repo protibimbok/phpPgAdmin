@@ -55,11 +55,38 @@ its grants. An extension of another version gets `ALTER EXTENSION … UPDATE TO`
 `… SET SCHEMA`. The objects an extension owns (citext's functions and casts, for example) are never
 listed: `CREATE EXTENSION` makes them.
 
+The other database-level objects are altered too wherever PostgreSQL can, so that what depends on them
+(a server's user mappings and foreign tables, a cast's views) stays:
+
+| Object | Altered with |
+| --- | --- |
+| Foreign data wrapper | `ALTER FOREIGN DATA WRAPPER … HANDLER` / `VALIDATOR` (or `NO …`), `OPTIONS (ADD …, SET …, DROP …)` |
+| Foreign server | `ALTER SERVER … VERSION`, `OPTIONS (ADD …, SET …, DROP …)` |
+| User mapping | `ALTER USER MAPPING FOR … SERVER … OPTIONS (…)` |
+| Language | `CREATE OR REPLACE LANGUAGE` |
+| Event trigger | `ALTER EVENT TRIGGER … ENABLE` / `DISABLE` / `ENABLE REPLICA` / `ENABLE ALWAYS` |
+| Publication | `ALTER PUBLICATION … SET TABLE …, TABLES IN SCHEMA …` and `… SET (publish = …)` |
+| Subscription | `ALTER SUBSCRIPTION … DISABLE`, `SET (…)`, `CONNECTION …`, `SET PUBLICATION … WITH (refresh = false)`, `ENABLE` |
+| Any of them, cast included | only the owner, grants and comment when nothing else differs |
+
+Only what has no `ALTER` for the difference is dropped and made again, without `CASCADE`: a server on
+another wrapper or of another `TYPE`, an event trigger on another event or function, a publication
+going to or from `FOR ALL TABLES`, a cast with another function or context. When something depends on
+it, the `DROP` fails and the transaction stops; settle that by hand. After `SET PUBLICATION`, run
+`ALTER SUBSCRIPTION … REFRESH PUBLICATION` to start copying the tables it adds.
+
 The script of a whole-database comparison puts the database-level creates that the schemas' objects use
 first (schemas, extensions, languages, wrappers, servers, user mappings), after the drops of casts, event
-triggers, publications and subscriptions only the target has; then each schema's part, ordered as below;
-then the new casts, event triggers, publications and subscriptions; and last the drops of the
-database-level objects only the target has, schemas at the very end.
+triggers, publications and subscriptions only the target has. Then come the objects of all the schemas
+together, in the phases described [below](#the-script): every drop, every type, routine and table,
+every view, every foreign key, so that `a.child REFERENCES b.t` or a view `a.v` on `b.t` finds `b.t`
+made whatever the order of the schemas' names, and `c.v` on `d.t` is dropped before `d.t`. Then the new
+casts, event triggers, publications and subscriptions; and last the drops of the database-level objects
+only the target has, schemas at the very end.
+
+PostgreSQL runs some statements only outside a transaction block (`DROP SUBSCRIPTION` of a subscription
+with a replication slot, `CREATE SUBSCRIPTION` making one): the script keeps every subscription
+statement outside its `BEGIN;` … `END;`, the drops before it and the rest after it.
 
 ## Results
 
@@ -85,6 +112,8 @@ How each kind of difference is written:
 | Different table | `ALTER TABLE`: columns added, dropped, retyped (`TYPE … USING col::type`), defaults, `NOT NULL`, identity, comments; constraints, indexes and triggers dropped and made again where they differ; the owner and grants the source sets, and revokes for grants only the target has |
 | Different sequence | `ALTER SEQUENCE` for the increment, bounds, start, cache and cycle |
 | Different routine or view | `CREATE OR REPLACE` |
+| Only the owner, grants or comment differ | `ALTER … OWNER TO`, `GRANT` / `REVOKE`, `COMMENT ON` |
+| A database-level object | the `ALTER` of the table [above](#whole-databases) |
 | Anything else that differs | `DROP` and `CREATE` again |
 
 ::: info What a table's diff leaves to you
@@ -100,10 +129,21 @@ Every object that is not identical starts ticked. Untick what you want to leave 
 
 ![The generated script in its dialog](/media/database/schema-diff-script.png)
 
-The script is wrapped in `BEGIN;` … `END;`. The drops of what is only in the target come first, in the
-reverse of the creation order; then the rest in creation order: collations, types, domains, text search
-objects, sequences, functions, procedures, trigger functions, aggregates, operators, tables (each after
-the tables its foreign keys reference), foreign tables, views and materialized views.
+The script is wrapped in `BEGIN;` … `END;` and starts with `SET LOCAL check_function_bodies = false;`,
+as pg_dump's does: a SQL function's body would otherwise be checked against tables made further down.
+It runs in phases:
+
+1. the drops of what is only in the target, in the reverse of the creation order (a view before the
+   table it reads, a referencing table before the one it references);
+2. the rest in creation order: collations, types, domains, text search objects, sequences, functions,
+   procedures, trigger functions, aggregates, operators, tables and foreign tables (an inheritance
+   child after its parent, a partitioned table with its partitions). A new table is made without its
+   foreign keys, indexes, triggers, rules and policies;
+3. views and materialized views, each after the views it selects from;
+4. the new tables' indexes, then their foreign keys (`ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY`, so
+   two tables that reference each other can both be made), then their triggers, rules, policies and
+   row level security;
+5. the sequences' `OWNED BY`.
 
 **Open in the SQL page of bookshop** puts the script into the target database's
 [SQL page](/tools/sql) query box. It is not run: read it, and click **Go** there when you are sure.
@@ -119,10 +159,16 @@ revokes each grant only the target has (`REVOKE SELECT, UPDATE ON TABLE inventor
 bookshop_staff;`), privilege for privilege and column grants included, then makes the source's grants.
 With **Ignore grants/revokes** ticked, neither is in the script.
 
-::: warning Unqualified references
-A foreign key added by the script is written as the catalog prints it, for example
-`REFERENCES books(id)` for `public.books`: it depends on the `search_path` of the session that runs the
-script. On the SQL page `public` is on the path; check the script if you run it elsewhere.
+Every name in the DDL carries its schema (`REFERENCES public.books(id)`, `FROM public.items`): the
+comparison reads the definitions with an empty `search_path`, as pg_dump does, so the script does not
+depend on the `search_path` of the session that runs it.
+
+::: info Routine bodies between two schema names
+When the two schemas have different names, references to the source schema are rewritten to the
+target's in names, types, defaults, view queries and `'…'::regclass` literals, and in a routine's
+`SET search_path`. String literals and routine bodies are not rewritten: a body is opaque text. A
+function in `inventory` whose body reads `inventory.stock` therefore differs from one in
+`inventory_next` reading `inventory_next.stock`.
 :::
 
 ::: tip Try it on copies

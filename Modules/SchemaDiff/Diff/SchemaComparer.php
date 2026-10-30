@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\SchemaDiff\Diff;
 
+use PhpPgAdmin\Core\Database\Connection;
 use PhpPgAdmin\Core\Database\Quoting;
 use PhpPgAdmin\Core\Facades\Nodes;
+use PhpPgAdmin\Modules\Sql\Sql\Splitter;
 
 /**
  * pgAdmin's schema diff between two schemas of the server, of one database or of two: each
  * object of each type is identical, different, only in the source or only in the target, and
  * for each the DDL that makes the target like the source. A table is altered (TableDiff), a
  * sequence altered; a routine, a view or anything whose DDL says CREATE OR REPLACE is replaced;
- * anything else that differs is dropped and created again, as pgAdmin does.
+ * a database-level object is altered where PostgreSQL has an ALTER for the difference, and
+ * anything that differs in its owner, grants or comment only gets those; anything else that
+ * differs is dropped and created again, as pgAdmin does.
  *
  * @phpstan-type Result array{type: string, label: string, name: string, status: string, source_oid: int|null, target_oid: int|null}
  */
@@ -103,8 +107,24 @@ final class SchemaComparer
     }
 
     /**
+     * The phases a script's statements fall in, in the order it runs them: the drops, the
+     * objects (a new table without its foreign keys, indexes, triggers, rules and policies), the
+     * views and materialized views, then the new tables' indexes, foreign keys, and triggers,
+     * rules and policies, and last the sequences' OWNED BY. A table is so made before any
+     * foreign key names it, whatever the order of the schemas or a cycle of references, and
+     * Copy schema puts the rows in after the objects and before what fires on them.
+     */
+    public const array PHASES = ['drop', 'create', 'view', 'index', 'fkey', 'trigger', 'owned'];
+
+    /**
+     * The statement a script starts with, as pg_dump's does: a SQL function's body is checked
+     * against tables only made further down, or in another schema's part.
+     */
+    public const string PRELUDE = 'SET LOCAL check_function_bodies = false;';
+
+    /**
      * The script for the objects chosen: the drops of what is only in the target first, in the
-     * reverse of the creation order, then the rest in creation order.
+     * reverse of the creation order, then the rest in creation order, phase by phase.
      *
      * @param list<array{type: string, source_oid: int|null, target_oid: int|null}> $items
      */
@@ -112,7 +132,7 @@ final class SchemaComparer
     {
         $parts = $this->parts($items);
 
-        return $parts === [] ? '' : "BEGIN;\n\n" . implode("\n\n", $parts) . "\n\nEND;";
+        return $parts === [] ? '' : "BEGIN;\n\n" . self::PRELUDE . "\n\n" . implode("\n\n", $parts) . "\n\nEND;";
     }
 
     /**
@@ -123,85 +143,278 @@ final class SchemaComparer
      */
     public function parts(array $items): array
     {
-        $rank = array_flip($this->source->types());
-        $drops = array_values(array_filter($items, static fn (array $i): bool => $i['source_oid'] === null));
-        $rest = array_values(array_filter($items, static fn (array $i): bool => $i['source_oid'] !== null));
-        usort($drops, static fn (array $a, array $b): int => ($rank[$b['type']] ?? 0) <=> ($rank[$a['type']] ?? 0));
-        usort($rest, static fn (array $a, array $b): int => ($rank[$a['type']] ?? 0) <=> ($rank[$b['type']] ?? 0));
-        $rest = $this->tablesAfterReferenced($rest);
+        return array_merge(...array_values($this->phased($items)));
+    }
 
-        $sequences = array_flip($this->source->objects('sequence') ?? []);
-        $this->creating = [];
-        foreach ($rest as $item) {
-            if ($item['type'] === 'sequence' && $item['target_oid'] === null && isset($sequences[$item['source_oid']])) {
-                $this->creating[$this->normalizer->retarget((string) $sequences[$item['source_oid']])] = true;
+    /**
+     * The statements of the script for the objects chosen, by phase (PHASES, in order).
+     *
+     * @param list<array{type: string, source_oid: int|null, target_oid: int|null}> $items
+     * @return array<string, list<string>>
+     */
+    public function phased(array $items): array
+    {
+        $pieces = $this->pieces($items);
+        $phased = array_fill_keys(self::PHASES, []);
+        foreach (self::order($this->source->conn, $this->target->conn, $items, $this->source->types()) as $key) {
+            foreach ($pieces[$key] as [$phase, $sql]) {
+                $phased[$phase][] = $sql;
             }
         }
 
-        // A new sequence's OWNED BY names a column its table may not have yet: it goes last.
-        $parts = [];
-        $ownedBy = [];
-        try {
-            foreach ([...$drops, ...$rest] as $item) {
-                $ddl = $this->ddl($item['type'], $item['source_oid'], $item['target_oid'])['diff_ddl'];
-                if ($item['type'] === 'sequence') {
-                    $ddl = (string) preg_replace_callback('/^ALTER\s+SEQUENCE\s+[^;]*?\sOWNED\s+BY\s[^;]*;\n*/mi', static function (array $m) use (&$ownedBy): string {
-                        $ownedBy[] = rtrim($m[0]);
+        return $phased;
+    }
 
-                        return '';
-                    }, $ddl);
-                }
-                if (trim($ddl) !== '') {
-                    $parts[] = trim($ddl);
-                }
+    /**
+     * Each item's statements, keyed as the items are, each with the phase it runs in.
+     *
+     * @param array<array-key, array{type: string, source_oid: int|null, target_oid: int|null}> $items
+     * @return array<array-key, list<array{0: string, 1: string}>>
+     */
+    public function pieces(array $items): array
+    {
+        $sequences = array_flip($this->source->objects('sequence') ?? []);
+        $this->creating = [];
+        foreach ($items as $item) {
+            if ($item['type'] === 'sequence' && $item['source_oid'] !== null && $item['target_oid'] === null && isset($sequences[$item['source_oid']])) {
+                $this->creating[$this->normalizer->retarget((string) $sequences[$item['source_oid']])] = true;
+            }
+        }
+        $pieces = [];
+        try {
+            foreach ($items as $key => $item) {
+                $pieces[$key] = $this->itemPieces($item);
             }
         } finally {
             $this->creating = null;
         }
-        array_push($parts, ...$ownedBy);
 
-        return $parts;
+        return $pieces;
     }
 
     /**
-     * The items with the source's tables reordered so that a table follows the tables its
-     * foreign keys reference, which a new table's CREATE names.
+     * The keys of the items in the order a script takes them: the drops in the reverse of the
+     * order the target's objects would be made in, then the rest in the source's: by type, and
+     * among the relations (tables and foreign tables, views and materialized views) each after
+     * those it inherits from, references or selects from, in whatever schema.
      *
-     * @param list<array{type: string, source_oid: int|null, target_oid: int|null}> $items
-     * @return list<array{type: string, source_oid: int|null, target_oid: int|null}>
+     * @param array<array-key, array{type: string, source_oid: int|null, target_oid: int|null}> $items
+     * @param list<string> $types
+     * @return list<array-key>
      */
-    private function tablesAfterReferenced(array $items): array
+    public static function order(Connection $sourceConn, Connection $targetConn, array $items, array $types): array
     {
-        $tables = array_values(array_filter($items, static fn (array $i): bool => $i['type'] === 'table'));
-        if (count($tables) < 2) {
-            return $items;
+        $drops = array_filter($items, static fn (array $i): bool => $i['source_oid'] === null);
+        $rest = array_filter($items, static fn (array $i): bool => $i['source_oid'] !== null);
+
+        return [...array_reverse(self::byDependency($targetConn, $drops, $types, 'target_oid')), ...self::byDependency($sourceConn, $rest, $types, 'source_oid')];
+    }
+
+    /**
+     * @param array<array-key, array{type: string, source_oid: int|null, target_oid: int|null}> $items
+     * @param list<string> $types
+     * @return list<array-key>
+     */
+    private static function byDependency(Connection $conn, array $items, array $types, string $oidKey): array
+    {
+        $rank = array_flip($types);
+        // A view may select from a materialized view, a table inherit from a foreign table.
+        foreach (['foreign_table' => 'table', 'mview' => 'view'] as $type => $like) {
+            if (isset($rank[$type], $rank[$like])) {
+                $rank[$type] = $rank[$like];
+            }
         }
-        $oids = array_map(static fn (array $i): int => (int) $i['source_oid'], $tables);
-        $references = [];
-        foreach ($this->source->conn->rows("SELECT conrelid, confrelid FROM pg_catalog.pg_constraint WHERE contype = 'f' AND conrelid = ANY(\$1::oid[]) AND confrelid <> conrelid", ['{' . implode(',', $oids) . '}']) as $row) {
-            $references[(int) $row['conrelid']][] = (int) $row['confrelid'];
+        $keys = array_keys($items);
+        $position = array_flip($keys);
+        usort($keys, static fn (int|string $a, int|string $b): int => [$rank[$items[$a]['type']] ?? PHP_INT_MAX, $position[$a]] <=> [$rank[$items[$b]['type']] ?? PHP_INT_MAX, $position[$b]]);
+
+        $relations = [];
+        foreach ($keys as $key) {
+            if (in_array($items[$key]['type'], ['table', 'foreign_table', 'view', 'mview'], true) && $items[$key][$oidKey] !== null) {
+                $relations[(int) $items[$key][$oidKey]] = $key;
+            }
         }
-        $ordered = [];
-        $visit = static function (int $oid, array $seen) use (&$visit, &$ordered, $references, $oids): void {
-            if (in_array($oid, $ordered, true) || in_array($oid, $seen, true)) {
+        if (count($relations) < 2) {
+            return $keys;
+        }
+        $uses = [];
+        foreach ($conn->rows(<<<'SQL'
+            SELECT DISTINCT dep, ref FROM (
+                SELECT r.ev_class AS dep, d.refobjid AS ref
+                FROM pg_catalog.pg_rewrite r
+                JOIN pg_catalog.pg_depend d ON d.classid = 'pg_catalog.pg_rewrite'::regclass AND d.objid = r.oid AND d.refclassid = 'pg_catalog.pg_class'::regclass
+                UNION ALL SELECT inhrelid, inhparent FROM pg_catalog.pg_inherits
+                UNION ALL SELECT conrelid, confrelid FROM pg_catalog.pg_constraint WHERE contype = 'f'
+            ) uses
+            WHERE dep = ANY($1::oid[]) AND ref = ANY($1::oid[]) AND dep <> ref
+            SQL, ['{' . implode(',', array_keys($relations)) . '}']) as $row) {
+            $uses[(int) $row['dep']][] = (int) $row['ref'];
+        }
+
+        // Depth first, within a rank only: a cycle (two tables that reference each other) is cut.
+        $sorted = [];
+        $done = [];
+        $visit = static function (int|string $key, array $path) use (&$visit, &$sorted, &$done, $items, $uses, $relations, $rank, $oidKey): void {
+            if (isset($done[$key]) || isset($path[$key])) {
                 return;
             }
-            foreach ($references[$oid] ?? [] as $referenced) {
-                if (in_array($referenced, $oids, true)) {
-                    $visit($referenced, [...$seen, $oid]);
+            $path[$key] = true;
+            foreach ($uses[(int) $items[$key][$oidKey]] ?? [] as $ref) {
+                $other = $relations[$ref] ?? null;
+                if ($other !== null && ($rank[$items[$other]['type']] ?? null) === ($rank[$items[$key]['type']] ?? null)) {
+                    $visit($other, $path);
                 }
             }
-            $ordered[] = $oid;
+            $done[$key] = true;
+            $sorted[] = $key;
         };
-        foreach ($oids as $oid) {
-            $visit($oid, []);
+        foreach ($keys as $key) {
+            $visit($key, []);
         }
-        $byOid = array_column($tables, null, 'source_oid');
-        $sorted = array_map(static fn (int $oid): array => $byOid[$oid], $ordered);
-        $first = array_search('table', array_column($items, 'type'), true);
-        $others = array_values(array_filter($items, static fn (array $i): bool => $i['type'] !== 'table'));
 
-        return [...array_slice($others, 0, (int) $first), ...$sorted, ...array_slice($others, (int) $first)];
+        return $sorted;
+    }
+
+    /**
+     * An item's statements with their phases: a drop; a new table split into its CREATE (its
+     * foreign keys taken out), its indexes, foreign keys and triggers, rules and policies; a
+     * view; a sequence's OWNED BY, which names a column its table may not have yet; the rest.
+     *
+     * @param array{type: string, source_oid: int|null, target_oid: int|null} $item
+     * @return list<array{0: string, 1: string}>
+     */
+    private function itemPieces(array $item): array
+    {
+        $ddl = trim($this->ddl($item['type'], $item['source_oid'], $item['target_oid'])['diff_ddl']);
+        if ($ddl === '') {
+            return [];
+        }
+        if ($item['source_oid'] === null) {
+            return [['drop', $ddl]];
+        }
+        if ($item['type'] === 'table' && $item['target_oid'] === null) {
+            return self::tablePieces($ddl);
+        }
+        $pieces = [];
+        if ($item['type'] === 'sequence') {
+            $ddl = trim((string) preg_replace_callback('/^ALTER\s+SEQUENCE\s+[^;]*?\sOWNED\s+BY\s[^;]*;\n*/mi', static function (array $m) use (&$pieces): string {
+                $pieces[] = ['owned', rtrim($m[0])];
+
+                return '';
+            }, $ddl));
+        }
+        if ($ddl !== '') {
+            array_unshift($pieces, [in_array($item['type'], ['view', 'mview'], true) ? 'view' : 'create', $ddl]);
+        }
+
+        return $pieces;
+    }
+
+    /**
+     * A new table's DDL by phase, its statements in their order within each.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    private static function tablePieces(string $ddl): array
+    {
+        $byPhase = [];
+        foreach (Splitter::split($ddl) as $statement) {
+            $sql = trim($statement->sql);
+            $bare = (string) preg_replace('/^(?:\s*--[^\n]*(?:\n|$))*\s*/', '', $sql);
+            if ($bare === '') {
+                continue;
+            }
+            if (preg_match('/^CREATE\s+(?:UNLOGGED\s+)?TABLE\s/i', $bare) === 1) {
+                [$sql, $foreignKeys] = self::withoutForeignKeys($sql);
+                $byPhase['create'][] = $sql . ';';
+                foreach ($foreignKeys as $foreignKey) {
+                    $byPhase['fkey'][] = $foreignKey;
+                }
+                continue;
+            }
+            $byPhase[self::tablePhase($bare)][] = $sql . ';';
+        }
+        $pieces = [];
+        foreach (self::PHASES as $phase) {
+            if (isset($byPhase[$phase])) {
+                $pieces[] = [$phase, implode("\n\n", $byPhase[$phase])];
+            }
+        }
+
+        return $pieces;
+    }
+
+    /** The phase of a statement of a new table's DDL other than its CREATE TABLE. */
+    private static function tablePhase(string $sql): string
+    {
+        return match (true) {
+            preg_match('/^(CREATE\s+(UNIQUE\s+)?INDEX|ALTER\s+INDEX|COMMENT\s+ON\s+INDEX|CREATE\s+STATISTICS|ALTER\s+STATISTICS|COMMENT\s+ON\s+STATISTICS)\s/i', $sql) === 1 => 'index',
+            preg_match('/^COMMENT\s+ON\s+CONSTRAINT\s/i', $sql) === 1,
+            preg_match('/^ALTER\s+TABLE\s[^;]*?\sADD\s+CONSTRAINT\s+\S+\s+FOREIGN\s+KEY\s/is', $sql) === 1 => 'fkey',
+            preg_match('/^(CREATE\s+(OR\s+REPLACE\s+)?(CONSTRAINT\s+)?TRIGGER|COMMENT\s+ON\s+TRIGGER|ALTER\s+TRIGGER|CREATE\s+(OR\s+REPLACE\s+)?RULE|COMMENT\s+ON\s+RULE|CREATE\s+POLICY|COMMENT\s+ON\s+POLICY)\s/i', $sql) === 1,
+            preg_match('/^ALTER\s+TABLE\s[^;]*?\s((ENABLE|DISABLE)(\s+(ALWAYS|REPLICA))?\s+(TRIGGER|RULE)|(ENABLE|DISABLE|FORCE|NO\s+FORCE)\s+ROW\s+LEVEL\s+SECURITY|REPLICA\s+IDENTITY|CLUSTER\s+ON)\b/is', $sql) === 1 => 'trigger',
+            preg_match('/^ALTER\s+SEQUENCE\s[^;]*?\sOWNED\s+BY\s/is', $sql) === 1 => 'owned',
+            default => 'create',
+        };
+    }
+
+    /**
+     * A CREATE TABLE without the foreign keys between its parentheses, and an ALTER TABLE … ADD
+     * for each.
+     *
+     * @return array{0: string, 1: list<string>}
+     */
+    private static function withoutForeignKeys(string $sql): array
+    {
+        $ident = '(?:"(?:""|[^"])*"|[^\s(."]+)';
+        if (preg_match('/^((?:\s*--[^\n]*\n)*\s*CREATE\s+(?:UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(' . $ident . '(?:\.' . $ident . ')?)\s*)\(/i', $sql, $m) !== 1) {
+            return [$sql, []];
+        }
+        $table = $m[2];
+        $length = strlen($sql);
+        $start = strlen($m[1]) + 1;
+        $elements = [];
+        $depth = 1;
+        $close = null;
+        for ($i = $start, $from = $start; $i < $length; $i++) {
+            $c = $sql[$i];
+            if ($c === "'" || $c === '"') {
+                $end = $i + 1;
+                while ($end < $length && ($sql[$end] !== $c || ($sql[$end + 1] ?? '') === $c)) {
+                    $end += $sql[$end] === $c ? 2 : 1;
+                }
+                $i = $end;
+            } elseif ($c === '-' && ($sql[$i + 1] ?? '') === '-') {
+                $i = ($newline = strpos($sql, "\n", $i)) === false ? $length : $newline;
+            } elseif ($c === '(') {
+                $depth++;
+            } elseif ($c === ')' && --$depth === 0) {
+                $elements[] = substr($sql, $from, $i - $from);
+                $close = $i;
+                break;
+            } elseif ($c === ',' && $depth === 1) {
+                $elements[] = substr($sql, $from, $i - $from);
+                $from = $i + 1;
+            }
+        }
+        if ($close === null) {
+            return [$sql, []];
+        }
+        $kept = [];
+        $foreignKeys = [];
+        foreach ($elements as $element) {
+            $bare = trim((string) preg_replace('/^(?:\s*--[^\n]*\n)*/', '', $element));
+            if (preg_match('/^CONSTRAINT\s+' . $ident . '\s+FOREIGN\s+KEY\b/i', $bare) === 1) {
+                $foreignKeys[] = sprintf("ALTER TABLE IF EXISTS %s\n    ADD %s;", $table, $bare);
+            } else {
+                $kept[] = $element;
+            }
+        }
+        if ($foreignKeys === []) {
+            return [$sql, []];
+        }
+
+        return [substr($sql, 0, $start) . rtrim(implode(',', $kept)) . "\n" . substr($sql, $close), $foreignKeys];
     }
 
     private function same(string $type, int $sourceOid, int $targetOid): bool
@@ -234,6 +447,9 @@ final class SchemaComparer
             return $this->dropOf($type, $targetDdl);
         }
         $create = DdlNormalizer::withoutHeader($this->normalizer->retarget($sourceDdl));
+        if (in_array($type, ['function', 'procedure', 'trigger_function'], true)) {
+            $create = $this->withSourceBody($sourceOid, $create);
+        }
         if ($targetOid === null) {
             return $type === 'table' ? $this->withSequenceDefaults($sourceOid, $create) : $create;
         }
@@ -251,12 +467,270 @@ final class SchemaComparer
         if ($statements !== null) {
             return implode("\n", [...$statements, ...$this->otherStatements($sourceDdl, $targetDdl)]);
         }
+        // What PostgreSQL alters in place, rather than dropping it and what depends on it.
+        $altered = match ($type) {
+            'foreign_data_wrapper' => $this->wrapper($sourceOid, $targetOid),
+            'foreign_server' => $this->server($sourceOid, $targetOid),
+            'user_mapping' => $this->userMapping($sourceOid, $targetOid),
+            'event_trigger' => $this->eventTrigger($sourceOid, $targetOid),
+            'publication' => $this->publication($sourceDdl, $targetDdl),
+            'subscription' => $this->subscription($sourceDdl, $targetDdl),
+            default => null,
+        };
+        if ($altered !== null || $this->onlyMetadataDiffers($sourceDdl, $targetDdl)) {
+            return implode("\n\n", [...($altered ?? []), ...$this->otherStatements($sourceDdl, $targetDdl), ...$this->comments($sourceDdl, $targetDdl)]);
+        }
         // A routine or a view is replaced in place; what has no CREATE OR REPLACE is made again.
         if (preg_match('/^\s*CREATE\s+OR\s+REPLACE\s/im', $create) === 1 && $type !== 'mview') {
             return $create;
         }
 
         return $this->dropOf($type, $targetDdl) . "\n\n" . $create;
+    }
+
+    /** Whether the two DDLs differ in no more than owners, privileges and comments. */
+    private function onlyMetadataDiffers(string $sourceDdl, string $targetDdl): bool
+    {
+        $rest = static fn (array $statements): array => array_values(array_filter($statements, static fn (string $s): bool => preg_match('/^(COMMENT\s+ON\s|GRANT\s|REVOKE\s|ALTER\s.+\sOWNER\s+TO\s)/is', $s) !== 1));
+
+        return $rest($this->normalizer->statements($sourceDdl, true)) === $rest($this->normalizer->statements($targetDdl, false));
+    }
+
+    /**
+     * A routine's CREATE with its body as the source has it: the SQL tab, as pgAdmin's, sets
+     * it on lines of its own, which adds a newline before and after it to prosrc.
+     */
+    private function withSourceBody(int $oid, string $create): string
+    {
+        $row = $this->source->conn->row(<<<'SQL'
+            SELECT p.prosrc, p.prosqlbody IS NOT NULL AS atomic, l.lanname
+            FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_language l ON l.oid = p.prolang
+            WHERE p.oid = $1
+            SQL, [$oid]);
+        if ($row === null || $row['atomic'] === true || $row['atomic'] === 't' || $row['lanname'] === 'c') {
+            return $create;
+        }
+        $body = (string) $row['prosrc'];
+        $tag = '$BODY$';
+        for ($n = 1; str_contains($body, $tag); $n++) {
+            $tag = '$BODY' . $n . '$';
+        }
+
+        return (string) preg_replace_callback('/\bAS\s+\$BODY\$.*\$BODY\$/s', static fn (): string => 'AS ' . $tag . $body . $tag, $create, 1);
+    }
+
+    /**
+     * An object's options as a map, from an options array column: srvoptions, umoptions, ….
+     *
+     * @return array<string, string|null>
+     */
+    private static function options(Connection $conn, string $query, int $oid): array
+    {
+        $options = [];
+        foreach ($conn->rows('SELECT option_name, option_value FROM pg_catalog.pg_options_to_table((' . $query . '))', [$oid]) as $row) {
+            $options[(string) $row['option_name']] = $row['option_value'] === null ? null : (string) $row['option_value'];
+        }
+
+        return $options;
+    }
+
+    /**
+     * OPTIONS (ADD …, SET …, DROP …) turning the target's options into the source's, or null.
+     *
+     * @param array<string, string|null> $source
+     * @param array<string, string|null> $target
+     */
+    private static function optionsClause(array $source, array $target): ?string
+    {
+        $changes = [];
+        foreach ($source as $name => $value) {
+            if (!array_key_exists($name, $target)) {
+                $changes[] = sprintf('ADD %s %s', Quoting::ident($name), Quoting::literal($value));
+            } elseif ($target[$name] !== $value) {
+                $changes[] = sprintf('SET %s %s', Quoting::ident($name), Quoting::literal($value));
+            }
+        }
+        foreach (array_keys(array_diff_key($target, $source)) as $name) {
+            $changes[] = 'DROP ' . Quoting::ident((string) $name);
+        }
+
+        return $changes === [] ? null : 'OPTIONS (' . implode(', ', $changes) . ')';
+    }
+
+    /** @return list<string> ALTER FOREIGN DATA WRAPPER for its handler, validator and options */
+    private function wrapper(int $sourceOid, int $targetOid): array
+    {
+        $query = "SELECT fdwname, CASE WHEN fdwhandler = 0 THEN NULL ELSE fdwhandler::regproc::text END AS handler, CASE WHEN fdwvalidator = 0 THEN NULL ELSE fdwvalidator::regproc::text END AS validator FROM pg_catalog.pg_foreign_data_wrapper WHERE oid = \$1";
+        $s = $this->source->conn->row($query, [$sourceOid]) ?? [];
+        $t = $this->target->conn->row($query, [$targetOid]) ?? [];
+        $name = Quoting::ident((string) ($t['fdwname'] ?? ''));
+        $statements = [];
+        foreach (['handler' => 'HANDLER', 'validator' => 'VALIDATOR'] as $key => $word) {
+            if (($s[$key] ?? null) !== ($t[$key] ?? null)) {
+                $statements[] = sprintf('ALTER FOREIGN DATA WRAPPER %s %s;', $name, $s[$key] === null ? 'NO ' . $word : $word . ' ' . $s[$key]);
+            }
+        }
+        $optionsQuery = 'SELECT fdwoptions FROM pg_catalog.pg_foreign_data_wrapper WHERE oid = $1';
+        if (($clause = self::optionsClause(self::options($this->source->conn, $optionsQuery, $sourceOid), self::options($this->target->conn, $optionsQuery, $targetOid))) !== null) {
+            $statements[] = sprintf('ALTER FOREIGN DATA WRAPPER %s %s;', $name, $clause);
+        }
+
+        return $statements;
+    }
+
+    /**
+     * ALTER SERVER for its version and options; null for another wrapper or type, which only
+     * CREATE SERVER sets.
+     *
+     * @return list<string>|null
+     */
+    private function server(int $sourceOid, int $targetOid): ?array
+    {
+        $query = 'SELECT s.srvname, w.fdwname, s.srvtype, s.srvversion FROM pg_catalog.pg_foreign_server s JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw WHERE s.oid = $1';
+        $s = $this->source->conn->row($query, [$sourceOid]) ?? [];
+        $t = $this->target->conn->row($query, [$targetOid]) ?? [];
+        if (($s['fdwname'] ?? null) !== ($t['fdwname'] ?? null) || ($s['srvtype'] ?? null) !== ($t['srvtype'] ?? null) || (($s['srvversion'] ?? null) === null && ($t['srvversion'] ?? null) !== null)) {
+            return null;
+        }
+        $name = Quoting::ident((string) $t['srvname']);
+        $statements = [];
+        if ($s['srvversion'] !== $t['srvversion']) {
+            $statements[] = sprintf('ALTER SERVER %s VERSION %s;', $name, Quoting::literal((string) $s['srvversion']));
+        }
+        $optionsQuery = 'SELECT srvoptions FROM pg_catalog.pg_foreign_server WHERE oid = $1';
+        if (($clause = self::optionsClause(self::options($this->source->conn, $optionsQuery, $sourceOid), self::options($this->target->conn, $optionsQuery, $targetOid))) !== null) {
+            $statements[] = sprintf('ALTER SERVER %s %s;', $name, $clause);
+        }
+
+        return $statements;
+    }
+
+    /** @return list<string> ALTER USER MAPPING for its options */
+    private function userMapping(int $sourceOid, int $targetOid): array
+    {
+        $row = $this->target->conn->row("SELECT CASE WHEN umuser = 0 THEN 'PUBLIC' ELSE pg_catalog.quote_ident(usename) END AS role, srvname FROM pg_catalog.pg_user_mappings WHERE umid = \$1", [$targetOid]);
+        $optionsQuery = 'SELECT umoptions FROM pg_catalog.pg_user_mappings WHERE umid = $1';
+        $clause = self::optionsClause(self::options($this->source->conn, $optionsQuery, $sourceOid), self::options($this->target->conn, $optionsQuery, $targetOid));
+
+        return $row === null || $clause === null ? [] : [sprintf('ALTER USER MAPPING FOR %s SERVER %s %s;', $row['role'], Quoting::ident((string) $row['srvname']), $clause)];
+    }
+
+    /**
+     * ALTER EVENT TRIGGER … ENABLE / DISABLE; null for another event, function or tags, which
+     * only CREATE EVENT TRIGGER sets (nothing depends on an event trigger).
+     *
+     * @return list<string>|null
+     */
+    private function eventTrigger(int $sourceOid, int $targetOid): ?array
+    {
+        $query = 'SELECT evtname, evtevent, evtfoid::regprocedure::text AS function, evttags::text AS tags, evtenabled FROM pg_catalog.pg_event_trigger WHERE oid = $1';
+        $s = $this->source->conn->row($query, [$sourceOid]) ?? [];
+        $t = $this->target->conn->row($query, [$targetOid]) ?? [];
+        foreach (['evtevent', 'function', 'tags'] as $key) {
+            if (($s[$key] ?? null) !== ($t[$key] ?? null)) {
+                return null;
+            }
+        }
+        if (($s['evtenabled'] ?? null) === ($t['evtenabled'] ?? null)) {
+            return [];
+        }
+        $state = ['O' => 'ENABLE', 'D' => 'DISABLE', 'R' => 'ENABLE REPLICA', 'A' => 'ENABLE ALWAYS'][(string) $s['evtenabled']] ?? 'ENABLE';
+
+        return [sprintf('ALTER EVENT TRIGGER %s %s;', Quoting::ident((string) $t['evtname']), $state)];
+    }
+
+    /**
+     * ALTER PUBLICATION … SET for its tables and schemas and its options; null when one side
+     * publishes all tables, which only CREATE PUBLICATION sets.
+     *
+     * @return list<string>|null
+     */
+    private function publication(string $sourceDdl, string $targetDdl): ?array
+    {
+        $parse = static function (array $statements): ?array {
+            foreach ($statements as $statement) {
+                if (preg_match('/^CREATE\s+PUBLICATION\s+(\S+)(?:\s+FOR\s+(.*?))?(?:\s+WITH\s+\((.*)\))?$/is', $statement, $m) === 1) {
+                    return [$m[1], (string) preg_replace('/\s+/', ' ', trim($m[2] ?? '')), (string) preg_replace('/\s+/', ' ', trim($m[3] ?? ''))];
+                }
+            }
+
+            return null;
+        };
+        $s = $parse($this->normalizer->statements($sourceDdl, true));
+        $t = $parse($this->normalizer->statements($targetDdl, false));
+        if ($s === null || $t === null) {
+            return null;
+        }
+        [$name, $for, $with] = $t;
+        $statements = [];
+        if ($s[1] !== $for) {
+            if (preg_match('/^ALL\s+TABLES\b/i', $s[1]) === 1 || preg_match('/^ALL\s+TABLES\b/i', $for) === 1) {
+                return null;
+            }
+            $statements[] = $s[1] === '' ? sprintf('ALTER PUBLICATION %s DROP %s;', $name, $for) : sprintf('ALTER PUBLICATION %s SET %s;', $name, $s[1]);
+        }
+        if ($s[2] !== $with && $s[2] !== '') {
+            $statements[] = sprintf('ALTER PUBLICATION %s SET (%s);', $name, $s[2]);
+        }
+
+        return $statements;
+    }
+
+    /**
+     * ALTER SUBSCRIPTION for its connection, publications, options and whether it is enabled,
+     * as pgAdmin's subscription dialog alters one: a subscription made again would drop and
+     * create its replication slot. The publications are set WITH (refresh = false).
+     *
+     * @return list<string>|null
+     */
+    private function subscription(string $sourceDdl, string $targetDdl): ?array
+    {
+        $parse = static function (array $statements): ?array {
+            foreach ($statements as $statement) {
+                if (preg_match('/^CREATE\s+SUBSCRIPTION\s+(\S+)\s+CONNECTION\s+(\'(?:\'\'|[^\'])*\')\s+PUBLICATION\s+(.*?)(?:\s+WITH\s+\((.*)\))?$/is', $statement, $m) === 1) {
+                    preg_match_all('/(\w+)\s*=\s*(\'(?:\'\'|[^\'])*\'|[^,\s]+)/', $m[4] ?? '', $pairs, PREG_SET_ORDER);
+                    $options = [];
+                    foreach ($pairs as $pair) {
+                        $options[strtolower($pair[1])] = $pair[2];
+                    }
+
+                    return ['name' => $m[1], 'connection' => $m[2], 'publications' => (string) preg_replace('/\s+/', ' ', trim($m[3])), 'options' => $options];
+                }
+            }
+
+            return null;
+        };
+        $s = $parse($this->normalizer->statements($sourceDdl, true));
+        $t = $parse($this->normalizer->statements($targetDdl, false));
+        if ($s === null || $t === null) {
+            return null;
+        }
+        $name = $t['name'];
+        $enabled = static fn (array $sub): bool => strtolower($sub['options']['enabled'] ?? 'true') !== 'false';
+        $statements = [];
+        if (!$enabled($s) && $enabled($t)) {
+            $statements[] = sprintf('ALTER SUBSCRIPTION %s DISABLE;', $name);
+        }
+        $set = [];
+        foreach (['slot_name', 'synchronous_commit', 'binary', 'streaming', 'two_phase', 'disable_on_error', 'password_required', 'run_as_owner', 'origin', 'failover', 'retain_dead_tuples', 'max_retention_duration'] as $option) {
+            if (isset($s['options'][$option]) && $s['options'][$option] !== ($t['options'][$option] ?? null)) {
+                $set[] = $option . ' = ' . $s['options'][$option];
+            }
+        }
+        if ($set !== []) {
+            $statements[] = sprintf('ALTER SUBSCRIPTION %s SET (%s);', $name, implode(', ', $set));
+        }
+        if ($s['connection'] !== $t['connection']) {
+            $statements[] = sprintf('ALTER SUBSCRIPTION %s CONNECTION %s;', $name, $s['connection']);
+        }
+        if ($s['publications'] !== $t['publications']) {
+            $statements[] = sprintf('ALTER SUBSCRIPTION %s SET PUBLICATION %s WITH (refresh = false);', $name, $s['publications']);
+        }
+        if ($enabled($s) && !$enabled($t)) {
+            $statements[] = sprintf('ALTER SUBSCRIPTION %s ENABLE;', $name);
+        }
+
+        return $statements;
     }
 
     /**
@@ -309,7 +783,9 @@ final class SchemaComparer
     /** The table a CREATE TABLE makes: "app.t1". */
     private function targetTableName(string $create): ?string
     {
-        return preg_match('/^CREATE\s+(?:UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\S+)/mi', $create, $m) === 1 ? $m[1] : null;
+        $ident = '(?:"(?:""|[^"])*"|[^\s(."]+)';
+
+        return preg_match('/^CREATE\s+(?:UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(' . $ident . '(?:\.' . $ident . ')?)/mi', $create, $m) === 1 ? $m[1] : null;
     }
 
     /**

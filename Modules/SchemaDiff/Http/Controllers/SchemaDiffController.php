@@ -19,6 +19,7 @@ use PhpPgAdmin\Modules\SchemaDiff\Diff\DatabaseComparer;
 use PhpPgAdmin\Modules\SchemaDiff\Diff\DdlNormalizer;
 use PhpPgAdmin\Modules\SchemaDiff\Diff\SchemaComparer;
 use PhpPgAdmin\Modules\SchemaDiff\Diff\SchemaSnapshot;
+use PhpPgAdmin\Modules\SchemaDiff\Diff\Snapshot;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -172,14 +173,25 @@ final class SchemaDiffController
         $flag = static fn (string $key): bool => filter_var($body[$key] ?? false, FILTER_VALIDATE_BOOL);
         $flags = ['ignore_owner' => $flag('ignore_owner'), 'ignore_grants' => $flag('ignore_grants'), 'ignore_tablespace' => $flag('ignore_tablespace'), 'ignore_whitespace' => $flag('ignore_whitespace')];
 
+        $sourceConn = $sourcePool->for($sourceDb);
+        $targetConn = $targetPool->for($targetDb);
+        // Each name with its schema, whatever the search_path; the request's connections end with it.
+        Snapshot::qualifyNames($sourceConn);
+        Snapshot::qualifyNames($targetConn);
         if ($sourceSchema === '') {
-            return new DatabaseComparer($sourcePool, $sourcePool->for($sourceDb), $targetPool, $targetPool->for($targetDb), $request, $flags);
+            return new DatabaseComparer($sourcePool, $sourceConn, $targetPool, $targetConn, $request, $flags);
         }
 
         return new SchemaComparer(
-            new SchemaSnapshot($sourcePool, $sourcePool->for($sourceDb), $sourceSchema, $request),
-            new SchemaSnapshot($targetPool, $targetPool->for($targetDb), $targetSchema, $request),
-            new DdlNormalizer($sourceSchema, $targetSchema, ...array_values($flags)),
+            new SchemaSnapshot($sourcePool, $sourceConn, $sourceSchema, $request),
+            new SchemaSnapshot($targetPool, $targetConn, $targetSchema, $request),
+            new DdlNormalizer(
+                $sourceSchema,
+                $targetSchema,
+                ...array_values($flags),
+                // Only what the source schema itself has is retargeted, not an extension's member.
+                names: $sourceSchema === $targetSchema ? null : DdlNormalizer::objectNames($sourceConn, $sourceSchema),
+            ),
         );
     }
 

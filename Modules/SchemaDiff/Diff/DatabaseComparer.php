@@ -64,8 +64,13 @@ final class DatabaseComparer
 
     /**
      * The script for the objects chosen: the database-level drops of what uses the schemas'
-     * objects and the creates of what they use, then each schema's part, then the creates of
-     * what uses them and the drops of what they used, schemas last.
+     * objects and the creates of what they use; then the schemas' objects, all schemas together
+     * phase by phase (SchemaComparer::PHASES: every drop, then every type, routine and table,
+     * then the views, then the foreign keys and triggers) and within a phase by type and
+     * dependency, so that what one schema's object uses in another is there first, and is
+     * dropped last; then the creates of what uses them and the drops of what they used,
+     * schemas last. What PostgreSQL will not run in a transaction block (a subscription's
+     * statements) stands outside the BEGIN … END: its drops before, the rest after.
      *
      * @param list<Item> $items
      */
@@ -81,18 +86,56 @@ final class DatabaseComparer
         $drop = static fn (array $i): bool => $i['source_oid'] === null;
 
         $parts = $this->database->parts(array_values(array_filter($level, static fn (array $i): bool => $before($i) ? !$drop($i) : $drop($i))));
+
+        $inSchemas = array_filter($items, static fn (array $i): bool => $i['schema'] !== null);
+        $pieces = [];
         $bySchema = [];
-        foreach ($items as $item) {
-            if ($item['schema'] !== null) {
-                $bySchema[$item['schema']][] = $item;
-            }
+        foreach ($inSchemas as $key => $item) {
+            $bySchema[(string) $item['schema']][$key] = $item;
         }
         foreach ($bySchema as $schema => $schemaItems) {
-            array_push($parts, ...$this->schema((string) $schema)->parts($schemaItems));
+            $pieces += $this->schema((string) $schema)->pieces($schemaItems);
         }
+        $phased = array_fill_keys(SchemaComparer::PHASES, []);
+        foreach (SchemaComparer::order($this->sourceConn, $this->targetConn, $inSchemas, SchemaSnapshot::TYPES) as $key) {
+            foreach ($pieces[$key] ?? [] as [$phase, $sql]) {
+                $phased[$phase][] = $sql;
+            }
+        }
+        array_push($parts, ...array_merge(...array_values($phased)));
         array_push($parts, ...$this->database->parts(array_values(array_filter($level, static fn (array $i): bool => $before($i) ? $drop($i) : !$drop($i)))));
 
-        return $parts === [] ? '' : "BEGIN;\n\n" . implode("\n\n", $parts) . "\n\nEND;";
+        $first = [];
+        $inside = [];
+        $last = [];
+        foreach ($parts as $part) {
+            if (!self::transactional($part)) {
+                if (preg_match('/^(?:\s*--[^\n]*\n)*\s*DROP\s/i', $part) === 1) {
+                    $first[] = $part;
+                } else {
+                    $last[] = $part;
+                }
+            } else {
+                $inside[] = $part;
+            }
+        }
+        $script = [...$first];
+        if ($inside !== []) {
+            $script[] = "BEGIN;\n\n" . SchemaComparer::PRELUDE . "\n\n" . implode("\n\n", $inside) . "\n\nEND;";
+        }
+
+        return implode("\n\n", [...$script, ...$last]);
+    }
+
+    /**
+     * Whether a part of the script may run in a transaction block: CREATE SUBSCRIPTION making
+     * a slot, DROP SUBSCRIPTION dropping one, ALTER SUBSCRIPTION refreshing, and anything
+     * CONCURRENTLY may not (PreventInTransactionBlock); a subscription's other statements go
+     * with them.
+     */
+    private static function transactional(string $part): bool
+    {
+        return preg_match('/^\s*(?:CREATE|DROP|ALTER)\s+SUBSCRIPTION\s|^\s*(?:CREATE|DROP)\s+(?:UNIQUE\s+)?INDEX\s+CONCURRENTLY\s|^\s*REINDEX\s.*\sCONCURRENTLY\s/mi', $part) !== 1;
     }
 
     private function comparer(?string $schema, string $type): SchemaComparer
