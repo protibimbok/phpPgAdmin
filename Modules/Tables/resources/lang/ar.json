@@ -222,7 +222,13 @@
       "CURRENT_TIMESTAMP": "CURRENT_TIMESTAMP",
       "UUID": "UUID"
     },
-    "inherits": "يرث من"
+    "inherits": "يرث من",
+    "like": "مثل:",
+    "of_type": "من النوع:",
+    "of_type_column": "يحدده النوع المركب",
+    "access_method": "طريقة الوصول:",
+    "access_method_default": "الافتراضية ({{method}})",
+    "persistence": "الاستمرارية:"
   },
   "index_dialog": {
     "add_title": "إضافة فهرس",

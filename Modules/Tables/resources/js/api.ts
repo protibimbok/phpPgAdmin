@@ -211,6 +211,14 @@ export interface TableOptions {
   include_methods: string[]
   /** The tables one may inherit from; "inherits" is the name as the INHERITS clause takes it. */
   inherits: { oid: number; schema: string; name: string; inherits: string }[]
+  /** default_table_access_method, which a table without USING gets. */
+  default_amname: string
+  /** server_version_num, for the options newer servers have (COMPRESSION from 14). */
+  version: number
+  /** The composite types a typed table can be made OF, as the clause names them, with their attributes. */
+  of_types: { oid: number; typname: string; columns: { name: string; cltype: string }[] }[]
+  /** The tables, views and foreign tables a new table can copy with LIKE, quoted as the clause takes them. */
+  like_relations: string[]
 }
 
 export function tableOptions(db: string, scid: number): Promise<TableOptions> {
@@ -382,6 +390,21 @@ export interface NewTable {
   /** True for UNLOGGED. */
   relpersistence?: boolean
   coll_inherits?: string[]
+  /** OF type: a typed table, whose columns are the composite type's. */
+  typname?: string
+  /** LIKE source and what it includes. */
+  like_relation?: string
+  like_default_value?: boolean
+  like_constraints?: boolean
+  like_indexes?: boolean
+  like_storage?: boolean
+  like_comments?: boolean
+  like_compression?: boolean
+  like_generated?: boolean
+  like_identity?: boolean
+  like_statistics?: boolean
+  /** USING: the table access method. */
+  amname?: string
   columns?: ColumnData[]
   primary_key?: KeyConstraintData[]
   unique_constraint?: KeyConstraintData[]

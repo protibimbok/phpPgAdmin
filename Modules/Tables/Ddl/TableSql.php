@@ -18,7 +18,8 @@ use PhpPgAdmin\Core\Nodes\Options;
  * The data carries pgAdmin's field names: name, schema, columns, primary_key,
  * unique_constraint, foreign_key, check_constraint, exclude_constraint, relowner, spcname,
  * description, relpersistence (true for UNLOGGED), coll_inherits [quoted names], fillfactor,
- * relacl… An update sends the columns and constraints as {added, changed, deleted} lists,
+ * relacl, typname (OF type), like_relation with the like_* INCLUDING flags, amname (USING)…
+ * An update sends the columns and constraints as {added, changed, deleted} lists,
  * and may add "indexes" ({added, deleted}) for CREATE INDEX statements after the ALTERs, and
  * "partitions" ({added, deleted}) to create or attach and to detach partitions. A new table with
  * "partition_scheme" is created PARTITION BY it, with its "partitions" list after it.
@@ -58,6 +59,7 @@ final class TableSql
             }
         }
         $data['coll_inherits'] = array_values(array_filter((array) ($data['coll_inherits'] ?? []), static fn ($v): bool => trim((string) $v) !== ''));
+        self::checkTypedAndLike($ctx, $data);
         $data['relpersistence'] = (bool) ($data['relpersistence'] ?? false);
         $data['vacuum_table'] = [];
         $data['vacuum_toast'] = [];
@@ -183,6 +185,52 @@ final class TableSql
         }
 
         return Ddl::assemble($parts);
+    }
+
+    /** The INCLUDING options of LIKE, by pgAdmin's field names. */
+    private const array LIKE_OPTIONS = ['like_default_value', 'like_constraints', 'like_indexes', 'like_storage', 'like_comments', 'like_compression', 'like_generated', 'like_identity', 'like_statistics'];
+
+    /**
+     * OF type, LIKE source and USING access method go into the statement as written, so each
+     * must be one the lookups offer (the names come quoted from them). A typed table takes no
+     * LIKE and no INHERITS, and its columns are the type's: the ones the client sends only add
+     * options (WITH OPTIONS: NOT NULL, a default).
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function checkTypedAndLike(NodeContext $ctx, array &$data): void
+    {
+        if (isset($data['typname'])) {
+            $types = array_column($ctx->conn->rows($ctx->renderFrom('tables', 'get_oftype.sql', ['show_system_objects' => false, 'server_type' => 'pg'])), 'typname');
+            if (!in_array($data['typname'], $types, true)) {
+                throw new BadRequestException('Unknown composite type for OF.');
+            }
+            if (isset($data['like_relation']) || $data['coll_inherits'] !== []) {
+                throw new BadRequestException('A typed table (OF type) cannot have LIKE or INHERITS.');
+            }
+            foreach ($data['columns'] as &$column) {
+                $column['inheritedfromtype'] = $data['typname'];
+                $column['has_with_options'] = true;
+            }
+            unset($column);
+        }
+
+        if (isset($data['like_relation'])) {
+            $relations = array_column($ctx->conn->rows($ctx->renderFrom('tables', 'get_relations.sql', ['show_sys_objects' => false, 'server_type' => 'pg'])), 'like_relation');
+            if (!in_array($data['like_relation'], $relations, true)) {
+                throw new BadRequestException('Unknown table for LIKE.');
+            }
+        }
+        foreach (self::LIKE_OPTIONS as $option) {
+            $data[$option] = isset($data['like_relation']) && !empty($data[$option]);
+        }
+
+        if (isset($data['amname'])) {
+            $methods = array_column($ctx->conn->rows($ctx->renderFrom('tables', 'get_access_methods.sql')), 'amname');
+            if (!in_array($data['amname'], $methods, true)) {
+                throw new BadRequestException('Unknown table access method.');
+            }
+        }
     }
 
     /**

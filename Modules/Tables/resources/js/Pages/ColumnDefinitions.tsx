@@ -8,9 +8,24 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { columns as columnsOf, createTable, resolveSchema, resolveTable, tableModifiedSql, tableOptions, tables, updateTable, type ColumnData, type NewTable, type TableChanges, type TableOptions } from '../api'
-import { DEFAULT_TYPES, emptyDefinition, fromColumn, indexesOf, takesLength, toColumnChanges, toColumnData, typeChanged, typeGroups, type ColumnDefinition } from '../columns/definitions'
+import { DEFAULT_TYPES, emptyDefinition, fromColumn, fromTypeColumn, hasTypeOptions, indexesOf, takesLength, toColumnChanges, toColumnData, typeChanged, typeGroups, type ColumnDefinition } from '../columns/definitions'
 
 type Mode = 'create' | 'add' | 'change'
+
+type LikeOption = 'like_default_value' | 'like_constraints' | 'like_indexes' | 'like_storage' | 'like_comments' | 'like_compression' | 'like_generated' | 'like_identity' | 'like_statistics'
+
+/** LIKE's INCLUDING options, by pgAdmin's field names, with the keyword each adds and the server version it needs. */
+const LIKE_OPTIONS: { key: LikeOption; keyword: string; version?: number }[] = [
+  { key: 'like_default_value', keyword: 'DEFAULTS' },
+  { key: 'like_constraints', keyword: 'CONSTRAINTS' },
+  { key: 'like_indexes', keyword: 'INDEXES' },
+  { key: 'like_storage', keyword: 'STORAGE' },
+  { key: 'like_comments', keyword: 'COMMENTS' },
+  { key: 'like_compression', keyword: 'COMPRESSION', version: 140000 },
+  { key: 'like_generated', keyword: 'GENERATED' },
+  { key: 'like_identity', keyword: 'IDENTITY' },
+  { key: 'like_statistics', keyword: 'STATISTICS' },
+]
 
 /** The table's primary key as its properties carry it, with the column names. */
 interface PrimaryKey {
@@ -24,7 +39,8 @@ interface PrimaryKey {
  * table_fields_definitions.twig), for three pages: creating a table (/table/create), adding
  * columns to one (/table/add-field) and changing columns (/table/structure/change). One row
  * per column with Name, Type, Length/Values, Default, Collation, Attributes, Null, Index,
- * A_I and Comments; the create page adds the table's comment, owner and tablespace. Preview
+ * A_I and Comments; the create page adds the table's comment, owner, tablespace, parents,
+ * LIKE source, OF type, access method and UNLOGGED (the table options rows). Preview
  * SQL shows the statements; Save runs them through the table node.
  */
 export default function ColumnDefinitions({ mode }: { mode: Mode }) {
@@ -57,6 +73,11 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
   const [inherits, setInherits] = useState<string[]>([])
   const [partitionBy, setPartitionBy] = useState('')
   const [partitionExpr, setPartitionExpr] = useState('')
+  const [ofType, setOfType] = useState('')
+  const [like, setLike] = useState('')
+  const [likeOptions, setLikeOptions] = useState<Partial<Record<LikeOption, boolean>>>({})
+  const [amname, setAmname] = useState('')
+  const [unlogged, setUnlogged] = useState(false)
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -84,6 +105,27 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
     setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)))
   }
 
+  /** OF type: the rows become the type's attributes; a typed table takes no LIKE and no INHERITS. */
+  function chooseOfType(typname: string) {
+    setOfType(typname)
+    const type = options.of_types.find((candidate) => candidate.typname === typname)
+    if (type) {
+      setRows(type.columns.map(fromTypeColumn))
+      setLike('')
+      setInherits([])
+    } else {
+      setRows((current) => (current.some((row) => row.ofType) ? Array.from({ length: initialCount }, emptyDefinition) : current))
+    }
+  }
+
+  function chooseLike(relation: string) {
+    setLike(relation)
+    if (relation !== '' && ofType !== '') chooseOfType('')
+  }
+
+  const likeShown = LIKE_OPTIONS.filter((option) => !option.version || options.version >= option.version)
+  const likeAll = likeShown.every((option) => likeOptions[option.key])
+
   function addRows() {
     setRows((current) => [...current, ...Array.from({ length: Math.max(1, addCount) }, emptyDefinition)])
   }
@@ -94,7 +136,13 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
     const keys = indexesOf(filled)
 
     if (mode === 'create') {
-      const created: NewTable = { name, columns: filled.map(toColumnData), description: comment || undefined, relowner: owner || undefined, spcname: tablespace || undefined, coll_inherits: inherits.length > 0 ? inherits : undefined }
+      // A typed table's columns are the type's; only those with options of their own are written (WITH OPTIONS).
+      const columns = ofType ? filled.filter((row) => !row.ofType || hasTypeOptions(row)) : filled
+      const created: NewTable = { name, columns: columns.map(toColumnData), description: comment || undefined, relowner: owner || undefined, spcname: tablespace || undefined, coll_inherits: inherits.length > 0 ? inherits : undefined }
+      if (ofType) created.typname = ofType
+      if (like) Object.assign(created, { like_relation: like }, likeOptions)
+      if (amname) created.amname = amname
+      if (unlogged) created.relpersistence = true
       if (partitionBy && partitionExpr.trim() !== '') created.partition_scheme = `${partitionBy} (${partitionExpr.trim()})`
       if (keys.primary) created.primary_key = [keys.primary]
       if (keys.unique.length > 0) created.unique_constraint = keys.unique
@@ -284,6 +332,85 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
                   </select>
                 </td>
               </tr>
+              <tr className="align-top">
+                <th>{t('definitions.like')}</th>
+                <td width={25}>&nbsp;</td>
+                <th>{t('definitions.of_type')}</th>
+                <td width={25}>&nbsp;</td>
+                <th>{t('definitions.access_method')}</th>
+                <td width={25}>&nbsp;</td>
+                <th>{t('definitions.persistence')}</th>
+              </tr>
+              <tr className="align-top">
+                <td className="align-top">
+                  {/* LIKE source INCLUDING …: the source's columns come first, with what is ticked. */}
+                  <select name="like_relation" value={like} onChange={(e) => chooseLike(e.target.value)} aria-label={t('definitions.like')}>
+                    <option value="" />
+                    {options.like_relations.map((relation) => (
+                      <option key={relation} value={relation}>
+                        {relation}
+                      </option>
+                    ))}
+                  </select>
+                  {like !== '' && (
+                    <div id="like_options" className="mt-1">
+                      <div>
+                        <input
+                          type="checkbox"
+                          id="like_all"
+                          checked={likeAll}
+                          onChange={(e) => setLikeOptions(Object.fromEntries(likeShown.map((option) => [option.key, e.target.checked])))}
+                        />
+                        {' '}
+                        <label htmlFor="like_all">
+                          INCLUDING ALL
+                        </label>
+                      </div>
+                      {likeShown.map((option) => (
+                        <div key={option.key}>
+                          <input type="checkbox" name={option.key} id={option.key} checked={Boolean(likeOptions[option.key])} onChange={(e) => setLikeOptions({ ...likeOptions, [option.key]: e.target.checked })} />
+                          {' '}
+                          <label htmlFor={option.key}>
+                            INCLUDING {option.keyword}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td width={25}>&nbsp;</td>
+                <td className="align-top">
+                  <select name="typname" value={ofType} onChange={(e) => chooseOfType(e.target.value)} aria-label={t('definitions.of_type')}>
+                    <option value="" />
+                    {options.of_types.map((type) => (
+                      <option key={type.oid} value={type.typname}>
+                        {type.typname}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td width={25}>&nbsp;</td>
+                <td className="align-top">
+                  <select name="amname" value={amname} onChange={(e) => setAmname(e.target.value)} aria-label={t('definitions.access_method')}>
+                    <option value="">{t('definitions.access_method_default', { method: options.default_amname })}</option>
+                    {options.access_methods.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td width={25}>&nbsp;</td>
+                <td className="align-top">
+                  <div>
+                    <input type="checkbox" name="relpersistence" id="relpersistence" checked={unlogged} onChange={(e) => setUnlogged(e.target.checked)} />
+                    {' '}
+                    <label htmlFor="relpersistence">
+                      UNLOGGED
+                    </label>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -332,38 +459,55 @@ function ColumnRow({ index, row, groups, options, onChange }: { index: number; r
 
   return (
     <tr>
-      <td className="text-center">
-        <input id={id(1)} type="text" name={`field_name[${index}]`} maxLength={63} className="textfield" title={t('definitions.column')} size={10} value={row.name} onChange={(e) => onChange({ name: e.target.value })} />
-      </td>
-      <td className="text-center">
-        <select className="column_type" name={`field_type[${index}]`} id={id(2)} value={row.type} onChange={(e) => onChange({ type: e.target.value })}>
-          {groups.map((group) => (
-            <optgroup key={group.key} label={t(`definitions.type_groups.${group.key}`)}>
-              {group.types.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
+      {row.ofType ? (
+        <>
+          <td className="text-center" title={t('definitions.of_type_column')}>
+            {row.name}
+          </td>
+          <td className="text-center" colSpan={2} title={t('definitions.of_type_column')}>
+            <bdo dir="ltr" lang="en">
+              {row.type}
+              {row.length !== '' && `(${row.length})`}
+              {row.attribute}
+            </bdo>
+          </td>
+        </>
+      ) : (
+        <>
+          <td className="text-center">
+            <input id={id(1)} type="text" name={`field_name[${index}]`} maxLength={63} className="textfield" title={t('definitions.column')} size={10} value={row.name} onChange={(e) => onChange({ name: e.target.value })} />
+          </td>
+          <td className="text-center">
+            <select className="column_type" name={`field_type[${index}]`} id={id(2)} value={row.type} onChange={(e) => onChange({ type: e.target.value })}>
+              {groups.map((group) => (
+                <optgroup key={group.key} label={t(`definitions.type_groups.${group.key}`)}>
+                  {group.types.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
-            </optgroup>
-          ))}
-        </select>
-        {typeChanged(row) && (
-          // A type the old one has no automatic cast to (text to integer) needs USING, as the server's hint says.
-          <input
-            type="text"
-            name={`field_using[${index}]`}
-            className="textfield d-block mt-1"
-            size={16}
-            title={t('definitions.using_hint')}
-            placeholder={t('definitions.using_placeholder', { expression: `${row.original!.name}::${row.type}${row.attribute}` })}
-            value={row.using ?? ''}
-            onChange={(e) => onChange({ using: e.target.value })}
-          />
-        )}
-      </td>
-      <td className="text-center">
-        <input id={id(3)} type="text" name={`field_length[${index}]`} size={8} value={row.length} className="textfield" placeholder={takesLength(row.type) ? '' : undefined} onChange={(e) => onChange({ length: e.target.value })} />
-      </td>
+            </select>
+            {typeChanged(row) && (
+              // A type the old one has no automatic cast to (text to integer) needs USING, as the server's hint says.
+              <input
+                type="text"
+                name={`field_using[${index}]`}
+                className="textfield d-block mt-1"
+                size={16}
+                title={t('definitions.using_hint')}
+                placeholder={t('definitions.using_placeholder', { expression: `${row.original!.name}::${row.type}${row.attribute}` })}
+                value={row.using ?? ''}
+                onChange={(e) => onChange({ using: e.target.value })}
+              />
+            )}
+          </td>
+          <td className="text-center">
+            <input id={id(3)} type="text" name={`field_length[${index}]`} size={8} value={row.length} className="textfield" placeholder={takesLength(row.type) ? '' : undefined} onChange={(e) => onChange({ length: e.target.value })} />
+          </td>
+        </>
+      )}
       <td className="text-center">
         <select name={`field_default_type[${index}]`} id={id(4)} className="default_type" value={row.defaultType} onChange={(e) => onChange({ defaultType: e.target.value as ColumnDefinition['defaultType'] })}>
           {DEFAULT_TYPES.map((kind) => (
@@ -376,22 +520,29 @@ function ColumnRow({ index, row, groups, options, onChange }: { index: number; r
           <input type="text" name={`field_default_value[${index}]`} size={12} value={row.defaultValue} className="textfield default_value" onChange={(e) => onChange({ defaultValue: e.target.value })} />
         )}
       </td>
-      <td className="text-center">
-        <select lang="en" dir="ltr" name={`field_collation[${index}]`} id={id(5)} value={row.collation} onChange={(e) => onChange({ collation: e.target.value })}>
-          <option value="" />
-          {options.collations.map((collation) => (
-            <option key={collation} value={collation}>
-              {collation}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="text-center">
-        <select name={`field_attribute[${index}]`} id={id(6)} value={row.attribute} onChange={(e) => onChange({ attribute: e.target.value as ColumnDefinition['attribute'] })}>
-          <option value="" />
-          <option value="[]">ARRAY</option>
-        </select>
-      </td>
+      {row.ofType ? (
+        // The type fixes a typed table column's collation and array dimension.
+        <td colSpan={2} />
+      ) : (
+        <>
+          <td className="text-center">
+            <select lang="en" dir="ltr" name={`field_collation[${index}]`} id={id(5)} value={row.collation} onChange={(e) => onChange({ collation: e.target.value })}>
+              <option value="" />
+              {options.collations.map((collation) => (
+                <option key={collation} value={collation}>
+                  {collation}
+                </option>
+              ))}
+            </select>
+          </td>
+          <td className="text-center">
+            <select name={`field_attribute[${index}]`} id={id(6)} value={row.attribute} onChange={(e) => onChange({ attribute: e.target.value as ColumnDefinition['attribute'] })}>
+              <option value="" />
+              <option value="[]">ARRAY</option>
+            </select>
+          </td>
+        </>
+      )}
       <td className="text-center">
         <input name={`field_null[${index}]`} id={id(7)} type="checkbox" value="YES" className="allow_null" checked={row.nullable} onChange={(e) => onChange({ nullable: e.target.checked })} />
       </td>

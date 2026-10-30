@@ -46,7 +46,7 @@ CREATE {% if data.relpersistence %}UNLOGGED {% endif %}TABLE{% if add_not_exists
 
         INCLUDING IDENTITY{% endif %}{% if data.like_statistics %}
 
-        INCLUDING STATISTICS{% endif %}{% if data.columns|length > 0 %},
+        INCLUDING STATISTICS{% endif %}{# phpPgAdmin: a comma before constraints too, not only before columns #}{% if data.columns|length > 0 or data.primary_key|length > 0 or data.unique_constraint|length > 0 or data.foreign_key|length > 0 or data.check_constraint|length > 0 or data.exclude_constraint|length > 0 %},
 {% endif %}
 
 {% endif %}

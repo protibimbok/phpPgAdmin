@@ -26,6 +26,8 @@ export interface ColumnDefinition {
   using?: string
   /** What the column was when loaded, to send only what changed. */
   original?: ColumnDefinition
+  /** A column of the composite type a typed table (OF type) is made of: its name and type are the type's. */
+  ofType?: boolean
 }
 
 export type DefaultType = 'NONE' | 'USER_DEFINED' | 'NULL' | 'CURRENT_TIMESTAMP' | 'UUID'
@@ -97,6 +99,16 @@ function parseDefault(column: Column): { defaultType: DefaultType; defaultValue:
   if (literal) return { defaultType: 'USER_DEFINED', defaultValue: literal[1].replace(/''/g, "'") }
 
   return { defaultType: 'USER_DEFINED', defaultValue: defval }
+}
+
+/** An attribute of the composite type a typed table is made OF, as a row of the form. */
+export function fromTypeColumn(column: { name: string; cltype: string }): ColumnDefinition {
+  return { ...emptyDefinition(), name: column.name, type: parseTypeName(column.cltype), length: parseLength(column.cltype), attribute: column.cltype.endsWith('[]') ? '[]' : '', ofType: true }
+}
+
+/** Whether a typed table's column has anything of its own to say (WITH OPTIONS): NOT NULL, a default, identity or a comment. */
+export function hasTypeOptions(definition: ColumnDefinition): boolean {
+  return !definition.nullable || definition.defaultType !== 'NONE' || definition.comment !== '' || definition.identity
 }
 
 /** An existing column as the form holds it. */

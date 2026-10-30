@@ -200,6 +200,11 @@ final class TableController extends RelationController
             'tablespaces' => Catalog::tablespaces($ctx->conn),
             'schemas' => Catalog::schemas($ctx->conn),
             'access_methods' => array_column($ctx->conn->rows($ctx->render('get_access_methods.sql')), 'amname'),
+            'default_amname' => (string) $ctx->conn->scalar('SHOW default_table_access_method'),
+            'version' => $ctx->version(),
+            // CREATE TABLE … OF type (with the type's attributes, which become the columns) and LIKE source.
+            'of_types' => self::ofTypes($ctx),
+            'like_relations' => array_column($ctx->conn->rows($ctx->render('get_relations.sql', ['show_sys_objects' => false, 'server_type' => 'pg'])), 'like_relation'),
             // pgAdmin's get_am.sql lists every access method, table ones included; the dialogs want the index ones,
             // and the exclusion form only those that can back an exclusion constraint (gin and brin cannot).
             'index_methods' => array_column($ctx->conn->rows("SELECT amname FROM pg_catalog.pg_am WHERE amtype = 'i' ORDER BY amname"), 'amname'),
@@ -213,6 +218,26 @@ final class TableController extends RelationController
                 $ctx->conn->rows($ctx->render('get_inherits.sql', ['show_system_objects' => false, 'server_type' => 'pg'])),
             ),
         ];
+    }
+
+    /**
+     * The composite types a typed table may be made of, as the OF clause names them, each with
+     * its attributes (name and type with modifiers) in order (pgAdmin's get_oftype and
+     * get_columns_for_table on the type).
+     *
+     * @return list<array{oid: int, typname: string, columns: list<array{name: string, cltype: string}>}>
+     */
+    private static function ofTypes(NodeContext $ctx): array
+    {
+        $columns = [];
+        foreach ($ctx->conn->rows($ctx->render('get_oftype_columns.sql')) as $row) {
+            $columns[(int) $row['oid']][] = ['name' => (string) $row['name'], 'cltype' => (string) $row['cltype']];
+        }
+
+        return array_map(
+            static fn (array $r): array => ['oid' => (int) $r['oid'], 'typname' => (string) $r['typname'], 'columns' => $columns[(int) $r['oid']] ?? []],
+            $ctx->conn->rows($ctx->render('get_oftype.sql', ['show_system_objects' => false, 'server_type' => 'pg'])),
+        );
     }
 
     /**

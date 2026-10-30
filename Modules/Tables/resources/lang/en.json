@@ -222,7 +222,13 @@
       "CURRENT_TIMESTAMP": "CURRENT_TIMESTAMP",
       "UUID": "UUID"
     },
-    "inherits": "Inherits from"
+    "inherits": "Inherits from",
+    "like": "Like:",
+    "of_type": "Of type:",
+    "of_type_column": "Defined by the composite type",
+    "access_method": "Access method:",
+    "access_method_default": "Default ({{method}})",
+    "persistence": "Persistence:"
   },
   "index_dialog": {
     "add_title": "Add index",

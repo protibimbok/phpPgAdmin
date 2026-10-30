@@ -1,6 +1,6 @@
 # Creating a table
 
-The create form is phpMyAdmin's column definition form adapted to PostgreSQL: one row per column, then the table's comment, owner, tablespace, parents and partitioning, with **Preview SQL** and **Save**. Open it from the **Create new table** card at the bottom of a schema's [Structure](/schema/structure) tab, or go to `/db/<database>/schema/<schema>/create-table`.
+The create form is phpMyAdmin's column definition form adapted to PostgreSQL: one row per column, then the table's comment, owner, tablespace, parents, `LIKE` source, composite type, access method, `UNLOGGED` and partitioning, with **Preview SQL** and **Save**. Open it from the **Create new table** card at the bottom of a schema's [Structure](/schema/structure) tab, or go to `/db/<database>/schema/<schema>/create-table`.
 
 <Clip src="schema/tables-create-table.mp4" caption="Creating a table with an identity primary key and a NOT NULL text column" />
 
@@ -79,7 +79,31 @@ Under the grid:
 | **Owner:** | Role that owns the table. Empty means you. | `ALTER TABLE … OWNER TO …` |
 | **Tablespace:** | Where the table's files go. Empty means the database default. | `TABLESPACE …` |
 | **Inherits from** | One or more parent tables (Ctrl-click for several). Their columns are added to the new table. | `INHERITS (public.books)` |
+| **Like:** | A table, view or foreign table whose columns the new table copies, before the ones you define. Picking one shows the **INCLUDING** boxes: **ALL** ticks every one; **DEFAULTS**, **CONSTRAINTS** (check and not-null), **INDEXES** (with primary key and unique), **STORAGE**, **COMMENTS**, **COMPRESSION** (PostgreSQL 14+), **GENERATED**, **IDENTITY** and **STATISTICS** (extended statistics) copy that part of the source. | `LIKE public.authors INCLUDING DEFAULTS …` |
+| **Of type:** | A composite type the table is made of (a typed table). The grid is replaced by the type's attributes; see [Typed tables](#typed-tables-of-type). Picking a type clears **Like** and **Inherits from**, which a typed table cannot have. | `OF public.address` |
+| **Access method:** | The table access method. **Default (heap)** leaves it to `default_table_access_method`; extensions can add others. | `USING heap` |
+| **Persistence:** | **UNLOGGED** skips the write-ahead log: faster writes, but the table is emptied after a crash and is not replicated. Temporary tables are not offered, since each request runs on a new connection. | `CREATE UNLOGGED TABLE …` |
 | **Partition by:** | **RANGE**, **LIST** or **HASH**, and in the parentheses the column list or expression. | `PARTITION BY RANGE (placed_at)` |
+
+### Typed tables (OF type)
+
+With **Of type:** set, each row of the grid is one attribute of the type: its name and type are shown as text, since the type decides them. What you can still set per column is **Default**, **Null** (untick for `NOT NULL`), **Index**, **A_I** and **Comments**; a column with any of those is written as `col WITH OPTIONS …`, the others are left to the type. For `public.address (street text, city varchar(80), zip integer)` with a default on `city`, `zip` not null and `street` as primary key:
+
+```sql
+CREATE TABLE public.t_typed
+    OF public.address
+(
+    city WITH OPTIONS DEFAULT 'Dhaka',
+    zip WITH OPTIONS NOT NULL,
+    PRIMARY KEY (street)
+);
+```
+
+Extra rows added with **Add … column(s)** fail with *column … does not exist*: a typed table has exactly the type's columns. Setting **Of type:** back to empty gives you empty rows again.
+
+### LIKE
+
+The copied columns come first, then the rows of the grid, then the keys from the **Index** column. Not-null constraints are always copied; the rest only with its box ticked. `LIKE` never copies foreign keys, triggers, privileges or the owner. The copy's identity columns get new sequences starting at 1. To copy the rows too, use [Copy table](/table/operations#copying-a-table) instead.
 
 ::: warning pg_global is listed but cannot hold tables
 The **Tablespace** list includes `pg_global`, which is reserved for shared catalogs; choosing it fails with *only shared relations can be placed in pg_global tablespace*.
@@ -124,14 +148,12 @@ These table and column features exist in PostgreSQL but have no field here. Crea
 
 | Feature | SQL to use |
 | --- | --- |
-| `UNLOGGED` tables (no WAL, emptied after a crash) | `CREATE UNLOGGED TABLE …` or `ALTER TABLE t SET UNLOGGED;` |
 | Generated (computed) columns | `ADD COLUMN c tsvector GENERATED ALWAYS AS (to_tsvector('simple', title)) STORED` |
 | Identity `ALWAYS`, identity sequence options | `GENERATED ALWAYS AS IDENTITY (START WITH 1000)` |
 | Column `STORAGE` and `COMPRESSION` (`pglz`/`lz4`) | `ALTER TABLE t ALTER COLUMN c SET STORAGE EXTERNAL, ALTER COLUMN c SET COMPRESSION lz4;` |
 | Storage parameters (`fillfactor`, autovacuum settings) | `CREATE TABLE … WITH (fillfactor = 70)` or `ALTER TABLE t SET (…)` |
-| `LIKE other_table INCLUDING ALL` | Use [Copy table](/table/operations#copying-a-table) on the source table's Operations tab. |
 | Check, foreign key and exclusion constraints | The new table's [Structure tab](/table/indexes-constraints). |
-| Table access method (`USING heap`) | `CREATE TABLE … USING am` |
+| Temporary tables | `CREATE TEMPORARY TABLE …` makes no sense here: the table would vanish with the request's connection. |
 
 Generated columns created with SQL show the expression in the **Default** column and **Generated** under **Extra** on the Structure tab, as `books.search` does in the demo.
 
@@ -139,7 +161,7 @@ Generated columns created with SQL show the expression in the **Default** column
 
 | phpMyAdmin field | Here |
 | --- | --- |
-| **Storage Engine** | Not applicable. All tables use PostgreSQL's heap storage. |
+| **Storage Engine** | **Access method:** (`heap` unless an extension adds another). |
 | **Collation** (table) | No table-level collation: set it per column. |
 | **A_I** | Identity column, `GENERATED BY DEFAULT AS IDENTITY`. |
 | **Attributes**: `UNSIGNED`, `on update CURRENT_TIMESTAMP` | Not in PostgreSQL. Use a `CHECK (col >= 0)` constraint, and a [trigger](/table/triggers) for "on update" timestamps. The **Attributes** select offers **ARRAY** instead. |
