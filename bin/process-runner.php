@@ -17,7 +17,14 @@ declare(strict_types=1);
 const CHUNK = 65536;
 
 $directory = $argv[1] ?? '';
-$job = is_file($directory . '/job.json') ? json_decode((string) file_get_contents($directory . '/job.json'), true) : null;
+// Claim the job by renaming its file: the request that started the runner renames it too when it
+// gives up waiting, and only one rename can succeed, so a job given up on never runs.
+$claimed = $directory . '/job.claimed.json';
+if (!is_file($directory . '/job.json') || !@rename($directory . '/job.json', $claimed)) {
+    fwrite(STDERR, "Usage: php bin/process-runner.php <directory holding job.json>\n");
+    exit(2);
+}
+$job = json_decode((string) file_get_contents($claimed), true);
 if (!is_array($job) || !is_string($job['program'] ?? null) || !is_array($job['arguments'] ?? null)) {
     fwrite(STDERR, "Usage: php bin/process-runner.php <directory holding job.json>\n");
     exit(2);

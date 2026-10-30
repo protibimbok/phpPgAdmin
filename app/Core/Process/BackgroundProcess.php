@@ -81,13 +81,28 @@ final readonly class BackgroundProcess
         }
         proc_close($shell);
 
-        for ($wait = 0; $wait < 100 && !is_file($this->directory . '/status.json'); $wait++) {
+        if ($this->waitForStatus(100)) {
+            return;
+        }
+        // Withdraw the job. When the rename fails the runner has claimed it and is starting up
+        // (a slow host): wait for it rather than leave a job running that nothing tracks.
+        if (!@rename($this->directory . '/job.json', $this->directory . '/job.withdrawn.json')) {
+            if ($this->waitForStatus(1500)) {
+                return;
+            }
+        }
+        $message = trim((string) @file_get_contents($this->directory . '/runner.log'));
+        throw new RuntimeException($message !== '' ? $message : sprintf('The background process did not start (%s).', self::php()));
+    }
+
+    /** Wait up to $steps × 20 ms for the runner's first status; true once it is there. */
+    private function waitForStatus(int $steps): bool
+    {
+        for ($wait = 0; $wait < $steps && !is_file($this->directory . '/status.json'); $wait++) {
             usleep(20000);
         }
-        if (!is_file($this->directory . '/status.json')) {
-            $message = trim((string) @file_get_contents($this->directory . '/runner.log'));
-            throw new RuntimeException($message !== '' ? $message : sprintf('The background process did not start (%s).', self::php()));
-        }
+
+        return is_file($this->directory . '/status.json');
     }
 
     /**
@@ -105,7 +120,7 @@ final readonly class BackgroundProcess
         $state = match (true) {
             $ended && ($status['killed'] ?? false) => 'killed',
             $ended => $exitCode === 0 ? 'finished' : 'failed',
-            self::alive((int) ($status['runner_pid'] ?? 0)) => 'running',
+            $this->alive((int) ($status['runner_pid'] ?? 0)) => 'running',
             default => 'lost',
         };
 
@@ -150,7 +165,7 @@ final readonly class BackgroundProcess
     {
         $status = json_decode((string) @file_get_contents($this->directory . '/status.json'), true);
         $pid = (int) ($status['runner_pid'] ?? 0);
-        if (!is_array($status) || is_string($status['ended_at'] ?? null) || !self::alive($pid)) {
+        if (!is_array($status) || is_string($status['ended_at'] ?? null) || !$this->alive($pid)) {
             return false;
         }
 
@@ -160,24 +175,38 @@ final readonly class BackgroundProcess
     /** Remove the directory with the input, output and status. */
     public function remove(): void
     {
-        foreach (glob($this->directory . '/{,.}*', GLOB_BRACE) ?: [] as $file) {
-            if (is_file($file)) {
+        // scandir rather than glob(GLOB_BRACE), which musl (Alpine) builds of PHP lack.
+        foreach (@scandir($this->directory) ?: [] as $name) {
+            $file = $this->directory . '/' . $name;
+            if ($name !== '.' && $name !== '..' && is_file($file)) {
                 @unlink($file);
             }
         }
         @rmdir($this->directory);
     }
 
-    private static function alive(int $pid): bool
+    /**
+     * Whether the runner with this pid still runs. After a reboot or a long time the pid may
+     * belong to another program, so where /proc tells, the pid must be this directory's runner.
+     */
+    private function alive(int $pid): bool
     {
         if ($pid <= 0) {
+            return false;
+        }
+        $cmdline = @file_get_contents('/proc/' . $pid . '/cmdline');
+        if (is_string($cmdline)) {
+            return str_contains($cmdline, 'process-runner.php') && str_contains($cmdline, $this->directory);
+        }
+        if (is_dir('/proc/self')) {
+            // /proc is there but the pid is not: it has ended.
             return false;
         }
         if (function_exists('posix_kill')) {
             return posix_kill($pid, 0);
         }
 
-        return is_dir('/proc/' . $pid);
+        return false;
     }
 
     /** The PHP CLI that runs the background scripts. */
