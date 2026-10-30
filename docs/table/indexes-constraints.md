@@ -23,19 +23,33 @@ The **Indexes** card lists every index of the table, including the ones behind p
 
 Type the number of columns in **Create an index on** [n] **columns** and click **Go**. The **Add index** dialog opens with that many column rows, pre-filled with the first columns of the table.
 
-![The Add index dialog: name, index choice, the advanced options open (type, fillfactor, WHERE, comment) and two columns with their order](/media/table/index-dialog.png)
+![The Add index dialog: name, index choice, the advanced options open and two columns with their order](/media/table/index-dialog.png)
 
 | Field | What it does | SQL |
 | --- | --- | --- |
 | **Index name:** | Name of the index. Empty lets PostgreSQL pick one (`t_col_idx`). | `CREATE INDEX name` |
 | **Index choice:** | **INDEX**, **UNIQUE**, or **PRIMARY** (only offered when the table has no primary key). | `CREATE UNIQUE INDEX`, `ADD PRIMARY KEY` |
-| **Advanced options** → **Index type:** | The access method: **BTREE**, **HASH**, **GIST**, **GIN**, **SPGIST**, **BRIN** and any added by extensions. | `USING gin` |
-| **Fillfactor:** | Percentage of each index page to fill (10–100; btree default 90). | `WITH (fillfactor=70)` |
+| **Advanced options** → **Index type:** | The access method: **BTREE**, **HASH**, **GIST**, **GIN**, **SPGIST**, **BRIN** and any added by extensions. Changing it resets each column's operator class. | `USING gin` |
+| **Tablespace:** | Where the index is stored; empty uses the database's default. | `TABLESPACE fast_ssd` |
+| **Include columns:** | Non-key columns stored in the index so that index-only scans can return them (Ctrl-click for several). Offered for the methods that support it: BTREE, GIST, SPGIST. | `INCLUDE (b, c)` |
+| **Fillfactor:** | Percentage of each index page to fill (10–100; btree default 90). BTREE, HASH, GIST, SPGIST. | `WITH (fillfactor=70)` |
+| **GIN pending list limit (kB):** | GIN only: the size of the pending list before it is flushed into the index. | `WITH (gin_pending_list_limit=4096)` |
+| **Pages per range:** | BRIN only: table blocks summarised by one index entry (default 128). | `WITH (pages_per_range=32)` |
+| **Buffering:** | GIST only: **AUTO**, **ON** or **OFF** buffered build; empty leaves the default. | `WITH (buffering=on)` |
 | **Condition (WHERE):** | Makes a partial index over the rows that match. | `WHERE amount > 0` |
 | **Comment:** | Index comment. | `COMMENT ON INDEX` |
-| **Column** | One select per indexed column; **-- Ignore --** skips the row. | |
-| **Order** | **ASC** or **DESC**, for btree only. | `DESC NULLS LAST` |
+| **Deduplicate items** | BTREE only, on by default. Clearing it stores every duplicate key. | `WITH (deduplicate_items=false)` |
+| **Fast update** | GIN only, on by default. Clearing it writes every change straight into the index. | `WITH (fastupdate=false)` |
+| **Autosummarize** | BRIN only, off by default: summarise new page ranges as soon as they fill. | `WITH (autosummarize=true)` |
+| **Cluster the table on this index** | Marks the index the table is clustered by (BTREE and GIST). | `ALTER TABLE … CLUSTER ON` |
+| **Build without locking out writes (CONCURRENTLY)** | New indexes only: builds the index without blocking inserts, updates and deletes. The statement runs on its own, outside a transaction. | `CREATE INDEX CONCURRENTLY` |
+| **Column** | One select per indexed column; **-- Ignore --** skips the row and **-- Expression --** opens a text field for an expression such as `lower(email)`. | `((lower(email)))` |
+| **Operator class** | **Default** (the type's default class) or another class of the access method: `text_pattern_ops`, `gin_trgm_ops`, `jsonb_path_ops`. The list is the method's classes, not filtered by the column's type. | `title text_pattern_ops` |
+| **Collation** | For text columns and expressions: **Default** or another collation. | `COLLATE "C"` |
+| **Order**, **NULLs** | BTREE only (hidden for the other methods): **ASC** or **DESC**, and **NULLS FIRST** or **NULLS LAST**. Choosing **DESC** switches NULLs to **FIRST**, PostgreSQL's default. | `DESC NULLS FIRST` |
 | **Add … column(s) to index** | Adds more column rows. | |
+
+The storage parameter fields show only for the methods that take them, as in pgAdmin.
 
 Click **Preview SQL** to see the statement and **Go** to create it. For example, a partial two-column btree index:
 
@@ -52,11 +66,17 @@ COMMENT ON INDEX public.tbl_demo_partial_idx
 
 <Clip src="table/index-create.mp4" caption="Adding a partial two-column index from the Indexes card" />
 
-**PRIMARY** turns the dialog into a primary key: the type, condition and comment fields are disabled, and the statement is `ALTER TABLE t ADD CONSTRAINT name PRIMARY KEY (…)`. The new key appears in the Constraints card.
+An expression index with an operator class, built concurrently with a covering column:
 
-::: warning DESC always sorts NULLs last
-For btree indexes the dialog writes `NULLS LAST` after every column, also after `DESC`. PostgreSQL's own default for `DESC` is `NULLS FIRST`, and a query with `ORDER BY col DESC` (which means `NULLS FIRST`) cannot use a `DESC NULLS LAST` index for that ordering. If you need the default, create the index on the SQL tab: `CREATE INDEX ON t (col DESC);`.
-:::
+```sql
+CREATE INDEX CONCURRENTLY docs_lower_title_idx
+    ON public.docs USING btree
+    ((lower(title)) text_pattern_ops DESC NULLS FIRST)
+    INCLUDE(amount)
+;
+```
+
+**PRIMARY** turns the dialog into a primary key: only plain columns, **Tablespace:**, **Include columns:**, **Fillfactor:** and **Comment:** remain, and the statement is `ALTER TABLE t ADD PRIMARY KEY (…) INCLUDE (…) WITH (FILLFACTOR=…) USING INDEX TABLESPACE …`. The new key appears in the Constraints card.
 
 ::: info What each method is for
 | Method | Use it for | Notes |
@@ -68,15 +88,15 @@ For btree indexes the dialog writes `NULLS LAST` after every column, also after 
 | SPGIST | Points, IP addresses, text prefixes | |
 | BRIN | Very large tables whose values follow the physical order (timestamps of an append-only log) | Tiny; needs no per-row entries. |
 
-The **Order** select is disabled for the other methods, which have no ordering.
+The **Order** and **NULLs** columns are hidden for the other methods, which have no ordering.
 :::
 
 ### Editing an index
 
 **Edit** opens the same dialog with the index's settings; **Index choice:** cannot be changed. What happens depends on what you change:
 
-- Only the **Index name**, **Fillfactor** or **Comment**: the index is altered in place (`ALTER INDEX … RENAME TO`, `SET (fillfactor=…)`, `COMMENT ON INDEX`).
-- The columns, their order, the type or the condition: PostgreSQL cannot alter these, so the dialog drops the index and creates it again, which the preview shows:
+- The **Index name**, **Tablespace**, the storage parameters (**Fillfactor**, **Deduplicate items**, **Fast update**, **GIN pending list limit**, **Buffering**, **Pages per range**, **Autosummarize**), **Comment** or **Cluster**: the index is altered in place (`ALTER INDEX … RENAME TO`, `SET TABLESPACE`, `SET (fillfactor=…)`, `RESET (fillfactor)` when emptied, `COMMENT ON INDEX`, `CLUSTER ON`).
+- The columns or expressions, their operator class, collation, order or NULLs, the type, the condition or the include columns: PostgreSQL cannot alter these, so the dialog drops the index and creates it again, which the preview shows:
 
 ```sql
 DROP INDEX IF EXISTS public.tbl_demo_partial_idx;
@@ -94,17 +114,14 @@ Rebuilding an index on a large table locks writes to the table until it finishes
 
 | Feature | SQL to use on the [SQL tab](/tools/sql) |
 | --- | --- |
-| Expression indexes | `CREATE INDEX ON customers (lower(email));` |
-| Operator classes (`text_pattern_ops`, `gin_trgm_ops`, `jsonb_path_ops`) | `CREATE INDEX ON books USING gin (title gin_trgm_ops);` |
-| `NULLS FIRST`, `NULLS NOT DISTINCT` | `CREATE UNIQUE INDEX ON t (c) NULLS NOT DISTINCT;` |
-| Covering columns | `CREATE INDEX ON t (a) INCLUDE (b, c);` |
-| Index tablespace | `CREATE INDEX … TABLESPACE fast_ssd;` |
-| Building without blocking writes | `CREATE INDEX CONCURRENTLY …` |
+| `NULLS NOT DISTINCT` (PostgreSQL 15+) | `CREATE UNIQUE INDEX ON t (c) NULLS NOT DISTINCT;` |
+| Statistics target of an expression column | `ALTER INDEX i ALTER COLUMN 1 SET STATISTICS 500;` |
+| Rebuilding an existing index without blocking writes | `REINDEX INDEX CONCURRENTLY i;` (the database and schema [Maintenance](/tools/maintenance) cards offer `REINDEX … CONCURRENTLY`) |
 
 The drag handles next to the column rows are decoration: the rows cannot be reordered by dragging. To change the column order, pick the columns again in the selects.
 
 ::: warning CREATE INDEX CONCURRENTLY cannot run in a transaction block
-`CREATE INDEX CONCURRENTLY`, `DROP INDEX CONCURRENTLY` and `REINDEX … CONCURRENTLY` build or drop the index without blocking writes, but PostgreSQL refuses to run them inside `BEGIN … COMMIT`. Run each one as its own statement on the SQL tab, outside an explicit transaction. If a concurrent build fails it leaves an `INVALID` index behind; drop it and try again.
+`CREATE INDEX CONCURRENTLY`, `DROP INDEX CONCURRENTLY` and `REINDEX … CONCURRENTLY` build or drop the index without blocking writes, but PostgreSQL refuses to run them inside `BEGIN … COMMIT`. The dialog runs `CREATE INDEX CONCURRENTLY` as a statement of its own, then the comment and `CLUSTER ON`. On the SQL tab, run each one outside an explicit transaction. If a concurrent build fails it leaves an `INVALID` index behind; drop it and try again.
 :::
 
 ## Constraints
@@ -249,7 +266,7 @@ The [Show create](/table/operations#show-create) tab shows all of these clauses 
 | --- | --- |
 | Index types **PRIMARY**, **UNIQUE**, **INDEX**, **FULLTEXT**, **SPATIAL** | **PRIMARY**, **UNIQUE**, **INDEX**, with the method (btree, GIN, GiST…) under **Advanced options**. Full text is a GIN index on a `tsvector`; spatial is GiST. |
 | Index **Size** (prefix length) | No prefix indexes; use an expression index (`left(col, 10)`) on the SQL tab. |
-| **Key block size**, **Parser** | **Fillfactor**, **Condition (WHERE)**. |
+| **Key block size**, **Parser** | **Tablespace**, **Include columns**, the method's storage parameters, **Condition (WHERE)**. |
 | Foreign keys need InnoDB | Every PostgreSQL table supports them. |
 | Internal relations (phpMyAdmin configuration storage) | Not needed: only real foreign keys are used. |
 | `CHECK` constraints (MariaDB) | Constraints card, **Check**. |

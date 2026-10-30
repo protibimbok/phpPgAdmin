@@ -207,6 +207,8 @@ export interface TableOptions {
   index_methods: string[]
   /** The index methods that can back an exclusion constraint. */
   exclusion_methods: string[]
+  /** The index methods that take INCLUDE columns. */
+  include_methods: string[]
   /** The tables one may inherit from; "inherits" is the name as the INHERITS clause takes it. */
   inherits: { oid: number; schema: string; name: string; inherits: string }[]
 }
@@ -324,6 +326,16 @@ export interface IndexData {
   /** The WHERE of a partial index. */
   indconstraint?: string
   fillfactor?: string
+  /** btree (PostgreSQL 13+). */
+  deduplicate_items?: boolean
+  /** gin. */
+  fastupdate?: boolean
+  gin_pending_list_limit?: string
+  /** gist: 'auto', 'on' or 'off'. */
+  buffering?: string
+  /** brin. */
+  pages_per_range?: string
+  autosummarize?: boolean
   spcname?: string
   description?: string
   indisclustered?: boolean
@@ -345,6 +357,12 @@ export interface IndexProperties extends Index {
   columns: IndexColumnData[]
   include: string[]
   fillfactor: number | null
+  deduplicate_items: boolean | null
+  fastupdate: boolean | null
+  gin_pending_list_limit: number | null
+  buffering: string | null
+  pages_per_range: number | null
+  autosummarize: boolean | null
   isconcurrent?: boolean
 }
 

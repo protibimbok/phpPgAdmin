@@ -246,7 +246,21 @@
     "ignore": "تجاهل",
     "add_columns": "إضافة {{count}} عمود/أعمدة إلى الفهرس",
     "no_columns": "يحتاج الفهرس إلى عمود واحد على الأقل.",
-    "clustered": "تجميع الجدول على هذا الفهرس (CLUSTER ON)"
+    "clustered": "تجميع الجدول على هذا الفهرس (CLUSTER ON)",
+    "tablespace": "مساحة الجداول:",
+    "include": "أعمدة مضمّنة:",
+    "gin_pending_list_limit": "حد قائمة GIN المعلّقة (كيلوبايت):",
+    "pages_per_range": "الصفحات لكل نطاق:",
+    "buffering": "التخزين المؤقت:",
+    "deduplicate_items": "إزالة العناصر المكررة (deduplicate_items)",
+    "fastupdate": "التحديث السريع (fastupdate)",
+    "autosummarize": "التلخيص التلقائي (autosummarize)",
+    "concurrently": "البناء دون منع عمليات الكتابة (CONCURRENTLY)",
+    "oper_class": "فئة المعامل",
+    "collation": "الترتيب الأبجدي",
+    "nulls": "القيم الفارغة",
+    "default_class": "الافتراضي",
+    "expression": "تعبير"
   },
   "constraint_dialog": {
     "add_title": "إضافة قيد {{type}}",

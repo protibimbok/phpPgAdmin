@@ -204,6 +204,8 @@ final class TableController extends RelationController
             // and the exclusion form only those that can back an exclusion constraint (gin and brin cannot).
             'index_methods' => array_column($ctx->conn->rows("SELECT amname FROM pg_catalog.pg_am WHERE amtype = 'i' ORDER BY amname"), 'amname'),
             'exclusion_methods' => array_column($ctx->conn->rows("SELECT amname FROM pg_catalog.pg_am WHERE amtype = 'i' AND pg_catalog.pg_indexam_has_property(oid, 'can_exclude') ORDER BY amname"), 'amname'),
+            // The index methods that take INCLUDE columns (btree, gist, spgist).
+            'include_methods' => array_column($ctx->conn->rows("SELECT amname FROM pg_catalog.pg_am WHERE amtype = 'i' AND pg_catalog.pg_indexam_has_property(oid, 'can_include') ORDER BY amname"), 'amname'),
             // The tables a table may inherit from, as the INHERITS clause names them (schema-qualified
             // outside the search path's catalogs), with their OIDs so a table leaves itself out.
             'inherits' => array_map(

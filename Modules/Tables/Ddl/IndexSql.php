@@ -24,6 +24,12 @@ final class IndexSql
 {
     private const array STORAGE_PARAMETERS = ['fillfactor', 'deduplicate_items', 'gin_pending_list_limit', 'pages_per_range', 'buffering', 'fastupdate', 'autosummarize', 'lists'];
 
+    /** The storage parameters that take on/off; the templates print them as true and false. */
+    private const array BOOLEAN_PARAMETERS = ['deduplicate_items', 'fastupdate', 'autosummarize'];
+
+    /** The values buffering (GiST) takes. */
+    private const array BUFFERING = ['auto', 'on', 'off'];
+
     /** The fields whose change means the index has to be made anew; the others are ALTER INDEX. */
     private const array DEFINITION_FIELDS = ['amname', 'indisunique', 'indnullsnotdistinct', 'indconstraint', 'include'];
 
@@ -80,8 +86,22 @@ final class IndexSql
         if (self::redefined($data, $old)) {
             $new = [...$old, ...$data];
             unset($new['dependsonextensions']);
+            // The storage parameters are the client's: one it left out is reset, and the old
+            // method's (fastupdate of a GIN index made BRIN) cannot carry over.
+            foreach (self::STORAGE_PARAMETERS as $param) {
+                if (!array_key_exists($param, $data)) {
+                    unset($new[$param]);
+                }
+            }
 
             return ['sql' => Ddl::assemble([self::deleteSql($ctx, $schema, (string) $old['name'], false), self::createSql($ctx, $schema, $table, $new)]), 'recreated' => true];
+        }
+
+        // update.sql compares and prints the on/off parameters as they stand: both sides as true and false.
+        foreach (self::BOOLEAN_PARAMETERS as $param) {
+            if (is_bool($old[$param] ?? null)) {
+                $old[$param] = $old[$param] ? 'true' : 'false';
+            }
         }
 
         return ['sql' => $ctx->renderFrom('indexes', 'update.sql', ['data' => $data, 'o_data' => $old, 'update_column' => false, 'update_column_data' => []]), 'recreated' => false];
@@ -101,11 +121,61 @@ final class IndexSql
     {
         $old = $ctx->conn->row($ctx->renderFrom('indexes', 'properties.sql', ['tid' => $tid, 'idx' => $idx, 'datlastsysoid' => DatabaseController::LAST_SYSTEM_OID, 'show_sys_objects' => true]))
             ?? throw new GoneException('Could not find the index in the table.');
-        $old['columns'] = IndexDdl::columns($ctx, $idx, (string) $old['amname']);
+        $old['columns'] = array_map(self::asEdited(...), IndexDdl::columns($ctx, $idx, (string) $old['amname']));
         $old['include'] = IndexDdl::include($ctx, $idx);
         $old['dependsonextensions'] = Options::list($old['dependsonextensions'] ?? null);
 
         return $old;
+    }
+
+    /**
+     * A key column of an existing index as the dialog edits it and the create template takes
+     * it: a plain column by its name (the server prints it quoted when it needs quotes), and no
+     * collation when the column has its type's default one.
+     *
+     * @param array<string, mixed> $column
+     * @return array<string, mixed>
+     */
+    private static function asEdited(array $column): array
+    {
+        $name = (string) $column['colname'];
+        if (!$column['is_exp'] && preg_match('/^"((?:[^"]|"")+)"$/', $name, $m)) {
+            $column['colname'] = str_replace('""', '"', $m[1]);
+        }
+        if (($column['collspcname'] ?? '') === 'pg_catalog."default"') {
+            $column['collspcname'] = '';
+        }
+
+        return $column;
+    }
+
+    /**
+     * A storage parameter as the templates print it, checked: they write it into WITH (…) and
+     * SET (…) as it is, so a number must be digits, on/off true or false, buffering a mode.
+     */
+    private static function parameter(string $param, mixed $value): string
+    {
+        if (in_array($param, self::BOOLEAN_PARAMETERS, true)) {
+            $value = is_bool($value) ? $value : filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($value === null) {
+                throw new BadRequestException(sprintf('%s must be on or off.', $param));
+            }
+
+            return $value ? 'true' : 'false';
+        }
+        $value = strtolower(trim((string) $value));
+        if ($param === 'buffering') {
+            if (!in_array($value, self::BUFFERING, true)) {
+                throw new BadRequestException('buffering must be auto, on or off.');
+            }
+
+            return $value;
+        }
+        if (!ctype_digit($value)) {
+            throw new BadRequestException(sprintf('%s must be a whole number.', $param));
+        }
+
+        return $value;
     }
 
     /**
@@ -121,11 +191,12 @@ final class IndexSql
         $data['amname'] = $amname;
         $data['storage_parameters'] = [];
         foreach (self::STORAGE_PARAMETERS as $param) {
-            if (isset($data[$param]) && $data[$param] !== '' && $data[$param] !== null) {
-                $data['storage_parameters'][$param] = is_bool($data[$param]) ? ($data[$param] ? 'true' : 'false') : $data[$param];
+            if (isset($data[$param]) && $data[$param] !== '') {
+                $data[$param] = $data['storage_parameters'][$param] = self::parameter($param, $data[$param]);
             }
         }
-        foreach (['indconstraint', 'spcname', 'description'] as $key) {
+        // An empty comment stays: on an existing index it removes the comment.
+        foreach (['indconstraint', 'spcname'] as $key) {
             if (isset($data[$key]) && trim((string) $data[$key]) === '') {
                 unset($data[$key]);
             }
@@ -142,6 +213,14 @@ final class IndexSql
                 continue;
             }
             $column['is_exp'] = (bool) ($column['is_exp'] ?? false);
+            // The collation and operator class are written as they come: names only.
+            foreach (['collspcname', 'op_class'] as $key) {
+                $value = trim((string) ($column[$key] ?? ''));
+                if ($value !== '' && !preg_match('/^(?:"(?:[^"]|"")+"|[\\w$]+)(?:\\.(?:"(?:[^"]|"")+"|[\\w$]+))?$/u', $value)) {
+                    throw new BadRequestException(sprintf('Not a valid %s: %s', $key === 'op_class' ? 'operator class' : 'collation', $value));
+                }
+                $column[$key] = $value === '' ? null : $value;
+            }
             $column['is_sort_nulls_applicable'] = $amname === 'btree';
             if (array_key_exists('sort_order', $column)) {
                 $column['sort_order'] = (bool) $column['sort_order'];

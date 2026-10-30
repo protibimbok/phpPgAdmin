@@ -246,7 +246,21 @@
     "ignore": "Ignore",
     "add_columns": "Add {{count}} column(s) to index",
     "no_columns": "An index needs at least one column.",
-    "clustered": "Cluster the table on this index (CLUSTER ON)"
+    "clustered": "Cluster the table on this index (CLUSTER ON)",
+    "tablespace": "Tablespace:",
+    "include": "Include columns:",
+    "gin_pending_list_limit": "GIN pending list limit (kB):",
+    "pages_per_range": "Pages per range:",
+    "buffering": "Buffering:",
+    "deduplicate_items": "Deduplicate items (deduplicate_items)",
+    "fastupdate": "Fast update (fastupdate)",
+    "autosummarize": "Autosummarize (autosummarize)",
+    "concurrently": "Build without locking out writes (CONCURRENTLY)",
+    "oper_class": "Operator class",
+    "collation": "Collation",
+    "nulls": "NULLs",
+    "default_class": "Default",
+    "expression": "Expression"
   },
   "constraint_dialog": {
     "add_title": "Add {{type}} constraint",
