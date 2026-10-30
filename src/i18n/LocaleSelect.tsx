@@ -1,4 +1,6 @@
 import { useState, type SelectHTMLAttributes } from 'react'
+import { errorMessage } from '@/api/request'
+import { notifyError } from '@/notify'
 import { displayName } from './config'
 import { useLocale } from './useLocale'
 
@@ -23,7 +25,9 @@ export default function LocaleSelect({ className, disabled, ...props }: LocaleSe
       disabled={disabled || pending}
       onChange={(event) => {
         setPending(true)
-        void setLocale(event.target.value).finally(() => setPending(false))
+        setLocale(event.target.value)
+          .catch((err: unknown) => notifyError(errorMessage(err)))
+          .finally(() => setPending(false))
       }}
     >
       {locales.map((option) => (

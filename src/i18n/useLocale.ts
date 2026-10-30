@@ -31,7 +31,10 @@ export function useLocale(): { locale: Locale; locales: readonly Locale[]; setLo
       return
     }
 
-    await Promise.all([i18n.changeLanguage(next), persist(next)])
+    // The server is told first: should it refuse, the page stays in the language PHP still
+    // answers in, rather than switching now and coming back on the next load.
+    await persist(next)
+    await i18n.changeLanguage(next)
   }, [])
 
   return { locale, locales, setLocale }

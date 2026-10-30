@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import Icon from '@/components/Icon'
+import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { preference, preferenceDefinitions, preferenceGroups, savePreferences, useStoredPreferences, type PreferenceDefinition, type PreferenceValue } from '@/preferences'
 
@@ -16,6 +17,18 @@ const PAGES = [
   { id: 'export', icon: 'b_export' },
   { id: 'import', icon: 'b_import' },
 ] as const
+
+/**
+ * Store settings, and have the navigation tree load its lists again when one of the Navigation
+ * panel's settings changed ("Show system objects", the page sizes): the mounted tree reads
+ * them only when it loads a list.
+ */
+async function saveSettings(values: Record<string, PreferenceValue | null>): Promise<void> {
+  const navigation = preferenceDefinitions().filter((d) => d.page === 'navigation')
+  const before = navigation.map((d) => preference(d.key))
+  await savePreferences(values)
+  if (navigation.some((d, i) => preference(d.key) !== before[i])) treeState.refresh()
+}
 
 /** Where "Save to browser's storage" keeps the settings. */
 const STORAGE_KEY = 'phppgadmin.settings'
@@ -101,7 +114,7 @@ function SettingsForm({ page }: { page: string }) {
     }
     setBusy(true)
     try {
-      await savePreferences(values)
+      await saveSettings(values)
       edited.current = false
       notifySuccess(t('saved'))
     } catch (err) {
@@ -270,7 +283,7 @@ function Manage() {
         if (!file) return notifyError(t('manage.no_file'))
         data = JSON.parse(await file.text())
       }
-      await savePreferences(importValues(data, merge))
+      await saveSettings(importValues(data, merge))
       notifySuccess(t('manage.imported'))
       navigate('/server/settings/features')
     } catch (err) {

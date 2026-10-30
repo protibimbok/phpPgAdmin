@@ -23,14 +23,19 @@ export interface ModalProps {
 export default function Modal({ show, title, onClose, children, footer, size, id }: ModalProps) {
   const { t } = useTranslation()
   const token = useRef<symbol>(Symbol('modal'))
+  // The latest onClose, so an inline handler (a new function every render) does not take the
+  // modal off the stack and put it back on top of one opened over it.
+  const close = useRef(onClose)
+  close.current = onClose
 
-  // Modals stack (a preview over a dialog); Escape closes only the one on top.
+  // Modals stack (a preview over a dialog); Escape closes only the one on top. A modal joins
+  // the stack once, when it opens, and leaves it when it closes.
   useEffect(() => {
     if (!show) return
     const mine = token.current
     openModals.push(mine)
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && openModals[openModals.length - 1] === mine) onClose()
+      if (e.key === 'Escape' && openModals[openModals.length - 1] === mine) close.current()
     }
     document.addEventListener('keydown', onKey)
     document.body.classList.add('modal-open')
@@ -40,7 +45,7 @@ export default function Modal({ show, title, onClose, children, footer, size, id
       openModals.splice(openModals.indexOf(mine), 1)
       if (openModals.length === 0) document.body.classList.remove('modal-open')
     }
-  }, [show, onClose])
+  }, [show])
 
   if (!show) return null
 

@@ -189,7 +189,7 @@ export default function TableStructure() {
 
   /** The form options (access methods…) are loaded the first time a dialog opens. */
   function loadOptions() {
-    if (!options) void tableOptions(db, scid).then(setOptions)
+    if (!options) tableOptions(db, scid).then(setOptions, (e: unknown) => notifyError(errorMessage(e)))
   }
 
   function openIndex(index: Index | null, count = 1) {

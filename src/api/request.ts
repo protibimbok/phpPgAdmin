@@ -64,6 +64,14 @@ export function onUnauthorized(handler: (() => void) | null): void {
 }
 
 /**
+ * Report a 401 met outside request(): a download posted into a frame, a fetch that reads
+ * something other than JSON. The signed-in app then shows the login page, as for any call.
+ */
+export function reportUnauthorized(error: ApiError): void {
+  if (error.unauthorized) unauthorizedHandler?.()
+}
+
+/**
  * Call the API and return its JSON. A body is sent as JSON; a failure throws an ApiError
  * carrying the server's message and error fields.
  */
@@ -77,7 +85,7 @@ export async function request<T>(url: string, init: RequestInit = {}): Promise<T
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ApiErrorBody
     const error = new ApiError(response.status, body, response.statusText || `Request failed (${response.status})`)
-    if (error.unauthorized) unauthorizedHandler?.()
+    reportUnauthorized(error)
     throw error
   }
 

@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { getPreferences, updatePreferences, type Preferences } from '@auth/js/api'
+import { ApiError, errorMessage } from '@/api/request'
+import { notifyError } from '@/notify'
 
 /**
  * The preferences a role keeps on a server, after phpMyAdmin's user preferences and pgAdmin's
@@ -66,8 +68,10 @@ function emit() {
 export async function loadPreferences(): Promise<void> {
   try {
     stored = await getPreferences()
-  } catch {
+  } catch (err) {
+    // The pages still open, on the defaults; a lost session is the login page's to say.
     stored = {}
+    if (!(err instanceof ApiError && err.unauthorized)) notifyError(errorMessage(err))
   }
   emit()
 }

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRoutes } from 'react-router'
 import Login from '@auth/js/Pages/Login'
-import { onUnauthorized } from '@/api/request'
+import { ApiError, errorMessage, onUnauthorized } from '@/api/request'
 import { logout, me, type User } from '@auth/js/api'
 import Layout from '@/layout/Layout'
+import { bindTreeState } from '@/layout/tree/treeState'
+import { notifyError } from '@/notify'
 import { getRoutes } from '@/modular'
 import NotFound from '@/pages/NotFound'
 import { clearPreferences, loadPreferences } from '@/preferences'
@@ -40,12 +42,17 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return
+    // The remembered tree belongs to one server and user, as phpMyAdmin's does; bound before
+    // the layout (and with it the tree) first renders, which waits for ready.
+    bindTreeState(`${user.username}@${user.server.id ?? `${user.server.host}:${user.server.port}`}`)
     let current = true
     setReady(false)
     void loadPreferences().then(() => current && setReady(true))
 
     return () => {
       current = false
+      // Signed out: the next sign-in waits for its own preferences (and tree binding) again.
+      setReady(false)
     }
   }, [user])
 
@@ -75,11 +82,17 @@ export default function App() {
         {
           user,
           logout: () =>
-            logout().then(() => {
-              onUnauthorized(null)
-              clearPreferences()
-              setUser(null)
-            }),
+            logout().then(
+              () => {
+                onUnauthorized(null)
+                clearPreferences()
+                setUser(null)
+              },
+              // A session already gone has shown the login page through the 401.
+              (err: unknown) => {
+                if (!(err instanceof ApiError && err.unauthorized)) notifyError(errorMessage(err))
+              },
+            ),
         } satisfies Session
       }
     >

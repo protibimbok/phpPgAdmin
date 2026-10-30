@@ -1,4 +1,4 @@
-import { api, ApiError, type ApiErrorBody } from '@/api/request'
+import { api, ApiError, reportUnauthorized, type ApiErrorBody } from '@/api/request'
 
 export type ExportScope = 'server' | 'database' | 'schema' | 'table' | 'query'
 
@@ -151,7 +151,10 @@ export function downloadExport(request: Record<string, unknown>, onError: (error
       body = { message: text.trim() }
     }
     frame.remove()
-    onError(new ApiError(body.status_code ?? 500, body, 'The export failed.'))
+    const error = new ApiError(body.status_code ?? 500, body, 'The export failed.')
+    // A session that ran out shows the login page, as a 401 on any other call does.
+    reportUnauthorized(error)
+    onError(error)
   })
   document.body.append(frame, form)
   form.submit()
@@ -168,7 +171,9 @@ export async function exportText(request: Record<string, unknown>): Promise<stri
   })
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ApiErrorBody
-    throw new ApiError(response.status, body, response.statusText || 'The export failed.')
+    const error = new ApiError(response.status, body, response.statusText || 'The export failed.')
+    reportUnauthorized(error)
+    throw error
   }
 
   return response.text()
