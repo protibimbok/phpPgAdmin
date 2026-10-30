@@ -18,6 +18,10 @@ use Throwable;
  * in memory. DECLARE takes only a SELECT or VALUES, so a statement that would change data is
  * refused before anything is read.
  *
+ * Several statements (the relations of a schema, for JSON) are read one after the other in the
+ * same transaction, so they are read as of the same moment; the format, a MultiRowFormat, is
+ * told where each one starts.
+ *
  * start() declares the cursor and reads the first batch, so a statement that fails (a syntax
  * error, a missing privilege) becomes an error response instead of a file. A failure after the
  * download has begun is told in the file, as DumpStream does for a plain dump.
@@ -34,6 +38,12 @@ final class RowStream implements StreamInterface
 
     private ?\DeflateContext $gzip;
 
+    /** @var list<string> the statements still to read after the current one */
+    private array $queue = [];
+
+    /** Whether the current statement's rows are all read and the next one is to be declared. */
+    private bool $advance = false;
+
     private function __construct(private ?Connection $conn, private readonly RowFormat $format, bool $gzip, private readonly string $errorComment)
     {
         $this->gzip = $gzip ? (deflate_init(ZLIB_ENCODING_GZIP, ['level' => 6]) ?: null) : null;
@@ -43,14 +53,23 @@ final class RowStream implements StreamInterface
      * Declare the cursor on the connection (which the stream then owns and closes) and read the
      * first batch.
      *
-     * @param string $select a SELECT or VALUES statement
+     * @param string|list<string> $select a SELECT or VALUES statement, or several for a MultiRowFormat
      * @param string $prefix written before the format's head (a header comment)
      * @param string $errorComment how a comment line starts in the format ("-- ", or "" when it has none)
      * @throws ApiException when the statement is refused or fails
      */
-    public static function start(Connection $conn, string $select, RowFormat $format, bool $gzip, string $prefix = '', string $errorComment = '', ?string $encoding = null): self
+    public static function start(Connection $conn, string|array $select, RowFormat $format, bool $gzip, string $prefix = '', string $errorComment = '', ?string $encoding = null): self
     {
         $stream = new self($conn, $format, $gzip, $errorComment);
+        $selects = is_array($select) ? array_values($select) : [$select];
+        if ($selects === []) {
+            throw new ApiException(422, 'There are no rows to export.');
+        }
+        if (count($selects) > 1 && !$format instanceof MultiRowFormat) {
+            throw new \LogicException(sprintf('%s writes the rows of one statement only.', $format::class));
+        }
+        $select = array_shift($selects);
+        $stream->queue = $selects;
         try {
             if ($encoding !== null) {
                 $conn->exec('SELECT pg_catalog.set_config($1, $2, false)', ['client_encoding', $encoding]);
@@ -173,6 +192,17 @@ final class RowStream implements StreamInterface
             return;
         }
         try {
+            if ($this->advance) {
+                // The next statement, in the same transaction.
+                $this->advance = false;
+                $this->conn->exec('CLOSE pga_export');
+                $this->conn->exec('DECLARE pga_export NO SCROLL CURSOR FOR ' . rtrim(trim((string) array_shift($this->queue)), ';'));
+                $result = $this->conn->query(sprintf('FETCH FORWARD %d FROM pga_export', self::BATCH));
+                $this->append($this->format instanceof MultiRowFormat ? $this->format->next($result->columns()) : '');
+                $this->take($result->textRows());
+
+                return;
+            }
             $this->take($this->conn->query(sprintf('FETCH FORWARD %d FROM pga_export', self::BATCH))->textRows());
         } catch (Throwable $e) {
             error_log('phpPgAdmin export: ' . $e->getMessage());
@@ -186,6 +216,12 @@ final class RowStream implements StreamInterface
     {
         if ($rows !== []) {
             $this->append($this->format->rows($rows));
+        }
+        if (count($rows) < self::BATCH && $this->queue !== [] && $this->conn !== null) {
+            // The next statement is read when its rows are wanted.
+            $this->advance = true;
+
+            return;
         }
         if (count($rows) < self::BATCH) {
             try {

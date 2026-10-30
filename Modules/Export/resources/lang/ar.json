@@ -44,7 +44,8 @@
     "excel": "CSV لبرنامج MS Excel",
     "tsv": "قيم مفصولة بعلامات جدولة (COPY text)",
     "html": "HTML",
-    "xml": "XML"
+    "xml": "XML",
+    "json": "JSON"
   },
   "selection": {
     "databases": "قواعد البيانات",
@@ -172,5 +173,9 @@
   "query": {
     "title": "استعلام SQL",
     "missing": "شغّل استعلامًا في صفحة SQL واستخدم \"تصدير\" أسفل نتائجه لتصدير صفوفه."
+  },
+  "json": {
+    "pretty_print": "إخراج JSON منسَّق (تنسيق مقروء للبشر)",
+    "unicode": "إخراج محارف يونيكود دون تهريب"
   }
 }

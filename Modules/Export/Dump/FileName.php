@@ -47,7 +47,7 @@ final class FileName
         return ($name === '' ? 'dump' : $name) . $extension;
     }
 
-    /** ".sql", ".dump", ".tar" (a tar or a directory archive), ".csv", ".tsv", ".html", ".xml", with ".gz" when the output is gzipped here. */
+    /** ".sql", ".dump", ".tar" (a tar or a directory archive), ".csv", ".tsv", ".html", ".xml", ".json", with ".gz" when the output is gzipped here. */
     public static function extension(string $format, string $compression): string
     {
         return match ($format) {
@@ -57,6 +57,7 @@ final class FileName
             'tsv' => '.tsv',
             'html' => '.html',
             'xml' => '.xml',
+            'json' => '.json',
             default => '.sql',
         } . ($compression === 'gzip' && $format !== 'custom' && $format !== 'directory' ? '.gz' : '');
     }

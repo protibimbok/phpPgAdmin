@@ -17,16 +17,16 @@ final readonly class ExportRequest
 {
     public const array SCOPES = ['server', 'database', 'schema', 'table', 'query'];
 
-    public const array FORMATS = ['plain', 'custom', 'tar', 'directory', 'csv', 'excel', 'tsv', 'html', 'xml'];
+    public const array FORMATS = ['plain', 'custom', 'tar', 'directory', 'csv', 'excel', 'tsv', 'html', 'xml', 'json'];
 
     /** pg_dump's sections, in the order of a dump. */
     public const array SECTIONS = ['pre-data', 'data', 'post-data'];
 
-    /** The formats written here from a cursor (RowStream), for one relation's rows or a query's. */
-    public const array ROW_FORMATS = ['html', 'xml'];
+    /** The formats written here from a cursor (RowStream), for one relation's rows or a query's (and a schema's, for JSON). */
+    public const array ROW_FORMATS = ['html', 'xml', 'json'];
 
     /** What a query's rows can be exported as: INSERT or COPY statements (plain), COPY's CSV and text, HTML and XML. */
-    public const array QUERY_FORMATS = ['plain', 'csv', 'excel', 'tsv', 'html', 'xml'];
+    public const array QUERY_FORMATS = ['plain', 'csv', 'excel', 'tsv', 'html', 'xml', 'json'];
 
     public const array COMPRESSIONS = ['none', 'gzip'];
 
@@ -105,6 +105,8 @@ final readonly class ExportRequest
         public array $excludeSchemas = [],
         public ?int $extraFloatDigits = null,
         public ?string $lockWaitTimeout = null,
+        public bool $jsonPretty = false,
+        public bool $jsonUnicode = true,
     ) {
     }
 
@@ -132,7 +134,10 @@ final readonly class ExportRequest
         if ($scope === 'server' && $format !== 'plain') {
             throw new BadRequestException('pg_dumpall writes plain SQL only.');
         }
-        if (in_array($format, self::ROW_FORMATS, true) && $scope !== 'table' && $scope !== 'query') {
+        if ($format === 'json' && !in_array($scope, ['schema', 'table', 'query'], true)) {
+            throw new BadRequestException('A JSON export is of a schema\'s tables, one table or view, or a query.');
+        }
+        if (in_array($format, ['html', 'xml'], true) && $scope !== 'table' && $scope !== 'query') {
             throw new BadRequestException('HTML and XML exports are of one table, view or query.');
         }
         if ($scope === 'query' && !in_array($format, self::QUERY_FORMATS, true)) {
@@ -240,6 +245,8 @@ final readonly class ExportRequest
             excludeSchemas: $excludeSchemas,
             extraFloatDigits: $floatDigits === null ? null : (int) $floatDigits,
             lockWaitTimeout: $lockWait === '' ? null : $lockWait,
+            jsonPretty: filter_var($input['json_pretty_print'] ?? false, FILTER_VALIDATE_BOOL),
+            jsonUnicode: filter_var($input['json_unicode'] ?? true, FILTER_VALIDATE_BOOL),
         );
     }
 

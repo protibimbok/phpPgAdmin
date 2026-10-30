@@ -67,15 +67,17 @@ const DEFAULTS: Omit<ExportSettings, 'filename_template' | 'encoding' | 'databas
   enable_row_security: false,
   toast_compression: true,
   table_access_method: true,
+  json_pretty_print: false,
+  json_unicode: true,
 }
 
 const SECTIONS = ['pre-data', 'data', 'post-data'] as const
 
 /** What a query's rows can be exported as. */
-const QUERY_FORMATS: ExportSettings['format'][] = ['plain', 'csv', 'excel', 'tsv', 'html', 'xml']
+const QUERY_FORMATS: ExportSettings['format'][] = ['plain', 'csv', 'excel', 'tsv', 'html', 'xml', 'json']
 
 /** The formats written as rows of data only: COPY's CSV and text, and the HTML and XML read through a cursor. */
-const DATA_FORMATS: ExportSettings['format'][] = ['csv', 'excel', 'tsv', 'html', 'xml']
+const DATA_FORMATS: ExportSettings['format'][] = ['csv', 'excel', 'tsv', 'html', 'xml', 'json']
 
 type Flag = { [K in keyof ExportSettings]: ExportSettings[K] extends boolean ? K : never }[keyof ExportSettings]
 
@@ -98,6 +100,7 @@ function preferredFormat(scope: ExportScope): ExportSettings['format'] {
   if (scope === 'server') return 'plain'
   if (scope === 'query') return QUERY_FORMATS.includes(format) ? format : 'plain'
   if ((format === 'html' || format === 'xml') && scope !== 'table') return 'plain'
+  if (format === 'json' && scope !== 'table' && scope !== 'schema') return 'plain'
 
   return format
 }
@@ -181,7 +184,7 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
   // CSV is data only, as in phpMyAdmin: what is ticked under Data goes in. So are tab-separated, HTML and XML.
   const csv = DATA_FORMATS.includes(settings.format)
   // HTML and XML are read through a cursor here, without the client programs.
-  const rowFormat = settings.format === 'html' || settings.format === 'xml' || (scope === 'query' && settings.format === 'plain')
+  const rowFormat = settings.format === 'html' || settings.format === 'xml' || settings.format === 'json' || (scope === 'query' && settings.format === 'plain')
   const query = scope === 'query'
   // pg_dump writes a directory archive as files, which download as one tar file and never as text.
   const directory = settings.format === 'directory'
@@ -322,11 +325,12 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                 { value: 'xml' as const, label: t('format.xml') },
               ]
             : []),
+          ...(scope === 'table' || scope === 'schema' ? [{ value: 'json' as const, label: t('format.json') }] : []),
         ]),
   ]
 
   // The field names of phpMyAdmin's plugins: sql_*, and csv_* and excel_* as they are spelled there.
-  const field = (key: Flag) => (key.startsWith('csv_') || key.startsWith('excel_') ? key.replace('remove_crlf', 'removeCRLF') : key.startsWith('tsv_') || key.startsWith('htmlword_') ? key : `sql_${key}`)
+  const field = (key: Flag) => (key.startsWith('csv_') || key.startsWith('excel_') ? key.replace('remove_crlf', 'removeCRLF') : key.startsWith('tsv_') || key.startsWith('htmlword_') || key.startsWith('json_') ? key : `sql_${key}`)
   const toggle = (key: Flag, label: ReactNode, children?: ReactNode) => (
     <li className="list-group-item">
       <div className="form-check form-switch">
@@ -661,6 +665,16 @@ function ExportForm({ scope, target, options, preselected }: { scope: ExportScop
                     </li>
                     {toggle('htmlword_columns', t('csv.columns'))}
                   </ul>
+                </div>
+              )}
+              {settings.format === 'json' && (
+                <div id="json_options" className="format_specific_options">
+                  <div id="json_general_opts">
+                    <ul className="list-group">
+                      {toggle('json_pretty_print', t('json.pretty_print'))}
+                      {toggle('json_unicode', t('json.unicode'))}
+                    </ul>
+                  </div>
                 </div>
               )}
               {settings.format === 'xml' && (

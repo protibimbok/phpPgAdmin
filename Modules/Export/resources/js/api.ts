@@ -39,7 +39,7 @@ export interface ExportOptions {
 export interface ExportSettings {
   method: 'quick' | 'custom'
   /** pg_dump's formats, CSV, CSV for MS Excel and tab-separated written by COPY, or HTML and XML read through a cursor. */
-  format: 'plain' | 'custom' | 'tar' | 'directory' | 'csv' | 'excel' | 'tsv' | 'html' | 'xml'
+  format: 'plain' | 'custom' | 'tar' | 'directory' | 'csv' | 'excel' | 'tsv' | 'html' | 'xml' | 'json'
   output: 'text' | 'file'
   filename_template: string
   encoding: string
@@ -104,6 +104,8 @@ export interface ExportSettings {
   enable_row_security: boolean
   toast_compression: boolean
   table_access_method: boolean
+  json_pretty_print: boolean
+  json_unicode: boolean
 }
 
 const query = (target: Record<string, string | undefined>) => new URLSearchParams(Object.entries(target).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString()

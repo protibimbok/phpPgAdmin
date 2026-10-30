@@ -23,6 +23,7 @@ use PhpPgAdmin\Modules\Export\Dump\DumpStream;
 use PhpPgAdmin\Modules\Export\Dump\ExportRequest;
 use PhpPgAdmin\Modules\Export\Dump\FileName;
 use PhpPgAdmin\Modules\Export\Dump\HtmlFormat;
+use PhpPgAdmin\Modules\Export\Dump\JsonFormat;
 use PhpPgAdmin\Modules\Export\Dump\RowStream;
 use PhpPgAdmin\Modules\Export\Dump\SqlInsertFormat;
 use PhpPgAdmin\Modules\Export\Dump\XmlFormat;
@@ -154,6 +155,9 @@ final class ExportController
      */
     private function rowExport(ExportRequest $export, ConnectionPool $pool): ResponseInterface
     {
+        if ($export->format === 'json') {
+            return $this->jsonExport($export, $pool);
+        }
         $relation = Quoting::ident((string) $export->schema, (string) $export->table);
         $title = $export->schema . '.' . $export->table;
         $format = match ($export->format) {
@@ -166,6 +170,40 @@ final class ExportController
 
         $this->detachSession();
         $stream = RowStream::start($pool->detached($export->database), 'SELECT * FROM ' . $relation, $format, $gzip, $plain ? $this->headerComment($export) : '', $plain ? '-- ' : '', $export->encoding);
+
+        return $this->respond($export, $stream, $gzip);
+    }
+
+    /**
+     * phpMyAdmin's JSON export of a relation's rows, or of the relations ticked under Data at
+     * the schema scope (the tables, partitioned tables, materialized views and foreign tables
+     * when nothing is ticked), each relation one "table" object in the same file.
+     */
+    private function jsonExport(ExportRequest $export, ConnectionPool $pool): ResponseInterface
+    {
+        $schema = (string) $export->schema;
+        if ($export->scope === 'schema') {
+            $objects = $this->relations($pool->for($export->database), $schema);
+            $names = $export->data ?? array_keys(array_filter($objects, static fn (string $kind): bool => in_array($kind, ['r', 'p', 'm', 'f'], true)));
+            $names = array_values(array_filter(array_map('strval', $names), static fn (string $name): bool => ($objects[$name] ?? 'S') !== 'S'));
+            foreach ($export->data ?? [] as $name) {
+                if (!array_key_exists($name, $objects)) {
+                    throw new BadRequestException(sprintf('There is no relation "%s".', $name));
+                }
+            }
+            sort($names);
+            if ($names === []) {
+                throw new ApiException(422, 'There is no data to export: tick a table under Data.');
+            }
+        } else {
+            $names = [(string) $export->table];
+        }
+
+        $format = new JsonFormat((string) $export->database, array_map(static fn (string $name): array => ['schema' => $schema, 'name' => $name], $names), $export->jsonPretty, $export->jsonUnicode);
+        $gzip = $this->gzip($export);
+
+        $this->detachSession();
+        $stream = RowStream::start($pool->detached($export->database), array_map(static fn (string $name): string => 'SELECT * FROM ' . Quoting::ident($schema, $name), $names), $format, $gzip);
 
         return $this->respond($export, $stream, $gzip);
     }
@@ -221,10 +259,12 @@ final class ExportController
             return $this->respond($export, $stream, $gzip);
         }
 
-        $target = $this->sourceTable($conn, $columns) ?? 'query_result';
+        $source = $this->sourceRelation($conn, $columns);
+        $target = $source === null ? 'query_result' : Quoting::ident($source['schema'], $source['name']);
         $format = match ($export->format) {
             'html' => new HtmlFormat('Query result', $export->htmlColumns, $export->htmlNull, $export->encoding ?? 'UTF-8'),
             'xml' => new XmlFormat($export->encoding ?? 'UTF-8'),
+            'json' => new JsonFormat((string) $export->database, [$source ?? ['schema' => null, 'name' => 'query_result']], $export->jsonPretty, $export->jsonUnicode),
             default => $this->sqlFormat($export, $target),
         };
         $plain = $export->format === 'plain';
@@ -232,18 +272,20 @@ final class ExportController
         $gzip = $this->gzip($export);
 
         $this->detachSession();
-        $stream = RowStream::start($pool->detached($export->database), $sql, $format, $gzip, $prefix, $plain ? '-- ' : '', $export->encoding);
+        // JSON is UTF-8 whatever the character set chosen.
+        $stream = RowStream::start($pool->detached($export->database), $sql, $format, $gzip, $prefix, $plain ? '-- ' : '', $export->format === 'json' ? null : $export->encoding);
 
         return $this->respond($export, $stream, $gzip);
     }
 
     /**
-     * The table every column of a result is read from, schema-qualified, or null when they come
-     * from several tables or from expressions.
+     * The table every column of a result is read from, or null when they come from several
+     * tables or from expressions.
      *
      * @param list<\PhpPgAdmin\Core\Database\Column> $columns
+     * @return array{schema: string, name: string}|null
      */
-    private function sourceTable(Connection $conn, array $columns): ?string
+    private function sourceRelation(Connection $conn, array $columns): ?array
     {
         $tables = array_unique(array_map(static fn ($column): ?int => $column->tableOid, $columns));
         if (count($tables) !== 1 || $tables[0] === null) {
@@ -251,7 +293,7 @@ final class ExportController
         }
         $row = $conn->row('SELECT n.nspname, c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = $1', [$tables[0]]);
 
-        return $row === null ? null : Quoting::ident((string) $row['nspname'], (string) $row['relname']);
+        return $row === null ? null : ['schema' => (string) $row['nspname'], 'name' => (string) $row['relname']];
     }
 
     private function sqlFormat(ExportRequest $export, string $relation): SqlInsertFormat|CopyFormat
@@ -311,6 +353,7 @@ final class ExportController
                 $export->csv !== null => 'text/csv',
                 $export->format === 'html' => 'text/html; charset=utf-8',
                 $export->format === 'xml' => 'application/xml',
+                $export->format === 'json' => 'application/json',
                 default => 'application/sql',
             })
             ->withHeader('Content-Disposition', sprintf('attachment; filename="%s"; filename*=UTF-8\'\'%s', addcslashes($ascii, '"\\'), rawurlencode($name)));

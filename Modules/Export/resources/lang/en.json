@@ -44,7 +44,8 @@
     "excel": "CSV for MS Excel",
     "tsv": "Tab-separated values (COPY text)",
     "html": "HTML",
-    "xml": "XML"
+    "xml": "XML",
+    "json": "JSON"
   },
   "selection": {
     "databases": "Databases",
@@ -172,5 +173,9 @@
   "query": {
     "title": "SQL query",
     "missing": "Run a query on the SQL page and use \"Export\" under its results to export its rows."
+  },
+  "json": {
+    "pretty_print": "Output pretty-printed JSON (Use human-readable formatting)",
+    "unicode": "Output unicode characters unescaped"
   }
 }

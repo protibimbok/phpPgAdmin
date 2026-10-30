@@ -59,6 +59,7 @@ the default template, whatever your saved compression or file-name template says
 | **Tab-separated values (COPY text)** | `psql` running `COPY … TO STDOUT (FORMAT text)`, a header line first | `.tsv` | database, schema, relation |
 | **HTML** | read through a cursor by phpPgAdmin: one HTML table, the column names as its first row | `.html` | relation, query |
 | **XML** | read through a cursor: the classic phpPgAdmin's `<data><header><records>` layout, which [Import](/tools/import#xml) reads back | `.xml` | relation, query |
+| **JSON** | read through a cursor: phpMyAdmin's JSON export layout | `.json` | schema, relation, query |
 
 The server level offers SQL only: `pg_dumpall` writes plain SQL and nothing else.
 
@@ -174,13 +175,39 @@ HTML and XML read the rows through a cursor in a read-only repeatable-read trans
 at a time, so a large table is streamed rather than held in memory. HTML has **Replace NULL with:**
 and **Put columns names in the first row**, after phpMyAdmin's Word format; XML has no options.
 
+### JSON
+
+JSON writes phpMyAdmin's JSON export layout: one array with a header object, a database object,
+and a `table` object per relation whose `data` holds its rows, each row an object of column name
+to value:
+
+```json
+[
+{"type":"header","version":"0.1.1","comment":"Export to JSON plugin for phpPgAdmin"},
+{"type":"database","name":"bookshop"},
+{"type":"table","name":"authors","database":"bookshop","schema":"public","data":
+[
+{"id":"1","name":"Ann","born":null}
+]
+}
+]
+```
+
+Values are PostgreSQL's text output, as phpMyAdmin writes MySQL's: numbers, booleans (`"t"`),
+arrays and `json` columns are strings, and NULL is `null`. `schema` is added to phpMyAdmin's
+`table` object. On a schema's Export tab the relations ticked under **Data** go into one file, read
+in one repeatable-read transaction; on a relation's tab, its rows (a view's too); for a query, its
+rows, named after the table they all come from or `query_result`. The options are phpMyAdmin's
+**Output pretty-printed JSON** and **Output unicode characters unescaped** (on by default; off
+writes `\u00e9` for `é`). The file is UTF-8 whatever the character set chosen.
+
 ### Query results
 
 **Export** under a query's results on the [SQL page](/tools/sql#results), and **With selected:
 Export** in a results grid (the rows ticked, selected by their key), open the Export page for that
 statement's rows (`/db/<database>/export/query`). It offers SQL (`INSERT` or `COPY` statements, for
-the table all the columns come from, or `query_result`), CSV, CSV for MS Excel, tab-separated, HTML
-and XML. The statement must be one `SELECT`, `VALUES` or `TABLE`; it is declared as a cursor in a
+the table all the columns come from, or `query_result`), CSV, CSV for MS Excel, tab-separated, HTML,
+XML and JSON. The statement must be one `SELECT`, `VALUES` or `TABLE`; it is declared as a cursor in a
 read-only transaction first, so one that writes, even in a `WITH` clause, is refused before
 anything is read.
 
@@ -384,6 +411,7 @@ other proxies may need their read timeouts raised for long dumps.
 - The SQL is PostgreSQL's own `pg_dump` output, including `\restrict` / `\unrestrict` lines
   (`pg_dump` 18 and the 2025 minor releases), not phpMyAdmin's generated SQL. Restore it with `psql`
   or phpPgAdmin's [Import](/tools/import), which handles those lines.
-- There are no JSON, LaTeX, PDF, ODS or Word formats; HTML stands in for Word, and XML is the
-  classic phpPgAdmin's layout rather than phpMyAdmin's.
+- There are no LaTeX, PDF, ODS or Word formats; HTML stands in for Word, and XML is the
+  classic phpPgAdmin's layout rather than phpMyAdmin's. JSON is phpMyAdmin's layout, at the
+  schema, relation and query levels (not the database's).
 - A server export is a cluster dump: roles and tablespaces are part of it.

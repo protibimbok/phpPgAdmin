@@ -39,6 +39,7 @@ registerPreferences([
       { value: 'tsv', label: 'export:format.tsv' },
       { value: 'html', label: 'export:format.html' },
       { value: 'xml', label: 'export:format.xml' },
+      { value: 'json', label: 'export:format.json' },
     ],
   },
   {
