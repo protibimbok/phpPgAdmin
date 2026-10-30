@@ -108,7 +108,7 @@ function DictionaryEntry({ db, table, qualified }: { db: string; table: Dictiona
                   {column.links.map((link, i) => (
                     <span key={i}>
                       {i > 0 && <br />}
-                      <Link to={`${urls.relation(db, link.schema, link.table)}/structure`}>{link.schema === table.schema ? link.table : `${link.schema}.${link.table}`}</Link> -&gt; {link.column}
+                      <Link to={urls.relation(db, link.schema, link.table)}>{link.schema === table.schema ? link.table : `${link.schema}.${link.table}`}</Link> -&gt; {link.column}
                     </span>
                   ))}
                 </td>

@@ -675,7 +675,7 @@ export default function Designer() {
                       {pos.small ? '>' : 'v'}
                     </td>
                     <td className="small_tab_pref">
-                      <Link to={`${urls.relation(db, tb.schema, tb.name, tb.kind === 'v' ? 'view' : tb.kind === 'm' ? 'mview' : 'table')}/structure`} draggable={false}>
+                      <Link to={`${urls.relation(db, tb.schema, tb.name, tb.kind === 'v' ? 'view' : tb.kind === 'm' ? 'mview' : 'table')}`} draggable={false}>
                         <img src={execSmall} title={t('box.structure')} alt={t('box.structure')} draggable={false} />
                       </Link>
                     </td>
