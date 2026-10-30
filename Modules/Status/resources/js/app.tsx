@@ -8,6 +8,7 @@ import Prepared from './Pages/Prepared'
 import Processes from './Pages/Processes'
 import Queries from './Pages/Queries'
 import ServerStatus from './Pages/ServerStatus'
+import SystemStats from './Pages/SystemStats'
 import Variables from './Pages/Variables'
 
 // The server's "Status" tab where phpMyAdmin has it: after SQL, before the Roles tab (its User
@@ -34,6 +35,7 @@ registerModule({
     { path: 'server/status/monitor', element: <Monitor /> },
     { path: 'server/status/logs', element: <Logs /> },
     { path: 'server/status/jobs', element: <Jobs /> },
+    { path: 'server/status/system', element: <SystemStats /> },
     { path: 'server/variables', element: <Variables /> },
     { path: 'db/:db/processes', element: <Processes /> },
     { path: 'db/:db/locks', element: <Locks /> },

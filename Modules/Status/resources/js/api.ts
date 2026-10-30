@@ -323,3 +323,26 @@ export function counters(database?: string): Promise<{ groups: CounterGroup[] }>
 
   return api.get<{ groups: CounterGroup[] }>(`/api/server/status/counters?${query}`)
 }
+
+/** A system_stats function's rows; error when this platform does not provide it. */
+export interface SystemView extends StatRows {
+  error: string | null
+}
+
+export type SystemSection = 'summary' | 'cpu' | 'memory' | 'storage'
+
+/** Whether the system_stats extension is in the database the login landed in, and one tab's views. */
+export function systemStats(section?: SystemSection): Promise<{ available: boolean; version: string | null; views?: SystemView[] }> {
+  return api.get(`/api/server/status/system${section ? `?section=${section}` : ''}`)
+}
+
+let systemAvailable: Promise<boolean> | null = null
+
+/** Asked once per page load: the Status pills offer System statistics only where it is installed. */
+export function systemStatsAvailable(): Promise<boolean> {
+  systemAvailable ??= systemStats().then(
+    (r) => r.available,
+    () => false,
+  )
+  return systemAvailable
+}

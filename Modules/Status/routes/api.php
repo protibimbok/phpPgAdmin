@@ -7,6 +7,7 @@ use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Status\Http\Controllers\LogsController;
 use PhpPgAdmin\Modules\Status\Http\Controllers\StatisticsController;
 use PhpPgAdmin\Modules\Status\Http\Controllers\StatusController;
+use PhpPgAdmin\Modules\Status\Http\Controllers\SystemStatsController;
 use PhpPgAdmin\Modules\Status\Http\Controllers\VariablesController;
 
 Route::middleware(Authenticate::class)->controller(StatusController::class)->group(function (): void {
@@ -40,4 +41,9 @@ Route::middleware(Authenticate::class)->controller(LogsController::class)->group
     Route::get('/server/logs', 'index')->setName('logs.index');
     Route::get('/server/logs/{name:[^/]+}', 'show')->setName('logs.show');
     Route::get('/server/logs/{name:[^/]+}/download', 'download')->setName('logs.download');
+});
+
+// pgAdmin's System Statistics, where the system_stats extension is installed.
+Route::middleware(Authenticate::class)->controller(SystemStatsController::class)->group(function (): void {
+    Route::get('/server/status/system', 'statistics')->setName('status.system');
 });

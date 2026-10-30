@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { NavLink, useParams } from 'react-router'
 import Icon from '@/components/Icon'
 import { urls } from '@/level'
-import { REFRESH_RATES } from './api'
+import { REFRESH_RATES, systemStatsAvailable } from './api'
 
 const PAGES = [
   { key: 'server', path: '/server/status' },
@@ -15,7 +15,10 @@ const PAGES = [
   { key: 'monitor', path: '/server/status/monitor' },
   { key: 'logs', path: '/server/status/logs' },
   { key: 'jobs', path: '/server/status/jobs' },
-] as const
+]
+
+/** pgAdmin's System Statistics, offered only where the system_stats extension is installed. */
+const SYSTEM = { key: 'system', path: '/server/status/system' }
 
 /**
  * The pills above every Status page, as phpMyAdmin's server/status/base.twig lays them out. In
@@ -25,7 +28,16 @@ const PAGES = [
 export default function StatusNav() {
   const { t } = useTranslation('status')
   const { db } = useParams()
-  const pages = db === undefined ? PAGES : [
+  const [system, setSystem] = useState(false)
+  useEffect(() => {
+    if (db !== undefined) return
+    let live = true
+    void systemStatsAvailable().then((available) => live && setSystem(available))
+    return () => {
+      live = false
+    }
+  }, [db])
+  const pages = db === undefined ? [...PAGES, ...(system ? [SYSTEM] : [])] : [
     { key: 'processes', path: `${urls.database(db)}/processes` },
     { key: 'locks', path: `${urls.database(db)}/locks` },
   ]

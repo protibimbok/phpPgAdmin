@@ -276,6 +276,32 @@ Each row has:
 Jobs are your role's on this server: another role, or the same role on another server, does not see
 them.
 
+## System statistics
+
+pgAdmin's System Statistics dashboard, from EDB's
+[system_stats](https://github.com/EnterpriseDB/system_stats) extension. The **System statistics** pill
+(`/server/status/system`) appears only when `system_stats` is installed in the database you signed in
+to (the maintenance database, usually `postgres`); elsewhere it is not shown.
+
+Its tabs are pgAdmin's:
+
+| Tab | Shows |
+|---|---|
+| **Summary** | `pg_sys_os_info()` (OS, host, architecture, uptime, process, thread and handle counts), `pg_sys_cpu_info()`, `pg_sys_process_info()`, and a **Process & handle count** graph |
+| **CPU** | **CPU usage** (user, kernel, I/O wait %) and **Load average** (1, 5, 15 minutes) graphs, `pg_sys_cpu_usage_info()`, `pg_sys_load_avg_info()`, and the processes by CPU from `pg_sys_cpu_memory_by_process()` |
+| **Memory** | **Memory** and **Swap memory** graphs, `pg_sys_memory_info()`, and the processes by memory |
+| **Storage** | `pg_sys_disk_info()` (mounted drives) and `pg_sys_io_analysis_info()` |
+
+The graphs are drawn from the samples taken each time the tab loads: start **auto refresh** with the
+rate you want, as on the Processes page. A function the server's platform does not provide shows
+*Not available on this server* with the server's message instead of its rows; the graphs use the
+Linux column names and are left out where those columns are missing.
+
+::: warning Not tried against a live system_stats
+The local test server has no system_stats. The page was checked with stand-in functions of
+system_stats 3's names and Linux columns.
+:::
+
 ## See also
 
 - [Server logs](/server/logs), the **Logs** pill.

@@ -9,7 +9,8 @@
     "prepared": "Prepared transactions",
     "monitor": "Monitor",
     "logs": "Logs",
-    "jobs": "Background jobs"
+    "jobs": "Background jobs",
+    "system": "System statistics"
   },
   "rate": {
     "label": "Refresh rate",
@@ -349,5 +350,23 @@
   },
   "stats": {
     "none": "No rows."
+  },
+  "system": {
+    "title": "System statistics",
+    "unavailable": "System statistics need the system_stats extension in the database you signed in to: CREATE EXTENSION system_stats (EDB's system_stats).",
+    "tabs": {
+      "summary": "Summary",
+      "cpu": "CPU",
+      "memory": "Memory",
+      "storage": "Storage"
+    },
+    "charts": {
+      "processes": "Process & handle count",
+      "cpu": "CPU usage",
+      "load": "Load average",
+      "memory": "Memory",
+      "swap": "Swap memory"
+    },
+    "not_provided": "Not available on this server: {{message}}"
   }
 }
