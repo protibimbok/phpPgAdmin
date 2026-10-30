@@ -166,6 +166,14 @@ The **Table maintenance** card has links that open the table's SQL tab and run t
 | **Cluster the table on …** | `CLUSTER "public"."books"`; only shown when an index (a plain index, or a primary key's or unique constraint's) is marked as the clustering index |
 | **Cluster the table using index:** | `CLUSTER "public"."books" USING "books_pkey"`, with the index chosen in the select (B-tree and GiST indexes); it also marks that index as the clustering one |
 
+**Reset the table statistics** does not open the SQL tab: it asks first (*The statistics counters of the table and its indexes … will be set back to zero.*), then runs pgAdmin's *Reset Statistics*:
+
+```sql
+SELECT pg_catalog.pg_stat_reset_single_table_counters(16412);
+```
+
+The number is the table's OID. It zeroes the table's row in `pg_stat_user_tables` (sequential and index scans, rows inserted, updated and deleted, live and dead row estimates, vacuum and analyze counts) and its indexes' rows in `pg_stat_user_indexes`, which the [Structure](/table/structure) tab's statistics show. It does not touch the planner statistics that `ANALYZE` collects. Autovacuum decides when to run from the dead-row and changed-row counters, so after a reset it waits until enough changes are counted again. Resetting needs a superuser, or `EXECUTE` on the function.
+
 For `VACUUM FULL`, `VACUUM (VERBOSE)`, `REINDEX … CONCURRENTLY` and maintenance of several tables, use the [Maintenance](/tools/maintenance) tool.
 
 ::: info VACUUM and the SQL tab

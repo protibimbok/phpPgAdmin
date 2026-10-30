@@ -87,6 +87,19 @@ final class TableController extends RelationController
         return TableSql::update($ctx, $oid, $data, $this->properties($ctx, $oid));
     }
 
+    /**
+     * Reset the table's statistics counters (pg_stat_user_tables and its indexes' rows), as
+     * pgAdmin's reset_statistics does; the statement run comes back.
+     */
+    public function resetStatistics(NodeContext $ctx, int $oid): string
+    {
+        parent::properties($ctx, $oid);
+        $sql = $ctx->render('reset_stats.sql', ['tid' => $oid]);
+        $this->execute($ctx, $sql);
+
+        return $sql;
+    }
+
     /** TRUNCATE TABLE, with RESTART IDENTITY and CASCADE on request (pgAdmin's truncate). */
     public function truncate(NodeContext $ctx, int $oid, bool $cascade, bool $identity): string
     {

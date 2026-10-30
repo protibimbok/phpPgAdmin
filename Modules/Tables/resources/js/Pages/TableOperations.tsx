@@ -9,7 +9,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
-import { constraints, copyTable, detachPartition, dropTable, indexes as indexesOf, partitions as partitionsOf, resolveTable, tableModifiedSql, tableOptions, tables, truncateTable, updateTable, type CopyTableOptions, type ForeignKeyRow, type Partition, type TableChanges } from '../api'
+import { constraints, copyTable, detachPartition, dropTable, indexes as indexesOf, partitions as partitionsOf, resetTableStatistics, resolveTable, tableModifiedSql, tableOptions, tables, truncateTable, updateTable, type CopyTableOptions, type ForeignKeyRow, type Partition, type TableChanges } from '../api'
 import StorageCard from '../StorageCard'
 
 type Preview = { sql: string | null; error: string | null } | null
@@ -207,6 +207,23 @@ export default function TableOperations() {
           await truncateTable(db, scid, tid, { identity: boxesRef.current.identity, cascade: boxesRef.current.cascade })
           notifySuccess(t('operations.emptied', { table }))
           reload()
+        } catch (e) {
+          notifyError(errorMessage(e))
+        }
+      },
+    })
+  }
+
+  /** pgAdmin's "Reset Statistics": the table's counters in pg_stat_user_tables (and its indexes') back to zero. */
+  function askResetStatistics() {
+    setBoxes({})
+    setConfirm({
+      sql: `SELECT pg_catalog.pg_stat_reset_single_table_counters(${tid})`,
+      warning: t('operations.reset_stats_warning'),
+      run: async () => {
+        try {
+          await resetTableStatistics(db, scid, tid)
+          notifySuccess(t('operations.stats_reset', { table }))
         } catch (e) {
           notifyError(errorMessage(e))
         }
@@ -548,6 +565,11 @@ export default function TableOperations() {
               </Link>
             </li>
           )}
+          <li className="list-group-item">
+            <a className="maintain_action" id="reset_stats_anchor" href="#reset-statistics" onClick={(e) => { e.preventDefault(); askResetStatistics() }}>
+              {t('operations.reset_stats')}
+            </a>
+          </li>
           {data.clusterable.length > 0 && (
             <li className="list-group-item">
               <div className="row g-2 align-items-center">
