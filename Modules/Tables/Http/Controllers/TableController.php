@@ -168,6 +168,24 @@ final class TableController extends RelationController
     }
 
     /**
+     * The table's relations to others, as the classic phpPgAdmin's table Info page shows them:
+     * the foreign keys that reference it, the tables it inherits from and the tables (or
+     * partitions, with their bounds) that inherit from it.
+     *
+     * @return array{referenced_by: list<array<string, mixed>>, parents: list<array<string, mixed>>, children: list<array<string, mixed>>}
+     */
+    public function relations(NodeContext $ctx): array
+    {
+        $tid = (int) $ctx->id('tid');
+
+        return [
+            'referenced_by' => $ctx->rows('referenced_by.sql', ['tid' => $tid]),
+            'parents' => $ctx->rows('inheritance.sql', ['tid' => $tid, 'parents' => true]),
+            'children' => $ctx->rows('inheritance.sql', ['tid' => $tid, 'parents' => false]),
+        ];
+    }
+
+    /**
      * What the create and alter forms offer: the types, collations, roles, tablespaces, schemas
      * and table access methods, and the index access methods.
      *

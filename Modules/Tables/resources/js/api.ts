@@ -76,6 +76,38 @@ export function resolveSchema(db: string, schema: string): Promise<number> {
   return resolve(db, 'schema', { name: schema }).then((ids) => ids.scid)
 }
 
+/** A foreign key of another table (or of this one) that references the table. */
+export interface ReferencingKey {
+  oid: number
+  name: string
+  schema: string
+  table: string
+  columns: string
+  referenced_columns: string
+  definition: string
+}
+
+/** A parent or child table of the table's inheritance; a partition carries its bound. */
+export interface InheritedTable {
+  oid: number
+  schema: string
+  name: string
+  relkind: string
+  is_partition: boolean
+  bound: string | null
+}
+
+export interface TableRelations {
+  referenced_by: ReferencingKey[]
+  parents: InheritedTable[]
+  children: InheritedTable[]
+}
+
+/** What references the table, and its parents and children. */
+export function tableRelations(db: string, scid: number, tid: number): Promise<TableRelations> {
+  return api.get<TableRelations>(`${collectionUrl(db, 'schemas', scid, 'tables')}/${tid}/relations`)
+}
+
 /** The exact row count, counted now. */
 export function countRows(db: string, scid: number, tid: number): Promise<number> {
   return api.get<{ count: number }>(`${collectionUrl(db, 'schemas', scid, 'tables')}/${tid}/count`).then((r) => r.count)

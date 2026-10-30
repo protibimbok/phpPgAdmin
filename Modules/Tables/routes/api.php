@@ -89,6 +89,8 @@ Route::middleware(Authenticate::class)->group(function () use ($context, $flag):
         return ['rows' => (new StatisticsController())->forTable($ctx, (int) $args['tid'])];
     })->setName('tables.extended-statistics');
 
+    Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/relations', fn (ServerRequestInterface $request, array $args): array => (new TableController())->relations($context($request, $args)))->setName('tables.relations');
+
     Route::get('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/count', fn (ServerRequestInterface $request, array $args): array => [
         'count' => (new TableController())->countRows($context($request, $args), (int) $args['tid']),
     ])->setName('tables.count');

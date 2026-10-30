@@ -499,5 +499,19 @@
     "setting": "Setting",
     "value": "Value",
     "default": "Server default"
+  },
+  "relations": {
+    "referenced_by": "Referenced by",
+    "inheritance": "Inheritance",
+    "table": "Table",
+    "constraint": "Constraint",
+    "columns": "Columns",
+    "references": "References",
+    "definition": "Definition",
+    "relation": "Relation",
+    "bound": "Partition bound",
+    "parent": "Parent",
+    "child": "Child",
+    "partition": "Partition"
   }
 }

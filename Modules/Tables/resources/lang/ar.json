@@ -507,5 +507,19 @@
     "setting": "الإعداد",
     "value": "القيمة",
     "default": "افتراضي الخادم"
+  },
+  "relations": {
+    "referenced_by": "مُشار إليه من",
+    "inheritance": "الوراثة",
+    "table": "الجدول",
+    "constraint": "القيد",
+    "columns": "الأعمدة",
+    "references": "يشير إلى",
+    "definition": "التعريف",
+    "relation": "العلاقة",
+    "bound": "حد التقسيم",
+    "parent": "أب",
+    "child": "ابن",
+    "partition": "قسم"
   }
 }

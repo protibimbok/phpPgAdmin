@@ -11,8 +11,9 @@ import { formatSize } from '@/format'
 import { urls } from '@/level'
 import type { Statistics } from '@/nodes/client'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
-import { columns, constraints, indexes, partitions as partitionsOf, resolveTable, tableExtendedStatistics, tableOptions, tables, updateTable, type Column, type Constraint, type ConstraintType, type ExtendedStatistics, type Index, type IndexProperties, type Partition, type Table, type TableChanges, type TableOptions } from '../api'
+import { columns, constraints, indexes, partitions as partitionsOf, resolveTable, tableExtendedStatistics, tableOptions, tableRelations, tables, updateTable, type Column, type Constraint, type ConstraintType, type ExtendedStatistics, type Index, type IndexProperties, type Partition, type Table, type TableChanges, type TableOptions, type TableRelations } from '../api'
 import PartitionsCard from '../partitions/PartitionsCard'
+import RelationsCard from '../RelationsCard'
 import StatisticsCard from '../statistics/StatisticsCard'
 import ConstraintDialog from '../indexes/ConstraintDialog'
 import IndexDialog from '../indexes/IndexDialog'
@@ -36,6 +37,7 @@ interface Loaded {
   statistics: Statistics | null
   extendedStatistics: ExtendedStatistics[]
   partitions: Partition[]
+  relations: TableRelations
 }
 
 /**
@@ -43,7 +45,8 @@ interface Loaded {
  * pills to the relation view, the columns with their type, collation, attributes, nullability,
  * default, comment, extra and the Change / Drop / More actions, the "With selected" bar, the
  * Print and Show create links, the add-columns form, then the Indexes card (indexes.twig), an
- * extended Statistics card, a Constraints card and the Information card (display_table_stats.twig).
+ * extended Statistics card, a Constraints card, the "Referenced by" and Inheritance cards of the
+ * classic phpPgAdmin's table Info page, and the Information card (display_table_stats.twig).
  */
 export default function TableStructure() {
   const { t } = useTranslation('tables')
@@ -52,17 +55,18 @@ export default function TableStructure() {
   const navigate = useNavigate()
   const { data, error, reload } = useRequest(async (): Promise<Loaded> => {
     const { scid, tid } = await resolveTable(db, schema, table)
-    const [properties, cols, idx, cons, statistics, extended] = await Promise.all([
+    const [properties, cols, idx, cons, statistics, extended, relations] = await Promise.all([
       tables(db, scid).properties(tid) as Promise<Loaded['table']>,
       columns(db, scid, tid).list(),
       indexes(db, scid, tid).list(),
       Promise.all(CONSTRAINT_TYPES.map((type) => constraints(db, scid, tid, type).list().then((rows) => ({ type, rows })))),
       tables(db, scid).statistics(tid).catch(() => null),
       tableExtendedStatistics(db, scid, tid).catch(() => []),
+      tableRelations(db, scid, tid).catch((): TableRelations => ({ referenced_by: [], parents: [], children: [] })),
     ])
     const parts = properties.is_partitioned ? await partitionsOf(db, scid, tid).list() : []
 
-    return { scid, tid, table: properties, columns: cols, indexes: idx, constraints: cons, statistics, extendedStatistics: extended, partitions: parts }
+    return { scid, tid, table: properties, columns: cols, indexes: idx, constraints: cons, statistics, extendedStatistics: extended, partitions: parts, relations }
   }, [db, schema, table])
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [confirm, setConfirm] = useState<{ sql: string[]; warning?: string; run: () => Promise<void> } | null>(null)
@@ -556,6 +560,8 @@ export default function TableStructure() {
             </form>
           </div>
         </div>
+
+        <RelationsCard db={db} relations={data.relations} partitioned={data.table.is_partitioned} />
 
         {data.table.is_partitioned && <PartitionsCard db={db} schema={schema} table={table} scid={scid} tid={tid} scheme={data.table.partition_scheme ?? ''} partitions={data.partitions} onChanged={reload} />}
 
