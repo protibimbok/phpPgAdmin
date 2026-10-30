@@ -93,6 +93,14 @@ final class IndexSql
                     unset($new[$param]);
                 }
             }
+            // An expression column kept in its place keeps its statistics target, which
+            // alter.sql sets again after CREATE INDEX, unless the client sent another.
+            foreach ($new['columns'] as $i => $column) {
+                $was = $old['columns'][$i] ?? null;
+                if (!array_key_exists('statistics', $column) && is_array($was) && $was['is_exp'] && $column['is_exp'] && (string) $column['colname'] === (string) $was['colname']) {
+                    $new['columns'][$i]['statistics'] = $was['statistics'] === null ? null : (int) $was['statistics'];
+                }
+            }
 
             return ['sql' => Ddl::assemble([self::deleteSql($ctx, $schema, (string) $old['name'], false), self::createSql($ctx, $schema, $table, $new)]), 'recreated' => true];
         }
@@ -136,10 +144,7 @@ final class IndexSql
             if (!is_array($was) || empty($was['is_exp'])) {
                 continue;
             }
-            $value = filter_var($column['statistics'], FILTER_VALIDATE_INT, ['options' => ['min_range' => -1, 'max_range' => 10000]]);
-            if ($value === false) {
-                throw new BadRequestException('A statistics target is a whole number from -1 (the default) to 10000.');
-            }
+            $value = self::statisticsTarget($column['statistics']);
             $current = $was['statistics'] === null ? -1 : (int) $was['statistics'];
             if ($value !== $current) {
                 $changes[] = ['col_num' => (int) $was['col_num'], 'statistics' => $value];
@@ -147,6 +152,20 @@ final class IndexSql
         }
 
         return $changes;
+    }
+
+    /** A statistics target from the client: null when not given, else a whole number from -1 (the default) to 10000. */
+    private static function statisticsTarget(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $target = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => -1, 'max_range' => 10000]]);
+        if ($target === false) {
+            throw new BadRequestException('A statistics target is a whole number from -1 (the default) to 10000.');
+        }
+
+        return $target;
     }
 
     public static function deleteSql(NodeContext $ctx, string $schema, string $name, bool $cascade): string
@@ -269,6 +288,10 @@ final class IndexSql
             }
             if (array_key_exists('nulls', $column)) {
                 $column['nulls'] = (bool) $column['nulls'];
+            }
+            // alter.sql writes an expression column's statistics target as it is.
+            if (array_key_exists('statistics', $column)) {
+                $column['statistics'] = self::statisticsTarget($column['statistics']);
             }
             $columns[] = $column;
         }
