@@ -13,7 +13,7 @@ import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { qualifiedName } from '@sql/js/sql'
 import { PrivilegesLink } from '@roles/js/PrivilegesSection'
-import { collations as collationsOf, dropOpclass, dropTypeRow, ftsSqlKind, listOpclasses, listTextSearch, listTypes, opclassDropSql, opclassSql, resolveSchema, textSearch, typeRowSql, type Collation, type FtsKind, type FtsRow, type OpclassRow, type TypeRow } from '../api'
+import { collations as collationsOf, refreshCollationVersion, dropOpclass, dropTypeRow, ftsSqlKind, listOpclasses, listTextSearch, listTypes, opclassDropSql, opclassSql, resolveSchema, textSearch, typeRowSql, type Collation, type FtsKind, type FtsRow, type OpclassRow, type TypeRow } from '../api'
 import CollationDialog from '../dialogs/CollationDialog'
 import OpclassDialog from '../dialogs/OpclassDialog'
 import TextSearchDialog from '../dialogs/TextSearchDialog'
@@ -46,7 +46,8 @@ export default function Types() {
   const [opclassDialog, setOpclassDialog] = useState(false)
   const [filter, setFilter] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set())
-  const [confirm, setConfirm] = useState<{ sql: string[]; run: () => Promise<void> } | null>(null)
+  // cascadable: the statements take CASCADE, offered as a box (the drops, not a refresh).
+  const [confirm, setConfirm] = useState<{ sql: string[]; run: () => Promise<void>; cascadable?: boolean } | null>(null)
   const [cascade, setCascade] = useState(false)
   const [exported, setExported] = useState<{ title: string; sql: string | null } | null>(null)
   const rows = useMemo(() => {
@@ -131,6 +132,7 @@ export default function Types() {
     if (targets.length === 0) return notify(t('none_selected'), 'error')
     setCascade(false)
     setConfirm({
+      cascadable: true,
       sql: targets.map((row) => `DROP ${row.node === 'domain' ? 'DOMAIN' : 'TYPE'} ${qualifiedName(schema, row.name)};`),
       run: async () => {
         let done = 0
@@ -173,6 +175,7 @@ export default function Types() {
   function askDropSql(statements: string[], remove: (oid: number) => Promise<unknown>, oids: number[], message: string) {
     setCascade(false)
     setConfirm({
+      cascadable: true,
       sql: statements,
       run: async () => {
         try {
@@ -182,6 +185,23 @@ export default function Types() {
           notifyError(errorMessage(e))
         } finally {
           changed()
+        }
+      },
+    })
+  }
+
+  /** ALTER COLLATION … REFRESH VERSION, after the confirmation. */
+  function askRefresh(row: Collation) {
+    setConfirm({
+      sql: [`ALTER COLLATION ${qualifiedName(schema, row.name)} REFRESH VERSION;`],
+      run: async () => {
+        try {
+          await refreshCollationVersion(db, scid, row.oid)
+          notifySuccess(t('collations.refreshed', { name: row.name }))
+        } catch (e) {
+          notifyError(errorMessage(e))
+        } finally {
+          reload()
         }
       },
     })
@@ -330,6 +350,7 @@ export default function Types() {
           { label: t('collations.columns.locale'), render: (row) => <code>{row.lc_collate === row.lc_type ? row.lc_collate : `${row.lc_collate} / ${row.lc_type}`}</code> },
           { label: t('collations.columns.provider'), render: (row) => row.provider },
           { label: t('collations.columns.deterministic'), render: (row) => (row.is_deterministic ? tApp('yes') : tApp('no')) },
+          { label: t('collations.columns.version'), render: (row) => <CollationVersion row={row} onRefresh={() => askRefresh(row)} /> },
           { label: t('columns.owner'), render: (row) => row.owner },
           { label: t('columns.comment'), render: (row) => row.description },
         ]}
@@ -406,17 +427,19 @@ export default function Types() {
 
       <ConfirmQuery
         show={confirm !== null}
-        sql={(confirm?.sql ?? []).map((s) => (cascade ? s.replace(/;$/, ' CASCADE;') : s))}
+        sql={(confirm?.sql ?? []).map((s) => (cascade && confirm?.cascadable ? s.replace(/;$/, ' CASCADE;') : s))}
         confirmLabel={tApp('ok')}
         onClose={() => setConfirm(null)}
         onConfirm={() => { const pending = confirm; setConfirm(null); if (pending) void pending.run() }}
       >
-        <div className="form-check mt-2">
-          <input className="form-check-input" type="checkbox" id="confirm_cascade" checked={cascade} onChange={(e) => setCascade(e.target.checked)} />
-          <label className="form-check-label" htmlFor="confirm_cascade">
-            {t('cascade')}
-          </label>
-        </div>
+        {confirm?.cascadable && (
+          <div className="form-check mt-2">
+            <input className="form-check-input" type="checkbox" id="confirm_cascade" checked={cascade} onChange={(e) => setCascade(e.target.checked)} />
+            <label className="form-check-label" htmlFor="confirm_cascade">
+              {t('cascade')}
+            </label>
+          </div>
+        )}
       </ConfirmQuery>
     </>
   )
@@ -424,3 +447,37 @@ export default function Types() {
 
 /** The CASCADE box as last rendered, for the pending drop to read. */
 const cascadeRef: { current: boolean } = { current: false }
+
+/**
+ * A collation's recorded version, and when the library now provides another (after an
+ * operating system or ICU upgrade, which may change the sort order of indexes built with it)
+ * that version with a Refresh version link.
+ */
+function CollationVersion({ row, onRefresh }: { row: Collation; onRefresh: () => void }) {
+  const { t } = useTranslation('types')
+  const stale = row.version !== null && row.actual_version !== null && row.version !== row.actual_version
+
+  return (
+    <>
+      {row.version ?? ''}
+      {stale && (
+        <>
+          {' '}
+          <span className="text-warning" title={t('collations.mismatch_hint')}>
+            <Icon name="s_attention" /> {t('collations.actual_version', { version: row.actual_version })}
+          </span>{' '}
+          <a
+            href="#refresh"
+            className="refresh_version"
+            onClick={(e) => {
+              e.preventDefault()
+              onRefresh()
+            }}
+          >
+            <Icon name="s_reload" /> {t('collations.refresh_version')}
+          </a>
+        </>
+      )}
+    </>
+  )
+}

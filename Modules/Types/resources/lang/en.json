@@ -118,7 +118,8 @@
     "columns": {
       "locale": "Locale",
       "provider": "Provider",
-      "deterministic": "Deterministic"
+      "deterministic": "Deterministic",
+      "version": "Version"
     },
     "create_title": "Create collation",
     "edit_title": "Edit collation {{name}}",
@@ -141,7 +142,11 @@
     "comment": "Comment",
     "created": "Collation {{name}} has been created.",
     "altered": "Collation {{name}} has been altered.",
-    "dropped": "Collation {{name}} has been dropped."
+    "dropped": "Collation {{name}} has been dropped.",
+    "actual_version": "the system provides {{version}}",
+    "mismatch_hint": "The collation's recorded version differs from the one the operating system or ICU provides now; indexes using it may need rebuilding (REINDEX) before the version is refreshed.",
+    "refresh_version": "Refresh version",
+    "refreshed": "The version of collation {{name}} has been refreshed."
   },
   "fts": {
     "title": "Full text search",

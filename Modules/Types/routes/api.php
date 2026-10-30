@@ -39,6 +39,8 @@ Route::middleware(Authenticate::class)->group(function () use ($context): void {
 
     Route::get('/databases/{db}/schemas/{scid:number}/domains/options', fn (ServerRequestInterface $request, array $args): array => (new DomainController())->options($context($request, $args, 'domain')))->setName('domains.options');
 
+    // ALTER COLLATION … REFRESH VERSION, after the operating system's or ICU's collation version changed.
+    Route::post('/databases/{db}/schemas/{scid:number}/collations/{coid:number}/refresh_version', fn (ServerRequestInterface $request, array $args): array => ['properties' => (new CollationController())->refreshVersion($context($request, $args, 'collation'), (int) $args['coid'])])->setName('collations.refresh_version');
     Route::get('/databases/{db}/schemas/{scid:number}/collations/options', fn (ServerRequestInterface $request, array $args): array => (new CollationController())->options($context($request, $args, 'collation')))->setName('collations.options');
 
     Route::get('/databases/{db}/schemas/{scid:number}/fts_configurations/options', fn (ServerRequestInterface $request, array $args): array => (new FtsConfigurationController())->options($context($request, $args, 'fts_configuration')))->setName('fts_configurations.options');

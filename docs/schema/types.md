@@ -250,7 +250,7 @@ When editing:
 ## Collations
 
 The **Collations** list shows each collation's **Name**, **Locale** (`LC_COLLATE / LC_CTYPE` when
-they differ), **Provider**, **Deterministic**, **Owner** and **Comment**. **Create new collation**
+they differ), **Provider**, **Deterministic**, **Version**, **Owner** and **Comment**. **Create new collation**
 and **Edit** open the collation dialog.
 
 ### Create a collation
@@ -304,12 +304,20 @@ ALTER COLLATION public.rtn_de_icu
 
 ![The Edit collation dialog for case_insensitive: ICU locale und-u-ks-level2, non-deterministic, version 153.136, with Go, Preview SQL and Close](/media/schema/types-collation-dialog.png)
 
-::: tip Refreshing the version
-When the ICU or C library is upgraded, PostgreSQL warns that a collation's version does not
-match. There is no button for it here: rebuild the indexes that use the collation
-([Maintenance](/tools/maintenance)), then run
-`ALTER COLLATION public.case_insensitive REFRESH VERSION;` on the SQL tab.
-:::
+### Refresh the version
+
+**Version** is the collation version PostgreSQL recorded when the collation was created. When the
+operating system's C library or ICU is upgraded, the version the library provides changes, and
+the sort order of indexes built with the collation may no longer match it. The list then shows
+both, like `\dO+`'s comparison: `1.0 ⚠ the system provides 2.44`, with a **Refresh version**
+link. Rebuild the indexes that use the collation first ([Maintenance](/tools/maintenance),
+`REINDEX`), then click it; after the confirmation it runs:
+
+```sql
+ALTER COLLATION "public"."stale_coll" REFRESH VERSION;
+```
+
+and the warning goes away. A collation without a recorded version (`C`, `POSIX`) shows none.
 
 Dropping a collation that a column or index uses fails unless you tick
 **Also the objects that depend on it (CASCADE)**.

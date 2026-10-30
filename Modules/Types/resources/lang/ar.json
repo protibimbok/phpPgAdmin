@@ -118,7 +118,8 @@
     "columns": {
       "locale": "اللغة المحلية",
       "provider": "المزوّد",
-      "deterministic": "حتمي"
+      "deterministic": "حتمي",
+      "version": "الإصدار"
     },
     "create_title": "إنشاء ترتيب",
     "edit_title": "تحرير الترتيب {{name}}",
@@ -141,7 +142,11 @@
     "comment": "تعليق",
     "created": "تم إنشاء الترتيب {{name}}.",
     "altered": "تم تعديل الترتيب {{name}}.",
-    "dropped": "تم حذف الترتيب {{name}}."
+    "dropped": "تم حذف الترتيب {{name}}.",
+    "actual_version": "النظام يوفّر {{version}}",
+    "mismatch_hint": "الإصدار المسجَّل لهذا الترتيب يختلف عمّا يوفّره نظام التشغيل أو ICU الآن؛ وقد تحتاج الفهارس التي تستخدمه إلى إعادة البناء (REINDEX) قبل تحديث الإصدار.",
+    "refresh_version": "تحديث الإصدار",
+    "refreshed": "تم تحديث إصدار الترتيب {{name}}."
   },
   "fts": {
     "title": "البحث في النص الكامل",

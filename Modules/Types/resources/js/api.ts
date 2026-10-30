@@ -232,6 +232,8 @@ export interface Collation {
   provider: string;
   is_deterministic: boolean;
   version: string | null;
+  /** pg_collation_actual_version: what the library provides now; differs from version after an upgrade. */
+  actual_version: string | null;
   rules: string | null;
   owner: string;
   description: string | null;
@@ -264,6 +266,11 @@ export function collations(db: string, scid: number) {
   return collection<Collation>(
     collectionUrl(db, "schemas", scid, "collations"),
   );
+}
+
+/** ALTER COLLATION … REFRESH VERSION: records the version the library provides now. */
+export function refreshCollationVersion(db: string, scid: number, coid: number): Promise<Collation> {
+  return api.post<{ properties: Collation }>(`${collectionUrl(db, 'schemas', scid, 'collations', coid)}/refresh_version`).then((r) => r.properties)
 }
 
 export function collationOptions(

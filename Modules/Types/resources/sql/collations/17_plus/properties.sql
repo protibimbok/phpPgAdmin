@@ -1,5 +1,6 @@
 SELECT c.oid, c.collname AS name, COALESCE(c.collcollate, c.colllocale) AS lc_collate,
 	COALESCE(c.collctype, c.colllocale) AS lc_type, c.collisdeterministic AS is_deterministic, c.collversion AS version,
+    {# phpPgAdmin: the version the operating system or ICU provides now, as \dO+ compares #}pg_catalog.pg_collation_actual_version(c.oid) AS actual_version,
     CASE WHEN c.collprovider = 'i' THEN 'icu' WHEN c.collprovider = 'b' THEN 'builtin'
     ELSE 'libc' END provider, c.collicurules AS rules,
     pg_catalog.pg_get_userbyid(c.collowner) AS owner, description, n.nspname AS schema

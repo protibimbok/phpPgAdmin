@@ -119,6 +119,22 @@ final class CollationController extends NodeController
         ];
     }
 
+    /** The statement that records the collation's current version: ALTER COLLATION … REFRESH VERSION. */
+    public function refreshVersionSql(NodeContext $ctx, int $oid): string
+    {
+        $row = $this->properties($ctx, $oid);
+
+        return sprintf('ALTER COLLATION %s REFRESH VERSION;', Quoting::ident((string) $row['schema'], (string) $row['name']));
+    }
+
+    /** ALTER COLLATION … REFRESH VERSION; the collation's properties afterwards. */
+    public function refreshVersion(NodeContext $ctx, int $oid): array
+    {
+        $this->execute($ctx, $this->refreshVersionSql($ctx, $oid));
+
+        return $this->properties($ctx, $oid);
+    }
+
     /** A collation by schema and name: resolve('collation', {schema, name}) → {scid, coid}. */
     public function resolve(NodeContext $ctx, array $params): ?array
     {
