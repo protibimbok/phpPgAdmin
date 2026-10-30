@@ -73,6 +73,9 @@ function applyBookmarkVariables(sql: string, values: string[]): string {
  * last run below. Ctrl+Enter runs the query, as it does in phpMyAdmin; a macro's key (Ctrl+0…9,
  * Alt+F1…F12, pgAdmin's set) runs that macro.
  */
+/** The largest file Open file puts in the box; a bigger one is for the Import page. */
+const OPEN_FILE_LIMIT = 5 * 1024 * 1024
+
 export default function SqlPage() {
   const { pathname } = useLocation()
 
@@ -332,6 +335,33 @@ function SqlPageAt() {
     if (bookmarkAction === '0' && !runner.busy()) execute(sql)
   }
 
+  /** The file a query came from, so that Save writes it back under its name. */
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [fileName, setFileName] = useState('query.sql')
+
+  function openFile(file: File) {
+    if (file.size > OPEN_FILE_LIMIT) return notifyError(t('buttons.file_too_large', { name: file.name }))
+    file.text().then(
+      (text) => {
+        setQuery(text)
+        setFileName(file.name)
+        editor.current?.focus()
+      },
+      () => notifyError(t('buttons.file_unreadable', { name: file.name })),
+    )
+  }
+
+  function saveFile() {
+    const url = URL.createObjectURL(new Blob([query], { type: 'application/sql' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = /\.\w+$/.test(fileName) ? fileName : `${fileName}.sql`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
   function formatQuery() {
     try {
       setQuery(format(query, { language: 'postgresql', keywordCase: 'upper' }))
@@ -461,6 +491,23 @@ function SqlPageAt() {
                         <input type="button" value={t('buttons.clear')} id="clear" className="btn btn-secondary button sqlbutton" onClick={() => setQuery('')} />
                         <input type="button" value={t('buttons.format')} id="format" className="btn btn-secondary button sqlbutton" onClick={formatQuery} />
                       </div>
+                      {/* pgAdmin's query tool Open File and Save File: a .sql file of this computer into the box, the box into one. */}
+                      <div className="btn-group me-2" role="group">
+                        <input type="button" value={t('buttons.open_file')} id="open_file" className="btn btn-secondary button sqlbutton" onClick={() => fileInput.current?.click()} />
+                        <input type="button" value={t('buttons.save_file')} id="save_file" className="btn btn-secondary button sqlbutton" onClick={saveFile} />
+                      </div>
+                      <input
+                        type="file"
+                        ref={fileInput}
+                        className="d-none"
+                        id="open_file_input"
+                        accept=".sql,.txt,.psql,text/plain,application/sql"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          e.target.value = ''
+                          if (file) openFile(file)
+                        }}
+                      />
                       <MacrosMenu macros={macros} onManage={() => setManageMacros(true)} onAdd={addToMacros} onRun={runMacro} />
                       <input
                         type="button"

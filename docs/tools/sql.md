@@ -72,6 +72,8 @@ not offered until you reload the page. `pg_catalog` and `information_schema` are
 | **SELECT \***, **SELECT**, **INSERT**, **UPDATE**, **DELETE** | Table level only. Replace the box with a template for the table, every column quoted. INSERT and UPDATE use `'[value-1]'`, `'[value-2]'`… placeholders; DELETE ends in `WHERE false` so it deletes nothing until you change it. |
 | **Clear** | Empties the box. |
 | **Format** | Reformats the query (keywords upper case, one clause per line) with sql-formatter's PostgreSQL dialect. A query it cannot parse shows the error and stays as it was. |
+| **Open file** | pgAdmin's *Open File*: a `.sql` (or text) file of your computer replaces the box, up to 5 MiB (a bigger one is for the [Import page](/tools/import)). Nothing is uploaded until you run it. |
+| **Save file** | pgAdmin's *Save File*: downloads the box as a file, under the name of the file last opened (`query.sql` otherwise). |
 | **Macros** | The [macros menu](/tools/history-bookmarks#macros). |
 | **Get auto-saved query** | Puts back the last text typed in any SQL box of this browser. |
 | **<<** (next to the column list) | Table level only. Inserts the selected columns, quoted and comma-separated, at the cursor. Select several with <kbd>Ctrl</kbd>/<kbd>Shift</kbd>. |

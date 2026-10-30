@@ -20,7 +20,11 @@
     "bind_parameters": "Bind parameters",
     "run_statement": "Execute query",
     "run_statement_title": "Run the statement at the cursor, or the selected text (Alt+F5)",
-    "go_title": "Run the selected text, or the whole box when nothing is selected (Ctrl+Enter, F5)"
+    "go_title": "Run the selected text, or the whole box when nothing is selected (Ctrl+Enter, F5)",
+    "open_file": "Open file",
+    "save_file": "Save file",
+    "file_too_large": "{{name}} is larger than 5 MiB: run it from the Import page.",
+    "file_unreadable": "{{name}} could not be read."
   },
   "options": {
     "delimiter": "Delimiter",

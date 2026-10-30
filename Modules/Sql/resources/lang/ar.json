@@ -20,7 +20,11 @@
     "bind_parameters": "ربط المعاملات",
     "run_statement": "تنفيذ الاستعلام",
     "run_statement_title": "تنفيذ العبارة عند المؤشر أو النص المحدد (Alt+F5)",
-    "go_title": "تنفيذ النص المحدد، أو كل المربع إن لم يُحدد شيء (Ctrl+Enter، F5)"
+    "go_title": "تنفيذ النص المحدد، أو كل المربع إن لم يُحدد شيء (Ctrl+Enter، F5)",
+    "open_file": "فتح ملف",
+    "save_file": "حفظ في ملف",
+    "file_too_large": "{{name}} أكبر من 5 ميبيبايت: نفّذه من صفحة الاستيراد.",
+    "file_unreadable": "تعذّرت قراءة {{name}}."
   },
   "options": {
     "delimiter": "الفاصل",
