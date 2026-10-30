@@ -40,6 +40,8 @@ final readonly class CopyCommand
         private int $serverVersion,
         /** CREATE TABLE for a CSV file imported into a new table, run in the COPY's transaction. */
         private ?string $create = null,
+        /** @var list<string> the columns whose quoted empty values are NULL too (FORCE_NULL) */
+        private array $forceNull = [],
     ) {
     }
 
@@ -124,6 +126,9 @@ final readonly class CopyCommand
         if ($copy->format === 'csv') {
             $options[] = 'QUOTE ' . Quoting::literal($copy->enclosed);
             $options[] = 'ESCAPE ' . Quoting::literal($copy->escaped);
+            if ($this->forceNull !== []) {
+                $options[] = 'FORCE_NULL (' . self::identList($this->forceNull) . ')';
+            }
         }
         $options[] = 'NULL ' . Quoting::literal((string) $copy->null);
         if ($copy->default !== null) {

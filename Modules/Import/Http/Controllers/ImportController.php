@@ -138,7 +138,7 @@ final class ImportController
             if ($copy !== null && $relation === null && $import->newTableSchema !== null) {
                 $tableName = $this->newTableName($conn, $import->newTableSchema, $import->newTable, $name);
                 $plan = CsvNewTable::read($path, $format->gzip, $copy, $import->newTableSchema, $tableName, $import->guessTypes, $import->charset);
-                $command = new CopyCommand($import, $copy, $tools, $import->newTableSchema, $tableName, $plan->relationColumns(), [], $conn->version(), $plan->createSql());
+                $command = new CopyCommand($import, $copy, $tools, $import->newTableSchema, $tableName, $plan->relationColumns(), [], $conn->version(), $plan->createSql(), $plan->forceNull());
                 $arguments = $command->arguments();
                 $input = $path;
             } elseif ($copy !== null && $relation !== null) {
@@ -287,8 +287,8 @@ final class ImportController
     {
         $exists = static fn (string $name): bool => $conn->scalar('SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2', [$schema, $name]) !== null;
         if ($asked !== null) {
-            if (mb_strlen($asked) > 63) {
-                throw new ApiException(422, 'A table name is at most 63 characters long.');
+            if (strlen($asked) > 63) {
+                throw new ApiException(422, 'A table name is at most 63 bytes long.');
             }
             if ($exists($asked)) {
                 throw new ApiException(422, sprintf('The schema "%s" already has a relation "%s": choose another name for the new table.', $schema, $asked));
@@ -296,7 +296,7 @@ final class ImportController
 
             return $asked;
         }
-        $base = mb_substr(preg_replace('/(\.(csv|txt))?(\.gz)?$/i', '', $fileName) ?: 'import', 0, 55);
+        $base = mb_strcut(preg_replace('/(\.(csv|txt))?(\.gz)?$/i', '', $fileName) ?: 'import', 0, 55, 'UTF-8');
         $name = $base;
         for ($n = 1; $exists($name); $n++) {
             $name = $base . '_' . $n;
