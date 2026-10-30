@@ -6,7 +6,7 @@ import Icon from '@/components/Icon'
 import { notifyError } from '@/notify'
 import { notAvailable } from '@/unbuilt'
 import { runQuery, type RowsResult } from '../api'
-import { bounds, isSpatialType, parseSpatial, type Shape, type XY } from '../gis/geometry'
+import { bounds, drawable, isSpatialType, parseSpatial, type Shape, type XY } from '../gis/geometry'
 import { defaultMaxRows } from '../results/ResultsGrid'
 import { useStatementGuard } from '../useStatementGuard'
 
@@ -82,32 +82,40 @@ export default function GisVisualization() {
   useEffect(() => setView({ x: 0, y: 0, scale: 1 }), [spatialColumn])
 
   const drawn = useMemo(() => {
-    if (!result || spatialColumn < 0) return { items: [] as { shapes: Shape[]; label: string; color: string }[], unreadable: 0 }
+    if (!result || spatialColumn < 0) return { items: [] as { shapes: Shape[]; label: string; color: string }[], unreadable: 0, skipped: 0 }
     const type = result.columns[spatialColumn].type_name ?? ''
     let unreadable = 0
+    let skipped = 0
     const items = result.rows.flatMap((row, i) => {
       const value = row[spatialColumn]
-      const shapes = parseSpatial(type, value)
-      if (shapes === null) {
+      const parsed = parseSpatial(type, value)
+      if (parsed === null) {
         if (value !== null) unreadable++
         return []
       }
+      // A NaN or infinite coordinate has no place in the drawing; it is left out and counted.
+      const { shapes, skipped: left } = drawable(parsed)
+      skipped += left
       return [{ shapes, label: labelColumn >= 0 ? (row[labelColumn] ?? '') : '', color: COLORS[i % COLORS.length] }]
     })
-    return { items, unreadable }
+    return { items, unreadable, skipped }
   }, [result, spatialColumn, labelColumn])
 
-  // Data coordinates to the drawing's: the bounds fit the box, y upwards.
+  // Data coordinates to the drawing's: the bounds fit the box, y upwards. The extent is taken
+  // in halves (max/2 - min/2), which stays finite where max - min would overflow (±1e308).
   const project = useMemo(() => {
     const box = bounds(drawn.items.flatMap((d) => d.shapes))
     if (!box) return null
     let [minX, minY, maxX, maxY] = box
-    if (maxX - minX === 0) [minX, maxX] = [minX - 1, maxX + 1]
-    if (maxY - minY === 0) [minY, maxY] = [minY - 1, maxY + 1]
-    const scale = Math.min((WIDTH - 2 * PADDING) / (maxX - minX), (HEIGHT - 2 * PADDING) / (maxY - minY))
-    const offX = (WIDTH - (maxX - minX) * scale) / 2
-    const offY = (HEIGHT - (maxY - minY) * scale) / 2
-    return { scale, point: ([x, y]: XY): XY => [offX + (x - minX) * scale, HEIGHT - offY - (y - minY) * scale] }
+    if (maxX === minX) [minX, maxX] = [minX - Math.max(1, Math.abs(minX) * 1e-9), maxX + Math.max(1, Math.abs(maxX) * 1e-9)]
+    if (maxY === minY) [minY, maxY] = [minY - Math.max(1, Math.abs(minY) * 1e-9), maxY + Math.max(1, Math.abs(maxY) * 1e-9)]
+    const halfW = maxX / 2 - minX / 2
+    const halfH = maxY / 2 - minY / 2
+    // The drawing's units per data unit.
+    const scale = Math.min((WIDTH - 2 * PADDING) / 2 / halfW, (HEIGHT - 2 * PADDING) / 2 / halfH)
+    const offX = WIDTH / 2 - halfW * scale
+    const offY = HEIGHT / 2 - halfH * scale
+    return { scale, point: ([x, y]: XY): XY => [offX + (x / 2 - minX / 2) * scale * 2, HEIGHT - offY - (y / 2 - minY / 2) * scale * 2] }
   }, [drawn])
 
   function submit(e: FormEvent) {
@@ -284,6 +292,11 @@ export default function GisVisualization() {
           {drawn.unreadable > 0 && (
             <div className="alert alert-warning mt-3" role="alert">
               <Icon name="s_attention" /> {t('gis.unreadable', { count: drawn.unreadable })}
+            </div>
+          )}
+          {drawn.skipped > 0 && (
+            <div className="alert alert-warning mt-3" role="alert" id="gis_skipped">
+              <Icon name="s_attention" /> {t('gis.skipped', { count: drawn.skipped })}
             </div>
           )}
 

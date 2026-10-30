@@ -432,6 +432,8 @@
     "no_spatial": "The statement returns no spatial column: point, lseg, box, path, polygon, circle, or PostGIS geometry or geography.",
     "unreadable_one": "{{count}} value could not be read and is not drawn.",
     "unreadable_other": "{{count}} values could not be read and are not drawn.",
+    "skipped_one": "{{count}} point has a coordinate that is not a finite number (NaN or infinite) and is not drawn.",
+    "skipped_other": "{{count}} points have a coordinate that is not a finite number (NaN or infinite) and are not drawn.",
     "missing": "Run a query on the SQL page and use \"Visualize GIS data\" under its results to draw its spatial values."
   },
   "notifications": {
