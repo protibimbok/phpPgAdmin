@@ -499,6 +499,11 @@ export function truncateTable(db: string, scid: number, tid: number, options: { 
   return api.post<{ sql: string }>(`${collectionUrl(db, 'schemas', scid, 'tables')}/${tid}/truncate`, options).then((r) => r.sql)
 }
 
+/** ALTER TABLE … ENABLE or DISABLE TRIGGER ALL; the statement run comes back. */
+export function setTableTriggersEnabled(db: string, scid: number, tid: number, enable: boolean): Promise<string> {
+  return api.post<{ sql: string }>(`${collectionUrl(db, 'schemas', scid, 'tables')}/${tid}/triggers-enabled`, { enable }).then((r) => r.sql)
+}
+
 /** pg_stat_reset_single_table_counters on the table; the statement run comes back. */
 export function resetTableStatistics(db: string, scid: number, tid: number): Promise<string> {
   return api.post<{ sql: string }>(`${collectionUrl(db, 'schemas', scid, 'tables')}/${tid}/reset-stats`, {}).then((r) => r.sql)

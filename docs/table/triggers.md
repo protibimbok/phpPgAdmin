@@ -8,7 +8,7 @@ phpMyAdmin's Triggers tab only knows MySQL triggers; rules and policies are Post
 
 ![The Triggers section of books with the books_audit trigger](/media/table/triggers.png)
 
-Each row shows the **Name**, **Time** (`BEFORE`, `AFTER`, `INSTEAD OF`), **Event** (`INSERT OR UPDATE OF price OR DELETE`), **For each** (`ROW` or `STATEMENT`), the **Function** with its arguments, and an **Enabled** box.
+Each row shows the **Name**, **Time** (`BEFORE`, `AFTER`, `INSTEAD OF`), **Event** (`INSERT OR UPDATE OF price OR DELETE`), **For each** (`ROW` or `STATEMENT`), the **Function** with its arguments, and an **Enabled** box, followed by *Enable Replica* or *Enable Always* for a trigger in one of those states.
 
 Ticking or unticking **Enabled** in the list takes effect at once:
 
@@ -17,7 +17,13 @@ ALTER TABLE public.tbl_room DISABLE TRIGGER tbl_room_touch;
 ALTER TABLE public.tbl_room ENABLE TRIGGER tbl_room_touch;
 ```
 
-A disabled trigger does not fire, but stays defined. Disabling the internal triggers that enforce foreign keys is not possible from here.
+A disabled trigger does not fire, but stays defined.
+
+Under the list of a table's triggers, **All triggers: Enable All | Disable All** (pgAdmin's *Trigger(s)* menu) switches every trigger of the table at once, the internal ones that enforce foreign keys included, which takes a superuser:
+
+```sql
+ALTER TABLE public.tbl_room DISABLE TRIGGER ALL;
+```
 
 ### Creating or editing a trigger
 
@@ -38,7 +44,7 @@ A disabled trigger does not fire, but stays defined. Disabling the internal trig
 | **Constraint** → **Constraint trigger**, **Deferrable**, **Initially deferred** | Tables only: a constraint trigger, which can be deferred to commit. | `CREATE CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED` |
 | **Transition tables** → **OLD TABLE AS**, **NEW TABLE AS** | Shown for **STATEMENT** triggers: names for the sets of old and new rows. | `REFERENCING OLD TABLE AS gone` |
 | **Comment** | Trigger comment. | `COMMENT ON TRIGGER` |
-| **Enabled** | Unticked: the trigger is created or kept disabled. | `ALTER TABLE t DISABLE TRIGGER name` |
+| **Enabled** | pgAdmin's *Trigger enabled?*: **Enable**, **Enable Replica** (fires only when `session_replication_role` is `replica`, as on a logical replication subscriber), **Enable Always** (fires in either role) or **Disable**. | `ALTER TABLE t ENABLE REPLICA TRIGGER name`, `… ENABLE ALWAYS …`, `… DISABLE …` |
 
 **Preview SQL** shows the statements and **Go** runs them. A new trigger is created with `CREATE OR REPLACE TRIGGER` (PostgreSQL 14+):
 

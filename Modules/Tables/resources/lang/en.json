@@ -499,7 +499,18 @@
     "rls_disabled": "Row-level security is disabled on this table, so these policies do nothing yet.",
     "rls_disabled_none": "Row-level security is disabled on this table.",
     "rls_switch": "Enable it on the Operations tab.",
-    "rls_change": "Change it on the Operations tab."
+    "rls_change": "Change it on the Operations tab.",
+    "enable_mode": {
+      "O": "Enable",
+      "R": "Enable Replica",
+      "A": "Enable Always",
+      "D": "Disable"
+    },
+    "all": "All triggers:",
+    "enable_all": "Enable All",
+    "disable_all": "Disable All",
+    "enabled_all": "Trigger(s) have been enabled.",
+    "disabled_all": "Trigger(s) have been disabled."
   },
   "partitions": {
     "title": "Partitions",

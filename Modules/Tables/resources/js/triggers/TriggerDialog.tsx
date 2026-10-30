@@ -48,7 +48,7 @@ export default function TriggerDialog({ show, db, scid, parent, relOid, columns,
   const [oldTable, setOldTable] = useState('')
   const [newTable, setNewTable] = useState('')
   const [comment, setComment] = useState('')
-  const [enabled, setEnabled] = useState(true)
+  const [enabled, setEnabled] = useState<'O' | 'R' | 'A' | 'D'>('O')
   const [preview, setPreview] = useState<{ sql: string | null; error: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -69,7 +69,7 @@ export default function TriggerDialog({ show, db, scid, parent, relOid, columns,
       setOldTable(trigger.tgoldtable ?? '')
       setNewTable(trigger.tgnewtable ?? '')
       setComment(trigger.description ?? '')
-      setEnabled(trigger.is_enable_trigger !== 'D')
+      setEnabled(trigger.is_enable_trigger)
     } else {
       setName('')
       setFires(parent === 'view' ? 'INSTEAD OF' : 'BEFORE')
@@ -85,7 +85,7 @@ export default function TriggerDialog({ show, db, scid, parent, relOid, columns,
       setOldTable('')
       setNewTable('')
       setComment('')
-      setEnabled(true)
+      setEnabled('O')
     }
   }, [show, trigger, parent, options])
 
@@ -110,8 +110,7 @@ export default function TriggerDialog({ show, db, scid, parent, relOid, columns,
       tgoldtable: oldTable,
       tgnewtable: newTable,
       description: comment,
-      // Ticked keeps an ENABLE REPLICA or ALWAYS trigger as it is.
-      is_enable_trigger: !enabled ? 'D' : trigger && trigger.is_enable_trigger !== 'D' ? trigger.is_enable_trigger : 'O',
+      is_enable_trigger: enabled,
     }
   }
 
@@ -289,7 +288,14 @@ export default function TriggerDialog({ show, db, scid, parent, relOid, columns,
               <tr>
                 <td>{t('triggers.enabled')}</td>
                 <td>
-                  <input type="checkbox" name="item_enabled" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+                  {/* pgAdmin's "Trigger enabled?": ENABLE, ENABLE REPLICA, ENABLE ALWAYS or DISABLE. */}
+                  <select name="item_enabled" value={enabled} onChange={(e) => setEnabled(e.target.value as 'O' | 'R' | 'A' | 'D')} aria-label={t('triggers.enabled')}>
+                    {(['O', 'R', 'A', 'D'] as const).map((value) => (
+                      <option key={value} value={value}>
+                        {t(`triggers.enable_mode.${value}`)}
+                      </option>
+                    ))}
+                  </select>
                 </td>
               </tr>
             </tbody>

@@ -102,6 +102,13 @@ Route::middleware(Authenticate::class)->group(function () use ($context, $flag):
         return ['ok' => true, 'sql' => (new TableController())->truncate($ctx, (int) $args['tid'], $flag($input, 'cascade'), $flag($input, 'identity'))];
     })->setName('tables.truncate');
 
+    // Enable All / Disable All triggers of the table: {"enable": true|false}.
+    Route::post('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/triggers-enabled', function (ServerRequestInterface $request, array $args) use ($context, $flag): array {
+        $ctx = $context($request, $args);
+
+        return ['ok' => true, 'sql' => (new TableController())->enableTriggers($ctx, (int) $args['tid'], $flag($ctx->input(), 'enable'))];
+    })->setName('tables.triggers_enabled');
+
     // pg_stat_reset_single_table_counters: the table's and its indexes' counters back to zero.
     Route::post('/databases/{db}/schemas/{scid:number}/tables/{tid:number}/reset-stats', fn (ServerRequestInterface $request, array $args): array => [
         'ok' => true,

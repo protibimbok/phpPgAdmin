@@ -11,7 +11,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
 import { urls, useLevel } from '@/level'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
-import { columns as columnsOf, policies as policiesOf, resolveRelation, rules as rulesOf, tables, triggerOptions, triggers as triggersOf, type Column, type Policy, type Rule, type Trigger, type TriggerOptions, type TriggerParent } from '../api'
+import { columns as columnsOf, policies as policiesOf, resolveRelation, rules as rulesOf, setTableTriggersEnabled, tables, triggerOptions, triggers as triggersOf, type Column, type Policy, type Rule, type Trigger, type TriggerOptions, type TriggerParent } from '../api'
 import PolicyDialog from '../triggers/PolicyDialog'
 import RuleDialog from '../triggers/RuleDialog'
 import TriggerDialog from '../triggers/TriggerDialog'
@@ -108,6 +108,19 @@ export default function Triggers() {
     }
   }
 
+  /** pgAdmin's Trigger(s) → Enable All / Disable All: every trigger of the table, system ones too. */
+  async function setAllTriggers(enable: boolean) {
+    if (!data) return
+    try {
+      await setTableTriggersEnabled(db, data.scid, data.oid, enable)
+      notifySuccess(t(enable ? 'triggers.enabled_all' : 'triggers.disabled_all'))
+    } catch (e) {
+      notifyError(errorMessage(e))
+    } finally {
+      reload()
+    }
+  }
+
   async function toggleEnabled(kind: 'trigger' | 'rule', row: Trigger | Rule, enabled: boolean) {
     try {
       if (kind === 'trigger') await triggersOf(db, scid, parent, oid).update(row.oid, { is_enable_trigger: enabled ? 'O' : 'D' })
@@ -149,7 +162,12 @@ export default function Triggers() {
           { label: t('triggers.columns.level'), render: (row) => (row.is_row_trigger ? 'ROW' : 'STATEMENT') },
           { label: t('triggers.columns.function'), render: (row) => <code>{`${row.tfunction}(${row.tgargs ?? ''})`}</code> },
           // Uncontrolled, keyed on the state: the box flips at once and the reload re-mounts it with the server's answer.
-          { label: t('triggers.columns.enabled'), render: (row) => <input key={`${row.oid}-${row.is_enable_trigger}`} type="checkbox" defaultChecked={row.is_enable_trigger !== 'D'} onChange={(e) => void toggleEnabled('trigger', row, e.target.checked)} aria-label={t('triggers.columns.enabled')} /> },
+          { label: t('triggers.columns.enabled'), render: (row) => (
+              <>
+                <input key={`${row.oid}-${row.is_enable_trigger}`} type="checkbox" defaultChecked={row.is_enable_trigger !== 'D'} onChange={(e) => void toggleEnabled('trigger', row, e.target.checked)} aria-label={t('triggers.columns.enabled')} />
+                {(row.is_enable_trigger === 'R' || row.is_enable_trigger === 'A') && <> {t(`triggers.enable_mode.${row.is_enable_trigger}`)}</>}
+              </>
+            ) },
         ]}
         onEdit={(row) => { loadOptions(); setTriggerDialog({ trigger: row }) }}
         onExport={(rows) => exportSql(rows.length === 1 ? t('triggers.export_title', { name: rows[0].name }) : t('triggers.export_title_many'), rows.map((row) => triggerUrl.sql(row.oid)))}
@@ -157,6 +175,15 @@ export default function Triggers() {
         noneSelected={t('triggers.none_selected')}
         labels={labels}
       />
+
+      {parent === 'table' && data.triggers.length > 0 && (
+        <p className="d-print-none" id="triggers_all">
+          {t('triggers.all')}{' '}
+          <a href="#enable-all" onClick={(e) => { e.preventDefault(); void setAllTriggers(true) }}>{t('triggers.enable_all')}</a>
+          {' | '}
+          <a href="#disable-all" onClick={(e) => { e.preventDefault(); void setAllTriggers(false) }}>{t('triggers.disable_all')}</a>
+        </p>
+      )}
 
       <ObjectSection<Rule>
         id="rules"

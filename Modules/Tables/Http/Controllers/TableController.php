@@ -100,6 +100,19 @@ final class TableController extends RelationController
         return $sql;
     }
 
+    /**
+     * pgAdmin's Trigger(s) → Enable All / Disable All on a table: ALTER TABLE … ENABLE or
+     * DISABLE TRIGGER ALL (system triggers included, which takes a superuser).
+     */
+    public function enableTriggers(NodeContext $ctx, int $oid, bool $enable): string
+    {
+        $row = parent::properties($ctx, $oid);
+        $sql = $ctx->render('enable_disable_trigger.sql', ['data' => $row, 'is_enable_trigger' => $enable ? 'O' : 'D']);
+        $this->execute($ctx, $sql);
+
+        return $sql;
+    }
+
     /** TRUNCATE TABLE, with RESTART IDENTITY and CASCADE on request (pgAdmin's truncate). */
     public function truncate(NodeContext $ctx, int $oid, bool $cascade, bool $identity): string
     {
