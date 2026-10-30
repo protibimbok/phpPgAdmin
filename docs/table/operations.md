@@ -1,10 +1,10 @@
 # Table operations
 
-A table's **Operations** tab, after phpMyAdmin's, holds the cards that act on the table as a whole: move and rename, owner, comment and tablespace, inheritance, copy, maintenance, emptying and dropping, and referential integrity checks. This page also covers the **Show create** tab, which shows the table's DDL and what depends on it.
+A table's **Operations** tab, after phpMyAdmin's, holds the cards that act on the table as a whole: move and rename, owner, comment and tablespace, storage parameters, inheritance, row-level security, copy, maintenance, emptying and dropping, and referential integrity checks. This page also covers the **Show create** tab, which shows the table's DDL and what depends on it.
 
 ![The Operations tab of books, from Move table to Check referential integrity](/media/table/operations.png)
 
-The cards, from top to bottom: **Move table to (schema.table)**, **Table options**, **Inheritance**, **Copy table to (schema.table)**, **Partition maintenance** (partitioned tables only), **Table maintenance**, **Delete data or table**, and **Check referential integrity** (tables with foreign keys only). Each form card has **Preview SQL** and **Go**.
+The cards, from top to bottom: **Move table to (schema.table)**, **Table options**, **Storage parameters** (not on partitioned tables), **Inheritance**, **Row-level security**, **Copy table to (schema.table)**, **Partition maintenance** (partitioned tables only), **Table maintenance**, **Delete data or table**, and **Check referential integrity** (tables with foreign keys only). Each form card has **Preview SQL** and **Go**.
 
 ## Moving a table to another schema
 
@@ -70,20 +70,40 @@ ALTER TABLE IF EXISTS public.orders_2025 SET (
 
 A partitioned table has no storage of its own and does not show the card.
 
-### UNLOGGED and row security
+### UNLOGGED
 
-These have no field on this tab. Use the table's [SQL tab](/tools/sql):
+`UNLOGGED` has no field on this tab. Use the table's [SQL tab](/tools/sql):
 
 ```sql
 ALTER TABLE public.audit_log SET UNLOGGED;     -- or SET LOGGED
-ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 ```
-
-Row security is covered under [Row security policies](/table/triggers#row-security-policies).
 
 ## Inheritance
 
 The **Inheritance** card sets the parents the table inherits from (`INHERIT` / `NO INHERIT`). It is described with partitioning under [Partitions and inheritance](/table/partitions#the-inheritance-card).
+
+## Row-level security
+
+The **Row-level security** card has two boxes, pgAdmin's *RLS Policy?* and *Force RLS Policy?*:
+
+| Box | Ticked | Cleared |
+| --- | --- | --- |
+| **Enable row-level security (ENABLE ROW LEVEL SECURITY)** | The table's [policies](/table/triggers#row-security-policies) apply. | `DISABLE ROW LEVEL SECURITY`: nobody is restricted, the policies stay defined. |
+| **Apply the policies to the table owner too (FORCE ROW LEVEL SECURITY)** | The owner is restricted as well. | `NO FORCE ROW LEVEL SECURITY`: the owner bypasses the policies. |
+
+The boxes show the table's current state (`pg_class.relrowsecurity` and `relforcerowsecurity`); only a box you change produces a statement, so **Go** with nothing changed answers *Nothing to change.* Ticking both on a table without row security previews:
+
+```sql
+ALTER TABLE IF EXISTS public.reviews
+    ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.reviews
+    FORCE ROW LEVEL SECURITY;
+```
+
+::: warning Enabling it with no policy hides every row
+Once row security is enabled, a role with no matching policy sees no rows and can change none (default deny). Superusers and roles with `BYPASSRLS` are never restricted, so Browse still shows you every row when you are signed in as a superuser. The [Triggers tab](/table/triggers#row-security-policies) shows the state above the policies.
+:::
 
 ## Copying a table
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { errorMessage } from '@/api/request'
 import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
@@ -9,9 +9,9 @@ import ObjectSection from '@/components/ObjectSection'
 import SqlView from '@/components/SqlView'
 import { treeState } from '@/layout/tree/treeState'
 import { notifyError, notifySuccess } from '@/notify'
-import { useLevel } from '@/level'
+import { urls, useLevel } from '@/level'
 import { qualifiedName, quoteIdent } from '@sql/js/sql'
-import { columns as columnsOf, policies as policiesOf, resolveRelation, rules as rulesOf, triggerOptions, triggers as triggersOf, type Column, type Policy, type Rule, type Trigger, type TriggerOptions, type TriggerParent } from '../api'
+import { columns as columnsOf, policies as policiesOf, resolveRelation, rules as rulesOf, tables, triggerOptions, triggers as triggersOf, type Column, type Policy, type Rule, type Trigger, type TriggerOptions, type TriggerParent } from '../api'
 import PolicyDialog from '../triggers/PolicyDialog'
 import RuleDialog from '../triggers/RuleDialog'
 import TriggerDialog from '../triggers/TriggerDialog'
@@ -24,6 +24,8 @@ interface Loaded {
   triggers: Trigger[]
   rules: Rule[]
   policies: Policy[]
+  /** Whether row level security is enabled, and forced on the owner (tables only). */
+  rls: { enabled: boolean; forced: boolean } | null
 }
 
 /**
@@ -40,14 +42,15 @@ export default function Triggers() {
   const parent: TriggerParent = useLevel().kind === 'view' ? 'view' : 'table'
   const { data, error, reload } = useRequest(async (): Promise<Loaded> => {
     const { scid, oid } = await resolveRelation(db, schema, table, parent)
-    const [cols, triggers, rules, policies] = await Promise.all([
+    const [cols, triggers, rules, policies, properties] = await Promise.all([
       parent === 'table' ? columnsOf(db, scid, oid).list() : viewColumns(db, scid, oid, 'view'),
       triggersOf(db, scid, parent, oid).list(),
       rulesOf(db, scid, parent, oid).list(),
       parent === 'table' ? policiesOf(db, scid, oid).list() : Promise.resolve([]),
+      parent === 'table' ? tables(db, scid).properties(oid) : Promise.resolve(null),
     ])
 
-    return { scid, oid, columns: cols, triggers, rules, policies }
+    return { scid, oid, columns: cols, triggers, rules, policies, rls: properties ? { enabled: Boolean(properties.rlspolicy), forced: Boolean(properties.forcerlspolicy) } : null }
   }, [db, schema, table, parent])
   const [options, setOptions] = useState<TriggerOptions | null>(null)
   const [triggerDialog, setTriggerDialog] = useState<{ trigger: Trigger | null } | null>(null)
@@ -117,6 +120,14 @@ export default function Triggers() {
   }
 
   const labels = { name: t('triggers.columns.name'), edit: t('triggers.actions.edit'), export: t('triggers.actions.export'), drop: t('triggers.actions.drop') }
+
+  /** The state the policies depend on, with the way to the switch when they are in force for nobody yet. */
+  const rlsNotice = data.rls && (
+    <div className={`alert ${!data.rls.enabled && data.policies.length > 0 ? 'alert-warning' : 'alert-info'} d-print-none`} role="alert" id="rls_state">
+      {data.rls.enabled ? t(data.rls.forced ? 'triggers.rls_forced' : 'triggers.rls_enabled') : t(data.policies.length > 0 ? 'triggers.rls_disabled' : 'triggers.rls_disabled_none')}{' '}
+      <Link to={`${urls.relation(db, schema, table, 'table')}/operations`}>{t(data.rls.enabled ? 'triggers.rls_change' : 'triggers.rls_switch')}</Link>
+    </div>
+  )
   const triggerUrl = triggersOf(db, scid, parent, oid)
   const ruleUrl = rulesOf(db, scid, parent, oid)
   const policyUrl = policiesOf(db, scid, oid)
@@ -175,6 +186,7 @@ export default function Triggers() {
           id="policies"
           icon="s_rights"
           title={t('triggers.policies_title')}
+          notice={rlsNotice}
           rows={data.policies}
           empty={t('triggers.policies_none')}
           createLabel={t('triggers.policy_create_new')}

@@ -365,7 +365,11 @@
     "inherits": "Inheritance",
     "inherits_from": "Inherited from table(s)",
     "inherits_hint": "A parent's columns must already exist in this table with the same types; CREATE TABLE adds them, ALTER TABLE does not.",
-    "cluster_using": "Cluster the table using index:"
+    "cluster_using": "Cluster the table using index:",
+    "rls": "Row-level security",
+    "rls_enable": "Enable row-level security (ENABLE ROW LEVEL SECURITY)",
+    "rls_force": "Apply the policies to the table owner too (FORCE ROW LEVEL SECURITY)",
+    "rls_hint": "Once enabled, a role with no matching policy sees no rows (default deny); superusers and roles with BYPASSRLS are never restricted. The policies are listed on the Triggers tab."
   },
   "schema_structure": {
     "with_selected": {
@@ -463,7 +467,13 @@
     "roles": "Roles",
     "roles_hint": "None selected means PUBLIC.",
     "using": "Using (expression)",
-    "with_check": "With check (expression)"
+    "with_check": "With check (expression)",
+    "rls_enabled": "Row-level security is enabled on this table.",
+    "rls_forced": "Row-level security is enabled and forced: the policies apply to the table owner too.",
+    "rls_disabled": "Row-level security is disabled on this table, so these policies do nothing yet.",
+    "rls_disabled_none": "Row-level security is disabled on this table.",
+    "rls_switch": "Enable it on the Operations tab.",
+    "rls_change": "Change it on the Operations tab."
   },
   "partitions": {
     "title": "Partitions",

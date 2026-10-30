@@ -35,6 +35,10 @@ export interface Table {
   toast_autovacuum?: boolean
   vacuum_table?: VacuumSetting[]
   vacuum_toast?: VacuumSetting[]
+  /** pg_class.relrowsecurity: row level security is enabled (properties only). */
+  rlspolicy?: boolean
+  /** pg_class.relforcerowsecurity: the policies apply to the owner too (properties only). */
+  forcerlspolicy?: boolean
 }
 
 export type AutovacuumEnabled = 'x' | 't' | 'f'
@@ -459,6 +463,10 @@ export interface TableChanges {
   toast_autovacuum_enabled?: AutovacuumEnabled
   vacuum_toast?: { changed: { name: string; value: string | null }[] }
   coll_inherits?: string[]
+  /** ENABLE / DISABLE ROW LEVEL SECURITY. */
+  rlspolicy?: boolean
+  /** FORCE / NO FORCE ROW LEVEL SECURITY. */
+  forcerlspolicy?: boolean
   columns?: Changes<ColumnData>
   primary_key?: Changes<KeyConstraintData>
   unique_constraint?: Changes<KeyConstraintData>

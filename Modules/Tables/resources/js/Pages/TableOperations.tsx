@@ -57,6 +57,7 @@ export default function TableOperations() {
   const [owner, setOwner] = useState('')
   const [tablespace, setTablespace] = useState('')
   const [inherits, setInherits] = useState<string[]>([])
+  const [rls, setRls] = useState({ enabled: false, forced: false })
   const [partitionNames, setPartitionNames] = useState<string[]>([])
   const [partitionOperation, setPartitionOperation] = useState<'ANALYZE' | 'VACUUM' | 'TRUNCATE' | 'DETACH' | 'DROP'>('ANALYZE')
   const [copy, setCopy] = useState<CopyTableOptions & { switch_to_new: boolean }>({ schema, name: table, what: 'data', drop_if_exists: false, add_constraints: true, switch_to_new: false })
@@ -70,6 +71,7 @@ export default function TableOperations() {
     setOwner(data.properties.relowner)
     setTablespace(data.properties.spcname ?? '')
     setInherits(data.properties.coll_inherits ?? [])
+    setRls({ enabled: Boolean(data.properties.rlspolicy), forced: Boolean(data.properties.forcerlspolicy) })
     setCopy((c) => ({ ...c, schema, name: table }))
   }, [data, schema, table])
 
@@ -137,6 +139,22 @@ export default function TableOperations() {
   function submitInherits(e: FormEvent) {
     e.preventDefault()
     const changes = inheritChanges()
+    if (Object.keys(changes).length === 0) return notify(tApp('nothing_to_change'))
+    void alter(changes, tApp('query_executed'))
+  }
+
+  /** ENABLE/DISABLE and FORCE/NO FORCE ROW LEVEL SECURITY, each only when the box differs from the table. */
+  function rlsChanges(): TableChanges {
+    const changes: TableChanges = {}
+    if (rls.enabled !== Boolean(properties.rlspolicy)) changes.rlspolicy = rls.enabled
+    if (rls.forced !== Boolean(properties.forcerlspolicy)) changes.forcerlspolicy = rls.forced
+
+    return changes
+  }
+
+  function submitRls(e: FormEvent) {
+    e.preventDefault()
+    const changes = rlsChanges()
     if (Object.keys(changes).length === 0) return notify(tApp('nothing_to_change'))
     void alter(changes, tApp('query_executed'))
   }
@@ -375,6 +393,34 @@ export default function TableOperations() {
           </div>
           <div className="card-footer text-end">
             {previewButton(inheritChanges)}
+            <input className="btn btn-primary" type="submit" value={tApp('go')} />
+          </div>
+        </div>
+      </form>
+
+      {/* pgAdmin's "RLS Policy?" and "Force RLS Policy?" switches; phpMyAdmin has no counterpart, so the card follows the table options card's checkbox rows. */}
+      <form id="tableRlsForm" onSubmit={submitRls}>
+        <div className="card mb-2">
+          <div className="card-header">{t('operations.rls')}</div>
+          <div className="card-body">
+            <div className="mb-3 form-check">
+              <input className="form-check-input" type="checkbox" name="rlspolicy" id="rlsEnableCheckbox" checked={rls.enabled} onChange={(e) => setRls({ ...rls, enabled: e.target.checked })} />
+              <label className="form-check-label" htmlFor="rlsEnableCheckbox">
+                {t('operations.rls_enable')}
+              </label>
+            </div>
+            <div className="mb-3 form-check">
+              <input className="form-check-input" type="checkbox" name="forcerlspolicy" id="rlsForceCheckbox" checked={rls.forced} onChange={(e) => setRls({ ...rls, forced: e.target.checked })} />
+              <label className="form-check-label" htmlFor="rlsForceCheckbox">
+                {t('operations.rls_force')}
+              </label>
+            </div>
+            <div className="form-text">
+              {t('operations.rls_hint')} <Link to={`${href}/triggers#policies_section`}>{t('triggers.policies_title')}</Link>
+            </div>
+          </div>
+          <div className="card-footer text-end">
+            {previewButton(rlsChanges)}
             <input className="btn btn-primary" type="submit" value={tApp('go')} />
           </div>
         </div>

@@ -28,6 +28,8 @@ export interface ObjectSectionProps<Row extends { oid: number; name: string }> {
   labels: ObjectSectionLabels
   /** Shown instead of the Edit link for a row that cannot be edited. */
   canEdit?: (row: Row) => boolean
+  /** A notice under the heading: the state the objects depend on (row security enabled or not). */
+  notice?: ReactNode
 }
 
 /**
@@ -36,7 +38,7 @@ export interface ObjectSectionProps<Row extends { oid: number; name: string }> {
  * Edit / Export / Drop links. The triggers, rules, policies, collations and text search lists
  * are all this.
  */
-export default function ObjectSection<Row extends { oid: number; name: string }>({ id, icon, title, rows, empty, createLabel, createIcon, onCreate, columns, onEdit, onExport, onDrop, noneSelected, labels, canEdit }: ObjectSectionProps<Row>) {
+export default function ObjectSection<Row extends { oid: number; name: string }>({ id, icon, title, rows, empty, createLabel, createIcon, onCreate, columns, onEdit, onExport, onDrop, noneSelected, labels, canEdit, notice }: ObjectSectionProps<Row>) {
   const { t: tApp } = useTranslation()
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const allChecked = rows.length > 0 && rows.every((row) => checked.has(row.oid))
@@ -62,6 +64,8 @@ export default function ObjectSection<Row extends { oid: number; name: string }>
       <h2>
         <Icon name={icon} /> {title}
       </h2>
+
+      {notice}
 
       <div className="d-flex flex-wrap my-3">
         {rows.length > 0 && (

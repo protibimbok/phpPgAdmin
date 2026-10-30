@@ -168,13 +168,7 @@ CREATE POLICY tbl_room_staff
 When you edit a policy, **Command** and **Type** are disabled (*PostgreSQL cannot change a policy's command or type; drop and recreate it instead.*); the name, roles and expressions change with `ALTER POLICY`.
 
 ::: danger Policies do nothing until row security is enabled
-A policy only applies once row level security is enabled on the table, and the Triggers tab has no switch for it. Creating policies on a table without it changes nothing for anyone. Enable it on the table's [SQL tab](/tools/sql):
-
-```sql
-ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
--- Also apply the policies to the table's owner:
-ALTER TABLE public.reviews FORCE ROW LEVEL SECURITY;
-```
+A policy only applies once row level security is enabled on the table. Creating policies on a table without it changes nothing for anyone. A notice above the section says which state the table is in: *Row-level security is disabled on this table, so these policies do nothing yet.* (a warning, when the table has policies), *…is enabled…* or *…is enabled and forced…*, with a link to the [Row-level security](/table/operations#row-level-security) card on the Operations tab, where two boxes run `ENABLE` / `DISABLE ROW LEVEL SECURITY` and `FORCE` / `NO FORCE ROW LEVEL SECURITY`.
 
 Once it is enabled, a role with no matching policy sees no rows at all (default deny). Superusers and roles with `BYPASSRLS` always bypass policies, and the table owner does too unless you `FORCE` it. Since phpPgAdmin usually runs as a superuser, Browse shows you every row regardless of the policies; sign in as the role, or `SET ROLE bookshop_staff;` on the SQL tab, to test them.
 :::
