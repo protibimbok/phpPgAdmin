@@ -70,7 +70,7 @@ final class ViewController extends RelationController
      * What the create and alter forms offer: the roles a view may be owned by, the schemas it
      * may be moved to, the tablespaces and table access methods a materialized view may use.
      *
-     * @return array{roles: list<string>, schemas: list<string>, tablespaces: list<string>, access_methods: list<string>}
+     * @return array{roles: list<string>, schemas: list<string>, tablespaces: list<string>, access_methods: list<string>, version: int}
      */
     public function options(NodeContext $ctx): array
     {
@@ -79,6 +79,8 @@ final class ViewController extends RelationController
             'schemas' => Catalog::schemas($ctx->conn),
             'tablespaces' => Catalog::tablespaces($ctx->conn),
             'access_methods' => array_column($ctx->conn->rows($ctx->renderFrom('mviews', 'get_access_methods.sql')), 'amname'),
+            // security_invoker needs PostgreSQL 15.
+            'version' => $ctx->version(),
         ];
     }
 

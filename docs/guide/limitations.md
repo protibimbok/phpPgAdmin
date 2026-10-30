@@ -21,7 +21,7 @@ These options are not in the forms; use the SQL tab for them:
 
 ### Other objects
 
-- **Views:** the create form has no `security_invoker`, `RECURSIVE` or storage options. There is no **Create view** link in the tree or on the schema page; views are created from query results or the create-view address ([Views](/schema/views#create-a-view)).
+- **Views:** the create form has no storage options. There is no **Create view** link in the tree or on the schema page; views are created from query results or the create-view address ([Views](/schema/views#create-a-view)).
 - **Routines:** there are no fields for `WINDOW` or `SUPPORT` ([Functions and procedures](/schema/routines)).
 - **Operator classes, families and conversions:** created from a form, but not altered; a family's members are changed with `ALTER OPERATOR FAMILY` on the SQL tab ([Types](/schema/types#operator-classes-families-and-conversions)).
 - **Sequences:** there is no data type field ([Sequences](/schema/sequences)).

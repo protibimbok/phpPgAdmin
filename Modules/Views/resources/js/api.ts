@@ -95,6 +95,8 @@ export interface ViewOptions {
   schemas: string[]
   tablespaces: string[]
   access_methods: string[]
+  /** server_version_num: security_invoker needs 15. */
+  version: number
 }
 
 export function viewOptions(db: string, scid: number): Promise<ViewOptions> {

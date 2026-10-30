@@ -46,6 +46,7 @@ export default function ViewOperations() {
   const [owner, setOwner] = useState('')
   const [checkOption, setCheckOption] = useState('')
   const [securityBarrier, setSecurityBarrier] = useState(false)
+  const [securityInvoker, setSecurityInvoker] = useState(false)
   const [tablespace, setTablespace] = useState('')
   const [fillfactor, setFillfactor] = useState('')
   const [refresh, setRefresh] = useState({ concurrent: false, with_data: true })
@@ -61,6 +62,7 @@ export default function ViewOperations() {
     if (kind === 'view') {
       setCheckOption(((p as View).check_option ?? '').toUpperCase())
       setSecurityBarrier(Boolean((p as View).security_barrier))
+      setSecurityInvoker(Boolean((p as View).security_invoker))
     } else {
       setTablespace((p as MaterializedView).spcname ?? '')
       setFillfactor((p as MaterializedView).fillfactor ?? '')
@@ -120,6 +122,7 @@ export default function ViewOperations() {
       const p = properties as View
       if (checkOption !== (p.check_option ?? '').toUpperCase()) changes.check_option = checkOption === '' ? 'no' : checkOption.toLowerCase()
       if (securityBarrier !== Boolean(p.security_barrier)) changes.security_barrier = securityBarrier
+      if (options.version >= 150000 && securityInvoker !== Boolean(p.security_invoker)) changes.security_invoker = securityInvoker
     } else {
       const p = properties as MaterializedView
       if (tablespace !== (p.spcname ?? '') && tablespace !== '') changes.spcname = tablespace
@@ -268,6 +271,18 @@ export default function ViewOperations() {
                     </div>
                   </div>
                 </div>
+                {options.version >= 150000 && (
+                  <div className="mb-3 row row-cols-lg-auto g-3 align-items-center">
+                    <div className="col-6">
+                      <div className="form-check">
+                        <input className="form-check-input" type="checkbox" id="viewSecurityInvoker" checked={securityInvoker} onChange={(e) => setSecurityInvoker(e.target.checked)} />
+                        <label className="form-check-label" htmlFor="viewSecurityInvoker">
+                          {t('form.security_invoker')}
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
             {kind === 'mview' && (

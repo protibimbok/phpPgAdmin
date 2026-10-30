@@ -6,7 +6,7 @@
 
 {% endif %}
 {% if data.name and data.schema and data.definition %}
-CREATE{% if add_replace_clause %} OR REPLACE{% endif %} VIEW {{ conn|qtIdent(data.schema, data.name) }}{# phpPgAdmin: the column names phpMyAdmin's form takes #}{{ data.column_names ? ' (' ~ data.column_names ~ ')' : '' }}
+CREATE{% if add_replace_clause %} OR REPLACE{% endif %}{# phpPgAdmin: RECURSIVE, which needs the column names #}{% if data.recursive %} RECURSIVE{% endif %} VIEW {{ conn|qtIdent(data.schema, data.name) }}{# phpPgAdmin: the column names phpMyAdmin's form takes #}{{ data.column_names ? ' (' ~ data.column_names ~ ')' : '' }}
 {% if ((data.check_option and data.check_option|lower != 'no') or data.security_barrier or data.security_invoker) %}
 WITH (
 {% if data.check_option and data.check_option|lower != 'no' %}

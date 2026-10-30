@@ -36,11 +36,13 @@ the form.
 | **Schema** | The schema the view is created in. | `CREATE VIEW schema.name` |
 | **Materialized** | Creates a materialized view. The form swaps the view-only rows for **Tablespace** and **WITH DATA**. | `CREATE MATERIALIZED VIEW` |
 | **OR REPLACE** | Replaces a view of the same name (plain views only). | `CREATE OR REPLACE VIEW` |
+| **RECURSIVE** | Plain views only. The query may refer to the view by its own name; **Column names** becomes required. | `CREATE RECURSIVE VIEW name (n) AS …` |
 | **VIEW name** | The name, up to 63 characters. | |
 | **Column names** | Optional comma-separated list. Leave it empty to keep the query's own column names. | `(book_id, title, price)` |
 | **AS** | The defining query, in the SQL editor. A trailing semicolon is dropped. **Format** reformats it with upper-case keywords. Ctrl+Enter submits the form. | `AS SELECT …` |
 | **WITH CHECK OPTION** | Empty, `CASCADED` or `LOCAL`. Makes `INSERT`/`UPDATE` through an updatable view reject rows the view would not show. | `WITH (check_option=local)` |
 | **Security barrier** | Stops the planner from pushing user functions in outer `WHERE` clauses below the view's own conditions, so leaky functions cannot see hidden rows. Use it for views that implement row filtering. | `WITH (security_barrier=true)` |
+| **Security invoker** | PostgreSQL 15+. The base tables' privileges and row security policies are checked as the role querying the view rather than the view's owner. | `WITH (security_invoker=true)` |
 | **Tablespace** | Materialized view only. **(default)** uses the database's default tablespace. | `TABLESPACE name` |
 | **WITH DATA** | Materialized view only. Unticked creates the view empty and unscannable until its first refresh. | `WITH DATA` / `WITH NO DATA` |
 
@@ -55,19 +57,24 @@ WITH (
 SELECT id, title, price FROM books WHERE price < 20;
 ```
 
+A recursive view:
+
+```sql
+CREATE RECURSIVE VIEW public.v_rec (n)
+ AS
+SELECT 1 UNION ALL SELECT n + 1 FROM v_rec WHERE n < 5;
+```
+
 ::: warning Options the form does not offer
-`security_invoker` (PostgreSQL 15+), `RECURSIVE` views, `TEMPORARY` views, and a materialized
-view's `USING` access method and storage parameters other than fillfactor are not in the form.
-Run them on the [SQL tab](/tools/sql), for example
-`ALTER VIEW public.book_catalogue SET (security_invoker = true);`. The editor keeps
-`security_invoker` once it is set (see below).
+`TEMPORARY` views, and a materialized view's `USING` access method and storage parameters other
+than fillfactor, are not in the form. Run them on the [SQL tab](/tools/sql).
 :::
 
 ## Edit a view
 
 **Edit view** on the Structure tab opens the form for an existing view
 (`…/view/<name>/edit`). The name is fixed here (rename it on [Operations](#operations)); you can
-change the definition, **WITH CHECK OPTION** and **Security barrier** of a view, or the definition,
+change the definition, **WITH CHECK OPTION**, **Security barrier** and **Security invoker** of a view, or the definition,
 **Tablespace** and **WITH DATA** of a materialized view.
 
 What **Go** runs depends on the change:
@@ -177,6 +184,7 @@ ALTER VIEW IF EXISTS public.rtn_v2
 | **Owner** | yes | yes | `ALTER TABLE … OWNER TO` |
 | **WITH CHECK OPTION** | yes | | `ALTER VIEW … SET (check_option=…)`; empty runs `RESET (check_option)` |
 | **Security barrier** | yes | | `ALTER VIEW … SET (security_barrier=…)` |
+| **Security invoker** | yes (PostgreSQL 15+) | | `ALTER VIEW … SET (security_invoker=…)` |
 | **Tablespace** | | yes | `ALTER MATERIALIZED VIEW … SET TABLESPACE` |
 | **Fillfactor** | | yes (10–100) | `ALTER MATERIALIZED VIEW … SET (FILLFACTOR = 70)` |
 

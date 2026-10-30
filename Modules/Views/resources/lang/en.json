@@ -16,7 +16,10 @@
     "default_tablespace": "(default)",
     "created": "View {{name}} has been created.",
     "altered": "View {{name}} has been altered.",
-    "database": "Database"
+    "database": "Database",
+    "security_invoker": "Security invoker",
+    "security_invoker_hint": "Check the base tables' privileges and row security policies as the role querying the view, not the view's owner.",
+    "recursive_hint": "A recursive view refers to itself by name; it needs the column names."
   },
   "structure": {
     "edit_view": "Edit view",

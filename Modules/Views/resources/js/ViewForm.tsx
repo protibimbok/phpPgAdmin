@@ -32,7 +32,8 @@ const CHECK_OPTIONS = ['', 'CASCADED', 'LOCAL'] as const
  * phpMyAdmin's view_create.twig: the "Create view" / "Edit view" details table with OR REPLACE,
  * the name, the column names, the AS box with its Format button and WITH CHECK OPTION. The
  * MySQL rows (ALGORITHM, DEFINER, SQL SECURITY) give way to PostgreSQL's: the schema, a
- * materialized view (with its tablespace and WITH DATA) and the security barrier. Go creates or
+ * materialized view (with its tablespace and WITH DATA), RECURSIVE, the security barrier and
+ * (PostgreSQL 15+) security invoker. Go creates or
  * alters the view through its node; Preview SQL shows what it would run.
  */
 export default function ViewForm({ db, schema, view = null, initialSql = '', onSaved, formId = 'view_form', inModal = false, databaseChoice }: ViewFormProps) {
@@ -47,6 +48,8 @@ export default function ViewForm({ db, schema, view = null, initialSql = '', onS
   // pg_get_viewdef ends the definition with a semicolon the form does not want.
   const [definition, setDefinition] = useState(view ? view.properties.definition.replace(/;\s*$/, '') : initialSql)
   const [checkOption, setCheckOption] = useState(view && view.kind === 'view' && 'check_option' in view.properties ? (view.properties.check_option ?? '').toUpperCase() : '')
+  const [securityInvoker, setSecurityInvoker] = useState(view && view.kind === 'view' && 'security_invoker' in view.properties ? Boolean(view.properties.security_invoker) : false)
+  const [recursive, setRecursive] = useState(false)
   const [securityBarrier, setSecurityBarrier] = useState(view && view.kind === 'view' && 'security_barrier' in view.properties ? Boolean(view.properties.security_barrier) : false)
   const [withData, setWithData] = useState(view && view.kind === 'mview' ? (view.properties as MaterializedView).with_data : true)
   const [tablespace, setTablespace] = useState(view && view.kind === 'mview' ? ((view.properties as MaterializedView).spcname ?? '') : '')
@@ -75,9 +78,10 @@ export default function ViewForm({ db, schema, view = null, initialSql = '', onS
     if (kind === 'view') {
       return {
         ...base,
-        ...(editing ? {} : { or_replace: orReplace }),
+        ...(editing ? {} : { or_replace: orReplace, recursive }),
         check_option: checkOption === '' ? 'no' : checkOption.toLowerCase(),
         security_barrier: securityBarrier,
+        ...((options?.version ?? 0) >= 150000 ? { security_invoker: securityInvoker } : {}),
       }
     }
 
@@ -184,6 +188,16 @@ export default function ViewForm({ db, schema, view = null, initialSql = '', onS
                   </td>
                 </tr>
               )}
+              {!editing && kind === 'view' && (
+                <tr>
+                  <td className="text-nowrap">
+                    <label htmlFor="view_recursive">RECURSIVE</label>
+                  </td>
+                  <td>
+                    <input type="checkbox" name="view[recursive]" id="view_recursive" checked={recursive} onChange={(e) => setRecursive(e.target.checked)} value="1" />
+                  </td>
+                </tr>
+              )}
               {!editing ? (
                 <tr>
                   <td className="text-nowrap">
@@ -208,7 +222,8 @@ export default function ViewForm({ db, schema, view = null, initialSql = '', onS
                     <label htmlFor="view_column_names">{t('form.column_names')}</label>
                   </td>
                   <td>
-                    <input type="text" maxLength={1000} size={50} id="view_column_names" name="view[column_names]" value={columnNames} onChange={(e) => setColumnNames(e.target.value)} onFocus={(e) => e.target.select()} placeholder={t('form.column_names_hint')} />
+                    <input type="text" maxLength={1000} size={50} id="view_column_names" name="view[column_names]" value={columnNames} onChange={(e) => setColumnNames(e.target.value)} onFocus={(e) => e.target.select()} placeholder={t('form.column_names_hint')} required={recursive && kind === 'view'} />
+                    {recursive && kind === 'view' && <div className="form-text">{t('form.recursive_hint')}</div>}
                   </td>
                 </tr>
               )}
@@ -243,6 +258,17 @@ export default function ViewForm({ db, schema, view = null, initialSql = '', onS
                   </td>
                   <td>
                     <input type="checkbox" id="view_security_barrier" name="view[security_barrier]" checked={securityBarrier} onChange={(e) => setSecurityBarrier(e.target.checked)} value="1" />
+                  </td>
+                </tr>
+              )}
+              {kind === 'view' && (options?.version ?? 0) >= 150000 && (
+                <tr>
+                  <td className="text-nowrap">
+                    <label htmlFor="view_security_invoker">{t('form.security_invoker')}</label>
+                  </td>
+                  <td>
+                    <input type="checkbox" id="view_security_invoker" name="view[security_invoker]" checked={securityInvoker} onChange={(e) => setSecurityInvoker(e.target.checked)} value="1" />
+                    <div className="form-text">{t('form.security_invoker_hint')}</div>
                   </td>
                 </tr>
               )}

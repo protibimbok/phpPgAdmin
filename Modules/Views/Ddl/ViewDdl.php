@@ -109,6 +109,10 @@ final class ViewDdl
         $data['definition'] = self::required($data, 'definition');
         $data['schema'] = self::schemaName($ctx);
         $data = self::normalise($data);
+        $data['recursive'] = !$materialized && filter_var($data['recursive'] ?? false, FILTER_VALIDATE_BOOL);
+        if ($data['recursive'] && empty($data['column_names'])) {
+            throw new BadRequestException('A recursive view needs its column names.');
+        }
         if (isset($data['datacl']) && is_array($data['datacl'])) {
             $data['datacl'] = Acl::toDb($data['datacl'], self::ACL);
         }
