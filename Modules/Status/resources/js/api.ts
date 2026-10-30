@@ -231,3 +231,74 @@ export function logPage(name: string, position: LogPosition, plain: boolean): Pr
 
 /** The whole file, as an attachment. */
 export const logDownloadUrl = (name: string) => `/api/server/logs/${encodeURIComponent(name)}/download`
+
+/** A statement of pg_stat_statements; times in milliseconds. */
+export interface Statement {
+  queryid: string | null
+  datname: string | null
+  rolname: string | null
+  query: string
+  calls: number
+  total_exec_time: number
+  mean_exec_time: number
+  rows: number
+  shared_blks_hit: number
+  shared_blks_read: number
+}
+
+export type StatementSort = 'calls' | 'total_exec_time' | 'mean_exec_time' | 'rows' | 'shared_blks_hit' | 'shared_blks_read'
+
+/** Query statistics: pg_stat_statements in a database, or why there are none. */
+export interface QueryStatistics {
+  /** The database read, the maintenance one when none was asked for. */
+  database: string
+  /** No database was asked for: the statements of every database. */
+  all: boolean
+  installed: boolean
+  /** The extension's files are on the server (pg_available_extensions). */
+  available: boolean
+  /** pg_stat_statements is in shared_preload_libraries. */
+  loaded: boolean
+  version: string | null
+  /** The schema the extension is installed in. */
+  schema: string | null
+  sort: StatementSort
+  order: 'asc' | 'desc'
+  /** The server's refusal to read the view. */
+  error?: string
+  limit?: number
+  totals?: { statements: number; calls: number; total_exec_time: number; rows: number; stats_reset: number | null; start_time: number; now: number }
+  statements?: Statement[]
+}
+
+export function queryStatistics(filter: { database?: string; sort: StatementSort; order: 'asc' | 'desc' }): Promise<QueryStatistics> {
+  const query = new URLSearchParams({ sort: filter.sort, order: filter.order })
+  if (filter.database) query.set('database', filter.database)
+
+  return api.get<QueryStatistics>(`/api/server/status/queries?${query}`)
+}
+
+/** pg_stat_statements_reset() in the database the extension is in. */
+export function resetQueryStatistics(database?: string): Promise<{ sql: string }> {
+  return api.post<{ sql: string }>('/api/server/status/queries/reset', { database: database ?? '' })
+}
+
+/** A cumulative counter, as text: a number, a timestamp or null. */
+export interface Counter {
+  name: string
+  value: string | null
+  numeric: boolean
+}
+
+export interface CounterGroup {
+  id: 'database' | 'bgwriter' | 'checkpointer'
+  view: string
+  rows: Counter[]
+}
+
+export function counters(database?: string): Promise<{ groups: CounterGroup[] }> {
+  const query = new URLSearchParams()
+  if (database) query.set('database', database)
+
+  return api.get<{ groups: CounterGroup[] }>(`/api/server/status/counters?${query}`)
+}

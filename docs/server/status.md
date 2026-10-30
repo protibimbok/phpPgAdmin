@@ -2,7 +2,8 @@
 
 The **Status** tab at server level (`/server/status`) shows what the server is doing, from
 PostgreSQL's own statistics views. A row of pills switches between its pages: **Server**,
-**Processes**, **Locks**, **Prepared transactions**, **Monitor** and **Logs**. The pages follow
+**Processes**, **Query statistics**, **Counters**, **Locks**, **Prepared transactions**, **Monitor**
+and **Logs**. The pages follow
 phpMyAdmin's Status pages; the data and actions are pgAdmin's dashboard. **Logs** has a page of its
 own: [Server logs](/server/logs).
 
@@ -102,6 +103,69 @@ sessions. Those rows have no user, database or backend type, so they drop out of
 appear only with **Show background processes**, as *&lt;insufficient privilege&gt;*.
 :::
 
+## Query statistics
+
+**Query statistics** (`/server/status/queries`) is phpMyAdmin's page of the same name for
+PostgreSQL: the statements counted by the
+[`pg_stat_statements`](https://www.postgresql.org/docs/current/pgstatstatements.html) extension.
+
+- The heading counts the statement calls since the statistics were last reset
+  (`pg_stat_statements_info.stats_reset`), followed by their average **per hour**, **per minute**
+  and, from one a second, **per second**.
+- The table lists the top 100 statements by the sorted column, total time by default: **Statement**
+  (normalized, with `$1` for constants; cut at 100 characters until the full-text icon is clicked),
+  **Database** (when every database is shown), **User**, **Calls**, **Total time (ms)**, **Mean time
+  (ms)**, **Rows**, **Shared blocks hit**, **Shared blocks read**, and **%**, the statement's share of
+  the total execution time. Click a numeric column heading to sort by it; click again for ascending
+  order. With more statements a line says how many are listed.
+- The database select reads the view in that database and keeps only its statements. **(every
+  database, read in the maintenance database)** reads it in the maintenance database, which shows the
+  statements of every database.
+- **Reset** asks, then runs `SELECT public.pg_stat_statements_reset();` (with the extension's schema):
+  every statement's counters start again. It needs a superuser or a role granted `EXECUTE` on the
+  function.
+
+The extension must be installed in the database that is read, and its library loaded at server
+start. Otherwise the page says which step is missing instead of the table:
+
+| The page says | Do |
+|---|---|
+| the extension *is not installed in the database* | Create **pg_stat_statements** on the database's [Objects](/database/objects) page (the link opens its Extensions list), or run `CREATE EXTENSION pg_stat_statements;` there. To see every database's statements, create it in the maintenance database (`postgres`). |
+| *its library is not loaded* | Add `pg_stat_statements` to `shared_preload_libraries` ([Variables](/server/variables), linked from the note) and restart the server. phpPgAdmin cannot restart it. |
+| *not available on this server* | Install PostgreSQL's contrib modules (the `postgresql-contrib` package on most systems). |
+
+## Counters
+
+**Counters** (`/server/status/counters`) is phpMyAdmin's **All status variables** for PostgreSQL's
+cumulative statistics, one row per counter with its **Variable**, **Value** and **Description**:
+
+- `pg_stat_database`, summed over every database, or for the database chosen in the database select:
+  connections, transactions committed and rolled back, blocks read and hit, rows returned, fetched,
+  inserted, updated and deleted, recovery conflicts, temporary files and bytes, deadlocks, checksum
+  failures, I/O times, session times and counts (PostgreSQL 14 and later), parallel workers
+  (PostgreSQL 18), and when the counters were reset;
+- `pg_stat_bgwriter`, the background writer's counters (before PostgreSQL 17 it holds the checkpoint
+  counters too);
+- `pg_stat_checkpointer`, from PostgreSQL 17, the checkpoints and restartpoints.
+
+The **Filters** card, as phpMyAdmin's:
+
+| Control | What it does |
+|---|---|
+| **Containing the word:** | Keeps the counters whose name contains the text (a space matches `_`). |
+| **Show only alert values** | Keeps the counters shown in red. |
+| **Filter by category…** | One view: Databases, Background writer or Checkpointer. |
+| database select | `pg_stat_database` of that database instead of the sum. |
+| **Show unformatted values** | Shows the raw numbers. Formatted, numbers of 1000 and more are shortened (`1.5 M`), with the exact number on hover. |
+| **Refresh** | Reads the counters again. |
+
+Some counters are coloured as phpMyAdmin colours its alert values: red when the value is a warning
+sign, green when it is fine. Red means deadlocks, recovery conflicts, checksum failures, abandoned or
+fatal sessions, a buffer cache hit ratio under 90 % (on **blks read**), a background writer that hit
+`bgwriter_lru_maxpages` (**maxwritten clean**) or backends doing their own fsync, and more requested
+than scheduled checkpoints (often a sign that `max_wal_size` is too small). The help icon of a row
+opens the view's documentation.
+
 ## Locks
 
 **Locks** (`/server/status/locks`) lists `pg_locks`, pgAdmin's Locks panel.
@@ -177,3 +241,4 @@ The charts sample only while the page is open; nothing is recorded in the backgr
 - [Variables](/server/variables) for `max_connections`, `max_prepared_transactions` and the
   statistics settings (`track_activities`, `track_counts`).
 - [Databases](/server/databases#statistics): the same `pg_stat_database` counters per database.
+- [Objects](/database/objects) to create the `pg_stat_statements` extension.

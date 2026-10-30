@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PhpPgAdmin\Core\Facades\Route;
 use PhpPgAdmin\Modules\Auth\Http\Middleware\Authenticate;
 use PhpPgAdmin\Modules\Status\Http\Controllers\LogsController;
+use PhpPgAdmin\Modules\Status\Http\Controllers\StatisticsController;
 use PhpPgAdmin\Modules\Status\Http\Controllers\StatusController;
 use PhpPgAdmin\Modules\Status\Http\Controllers\VariablesController;
 
@@ -18,6 +19,12 @@ Route::middleware(Authenticate::class)->controller(StatusController::class)->gro
     Route::get('/server/status/prepared', 'prepared')->setName('status.prepared');
     Route::post('/server/status/prepared/commit', 'commitPrepared')->setName('status.prepared.commit');
     Route::post('/server/status/prepared/rollback', 'rollbackPrepared')->setName('status.prepared.rollback');
+});
+
+Route::middleware(Authenticate::class)->controller(StatisticsController::class)->group(function (): void {
+    Route::get('/server/status/queries', 'queries')->setName('status.queries');
+    Route::post('/server/status/queries/reset', 'resetQueries')->setName('status.queries.reset');
+    Route::get('/server/status/counters', 'counters')->setName('status.counters');
 });
 
 Route::middleware(Authenticate::class)->controller(VariablesController::class)->group(function (): void {

@@ -8,6 +8,8 @@ import { REFRESH_RATES } from './api'
 const PAGES = [
   { key: 'server', path: '/server/status' },
   { key: 'processes', path: '/server/status/processes' },
+  { key: 'queries', path: '/server/status/queries' },
+  { key: 'counters', path: '/server/status/counters' },
   { key: 'locks', path: '/server/status/locks' },
   { key: 'prepared', path: '/server/status/prepared' },
   { key: 'monitor', path: '/server/status/monitor' },

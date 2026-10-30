@@ -1,9 +1,11 @@
 import { insertAfter, insertBefore, registerModule } from '@/modular'
+import Counters from './Pages/Counters'
 import Locks from './Pages/Locks'
 import Logs from './Pages/Logs'
 import Monitor from './Pages/Monitor'
 import Prepared from './Pages/Prepared'
 import Processes from './Pages/Processes'
+import Queries from './Pages/Queries'
 import ServerStatus from './Pages/ServerStatus'
 import Variables from './Pages/Variables'
 
@@ -24,6 +26,8 @@ registerModule({
   routes: [
     { path: 'server/status', element: <ServerStatus /> },
     { path: 'server/status/processes', element: <Processes /> },
+    { path: 'server/status/queries', element: <Queries /> },
+    { path: 'server/status/counters', element: <Counters /> },
     { path: 'server/status/locks', element: <Locks /> },
     { path: 'server/status/prepared', element: <Prepared /> },
     { path: 'server/status/monitor', element: <Monitor /> },
