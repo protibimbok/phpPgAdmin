@@ -133,7 +133,18 @@ export interface Column {
   is_sys_column: boolean
   inheritedfrom: string | null
   attstorage: string
+  /** The type's own storage (typstorage), which a column has unless SET STORAGE changed it. */
+  defaultstorage: string
   attcompression: string | null
+  /** The statistics target; -1 (null from PostgreSQL 17) for the default. */
+  attstattarget: number | null
+  /** The identity sequence's options, for an identity column. */
+  seqstart?: number | null
+  seqincrement?: number | null
+  seqmin?: number | null
+  seqmax?: number | null
+  seqcache?: number | null
+  seqcycle?: boolean | null
   /** The primary key's column numbers, as "1 2", when the table has one. */
   indkey: string | null
 }
@@ -258,6 +269,19 @@ export interface ColumnData {
   /** 'a' ALWAYS, 'd' BY DEFAULT, for an identity column. */
   attidentity?: 'a' | 'd' | ''
   genexpr?: string
+  /** Identity sequence options. */
+  seqstart?: string
+  seqincrement?: string
+  seqmin?: string
+  seqmax?: string
+  seqcache?: string
+  seqcycle?: boolean
+  /** 'p' PLAIN, 'm' MAIN, 'e' EXTERNAL, 'x' EXTENDED. */
+  attstorage?: string
+  /** 'pglz', 'lz4', or 'default' to reset it (PostgreSQL 14+). */
+  attcompression?: string
+  /** SET STATISTICS; -1 for the default. */
+  attstattarget?: number
   /** USING expression for a type change (ALTER COLUMN … TYPE … USING). */
   using?: string
 }

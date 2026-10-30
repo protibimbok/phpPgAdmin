@@ -8,7 +8,7 @@ import { treeState } from '@/layout/tree/treeState'
 import { notify, notifyError, notifySuccess } from '@/notify'
 import { urls } from '@/level'
 import { columns as columnsOf, createTable, resolveSchema, resolveTable, tableModifiedSql, tableOptions, tables, updateTable, type ColumnData, type NewTable, type TableChanges, type TableOptions } from '../api'
-import { DEFAULT_TYPES, emptyDefinition, fromColumn, fromTypeColumn, hasTypeOptions, indexesOf, takesLength, toColumnChanges, toColumnData, typeChanged, typeGroups, type ColumnDefinition } from '../columns/definitions'
+import { DEFAULT_TYPES, SEQUENCE_FIELDS, STORAGE_KINDS, emptyDefinition, fromColumn, fromTypeColumn, hasTypeOptions, indexesOf, takesLength, toColumnChanges, toColumnData, typeChanged, typeGroups, type ColumnDefinition } from '../columns/definitions'
 
 type Mode = 'create' | 'add' | 'change'
 
@@ -271,6 +271,13 @@ export default function ColumnDefinitions({ mode }: { mode: Mode }) {
                 <abbr title={t('definitions.identity_hint')}>A_I</abbr>
               </th>
               <th>{t('definitions.comments')}</th>
+              {/* Where phpMyAdmin has Virtuality: GENERATED … STORED, then PostgreSQL's per-column storage options. */}
+              <th>{t('definitions.virtuality')}</th>
+              <th>{t('definitions.storage')}</th>
+              {options.version >= 140000 && <th>{t('definitions.compression')}</th>}
+              <th>
+                {t('definitions.statistics')} <abbr title={t('definitions.statistics_hint')}>?</abbr>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -561,10 +568,66 @@ function ColumnRow({ index, row, groups, options, onChange }: { index: number; r
         </select>
       </td>
       <td className="text-center">
-        <input name={`field_extra[${index}]`} id={id(9)} type="checkbox" value="IDENTITY" checked={row.identity} onChange={(e) => onChange({ identity: e.target.checked })} />
+        <input name={`field_extra[${index}]`} id={id(9)} type="checkbox" value="IDENTITY" checked={row.identity} onChange={(e) => onChange(e.target.checked ? { identity: true, virtuality: '' } : { identity: false })} />
+        {row.identity && (
+          // GENERATED ALWAYS / BY DEFAULT AS IDENTITY and the sequence's options (pgAdmin's column.ui.js).
+          <div className="identity_options text-start mt-1">
+            <select name={`field_identity[${index}]`} className="d-block" value={row.identityKind} onChange={(e) => onChange({ identityKind: e.target.value as ColumnDefinition['identityKind'] })} aria-label={t('definitions.identity')}>
+              <option value="d">BY DEFAULT</option>
+              <option value="a">ALWAYS</option>
+            </select>
+            {SEQUENCE_FIELDS.map(({ key }) => (
+              <input
+                key={key}
+                type="number"
+                name={`field_seq${key}[${index}]`}
+                className="textfield d-block mt-1"
+                size={8}
+                placeholder={t(`definitions.sequence.${key}`)}
+                title={t(`definitions.sequence.${key}`)}
+                value={row.sequence[key]}
+                onChange={(e) => onChange({ sequence: { ...row.sequence, [key]: e.target.value } })}
+              />
+            ))}
+            <input type="checkbox" id={`field_seqcycle_${index}`} checked={row.sequence.cycle} onChange={(e) => onChange({ sequence: { ...row.sequence, cycle: e.target.checked } })} />{' '}
+            <label htmlFor={`field_seqcycle_${index}`}>{t('definitions.sequence.cycle')}</label>
+          </div>
+        )}
       </td>
       <td className="text-center">
         <textarea id={id(10)} rows={1} name={`field_comments[${index}]`} value={row.comment} onChange={(e) => onChange({ comment: e.target.value })} />
+      </td>
+      <td className="text-center">
+        {/* phpMyAdmin's column virtuality: the kind, then the expression. */}
+        <select name={`field_virtuality[${index}]`} id={id(11)} className="virtuality" value={row.virtuality} onChange={(e) => onChange(e.target.value === 'STORED' ? { virtuality: 'STORED', identity: false } : { virtuality: '' })}>
+          <option value="" />
+          <option value="STORED">STORED</option>
+        </select>
+        {row.virtuality === 'STORED' && (
+          <input type="text" name={`field_expression[${index}]`} size={12} value={row.expression} placeholder={t('definitions.expression')} className="textfield expression d-block mt-1" onChange={(e) => onChange({ expression: e.target.value })} />
+        )}
+      </td>
+      <td className="text-center">
+        <select name={`field_storage[${index}]`} id={id(12)} value={row.storage} onChange={(e) => onChange({ storage: e.target.value as ColumnDefinition['storage'] })} aria-label={t('definitions.storage')}>
+          <option value="" />
+          {STORAGE_KINDS.map((kind) => (
+            <option key={kind.value} value={kind.value}>
+              {kind.label}
+            </option>
+          ))}
+        </select>
+      </td>
+      {options.version >= 140000 && (
+        <td className="text-center">
+          <select name={`field_compression[${index}]`} id={id(13)} value={row.compression} onChange={(e) => onChange({ compression: e.target.value as ColumnDefinition['compression'] })} aria-label={t('definitions.compression')}>
+            <option value="" />
+            <option value="pglz">pglz</option>
+            <option value="lz4">lz4</option>
+          </select>
+        </td>
+      )}
+      <td className="text-center">
+        <input type="number" name={`field_statistics[${index}]`} id={id(14)} min={-1} max={10000} size={5} className="textfield" value={row.statistics} onChange={(e) => onChange({ statistics: e.target.value })} aria-label={t('definitions.statistics')} />
       </td>
     </tr>
   )

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace PhpPgAdmin\Modules\Tables\Ddl;
 
+use League\Route\Http\Exception\BadRequestException;
 use League\Route\Http\Exception\GoneException;
+use PhpPgAdmin\Core\Database\Quoting;
 use PhpPgAdmin\Core\Nodes\Acl;
 use PhpPgAdmin\Core\Nodes\NodeContext;
 
@@ -15,11 +17,19 @@ use PhpPgAdmin\Core\Nodes\NodeContext;
  * A column from the client carries pgAdmin's field names: name, cltype (the type as the type
  * list names it, "character varying", with "[]" for an array), attlen, attprecision,
  * attnotnull, defval (an expression, as written in SQL), collspcname, description,
- * colconstype ('n', 'i' identity or 'g' generated), attidentity ('a' or 'd'), genexpr,
- * attacl, attoptions, attstattarget, attstorage.
+ * colconstype ('n', 'i' identity or 'g' generated), attidentity ('a' or 'd'), genexpr, the
+ * identity sequence's seqstart, seqincrement, seqmin, seqmax, seqcache and seqcycle,
+ * attacl, attoptions, attstattarget, attstorage ('p', 'm', 'e', 'x'), attcompression.
  */
 final class ColumnSql
 {
+    /** The values the templates write into the statement as they are. */
+    private const array STORAGE = ['p', 'm', 'e', 'x', 'd'];
+
+    private const array COMPRESSION = ['pglz', 'lz4', 'default'];
+
+    private const array IDENTITY = ['', 'a', 'd'];
+
     /** ALTER TABLE … ADD COLUMN and what follows it (comment, options, privileges). */
     public static function createSql(NodeContext $ctx, string $schema, string $table, array $column): string
     {
@@ -48,7 +58,67 @@ final class ColumnSql
         self::normaliseSerial($column, $old);
         self::dropCollationForType($ctx, $column, $old);
 
-        return $ctx->renderFrom('columns', 'update.sql', ['data' => $column, 'o_data' => $old]);
+        return $ctx->renderFrom('columns', 'update.sql', ['data' => $column, 'o_data' => $old]) . self::generatedSql($ctx, $column, $old);
+    }
+
+    /**
+     * What pgAdmin's update.sql leaves out for a generated column: DROP EXPRESSION when it
+     * stops being one, SET EXPRESSION (PostgreSQL 17+) when its expression changes. PostgreSQL
+     * cannot make an existing column generated.
+     *
+     * @param array<string, mixed> $column
+     * @param array<string, mixed> $old
+     */
+    private static function generatedSql(NodeContext $ctx, array $column, array $old): string
+    {
+        if (!isset($column['colconstype'])) {
+            return '';
+        }
+        $was = ($old['colconstype'] ?? 'n') === 'g';
+        $becomes = $column['colconstype'] === 'g';
+        $target = sprintf("ALTER TABLE IF EXISTS %s\n    ALTER COLUMN %s", Quoting::ident($column['schema'], $column['table']), Quoting::ident((string) (($column['name'] ?? '') !== '' ? $column['name'] : $old['name'])));
+
+        if ($was && !$becomes) {
+            return "\n" . $target . " DROP EXPRESSION;\n";
+        }
+        if (!$was && $becomes) {
+            throw new BadRequestException('PostgreSQL cannot make an existing column generated; add a new column instead.');
+        }
+        $expression = trim((string) ($column['genexpr'] ?? ''));
+        if (!$becomes || $expression === '' || $expression === trim((string) ($old['genexpr'] ?? ''))) {
+            return '';
+        }
+        if ($ctx->version() < 170000) {
+            throw new BadRequestException('Changing a generated column\'s expression needs PostgreSQL 17 or later; drop the column and add it again.');
+        }
+
+        return "\n" . $target . ' SET EXPRESSION AS (' . $expression . ");\n";
+    }
+
+    /**
+     * The values the templates write unquoted, checked: storage and compression keywords, the
+     * identity kind, and the statistics target as an integer.
+     *
+     * @param array<string, mixed> $column
+     */
+    private static function checkOptions(array &$column): void
+    {
+        foreach (['attstorage' => self::STORAGE, 'attcompression' => self::COMPRESSION, 'attidentity' => self::IDENTITY] as $key => $allowed) {
+            if (isset($column[$key]) && $column[$key] !== '' && !in_array($column[$key], $allowed, true)) {
+                throw new BadRequestException(sprintf('Invalid value for %s.', $key));
+            }
+        }
+        if (isset($column['attstattarget']) && $column['attstattarget'] !== '') {
+            if (!is_numeric($column['attstattarget'])) {
+                throw new BadRequestException('The statistics target must be a number.');
+            }
+            $column['attstattarget'] = (int) $column['attstattarget'];
+        }
+        foreach (['seqstart', 'seqincrement', 'seqmin', 'seqmax', 'seqcache'] as $key) {
+            if (isset($column[$key]) && $column[$key] !== '' && !is_numeric($column[$key])) {
+                throw new BadRequestException(sprintf('Invalid value for %s.', $key));
+            }
+        }
     }
 
     /** ALTER TABLE … DROP COLUMN. */
@@ -92,6 +162,7 @@ final class ColumnSql
             [$column['cltype'], $column['hasSqrBracket']] = ColumnTypes::split((string) $column['cltype']);
         }
         ColumnTypes::normaliseLengths($column);
+        self::checkOptions($column);
 
         if (isset($column['attacl']) && is_array($column['attacl'])) {
             if (array_is_list($column['attacl'])) {
