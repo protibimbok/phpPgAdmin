@@ -30,7 +30,7 @@ These options are not in the forms; use the SQL tab for them:
 ### Export, import and tools
 
 - **Export:** a schema or database CSV export puts every table in one file; the directory format downloads as a tar file to extract before `pg_restore` ([Export](/tools/export)).
-- **Import:** restricted mode rejects backslash commands, so a `pg_dumpall` file (which uses `\connect`) cannot be imported. CSV import is only available for a single table; there is no new-table-from-CSV at database or schema level. ODS and the other phpMyAdmin formats are not offered ([Import](/tools/import#restricted-mode)).
+- **Import:** restricted mode rejects backslash commands, so a `pg_dumpall` file (which uses `\connect`) cannot be imported. COPY text, binary and XML imports are only available for a single table; CSV at database or schema level creates a new table. ODS and the other phpMyAdmin formats are not offered ([Import](/tools/import#restricted-mode)).
 - **Debugger:** only direct debugging, on a call you start, is available. There is no in-context debugging, no global breakpoints, and trigger functions cannot be debugged ([Debugger](/tools/debugger#what-is-not-built)).
 - **Designer:** **Reload** does not add tables created after the layout was saved ([Designer](/database/designer)).
 - **Schema diff:** both schemas must be on the server you are signed in to. Database-level objects, roles, tablespaces and data are not compared ([Schema diff](/database/schema-diff#what-is-compared)).

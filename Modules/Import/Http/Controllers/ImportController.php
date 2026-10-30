@@ -13,6 +13,7 @@ use PhpPgAdmin\Core\Http\ApiException;
 use PhpPgAdmin\Core\Process\BackgroundProcess;
 use PhpPgAdmin\Modules\Export\Dump\ClientTools;
 use PhpPgAdmin\Modules\Import\Restore\CopyCommand;
+use PhpPgAdmin\Modules\Import\Restore\CsvNewTable;
 use PhpPgAdmin\Modules\Import\Restore\FileFormat;
 use PhpPgAdmin\Modules\Import\Restore\ImportRequest;
 use PhpPgAdmin\Modules\Import\Restore\RestoreCommand;
@@ -65,6 +66,12 @@ final class ImportController
                 'statistics' => $tools->version >= 180000,
                 'table_access_method' => $tools->version >= 150000,
             ],
+            // A CSV file at a database's or schema's scope makes a new table: what COPY takes, and the schemas.
+            'new_table' => $database === null || $table !== null ? null : [
+                'schemas' => $schema === null ? array_column($conn->rows("SELECT nspname FROM pg_namespace WHERE nspname NOT LIKE 'pg\\_%' AND nspname <> 'information_schema' ORDER BY 1"), 'nspname') : [$schema],
+                'on_error' => $version >= 170000,
+                'default' => $version >= 160000,
+            ],
             // What COPY on the server takes, and the table it loads.
             'table' => $relation === null ? null : [
                 'columns' => array_column(array_filter($relation['columns'], static fn (array $c): bool => !$c['generated']), 'name'),
@@ -106,8 +113,12 @@ final class ImportController
             $this->checkSchema($conn, $import->schema);
         }
         $relation = $import->table === null ? null : $this->relation($conn, (string) $import->schema, $import->table);
+        if ($import->newTableSchema !== null) {
+            $this->checkSchema($conn, $import->newTableSchema);
+        }
 
         $process = BackgroundProcess::prepare();
+        $tableName = $import->table;
         try {
             [$path, $name, $temporary] = $this->input($process, $files['import_file'] ?? null, $import->localFile);
             $format = FileFormat::of($path) ?? throw new ApiException(422, 'The file to import cannot be read.');
@@ -124,7 +135,13 @@ final class ImportController
                 [$path, $temporary, $copy] = [$converted, true, $copy->withColumns($columns)];
             }
 
-            if ($copy !== null && $relation !== null) {
+            if ($copy !== null && $relation === null && $import->newTableSchema !== null) {
+                $tableName = $this->newTableName($conn, $import->newTableSchema, $import->newTable, $name);
+                $plan = CsvNewTable::read($path, $format->gzip, $copy, $import->newTableSchema, $tableName, $import->guessTypes, $import->charset);
+                $command = new CopyCommand($import, $copy, $tools, $import->newTableSchema, $tableName, $plan->relationColumns(), [], $conn->version(), $plan->createSql());
+                $arguments = $command->arguments();
+                $input = $path;
+            } elseif ($copy !== null && $relation !== null) {
                 $command = new CopyCommand($import, $copy, $tools, (string) $import->schema, (string) $import->table, $relation['columns'], $relation['primary_key'], $conn->version());
                 $arguments = $command->arguments();
                 $input = $path;
@@ -260,6 +277,32 @@ final class ImportController
                 [$relation['oid']],
             ), 'attname'),
         ];
+    }
+
+    /**
+     * The new table's name: the one asked for, which must be free, or phpMyAdmin's default,
+     * the file's name, made free with a number.
+     */
+    private function newTableName(Connection $conn, string $schema, ?string $asked, string $fileName): string
+    {
+        $exists = static fn (string $name): bool => $conn->scalar('SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2', [$schema, $name]) !== null;
+        if ($asked !== null) {
+            if (mb_strlen($asked) > 63) {
+                throw new ApiException(422, 'A table name is at most 63 characters long.');
+            }
+            if ($exists($asked)) {
+                throw new ApiException(422, sprintf('The schema "%s" already has a relation "%s": choose another name for the new table.', $schema, $asked));
+            }
+
+            return $asked;
+        }
+        $base = mb_substr(preg_replace('/(\.(csv|txt))?(\.gz)?$/i', '', $fileName) ?: 'import', 0, 55);
+        $name = $base;
+        for ($n = 1; $exists($name); $n++) {
+            $name = $base . '_' . $n;
+        }
+
+        return $name;
     }
 
     private function checkSchema(Connection $conn, string $schema): void

@@ -43,22 +43,22 @@ const COPY_FORMATS: CopyFormat[] = ['csv', 'text', 'binary', 'xml']
 
 /** Each COPY format's options as the page starts, phpMyAdmin's CSV defaults and COPY's own. */
 const COPY_DEFAULTS: Record<CopyFormat, CopySettings> = {
-  csv: { replace: false, terminated: ',', enclosed: '"', escaped: '"', new_line: 'auto', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '' },
-  text: { replace: false, terminated: '\\t', enclosed: '', escaped: '', new_line: 'auto', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '\\N', default: '' },
-  binary: { replace: false, terminated: '', enclosed: '', escaped: '', new_line: '', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '' },
-  xml: { replace: false, terminated: '', enclosed: '', escaped: '', new_line: '', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '' },
+  csv: { replace: false, terminated: ',', enclosed: '"', escaped: '"', new_line: 'auto', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '', new_tbl_name: '', new_tbl_schema: '', guess_types: true },
+  text: { replace: false, terminated: '\\t', enclosed: '', escaped: '', new_line: 'auto', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '\\N', default: '', new_tbl_name: '', new_tbl_schema: '', guess_types: false },
+  binary: { replace: false, terminated: '', enclosed: '', escaped: '', new_line: '', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '', new_tbl_name: '', new_tbl_schema: '', guess_types: false },
+  xml: { replace: false, terminated: '', enclosed: '', escaped: '', new_line: '', partial_import: '', columns: '', ignore: false, col_names: false, header_match: false, null: '', default: '', new_tbl_name: '', new_tbl_schema: '', guess_types: false },
 }
 
 type Flag = { [K in keyof ImportSettings]: ImportSettings[K] extends boolean ? K : never }[keyof ImportSettings]
 
 const isCopy = (format: ImportSettings['format']): format is CopyFormat => (COPY_FORMATS as string[]).includes(format)
 
-/** The format a file's name suggests, as phpMyAdmin picks the plugin matching the extension; a table's rows only on a table. */
+/** The format a file's name suggests, as phpMyAdmin picks the plugin matching the extension; a table's rows only on a table, CSV (a new table) on a database or schema too. */
 function formatOf(name: string, scope: ImportScope): ImportSettings['format'] | null {
   const base = name.toLowerCase().replace(/\.gz$/, '')
   if (/\.(sql|psql|pgsql)$/.test(base)) return 'sql'
   if (/\.(dump|backup|bak|custom|tar|pgdump)$/.test(base)) return 'archive'
-  if (scope === 'table' && /\.csv$/.test(base)) return 'csv'
+  if (scope !== 'server' && /\.csv$/.test(base)) return 'csv'
   if (scope === 'table' && /\.(tsv|copy)$/.test(base)) return 'text'
   if (scope === 'table' && /\.xml$/.test(base)) return 'xml'
   if (/\.txt$/.test(base)) return scope === 'table' ? 'text' : 'sql'
@@ -135,6 +135,8 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
           ? t('tools.no_restrict', { version: tools.version })
           : null
   const local = options.upload_dir !== null && (source === 'local' || options.upload_dir.files === null)
+  // A CSV file at a database's scope goes into public, or the first schema, unless another is chosen.
+  const defaultSchema = options.new_table ? (options.new_table.schemas.includes('public') ? 'public' : (options.new_table.schemas[0] ?? '')) : ''
 
   function choose(chosen: File | null) {
     setFile(chosen)
@@ -158,7 +160,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
   /** The request: the target, the format and its options, and the file of the upload directory. */
   function request(): Record<string, unknown> {
     const { local_file, jobs, ...rest } = settings
-    const copyFields = copyFormat ? Object.fromEntries(Object.entries(copy[copyFormat]).map(([key, value]) => [`${copyFormat}_${key}`, value])) : {}
+    const copyFields = copyFormat ? Object.fromEntries(Object.entries({ ...copy[copyFormat], ...(copyFormat === 'csv' && options.new_table && copy.csv.new_tbl_schema === '' ? { new_tbl_schema: defaultSchema } : {}) }).map(([key, value]) => [`${copyFormat}_${key}`, value])) : {}
 
     return { ...target, ...rest, ...copyFields, jobs: Number(jobs) || 1, local_file: local ? local_file : '' }
   }
@@ -358,7 +360,7 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
             <div className="card-header">{t('format.title')}</div>
             <div className="card-body">
               <select className="form-select" id="plugins" name="format" aria-label={t('format.aria')} value={settings.format} onChange={(e) => set('format', e.target.value as ImportSettings['format'])}>
-                {scope === 'table' && <option value="csv">{t('format.csv')}</option>}
+                {(scope === 'table' || options.new_table) && <option value="csv">{t('format.csv')}</option>}
                 {scope === 'table' && <option value="binary">{t('format.binary')}</option>}
                 {scope === 'table' && <option value="text">{t('format.text')}</option>}
                 {scope === 'table' && <option value="xml">{t('format.xml')}</option>}
@@ -373,6 +375,15 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
             <div className="card-header">{t('options.title')}</div>
             <div className="card-body">
               {copyFormat && options.table && <CopyOptionsList format={copyFormat} settings={copy[copyFormat]} table={options.table} onChange={(next) => setCopy((current) => ({ ...current, [copyFormat]: next }))} />}
+              {copyFormat === 'csv' && !options.table && options.new_table && (
+                <CopyOptionsList
+                  format="csv"
+                  settings={{ ...copy.csv, new_tbl_schema: copy.csv.new_tbl_schema || defaultSchema }}
+                  table={{ columns: [], primary_key: [], on_error: options.new_table.on_error, default: options.new_table.default, header_match: false, text_header: true }}
+                  newTable={{ schemas: scope === 'database' ? options.new_table.schemas : [] }}
+                  onChange={(next) => setCopy((current) => ({ ...current, csv: next }))}
+                />
+              )}
               {settings.format === 'sql' && (
                 <div id="sql_options" className="format_specific_options">
                   <div id="sql_general_opts">
@@ -486,9 +497,12 @@ function ImportForm({ scope, target, options }: { scope: ImportScope; target: Im
 /**
  * The options of a table's rows in CSV or COPY's text or binary format, in the order of
  * phpMyAdmin's CSV options (#csv_options), followed by the COPY options phpMyAdmin has no
- * counterpart for: a header line, and the NULL and DEFAULT strings.
+ * counterpart for: a header line, and the NULL and DEFAULT strings. With newTable (a CSV file
+ * at a database's or schema's scope) the file makes a new table: phpMyAdmin's "Name of the new
+ * table", the schema at a database's scope, and whether the column types are guessed take the
+ * place of the duplicate-key and column-list options.
  */
-function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFormat; settings: CopySettings; table: NonNullable<ImportOptions['table']>; onChange: (next: CopySettings) => void }) {
+function CopyOptionsList({ format, settings, table, newTable, onChange }: { format: CopyFormat; settings: CopySettings; table: NonNullable<ImportOptions['table']>; newTable?: { schemas: string[] }; onChange: (next: CopySettings) => void }) {
   const { t } = useTranslation('import')
   const set = <K extends keyof CopySettings>(key: K, value: CopySettings[K]) => onChange({ ...settings, [key]: value })
   const label = (key: string) => <Trans t={t} i18nKey={key} components={{ code: <code />, i: <i /> }} />
@@ -497,7 +511,7 @@ function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFo
   // An XML file names its columns and spells NULL itself; only what to do with the rows is asked.
   const xml = format === 'xml'
 
-  const toggle = (key: 'replace' | 'ignore' | 'col_names' | 'header_match', text: ReactNode, children?: ReactNode) => (
+  const toggle = (key: 'replace' | 'ignore' | 'col_names' | 'header_match' | 'guess_types', text: ReactNode, children?: ReactNode) => (
     <li className="list-group-item">
       <div className="form-check form-switch">
         <input className="form-check-input" type="checkbox" role="switch" name={id(key)} id={`checkbox_${id(key)}`} checked={settings[key]} onChange={(e) => set(key, e.target.checked)} />
@@ -508,7 +522,7 @@ function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFo
       {children}
     </li>
   )
-  const text = (key: 'terminated' | 'enclosed' | 'escaped' | 'new_line' | 'columns' | 'null' | 'default', caption: ReactNode, props: { size?: number; maxLength?: number; help?: ReactNode } = {}) => (
+  const text = (key: 'terminated' | 'enclosed' | 'escaped' | 'new_line' | 'columns' | 'null' | 'default' | 'new_tbl_name', caption: ReactNode, props: { size?: number; maxLength?: number; help?: ReactNode } = {}) => (
     <li className="list-group-item">
       <label htmlFor={`text_${id(key)}`} className="form-label">
         {caption}
@@ -522,18 +536,34 @@ function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFo
     <div id={`${format}_options`} className="format_specific_options">
       <div id={`${format}_general_opts`}>
         <ul className="list-group">
-          {toggle('replace', label('copy.replace'), settings.replace && table.primary_key.length === 0 && <div className="form-text text-danger">{t('copy.no_primary_key')}</div>)}
+          {!newTable && toggle('replace', label('copy.replace'), settings.replace && table.primary_key.length === 0 && <div className="form-text text-danger">{t('copy.no_primary_key')}</div>)}
           {!binary && !xml && text('terminated', t('copy.terminated'), { size: 2 })}
           {format === 'csv' && text('enclosed', t('copy.enclosed'), { size: 2, maxLength: 2 })}
           {format === 'csv' && text('escaped', t('copy.escaped'), { size: 2, maxLength: 2 })}
           {!binary && !xml && text('new_line', t('copy.new_line'), { size: 2 })}
+          {newTable && text('new_tbl_name', t('copy.new_tbl_name'), { maxLength: 63, help: t('copy.new_tbl_name_help') })}
+          {newTable && newTable.schemas.length > 0 && (
+            <li className="list-group-item">
+              <label htmlFor={`select_${id('new_tbl_schema')}`} className="form-label">
+                {t('copy.new_tbl_schema')}
+              </label>
+              <select className="form-select" name={id('new_tbl_schema')} id={`select_${id('new_tbl_schema')}`} value={settings.new_tbl_schema} onChange={(e) => set('new_tbl_schema', e.target.value)}>
+                {newTable.schemas.map((schema) => (
+                  <option key={schema} value={schema}>
+                    {schema}
+                  </option>
+                ))}
+              </select>
+            </li>
+          )}
+          {newTable && toggle('guess_types', label('copy.guess_types'))}
           <li className="list-group-item">
             <label htmlFor={`number_${id('partial_import')}`} className="form-label">
               {t('copy.partial_import')}
             </label>
             <input className="form-control" type="number" name={id('partial_import')} id={`number_${id('partial_import')}`} min={0} value={settings.partial_import} onChange={(e) => set('partial_import', e.target.value)} />
           </li>
-          {!xml && text(
+          {!xml && !newTable && text(
             'columns',
             <>
               {t('copy.columns')} <Icon name="b_help" title={t('copy.columns_hint', { columns: table.columns.join(', ') })} />
@@ -543,7 +573,7 @@ function CopyOptionsList({ format, settings, table, onChange }: { format: CopyFo
           {!binary &&
             !xml &&
             (format === 'csv' || table.text_header) &&
-            toggle('col_names', label('copy.col_names'), settings.col_names && table.header_match && <ul className="list-group">{toggle('header_match', label('copy.header_match'))}</ul>)}
+            toggle('col_names', label('copy.col_names'), settings.col_names && table.header_match && !newTable && <ul className="list-group">{toggle('header_match', label('copy.header_match'))}</ul>)}
           {!binary && !xml && text('null', label('copy.null'), { help: t(`copy.null_help_${format}`) })}
           {!binary && !xml && table.default && text('default', label('copy.default'))}
         </ul>

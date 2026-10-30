@@ -25,6 +25,8 @@ export interface ImportOptions {
   tools: { directory: string; version: string; psql: boolean; pg_restore: boolean; restricts: boolean; policies: boolean; statistics: boolean; table_access_method: boolean } | null
   /** On a table: the columns COPY can fill, the primary key, and the COPY options the server has. */
   table: { columns: string[]; primary_key: string[]; on_error: boolean; default: boolean; header_match: boolean; text_header: boolean } | null
+  /** On a database or schema: a CSV file becomes a new table in one of these schemas; the COPY options the server has. */
+  new_table: { schemas: string[]; on_error: boolean; default: boolean } | null
 }
 
 /** One COPY format's options, sent as <format>_<field>. */
@@ -41,6 +43,10 @@ export interface CopySettings {
   header_match: boolean
   null: string
   default: string
+  /** A CSV file at a database's or schema's scope: the new table's name (empty: the file's), schema, and whether its column types are guessed. */
+  new_tbl_name: string
+  new_tbl_schema: string
+  guess_types: boolean
 }
 
 /** The Import form's options, as POST /api/import reads them. */

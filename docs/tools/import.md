@@ -188,7 +188,8 @@ again where no key stops them. With `--clean --if-exists` the objects are droppe
 ## Table rows: CSV, COPY text and COPY binary
 
 On a table the format list starts with **CSV**, **PostgreSQL COPY binary format**,
-**Tab-separated values (PostgreSQL COPY text format)** and **XML**. The rows are loaded by `psql` running `COPY … FROM STDIN`; the file is
+**Tab-separated values (PostgreSQL COPY text format)** and **XML**; a database or schema offers
+**CSV** too, which creates a new table ([below](#a-new-table-from-a-csv-file)). The rows are loaded by `psql` running `COPY … FROM STDIN`; the file is
 data, never a script, so nothing in it can run as a command.
 
 ![The CSV options of a table import](/media/tools/import-csv-options.png)
@@ -259,6 +260,33 @@ and usually fails on its first typed column. With **Check them against the colum
 names other columns stops the import: *column name mismatch in header line field 2: got "author",
 expected "author_id"*.
 :::
+
+### A new table from a CSV file
+
+On a database's or a schema's Import page the format list also has **CSV**, and a `.csv` file
+picks it. The file then becomes a new table, as in phpMyAdmin. Instead of the duplicate-key and
+column-list options there are:
+
+| Option | What it does |
+| --- | --- |
+| **Name of the new table (optional):** | The table's name. Left empty, the file's name (`books_new.csv` → `books_new`), with `_1`, `_2`… added if the schema has a relation of that name already. A name you type must be free. |
+| **Schema of the new table:** | On a database's page only: the schema it is created in, `public` to start with. |
+| **Guess the column types from the rows** | On by default: each column becomes `integer`, `bigint`, `numeric`, `boolean`, `date`, `timestamp` (with or without time zone) when every value of the first 1000 rows reads as one, else `text`. Off, every column is `text`. |
+
+The columns are named from the first line when **The first line of the file contains the table
+column names** is on (an empty name becomes `COL 1`, `COL 2`…, a repeated one gets `_2`), and
+`COL 1`, `COL 2`… otherwise. `CREATE TABLE` runs in the same transaction as the `COPY`, so a row
+`COPY` cannot read leaves no table behind:
+
+```sql
+BEGIN;
+CREATE TABLE landing.books_new (id integer, name text, price numeric, active boolean, born date, "note, long" text);
+COPY landing.books_new FROM STDIN WITH (FORMAT csv, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '', HEADER true, ENCODING 'UTF8');
+COMMIT;
+```
+
+The row limit and `ON_ERROR ignore` work as for a table. The table has no primary key; add one on
+its [Structure](/table/structure) tab.
 
 ### Binary
 

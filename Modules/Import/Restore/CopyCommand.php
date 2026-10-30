@@ -38,6 +38,8 @@ final readonly class CopyCommand
         private array $columns,
         private array $primaryKey,
         private int $serverVersion,
+        /** CREATE TABLE for a CSV file imported into a new table, run in the COPY's transaction. */
+        private ?string $create = null,
     ) {
     }
 
@@ -70,8 +72,9 @@ final readonly class CopyCommand
         $table = Quoting::ident($this->schema, $this->table);
         if (!$this->copy->staged()) {
             $list = $this->copy->columns === [] ? '' : ' (' . self::identList($this->copy->columns) . ')';
+            $copy = sprintf('COPY %s%s FROM STDIN WITH (%s)', $table, $list, implode(', ', $this->options()));
 
-            return [sprintf('COPY %s%s FROM STDIN WITH (%s)', $table, $list, implode(', ', $this->options()))];
+            return $this->create === null ? [$copy] : ['BEGIN', $this->create, $copy, 'COMMIT'];
         }
 
         $columns = $this->copy->columns !== [] ? $this->copy->columns : array_column(array_filter($this->columns, static fn (array $c): bool => !$c['generated']), 'name');
@@ -100,6 +103,7 @@ final readonly class CopyCommand
 
         return [
             'BEGIN',
+            ...($this->create === null ? [] : [$this->create]),
             sprintf('CREATE TEMPORARY TABLE %s ON COMMIT DROP AS SELECT %s FROM %s WITH NO DATA', self::STAGE, $list, $table),
             sprintf('ALTER TABLE %s ADD COLUMN %s bigint GENERATED ALWAYS AS IDENTITY', $stage, Quoting::ident($row)),
             sprintf('COPY %s (%s) FROM STDIN WITH (%s)', $stage, $list, implode(', ', $this->options())),

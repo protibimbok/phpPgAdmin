@@ -81,6 +81,14 @@ final readonly class ImportRequest
         public array $flags,
         /** The COPY options of a table's rows; null for SQL and archives. */
         public ?CopyImport $copy,
+        /**
+         * A CSV file imported at a database's or schema's scope goes into a new table: its
+         * schema, its name (null: after the file's name) and whether the column types are
+         * guessed from the rows (else text).
+         */
+        public ?string $newTableSchema = null,
+        public ?string $newTable = null,
+        public bool $guessTypes = true,
     ) {
     }
 
@@ -101,8 +109,16 @@ final readonly class ImportRequest
             throw new BadRequestException(sprintf('The format "%s" is not one the Import page offers.', $format));
         }
         $copy = in_array($format, CopyImport::FORMATS, true) ? CopyImport::fromArray($input, $format) : null;
+        $newTableSchema = null;
         if ($copy !== null && $table === null) {
-            throw new BadRequestException('Rows in CSV or COPY\'s formats are imported into a table.');
+            if ($format !== 'csv' || $database === null) {
+                throw new BadRequestException('Rows in CSV or COPY\'s formats are imported into a table.');
+            }
+            // phpMyAdmin's "Name of the new table": the CSV file becomes a table of the schema.
+            $newTableSchema = $schema ?? self::name($input, 'csv_new_tbl_schema') ?? throw new BadRequestException('Choose the schema the new table is created in.');
+            if ($copy->replace || $copy->columns !== [] || $copy->header === 'match') {
+                throw new BadRequestException('A new table has no primary key and takes its columns from the file: duplicates, a column list and HEADER MATCH do not apply.');
+            }
         }
         $contents = (string) ($input['contents'] ?? 'both');
         if (!in_array($contents, ['both', 'structure', 'data'], true)) {
@@ -140,6 +156,9 @@ final readonly class ImportRequest
             $jobs,
             $flags,
             $copy,
+            $newTableSchema,
+            $newTableSchema === null ? null : self::name($input, 'csv_new_tbl_name'),
+            $newTableSchema === null || filter_var($input['csv_guess_types'] ?? true, FILTER_VALIDATE_BOOL),
         );
     }
 
