@@ -132,9 +132,25 @@ final class CronJobController extends NodeController
         return ['columns' => $columns, 'rows' => $rows];
     }
 
-    /** cron.schedule_in_database() making the job, its values as literals. */
+    /**
+     * cron.schedule_in_database() making the job, its values as literals. A job without a name
+     * (made with the two-argument cron.schedule()) is made again the same way, as
+     * schedule_in_database() requires a name: cron.schedule() for the schedule and command,
+     * inside the cron.alter_job() that sets its database, role and Active.
+     */
     private static function schedule(array $job): string
     {
+        if ((string) ($job['jobname'] ?? '') === '') {
+            return sprintf(
+                "SELECT cron.alter_job(\n    cron.schedule(%s, %s),\n    database => %s,\n    username => %s,\n    active => %s\n);",
+                Quoting::literal((string) $job['schedule']),
+                Quoting::literal((string) $job['command']),
+                Quoting::literal((string) $job['database']),
+                Quoting::literal((string) $job['username']),
+                filter_var($job['active'], FILTER_VALIDATE_BOOL) ? 'true' : 'false',
+            );
+        }
+
         return sprintf(
             "SELECT cron.schedule_in_database(\n    job_name => %s,\n    schedule => %s,\n    command => %s,\n    database => %s,\n    username => %s,\n    active => %s\n);",
             Quoting::literal((string) $job['jobname']),
