@@ -64,7 +64,6 @@
       "keyname": "Keyname",
       "type": "Type",
       "unique": "Unique",
-      "column": "Column",
       "definition": "Definition",
       "comment": "Comment"
     },
@@ -101,8 +100,6 @@
       "type": "Type",
       "partitioned": "Partitioned table",
       "table": "Table",
-      "unlogged": "Unlogged",
-      "inherits": "Inherits",
       "access_method": "Access method",
       "partition": "Partition"
     },
@@ -119,7 +116,6 @@
       "constraint_dropped": "Constraint {{name}} has been dropped.",
       "primary_dropped": "The primary key has been dropped."
     },
-    "drop_warning": "You are about to DESTROY a complete column!",
     "add_constraint": "Add a constraint of type",
     "index_actions": {
       "edit": "Edit",
@@ -226,8 +222,6 @@
       "CURRENT_TIMESTAMP": "CURRENT_TIMESTAMP",
       "UUID": "UUID"
     },
-    "add_title": "Add columns",
-    "change_title": "Change columns",
     "inherits": "Inherits from"
   },
   "index_dialog": {

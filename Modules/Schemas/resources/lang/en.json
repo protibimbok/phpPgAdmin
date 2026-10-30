@@ -17,9 +17,6 @@
   "total_other": "{{count}} schemas",
   "system": "System",
   "none": "No schemas found in database.",
-  "tree": {
-    "schemas": "Schemas"
-  },
   "create": {
     "title": "Create new schema",
     "name": "Schema name",

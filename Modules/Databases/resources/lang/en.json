@@ -45,8 +45,7 @@
     "renamed": "Database {{name}} has been renamed to {{newName}}.",
     "copied": "Database {{name}} has been copied to {{newName}}.",
     "dropped": "Database {{name}} has been dropped.",
-    "saved": "Database properties have been saved.",
-    "preview_sql": "Preview SQL"
+    "saved": "Database properties have been saved."
   },
   "ddl": {
     "tab": "Show create",

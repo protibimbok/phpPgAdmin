@@ -64,7 +64,6 @@
       "keyname": "اسم المفتاح",
       "type": "النوع",
       "unique": "فريد",
-      "column": "العمود",
       "definition": "التعريف",
       "comment": "تعليق"
     },
@@ -101,8 +100,6 @@
       "type": "النوع",
       "partitioned": "جدول مقسّم",
       "table": "جدول",
-      "unlogged": "غير مسجّل",
-      "inherits": "يرث",
       "access_method": "طريقة الوصول",
       "partition": "قسم"
     },
@@ -119,7 +116,6 @@
       "constraint_dropped": "تم حذف القيد {{name}}.",
       "primary_dropped": "تم حذف المفتاح الأساسي."
     },
-    "drop_warning": "أنت على وشك تدمير عمود كامل!",
     "add_constraint": "إضافة قيد من نوع",
     "index_actions": {
       "edit": "تعديل",
@@ -226,8 +222,6 @@
       "CURRENT_TIMESTAMP": "CURRENT_TIMESTAMP",
       "UUID": "UUID"
     },
-    "add_title": "إضافة أعمدة",
-    "change_title": "تغيير الأعمدة",
     "inherits": "يرث من"
   },
   "index_dialog": {
