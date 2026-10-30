@@ -60,17 +60,21 @@ same table list as **Structure**.
 
 1. In **Create new schema**, type the **Schema name** (up to 63 characters).
 2. Optionally pick an **Owner**. Leave it empty to make the role you signed in as the owner.
-3. Click **Create**.
+3. Optionally type a **Comment**.
+4. Click **Create**.
 
 The form runs:
 
 ```sql
 CREATE SCHEMA dbo_schema_a
     AUTHORIZATION bookshop_staff;
+
+COMMENT ON SCHEMA dbo_schema_a
+    IS 'Staging area for the import';
 ```
 
-The card has no comment field. To add a comment, open the new schema's
-[Operations tab](/schema/operations#comment) after you create it.
+Without a comment only the `CREATE SCHEMA` runs. The comment can be changed later on the
+schema's [Operations tab](/schema/operations#comment).
 
 ::: warning Names PostgreSQL refuses
 Names starting with `pg_` are reserved: PostgreSQL answers *unacceptable schema name "pg_dbo"*.

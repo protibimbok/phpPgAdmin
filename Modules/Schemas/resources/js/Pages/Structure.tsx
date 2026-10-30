@@ -208,21 +208,23 @@ export default function Structure() {
   )
 }
 
-/** A card like phpMyAdmin's "Create new table" (database/create_table.twig): the name, the owner and Create in one row. */
+/** A card like phpMyAdmin's "Create new table" (database/create_table.twig): the name, the owner, the comment (as the classic phpPgAdmin's form had) and Create in one row. */
 function CreateSchemaCard({ db, onCreated }: { db: string; onCreated: () => void }) {
   const { t } = useTranslation('schemas')
   const { data: options } = useRequest(() => schemaOptions(db), [db])
   const [name, setName] = useState('')
   const [owner, setOwner] = useState('')
+  const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
     try {
-      await createSchema(db, { name, namespaceowner: owner || undefined })
+      await createSchema(db, { name, namespaceowner: owner || undefined, description: comment || undefined })
       notifySuccess(t('create.created', { name }))
       setName('')
+      setComment('')
       onCreated()
     } catch (err) {
       notifyError(errorMessage(err))
@@ -255,6 +257,12 @@ function CreateSchemaCard({ db, onCreated }: { db: string; onCreated: () => void
               </option>
             ))}
           </select>
+        </div>
+        <div className="col-12">
+          <label htmlFor="createSchemaCommentInput" className="form-label">
+            {t('create.comment')}
+          </label>
+          <input autoComplete="off" type="text" className="form-control" id="createSchemaCommentInput" maxLength={2048} value={comment} onChange={(e) => setComment(e.target.value)} />
         </div>
         <div className="col-12 align-self-lg-end">
           <input className="btn btn-primary" type="submit" value={t('create.create')} disabled={busy} />

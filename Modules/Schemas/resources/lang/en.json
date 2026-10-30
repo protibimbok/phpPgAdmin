@@ -21,6 +21,7 @@
     "title": "Create new schema",
     "name": "Schema name",
     "owner": "Owner",
+    "comment": "Comment",
     "create": "Create",
     "created": "Schema {{name}} has been created."
   },
