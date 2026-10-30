@@ -8,6 +8,7 @@ import { notAvailable } from '@/unbuilt'
 import { runQuery, type RowsResult } from '../api'
 import { bounds, isSpatialType, parseSpatial, type Shape, type XY } from '../gis/geometry'
 import { defaultMaxRows } from '../results/ResultsGrid'
+import { useStatementGuard } from '../useStatementGuard'
 
 const WIDTH = 600
 const HEIGHT = 450
@@ -32,6 +33,8 @@ export default function GisVisualization() {
   const [search] = useSearchParams()
   const location = useLocation()
   const sql = (location.state as { sql?: string } | null)?.sql ?? search.get('sql') ?? ''
+  // A statement that is not a read is shown and asked about before it runs: a link can carry any.
+  const { guard, dialog } = useStatementGuard(sql)
   const [start, setStart] = useState(0)
   const [rows, setRows] = useState(() => defaultMaxRows())
   const [result, setResult] = useState<RowsResult | null>(null)
@@ -58,7 +61,7 @@ export default function GisVisualization() {
   }
 
   useEffect(() => {
-    if (sql.trim() !== '') void load(0, rows)
+    if (sql.trim() !== '') guard(() => void load(0, rows))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sql])
 
@@ -109,7 +112,7 @@ export default function GisVisualization() {
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    void load(start, rows)
+    guard(() => void load(start, rows))
   }
 
   function wheel(e: WheelEvent<SVGSVGElement>) {
@@ -180,6 +183,7 @@ export default function GisVisualization() {
 
   return (
     <div id="div_view_options" className="container-fluid">
+      {dialog}
       <h2>{t('gis.title')}</h2>
 
       <div className="card">

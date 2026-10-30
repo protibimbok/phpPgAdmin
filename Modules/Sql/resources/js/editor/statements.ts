@@ -177,3 +177,56 @@ export function codePointOffset(text: string, codePoints: number): number {
 
   return units + Math.max(0, codePoints - seen)
 }
+
+/** The text with its strings, quoted identifiers and comments blanked out, so keywords can be looked for in what remains. */
+function codeOnly(text: string): string {
+  let out = ''
+  let i = 0
+  while (i < text.length) {
+    const skipped = skipQuotedOrComment(text, i)
+    if (skipped !== null) {
+      // A quoted identifier stays a word; a string or a comment becomes a gap.
+      out += text[i] === '"' ? ' x ' : ' '
+      i = skipped
+      continue
+    }
+    out += text[i]
+    i++
+  }
+
+  return out
+}
+
+/** Words that, anywhere in a statement, make it more than a read: a data-modifying WITH, SELECT … INTO, a row lock. */
+const WRITES = /\b(INSERT|UPDATE|DELETE|MERGE|INTO|TRUNCATE|COPY|CREATE|DROP|ALTER|GRANT|REVOKE|CALL|DO|LOCK|SHARE|NOWAIT)\b/i
+
+/**
+ * Whether every statement of a batch only reads: a SELECT, WITH, VALUES or TABLE that names no
+ * data-modifying clause (INSERT, UPDATE, DELETE, MERGE in a WITH, SELECT … INTO, FOR UPDATE),
+ * a SHOW, or an EXPLAIN that does not ANALYZE a statement that writes. A statement that arrives
+ * in a link runs on its own only when this holds; anything else is shown and asked about first.
+ * A function a SELECT calls may still write; this cannot see into it.
+ */
+export function isReadStatement(sql: string): boolean {
+  const statements = splitStatements(sql)
+  if (statements.length === 0) return false
+
+  return statements.every(({ sql: statement }) => readsOnly(codeOnly(statement).trim()))
+}
+
+function readsOnly(code: string): boolean {
+  const explain = /^EXPLAIN\b\s*(\((?<options>[^)]*)\)|(?<words>(\s*\b(ANALY[SZ]E|VERBOSE)\b)*))/i.exec(code)
+  if (explain) {
+    const options = (explain.groups?.options ?? explain.groups?.words ?? '').trim()
+    const analyze = /\bANALY[SZ]E\b(?!\s+(FALSE|OFF|0)\b)/i.test(options)
+    const rest = code.slice(explain[0].length).trim()
+
+    // EXPLAIN without ANALYZE plans the statement and never runs it.
+    return analyze ? readsOnly(rest) : rest !== ''
+  }
+  if (/^SHOW\b/i.test(code)) return true
+  const body = code.replace(/^\(+\s*/, '')
+  if (!/^(SELECT|WITH|VALUES|TABLE)\b/i.test(body)) return false
+
+  return !WRITES.test(body)
+}

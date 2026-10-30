@@ -7,6 +7,7 @@ import { notifyError } from '@/notify'
 import { runQuery, type RowsResult } from '../api'
 import QueryChart, { type ChartSeries, type ChartType } from '../chart/QueryChart'
 import { defaultMaxRows } from '../results/ResultsGrid'
+import { useStatementGuard } from '../useStatementGuard'
 import { isNumericType } from '../sql'
 
 const TYPES: ChartType[] = ['bar', 'column', 'line', 'spline', 'area', 'pie']
@@ -25,6 +26,8 @@ export default function Chart() {
   const [search] = useSearchParams()
   const location = useLocation()
   const sql = (location.state as { sql?: string } | null)?.sql ?? search.get('sql') ?? ''
+  // A statement that is not a read is shown and asked about before it runs: a link can carry any.
+  const { guard, dialog } = useStatementGuard(sql)
   const [start, setStart] = useState(0)
   const [rows, setRows] = useState(() => defaultMaxRows())
   const [result, setResult] = useState<RowsResult | null>(null)
@@ -57,7 +60,7 @@ export default function Chart() {
 
   // The first page of rows, once per statement; Go reads the others.
   useEffect(() => {
-    if (sql.trim() !== '') void load(0, rows)
+    if (sql.trim() !== '') guard(() => void load(0, rows))
   }, [sql])
 
   const numeric = useMemo(() => (result?.columns ?? []).map((c) => isNumericType(c.type_name)), [result])
@@ -101,7 +104,7 @@ export default function Chart() {
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    void load(start, rows)
+    guard(() => void load(start, rows))
   }
 
   /** The chart as a PNG: the SVG with its computed colours inlined, drawn on a canvas. */
@@ -148,6 +151,7 @@ export default function Chart() {
 
   return (
     <div id="div_view_options" className="container-fluid">
+      {dialog}
       <h2>{t('operations.display_chart')}</h2>
 
       <div className="card">

@@ -26,7 +26,7 @@ import { qualifiedName, quoteIdent, quoteLiteral } from '../sql'
 import { CONFIRM, isDestructive } from '../preferences'
 import { useQueryRunner } from '../useQueryRunner'
 import type { QueryResponse } from '../api'
-import { codePointOffset, statementAt } from '../editor/statements'
+import { codePointOffset, isReadStatement, statementAt } from '../editor/statements'
 import { endTransaction, runInQuerySession, useTransactionStatus } from '../querySession'
 
 /** Where phpMyAdmin keeps the query it saves as you type, for "Get auto-saved query". */
@@ -373,16 +373,19 @@ function SqlPageAt() {
   // A link that carries a query (Edit from the Browse page, the console) puts it in the box,
   // and runs it when it says so (Explain SQL, a console run). A destructive statement waits for
   // "Confirm DROP queries" unless the page that sent it asked already (its navigation state
-  // says so, which a link from elsewhere cannot carry).
+  // says so, which a link from elsewhere cannot carry). A page opened from outside the app (a
+  // link elsewhere, a bookmark: react-router's "default" location key, which the app's own
+  // navigation never has) runs only a statement that reads; any other is shown and asked about.
   const urlSql = search.get('sql')
   const autorun = search.get('run') === '1'
-  const { state: locationState } = useLocation()
+  const { state: locationState, key: locationKey } = useLocation()
   useEffect(() => {
     if (urlSql === null) return
     setQuery(urlSql)
     if (autorun && urlSql.trim() !== '') {
       const asked = (locationState as { confirmed?: boolean } | null)?.confirmed === true
-      if (!asked && preference<boolean>(CONFIRM) && isDestructive(urlSql)) setConfirming({ sql: urlSql, from: 0, whole: true })
+      const fromOutside = locationKey === 'default' && !isReadStatement(urlSql)
+      if (!asked && (fromOutside || (preference<boolean>(CONFIRM) && isDestructive(urlSql)))) setConfirming({ sql: urlSql, from: 0, whole: true })
       else execute(urlSql)
     }
     setSearch((params) => {
