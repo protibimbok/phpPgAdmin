@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { errorMessage } from '@/api/request'
@@ -59,9 +59,14 @@ export default function SystemStats() {
   const [error, setError] = useState<string | null>(null)
   const [samples, setSamples] = useState<Record<string, ChartPoint[]>>({})
 
+  // The tab shown: an answer for another (asked before the tab changed) is dropped.
+  const shown = useRef(section)
+  shown.current = section
+
   const load = useCallback(() => {
     systemStats(section).then(
       (r) => {
+        if (shown.current !== section) return
         setAvailable(r.available)
         setError(null)
         const next = r.views ?? []
@@ -79,7 +84,9 @@ export default function SystemStats() {
           return out
         })
       },
-      (e: unknown) => setError(errorMessage(e)),
+      (e: unknown) => {
+        if (shown.current === section) setError(errorMessage(e))
+      },
     )
   }, [section])
 
