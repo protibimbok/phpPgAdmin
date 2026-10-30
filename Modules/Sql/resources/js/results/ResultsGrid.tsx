@@ -6,7 +6,7 @@ import Icon from '@/components/Icon'
 import { preference } from '@/preferences'
 import { notify } from '@/notify'
 import { notAvailable } from '@/unbuilt'
-import { foreignValues, type Order, type ResultColumn, type RowsResult } from '../api'
+import { foreignDisplay, type Order, type ResultColumn, type RowsResult } from '../api'
 import { ewkbToWkt } from '../gis/geometry'
 import DateTimeInput from '../fields/DateTimeInput'
 import { useForeignValues, foreignOptions } from '../fields/ForeignSelect'
@@ -139,15 +139,21 @@ export default function ResultsGrid({ result, nav, onNavigate, sortKeys, rowActi
   const hasActions = rowActions.length > 0 || bulkActions.length > 0
   const foreignColumns = useMemo(() => result.columns.map((c, i) => ({ c, i })).filter(({ c }) => c.foreign_key), [result.columns])
   const hasSpatial = result.columns.some((c) => isPostgisType(c.type_name))
-  // The display column of each foreign key column, read once the option asks for it.
+  // The display column of each foreign key column, read once the option asks for it, for the
+  // keys the rows of this page hold.
   const { data: displays } = useRequest(
     () =>
       relational === 'D' && db && foreignColumns.length > 0
-        ? Promise.all(foreignColumns.map(({ c }) => foreignValues(db, c.foreign_key!).catch(() => null))).then(
+        ? Promise.all(
+            foreignColumns.map(({ c, i }) => {
+              const keys = [...new Set(result.rows.flatMap((row) => (row[i] === null ? [] : [row[i]!])))]
+              return foreignDisplay(db, c.foreign_key!, keys).catch(() => null)
+            }),
+          ).then(
             (lists) => new Map(lists.map((list, n) => [foreignColumns[n].i, list && list.display_column !== null ? new Map(list.values.map((v) => [v.key ?? '', v.display])) : null])),
           )
         : Promise.resolve(null),
-    [relational, db, foreignColumns],
+    [relational, db, foreignColumns, result.rows],
   )
   const allChecked = visibleRows.length > 0 && visibleRows.every(({ index }) => checked.has(index))
 

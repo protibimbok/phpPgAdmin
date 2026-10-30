@@ -151,13 +151,7 @@ final class QueryController
             throw new BadRequestException(sprintf('There is no column "%s" in %s.%s.', $key, $relation->schema, $relation->name));
         }
 
-        $display = null;
-        foreach ($relation->columns() as $column) {
-            if ($column['name'] !== $key && in_array($column['type_name'], ['varchar', 'bpchar', 'text', 'name', 'citext'], true)) {
-                $display = (string) $column['name'];
-                break;
-            }
-        }
+        $display = self::displayColumn($relation, $key);
 
         $conn = $this->connection(ConnectionPool::from($request), $args);
         $keySql = $conn->escapeIdentifier($key);
@@ -174,10 +168,12 @@ final class QueryController
             $params[] = '%' . addcslashes($search, '\\%_') . '%';
             $where = sprintf(' WHERE %s::text COLLATE "default" ILIKE $1%s', $keySql, $displaySql === null ? '' : sprintf(' OR %s::text COLLATE "default" ILIKE $1', $displaySql));
         }
-        $order = ($query['order'] ?? '') === 'display' && $displaySql !== null ? sprintf('%s, %s', $displaySql, $keySql) : $keySql;
+        // The order names the table's columns through its alias: a bare name would be the
+        // ::text output column of the same name, and sort the keys as text (1, 10, 2).
+        $order = ($query['order'] ?? '') === 'display' && $displaySql !== null ? sprintf('r.%s, r.%s', $displaySql, $keySql) : 'r.' . $keySql;
 
         $sql = sprintf(
-            'SELECT %1$s::text, %2$s FROM %3$s%4$s ORDER BY %5$s%6$s',
+            'SELECT %1$s::text, %2$s FROM %3$s AS r%4$s ORDER BY %5$s%6$s',
             $keySql,
             $displaySql === null ? 'NULL::text' : $displaySql . '::text',
             $relation->quotedName(),
@@ -199,6 +195,66 @@ final class QueryController
         }
 
         return $answer;
+    }
+
+    /**
+     * The display column's value for each of the given keys of a referenced column: what a
+     * result grid shows in place of the foreign keys of the rows on its page ("Display column"
+     * of Browse's extra options), read for exactly those keys rather than the first values of
+     * the referenced table. The keys come as text, as the grid shows them, and are cast to the
+     * column's type so an index on it serves the lookup.
+     *
+     * @param array{db: string} $args
+     * @return array{column: string, display_column: string|null, values: list<array{key: string|null, display: string|null}>}
+     */
+    public function foreignDisplay(ServerRequestInterface $request, array $args): array
+    {
+        $input = (array) ($request->getParsedBody() ?? []);
+        $relation = $this->relation($request, $args, $input);
+        $key = (string) ($input['column'] ?? '');
+        $column = $relation->column($key);
+        if ($column === null) {
+            throw new BadRequestException(sprintf('There is no column "%s" in %s.%s.', $key, $relation->schema, $relation->name));
+        }
+        $keys = array_values(array_unique(array_map('strval', array_filter((array) ($input['keys'] ?? []), static fn (mixed $k): bool => is_string($k) || is_int($k)))));
+        if (count($keys) > 5000) {
+            throw new BadRequestException('Too many keys.');
+        }
+
+        $display = self::displayColumn($relation, $key);
+        if ($display === null || $keys === []) {
+            return ['column' => $key, 'display_column' => $display, 'values' => []];
+        }
+
+        $conn = $this->connection(ConnectionPool::from($request), $args);
+        $keySql = $conn->escapeIdentifier($key);
+        $sql = sprintf(
+            'SELECT r.%1$s::text, r.%2$s::text FROM %3$s AS r WHERE r.%1$s = ANY($1::text[]::%4$s[])',
+            $keySql,
+            $conn->escapeIdentifier($display),
+            $relation->quotedName(),
+            (string) $column['type'],
+        );
+        $literal = '{' . implode(',', array_map(static fn (string $k): string => '"' . addcslashes($k, '"\\') . '"', $keys)) . '}';
+        $rows = $conn->query($sql, [$literal])->textRows();
+
+        return [
+            'column' => $key,
+            'display_column' => $display,
+            'values' => array_map(static fn (array $row): array => ['key' => $row[0], 'display' => $row[1]], $rows),
+        ];
+    }
+
+    /** The first text column of a relation other than the key: what describes each of its keys. */
+    private static function displayColumn(Relation $relation, string $key): ?string
+    {
+        foreach ($relation->columns() as $column) {
+            if ($column['name'] !== $key && in_array($column['type_name'], ['varchar', 'bpchar', 'text', 'name', 'citext'], true)) {
+                return (string) $column['name'];
+            }
+        }
+
+        return null;
     }
 
     /** The largest request body PHP accepts, which bounds a file uploaded into a bytea column. */

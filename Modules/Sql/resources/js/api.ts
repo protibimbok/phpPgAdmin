@@ -345,6 +345,11 @@ export function foreignValues(db: string, key: ForeignKey): Promise<ForeignValue
   return api.get(`/api/databases/${encode(db)}/query/foreign-values?${query}`)
 }
 
+/** The display column's value for exactly these keys of a referenced column: a result grid's "Display column" for the rows of its page. */
+export function foreignDisplay(db: string, key: ForeignKey, keys: string[]): Promise<Omit<ForeignValues, 'truncated'>> {
+  return api.post(`/api/databases/${encode(db)}/query/foreign-display`, { schema: key.schema, name: key.table, column: key.column, keys })
+}
+
 export interface ForeignPageRequest {
   /** Keep the values whose key or description contains this. */
   search: string

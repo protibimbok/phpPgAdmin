@@ -19,6 +19,7 @@ Route::middleware(Authenticate::class)->controller(QueryController::class)->grou
     Route::get('/databases/{db}/query/columns', 'columns')->setName('sql.columns');
     Route::get('/databases/{db}/query/row', 'row')->setName('sql.row');
     Route::get('/databases/{db}/query/foreign-values', 'foreignValues')->setName('sql.foreign_values');
+    Route::post('/databases/{db}/query/foreign-display', 'foreignDisplay')->setName('sql.foreign_display');
     Route::post('/databases/{db}/query/save', 'save')->setName('sql.save');
     Route::get('/databases/{db}/query/catalog', 'catalog')->setName('sql.catalog');
 });
