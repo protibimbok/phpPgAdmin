@@ -219,7 +219,7 @@ Everything under `app/Core/Database/` uses ext-pgsql. PDO is used only for the S
 
 Every statement runs in autocommit mode unless you wrap it in `$conn->transaction(fn () => …)`. A batch sent through `queryMulti()` runs as one implicit transaction. It stops at the first error, which is thrown, and the results of the statements before it are lost.
 
-There are no transactions spanning requests. Each request opens its own connections, and they are closed at the end of the request, so session state such as `SET`, temporary tables or an open `BEGIN` does not carry over to the next request. The SQL editor's "run as one transaction" option works because the whole batch is sent in one request.
+Each request opens its own connections, and they are closed at the end of the request, so session state such as `SET`, temporary tables or an open `BEGIN` does not carry over to the next request. The one exception is the SQL page's query tool session: `bin/query-session.php`, started like the debugger session, holds one connection per database for the page and runs `QueryRunner` on it for each command it gets on its Unix socket (`QuerySessionController`, routes under `/api/query/sessions`). The session ids are kept in the PHP session and checked against the signed-in role and server.
 
 ### Quoting
 

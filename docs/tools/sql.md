@@ -22,12 +22,14 @@ run with the role's normal `search_path` (usually `"$user", public`), so write
 `inventory.stock`, not `stock`, when you are on the `inventory` schema's SQL tab.
 :::
 
-::: info Every run is a new session
-Each click on **Go** opens a fresh connection. `SET` commands, temporary tables, prepared
-statements and `LISTEN` do not survive to the next run. Put the `SET` in the same batch as the
-statements that need it. An explicit `BEGIN` without `COMMIT` in a batch is rolled back when the
-run ends — nothing is kept and no warning is shown. Use [Run as one transaction](#transactions)
-instead.
+::: info One session per database
+As in pgAdmin's query tool, the SQL tab keeps one connection per database open between runs, its
+*query tool session*: `SET` commands, temporary tables, prepared statements and an open `BEGIN`
+carry over to the next run, also after visiting other pages and coming back. The session starts
+with the first run, is kept alive while the browser tab is open, and ends when the tab closes,
+after three minutes without the page's heartbeat, or after four hours without a run. Ending it
+closes the connection, which rolls back a transaction left open; the browser asks before a tab
+with an open transaction is closed or reloaded. See [Sessions and transactions](#transactions).
 :::
 
 At the server level there is no bookmark field, no **Bookmarked SQL query** card, no completions for
@@ -267,8 +269,25 @@ the statement at the cursor was run. It is not placed when **Bind parameters** r
 
 ## Transactions
 
-Without either option every statement commits on its own: in a batch that fails at the third
-statement, the first two stay done.
+With **Auto commit** ticked (the default, as in pgAdmin) and neither option below, every statement
+commits on its own: in a batch that fails at the third statement, the first two stay done.
+
+### Auto commit, Commit and Rollback
+
+Untick **Auto commit** (pgAdmin's *Auto commit?*) and a run outside a transaction starts one with
+`BEGIN` and leaves it open. A `BEGIN` you type yourself does the same with **Auto commit** ticked.
+While a transaction is open, a bar above the buttons says *The session is idle in a valid
+transaction block.* with **Commit** and **Rollback**. After an error inside the transaction it
+turns red and says *The session is idle in a failed transaction block.*: PostgreSQL then refuses
+every statement until **Rollback** (a **Commit** of a failed transaction rolls it back, and says
+so). The status is refreshed every half minute.
+
+Inside an open transaction, **Run as one transaction** and **Rollback when finished** work on a
+savepoint, so they leave your transaction as it was: the batch is released into it, or rolled back
+to the savepoint.
+
+When the server cannot keep sessions (`PGADMIN_QUERY_SESSIONS=0`, or a host without background
+processes), each run gets a connection of its own, as before, and **Auto commit** has no effect.
 
 | Option | What happens |
 | --- | --- |

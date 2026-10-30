@@ -37,9 +37,9 @@ These options are not in the forms; use the SQL tab for them:
 
 ## Behaviour to know about
 
-### Each run is a new session
+### The SQL tab's session
 
-Every run of the SQL editor uses a fresh connection, so `SET`, temporary tables and an open `BEGIN` do not carry over to the next run. Use **Run as one transaction** when several statements must share a transaction. A schema's SQL tab does not set `search_path` ([Where the statements run](/tools/sql#where-the-statements-run)).
+The SQL tab keeps one connection per database for as long as the browser tab is open, so `SET`, temporary tables and an open transaction carry over between runs. Closing the tab, or three minutes without its heartbeat, ends the session and rolls back an open transaction. With `PGADMIN_QUERY_SESSIONS=0` or without background processes every run uses a fresh connection. The Browse grid, the console and the other pages still run each request on its own connection. A schema's SQL tab does not set `search_path` ([Where the statements run](/tools/sql#where-the-statements-run)).
 
 ### Paging re-runs the query
 

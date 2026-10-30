@@ -24,6 +24,12 @@ final class QueryRunner
     /** The alias of the paging wrapper; a name no real column is likely to carry. */
     private const string WRAPPER = '_pga';
 
+    /** The savepoint a batch run as one transaction sits on inside an open transaction. */
+    private const string BATCH = '_pga_batch';
+
+    /** Whether the run is inside a transaction, where a failed helper query must not abort it. */
+    private bool $guarded = false;
+
     /** What the paging wrapper puts before the statement. */
     private const string WRAPPER_PREFIX = "SELECT * FROM (\n";
 
@@ -81,21 +87,38 @@ final class QueryRunner
         // Only a lone statement is paged: a batch's SELECTs show what they return, up to the limit.
         $pageable = count($statements) === 1 && Splitter::isPageable($statements[0]->sql);
 
+        // pgAdmin's "Auto commit" off: a run outside a transaction opens one and leaves it open
+        // for the query tool's Commit and Rollback. Only a query tool session's connection
+        // outlives the request, so only it can be inside a transaction when a run starts; the
+        // batch options then work on a savepoint, leaving the user's transaction as it was.
+        $autocommit = (bool) ($this->options['autocommit'] ?? true);
+        $status = $this->conn->transactionStatus();
+        $open = $status === 'intrans' || $status === 'inerror';
+        $savepoint = false;
+        $began = false;
+        if ($transaction || !$autocommit) {
+            if (!$open) {
+                $this->conn->exec('BEGIN');
+                $began = true;
+            } elseif ($transaction) {
+                $this->conn->exec('SAVEPOINT ' . self::BATCH);
+                $savepoint = true;
+            }
+        }
+        // Inside a transaction a failed attempt at paging would abort it: savepoints guard them.
+        $this->guarded = $transaction || $open || $began;
+
         $results = [];
         $source = null;
         $rolledBack = false;
 
-        if ($transaction) {
-            $this->conn->exec('BEGIN');
-        }
-
         foreach ($statements as $statement) {
-            $result = $this->runStatement($statement, $pageable, $transaction);
+            $result = $this->runStatement($statement, $pageable, $this->guarded);
             $results[] = $result;
 
             if ($result['kind'] === 'error') {
                 if ($transaction) {
-                    $this->safeExec('ROLLBACK');
+                    $this->undoBatch($savepoint);
                     $rolledBack = true;
                 }
                 break;
@@ -107,8 +130,14 @@ final class QueryRunner
         }
 
         if ($transaction && !$rolledBack) {
-            $this->conn->exec($rollback ? 'ROLLBACK' : 'COMMIT');
-            $rolledBack = $rollback;
+            if ($rollback) {
+                $this->undoBatch($savepoint);
+                $rolledBack = true;
+            } elseif ($savepoint) {
+                $this->conn->exec('RELEASE SAVEPOINT ' . self::BATCH);
+            } elseif ($autocommit) {
+                $this->conn->exec('COMMIT');
+            }
         }
 
         foreach ($results as &$result) {
@@ -116,7 +145,7 @@ final class QueryRunner
         }
         unset($result);
 
-        return ['results' => $results, 'source' => $source, 'backend_pid' => $this->conn->backendPid(), 'rolled_back' => $rolledBack];
+        return ['results' => $results, 'source' => $source, 'backend_pid' => $this->conn->backendPid(), 'rolled_back' => $rolledBack, 'transaction' => $this->conn->transactionStatus()];
     }
 
     /** @return array<string, mixed> */
@@ -149,12 +178,14 @@ final class QueryRunner
                 try {
                     $result = $this->conn->query($this->wrap($statement->sql, $order, $limit, $offset));
                 } catch (QueryException $e) {
-                    if ($transaction) {
-                        $this->conn->exec('ROLLBACK TO SAVEPOINT ' . self::WRAPPER);
-                    }
                     if (!self::cannotWrap($e, $order !== '')) {
+                        // The statement's own failure: the transaction is left failed, as it
+                        // would be had the statement run as written.
                         $inWrapper = true;
                         throw $e;
+                    }
+                    if ($transaction) {
+                        $this->conn->exec('ROLLBACK TO SAVEPOINT ' . self::WRAPPER);
                     }
                     // The statement cannot be a subquery after all: run it as written and page in memory.
                     $result = $this->conn->query($statement->sql);
@@ -309,9 +340,22 @@ final class QueryRunner
             return null;
         }
 
+        if ($this->guarded) {
+            $this->conn->exec('SAVEPOINT _pga_count');
+        }
         try {
-            return (int) $this->conn->scalar(sprintf("SELECT count(*) FROM (\n%s\n) _c", $sql));
+            $count = (int) $this->conn->scalar(sprintf("SELECT count(*) FROM (\n%s\n) _c", $sql));
+            if ($this->guarded) {
+                $this->conn->exec('RELEASE SAVEPOINT _pga_count');
+            }
+
+            return $count;
         } catch (QueryException) {
+            if ($this->guarded) {
+                $this->safeExec('ROLLBACK TO SAVEPOINT _pga_count');
+                $this->safeExec('RELEASE SAVEPOINT _pga_count');
+            }
+
             return null;
         }
     }
@@ -353,6 +397,17 @@ final class QueryRunner
         }
 
         return intdiv(strlen(mb_convert_encoding($text, 'UTF-16LE', 'UTF-8')), 2);
+    }
+
+    /** Undo the batch: back to its savepoint inside the user's transaction, else the whole transaction. */
+    private function undoBatch(bool $savepoint): void
+    {
+        if ($savepoint) {
+            $this->safeExec('ROLLBACK TO SAVEPOINT ' . self::BATCH);
+            $this->safeExec('RELEASE SAVEPOINT ' . self::BATCH);
+        } else {
+            $this->safeExec('ROLLBACK');
+        }
     }
 
     private function safeExec(string $sql): void

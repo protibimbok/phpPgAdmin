@@ -48,4 +48,19 @@ return [
 
     'debugger' => getenv('PGADMIN_DEBUGGER') !== '0',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Query tool sessions
+    |--------------------------------------------------------------------------
+    |
+    | Whether the SQL page keeps one connection open between its runs, in a
+    | background process (bin/query-session.php), so SET, temporary tables and
+    | an open transaction carry over and "Auto commit" can be turned off. It
+    | needs background processes (POSIX hosts). Switch it off with
+    | PGADMIN_QUERY_SESSIONS=0: each run then gets a connection of its own.
+    |
+    */
+
+    'query_sessions' => getenv('PGADMIN_QUERY_SESSIONS') !== '0',
+
 ];

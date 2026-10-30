@@ -8,6 +8,7 @@ use PhpPgAdmin\Modules\Sql\Http\Controllers\BookmarkController;
 use PhpPgAdmin\Modules\Sql\Http\Controllers\FindReplaceController;
 use PhpPgAdmin\Modules\Sql\Http\Controllers\MacroController;
 use PhpPgAdmin\Modules\Sql\Http\Controllers\QueryController;
+use PhpPgAdmin\Modules\Sql\Http\Controllers\QuerySessionController;
 
 // Queries run against a named database, or (without one) against the database the session
 // landed in, which is what the server-level SQL page uses.
@@ -20,6 +21,17 @@ Route::middleware(Authenticate::class)->controller(QueryController::class)->grou
     Route::get('/databases/{db}/query/foreign-values', 'foreignValues')->setName('sql.foreign_values');
     Route::post('/databases/{db}/query/save', 'save')->setName('sql.save');
     Route::get('/databases/{db}/query/catalog', 'catalog')->setName('sql.catalog');
+});
+
+// The SQL page's query tool sessions: one connection kept open between runs, in a background
+// process, with Commit and Rollback for a transaction left open.
+Route::middleware(Authenticate::class)->prefix('query/sessions')->controller(QuerySessionController::class)->group(function (): void {
+    Route::post('', 'start')->setName('sql.sessions.start');
+    Route::post('/{id}/run', 'run')->setName('sql.sessions.run');
+    Route::post('/{id}/commit', 'commit')->setName('sql.sessions.commit');
+    Route::post('/{id}/rollback', 'rollback')->setName('sql.sessions.rollback');
+    Route::get('/{id}', 'status')->setName('sql.sessions.status');
+    Route::delete('/{id}', 'stop')->setName('sql.sessions.stop');
 });
 
 // A table's Find and replace: the preview of the values it changes, and the UPDATE.

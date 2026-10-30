@@ -25,6 +25,7 @@ import { CONFIRM, isDestructive } from '../preferences'
 import { useQueryRunner } from '../useQueryRunner'
 import type { QueryResponse } from '../api'
 import { codePointOffset, statementAt } from '../editor/statements'
+import { endTransaction, runInQuerySession, useTransactionStatus } from '../querySession'
 
 /** Where phpMyAdmin keeps the query it saves as you type, for "Get auto-saved query". */
 const AUTO_SAVE_KEY = 'autoSavedSql'
@@ -105,7 +106,13 @@ function SqlPageAt() {
   const [bookmarkAction, setBookmarkAction] = useState<'0' | '1' | '2'>('0')
   const [bookmarkVariables, setBookmarkVariables] = useState<string[]>([])
   const [manageMacros, setManageMacros] = useState(false)
-  const runner = useQueryRunner(db)
+  const [autocommit, setAutocommit] = useState(true)
+  const autocommitRef = useRef(autocommit)
+  autocommitRef.current = autocommit
+  // The page's runs share one connection, its query tool session (pgAdmin's query tool).
+  const runner = useQueryRunner(db, (database, request) => runInQuerySession(database, request, autocommitRef.current))
+  const transactionStatus = useTransactionStatus(db)
+  const [ending, setEnding] = useState(false)
   const queryRef = useRef(query)
   queryRef.current = query
   const { data: macroData, reload: reloadMacros } = useRequest(() => listMacros(), [])
@@ -237,6 +244,16 @@ function SqlPageAt() {
     return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [delimiter, rollback, transaction, bind, parameters, nav.maxRows])
+
+  /** pgAdmin's Commit and Rollback: end the transaction left open in the session. */
+  function finishTransaction(command: 'commit' | 'rollback') {
+    if (runner.busy() || ending) return
+    setEnding(true)
+    endTransaction(db, command).then(
+      (tag) => notifySuccess(command === 'commit' && tag === 'ROLLBACK' ? t('session.commit_rolled_back') : t(command === 'commit' ? 'session.committed' : 'session.rolled_back')),
+      (err: unknown) => notifyError(errorMessage(err)),
+    ).finally(() => setEnding(false))
+  }
 
   /** pgAdmin's "Add to macros": the box's query saved under the next free "Macro N" name. */
   function addToMacros() {
@@ -410,6 +427,13 @@ function SqlPageAt() {
                     <div className="mb-3">
                       <SqlEditor ref={editor} id="sqlquery" value={query} onChange={setQuery} onSubmit={submit} onRunStatement={runStatement} ariaLabel={t('query')} autoFocus schema={completions} defaultSchema={level.schema ?? 'public'} />
                     </div>
+                    {(transactionStatus === 'intrans' || transactionStatus === 'inerror') && (
+                      <div className={`alert ${transactionStatus === 'inerror' ? 'alert-danger' : 'alert-warning'} d-flex flex-wrap align-items-center gap-2`} id="transaction_status" role="status">
+                        <span className="me-auto">{t(transactionStatus === 'inerror' ? 'session.inerror' : 'session.intrans')}</span>
+                        <input type="button" className="btn btn-secondary" id="button_commit" value={t('session.commit')} onClick={() => finishTransaction('commit')} />
+                        <input type="button" className="btn btn-secondary" id="button_rollback" value={t('session.rollback')} onClick={() => finishTransaction('rollback')} />
+                      </div>
+                    )}
                     <div id="querymessage">
                       {runner.running && (
                         <>
@@ -583,6 +607,14 @@ function SqlPageAt() {
                     <input className="form-check-input" type="checkbox" name="transaction" id="transaction" checked={transaction} onChange={(e) => setTransaction(e.target.checked)} />
                     <label className="form-check-label" htmlFor="transaction">
                       {t('options.transaction')}
+                    </label>
+                  </div>
+                </div>
+                <div className="col-12">
+                  <div className="form-check">
+                    <input className="form-check-input" type="checkbox" name="autocommit" id="autocommit" checked={autocommit} onChange={(e) => setAutocommit(e.target.checked)} />
+                    <label className="form-check-label" htmlFor="autocommit" title={t('session.autocommit_title')}>
+                      {t('session.autocommit')}
                     </label>
                   </div>
                 </div>

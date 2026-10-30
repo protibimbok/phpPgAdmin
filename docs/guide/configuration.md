@@ -36,6 +36,7 @@ The server home page's **Database server** card shows which server you are on; t
 | `PGADMIN_PG_BIN_DIR` | `tools.bin_dir` | none (searched) | The directory holding `pg_dump`, `pg_dumpall`, `pg_restore` and `psql`. |
 | `PGADMIN_PHP_BINARY` | `tools.php_binary` | none | The PHP command-line binary that runs the background scripts in `bin/`. |
 | `PGADMIN_DEBUGGER` | `tools.debugger` | on | Set to `0` to switch the PL/pgSQL debugger off. |
+| `PGADMIN_QUERY_SESSIONS` | `tools.query_sessions` | on | Set to `0` to run every SQL tab query on a connection of its own, without the query tool session. |
 | `PGADMIN_EXTRA_LOGIN_SECURITY` | `auth.extra_login_security` | off | Set to `1` to refuse the usual superuser names and empty passwords at login ([Login security](#login-security)). |
 | `PGADMIN_OWNED_ONLY` | `auth.owned_only` | off | Set to `1` to list only the databases the signed-in role owns ([Login security](#login-security)). |
 | `APP_DEBUG` | (read in `public/index.php`) | `false` | `true` adds the exception class, message and stack trace to API error responses. |
@@ -93,6 +94,7 @@ The storage file is small and holds everything phpPgAdmin knows that PostgreSQL 
 | `bin_dir` | `null` | When null, phpPgAdmin searches the `PATH`, `/usr/lib/postgresql/*/bin`, `/usr/pgsql-*/bin`, Homebrew's `postgresql@*/bin`, `/usr/local/pgsql/bin`, `/usr/bin` and `/usr/local/bin`, and takes the directory with the newest `pg_dump`. When set, only that directory is used. |
 | `php_binary` | `null` | When null, the `php` next to the running PHP (`PHP_BINDIR/php`) is used. Set it when PHP-FPM's directory holds no CLI binary, for example `/usr/bin/php8.3`. |
 | `debugger` | `true` | `PGADMIN_DEBUGGER=0` switches it off; the debugger's status then reports "The debugger is switched off (PGADMIN_DEBUGGER=0)." and no **Debug** button appears. |
+| `query_sessions` | `true` | `PGADMIN_QUERY_SESSIONS=0` makes each SQL tab run use a connection of its own: no `SET` or transaction carries over and **Auto commit** has no effect. |
 
 The debugger also needs the `pldbgapi` extension and `shared_preload_libraries = 'plugin_debugger'` on the server; see [Debugger](/tools/debugger).
 

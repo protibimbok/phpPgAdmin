@@ -23,15 +23,18 @@ function requestId(): string {
 /**
  * Runs queries against one database and keeps the latest answer. Every run gets an id of its
  * own, so a cancel reaches the right backend and an answer that arrives after a newer run
- * started is dropped.
+ * started is dropped. "execute" sends the request; the SQL page sends it through its query
+ * tool session.
  */
-export function useQueryRunner(db: string | null): QueryRunner {
+export function useQueryRunner(db: string | null, execute: (db: string | null, request: QueryRequest) => Promise<QueryResponse> = runQuery): QueryRunner {
   const [response, setResponse] = useState<QueryResponse | null>(null)
   const [error, setError] = useState<Error | null>(null)
   const [running, setRunning] = useState(false)
   const [last, setLast] = useState<QueryRequest | null>(null)
   const current = useRef<string | null>(null)
   const inFlight = useRef(false)
+  const executeRef = useRef(execute)
+  executeRef.current = execute
 
   const run = useCallback(
     async (request: QueryRequest) => {
@@ -43,7 +46,7 @@ export function useQueryRunner(db: string | null): QueryRunner {
       setLast(request)
 
       try {
-        const result = await runQuery(db, { ...request, request_id: id })
+        const result = await executeRef.current(db, { ...request, request_id: id })
         if (current.current !== id) return null
         setResponse(result)
 

@@ -393,5 +393,17 @@
     "help_reset": "Click reset zoom button to come back to original state.",
     "help_click": "Click a data point to view and possibly edit the data row.",
     "help_resize": "The plot can be resized by dragging it along the bottom right corner."
+  },
+  "session": {
+    "autocommit": "Auto commit",
+    "autocommit_title": "Off: a run outside a transaction opens one and leaves it open until Commit or Rollback.",
+    "intrans": "The session is idle in a valid transaction block.",
+    "inerror": "The session is idle in a failed transaction block.",
+    "commit": "Commit",
+    "rollback": "Rollback",
+    "committed": "The transaction has been committed.",
+    "rolled_back": "The transaction has been rolled back.",
+    "commit_rolled_back": "The transaction had failed, so COMMIT rolled it back.",
+    "ended": "The query tool session has ended; a transaction left open in it was rolled back."
   }
 }

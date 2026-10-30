@@ -50,7 +50,9 @@ final class QueryController
         $runner = new QueryRunner(
             $this->connection($pool, $args),
             // The string wins over whatever the body held under "sql" (a number is not a query).
-            ['sql' => $sql] + $input,
+            // The connection closes with the request, so a transaction cannot be left open:
+            // "autocommit" off is for a query tool session (QuerySessionController).
+            ['sql' => $sql, 'autocommit' => true] + $input,
             QueryHistory::for($server, $pool->username()),
             RunningQueries::for($server, $pool->username()),
         );

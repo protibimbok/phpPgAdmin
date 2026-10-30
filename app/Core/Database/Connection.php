@@ -150,6 +150,29 @@ final class Connection
         return pg_escape_literal($this->pg, $literal);
     }
 
+    /**
+     * Where the session stands, as libpq's PQtransactionStatus tells it: "idle" outside a
+     * transaction, "active" while a statement runs, "intrans" inside a transaction block,
+     * "inerror" inside a failed one (only ROLLBACK is accepted), "unknown" when the connection
+     * is bad.
+     */
+    public function transactionStatus(): string
+    {
+        return match (pg_transaction_status($this->pg)) {
+            PGSQL_TRANSACTION_IDLE => 'idle',
+            PGSQL_TRANSACTION_ACTIVE => 'active',
+            PGSQL_TRANSACTION_INTRANS => 'intrans',
+            PGSQL_TRANSACTION_INERROR => 'inerror',
+            default => 'unknown',
+        };
+    }
+
+    /** Whether the connection to the server is still good. */
+    public function isAlive(): bool
+    {
+        return pg_connection_status($this->pg) === PGSQL_CONNECTION_OK;
+    }
+
     /** Ask the server to cancel what this connection is running. */
     public function cancel(): bool
     {

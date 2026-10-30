@@ -99,6 +99,44 @@ export interface QueryResponse {
   source: Source | null
   backend_pid: number
   rolled_back: boolean
+  /** Where the connection stands after the run (libpq's transaction status). */
+  transaction?: TransactionStatus
+}
+
+/** libpq's PQtransactionStatus: outside a transaction, inside one, inside a failed one. */
+export type TransactionStatus = 'idle' | 'active' | 'intrans' | 'inerror' | 'unknown'
+
+/** A query tool session: one connection the SQL page keeps between its runs. */
+export interface QuerySession {
+  id: string
+  database: string
+  transaction: TransactionStatus
+  backend_pid: number
+}
+
+/** Start a query tool session on a database, or (null) on the one the login landed in. */
+export function startQuerySession(db: string | null): Promise<QuerySession> {
+  return api.post<QuerySession>('/api/query/sessions', db === null ? {} : { database: db })
+}
+
+/** Run a batch in a session; "autocommit" false leaves the transaction it opens open. */
+export function runInSession(id: string, request: QueryRequest & { autocommit?: boolean }): Promise<QueryResponse> {
+  return api.post<QueryResponse>(`/api/query/sessions/${encodeURIComponent(id)}/run`, request)
+}
+
+/** COMMIT or ROLLBACK the session's open transaction; the tag says which happened. */
+export function endSessionTransaction(id: string, command: 'commit' | 'rollback'): Promise<{ command_tag: string; was: TransactionStatus; transaction: TransactionStatus }> {
+  return api.post(`/api/query/sessions/${encodeURIComponent(id)}/${command}`)
+}
+
+/** The session's status; the request also keeps it alive. */
+export function querySessionStatus(id: string): Promise<{ transaction: TransactionStatus; backend_pid: number }> {
+  return api.get(`/api/query/sessions/${encodeURIComponent(id)}`)
+}
+
+/** End the session; "keepalive" lets the request outlive a closing page. */
+export function stopQuerySession(id: string, keepalive = false): Promise<unknown> {
+  return fetch(`/api/query/sessions/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin', keepalive }).catch(() => undefined)
 }
 
 /** A column to order the rows by, applied by the server to a pageable statement. */
