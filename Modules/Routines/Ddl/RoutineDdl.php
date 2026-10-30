@@ -92,7 +92,7 @@ final class RoutineDdl
         $data = self::properties($ctx, $kind, $fnid, $row);
         $data['args'] = $data['arguments'];
         [$data['func_args'], $data['func_args_without']] = self::argumentStrings($data['arguments']);
-        self::reformatSource($data);
+        self::reformatSource($data, (string) ($data['lanname'] ?? ''));
         if ($kind === 'procedure' && isset($data['provolatile'])) {
             $data['provolatile'] = self::VOLATILITY[$data['provolatile']] ?? '';
         }
@@ -137,8 +137,10 @@ final class RoutineDdl
                 unset($data[$key]);
             }
         }
+        $data['proiswindow'] = $kind === 'function' && filter_var($data['proiswindow'] ?? false, FILTER_VALIDATE_BOOL);
+        self::checkSupportFunction($data);
         self::markPureSql($data, (string) $data['lanname']);
-        self::reformatSource($data);
+        self::reformatSource($data, (string) $data['lanname']);
 
         return $ctx->render('create.sql', ['data' => $data, 'is_sql' => false]);
     }
@@ -154,6 +156,9 @@ final class RoutineDdl
      */
     public static function updateSql(NodeContext $ctx, string $kind, array $data, array $old): string
     {
+        // A function stays a window function or not: PostgreSQL cannot change a routine's kind.
+        unset($data['proiswindow']);
+        self::checkSupportFunction($data);
         if (array_key_exists('provolatile', $data)) {
             $data['provolatile'] = $data['provolatile'] ? (self::VOLATILITY[$data['provolatile']] ?? (string) $data['provolatile']) : '';
         }
@@ -268,10 +273,10 @@ final class RoutineDdl
         }
 
         self::markPureSql($data, (string) $old['lanname']);
-        self::reformatSource($data);
+        self::reformatSource($data, (string) ($data['lanname'] ?? $old['lanname']));
         if ($data['change_func'] && !array_key_exists('prosrc', $data)) {
             // The CREATE OR REPLACE restates the old body: lay it out as a new one would be.
-            self::reformatSource($old);
+            self::reformatSource($old, (string) $old['lanname']);
         }
 
         return SqlTemplates::tidy($ctx->render('update.sql', ['data' => $data, 'o_data' => $old]));
@@ -511,10 +516,18 @@ final class RoutineDdl
         }
     }
 
-    /** pgAdmin's reformat_prosrc_code: the body on lines of its own inside $BODY$. */
-    private static function reformatSource(array &$data): void
+    /**
+     * pgAdmin's reformat_prosrc_code: the body on lines of its own inside $BODY$. An internal
+     * function's body is the name of the built-in function, which must stand alone.
+     */
+    private static function reformatSource(array &$data, string $language = ''): void
     {
         if (!isset($data['prosrc']) || !is_string($data['prosrc'])) {
+            return;
+        }
+        if ($language === 'internal') {
+            $data['prosrc'] = trim($data['prosrc']);
+
             return;
         }
         if (!str_starts_with($data['prosrc'], "\n")) {
@@ -522,6 +535,19 @@ final class RoutineDdl
         }
         if (!str_ends_with($data['prosrc'], "\n")) {
             $data['prosrc'] .= "\n";
+        }
+    }
+
+    /**
+     * SUPPORT names a function the templates write as it is: name or schema.name, plain or quoted.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function checkSupportFunction(array $data): void
+    {
+        $name = trim((string) ($data['prosupportfunc'] ?? ''));
+        if ($name !== '' && preg_match('/^(?:"(?:[^"]|"")+"|[\p{L}_][\p{L}\p{N}_$]*)(?:\.(?:"(?:[^"]|"")+"|[\p{L}_][\p{L}\p{N}_$]*))?$/u', $name) !== 1) {
+            throw new BadRequestException(sprintf('"%s" is not a function name.', $name));
         }
     }
 

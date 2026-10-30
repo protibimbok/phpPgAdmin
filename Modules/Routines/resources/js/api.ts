@@ -118,6 +118,8 @@ export interface RoutineData {
   procost?: string
   prorows?: string
   prosupportfunc?: string
+  /** WINDOW, set when the function is created. */
+  proiswindow?: boolean
   funcowner?: string
   description?: string
   variables?: Variable[]

@@ -132,7 +132,7 @@ abstract class RoutineController extends NodeController
             'types' => array_map(static fn (array $r): array => ['name' => $r['typname'], 'schema' => $r['nspname']], $ctx->renderFrom('functions', 'get_types.sql') === '' ? [] : $ctx->conn->rows($ctx->renderFrom('functions', 'get_types.sql'))),
             'languages' => array_column($ctx->conn->rows($ctx->renderFrom('functions', 'get_languages.sql')), 'value'),
             'variables' => $ctx->conn->rows($ctx->renderFrom('functions', 'variables.sql')),
-            'support_functions' => array_column($ctx->conn->rows($ctx->renderFrom('functions', 'get_support_functions.sql', ['show_system_objects' => false])), 'sfunctions'),
+            'support_functions' => array_column($ctx->conn->rows($ctx->renderFrom('functions', 'get_support_functions.sql', ['show_system_objects' => true])), 'sfunctions'),
             'roles' => Catalog::roles($ctx->conn),
             'schemas' => Catalog::schemas($ctx->conn),
         ];

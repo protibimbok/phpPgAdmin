@@ -45,12 +45,15 @@ interface Form {
   cost: string
   rows: string
   leakproof: boolean
+  /** WINDOW and SUPPORT: a function's window flag (fixed once created) and planner support function. */
+  window: boolean
+  support: string
   owner: string
   comment: string
   variables: Variable[]
 }
 
-const EMPTY: Form = { name: '', kind: 'function', arguments: [], returnType: 'integer', returnsSet: false, language: 'plpgsql', definition: '', objectFile: '', linkSymbol: '', volatility: 'v', strict: false, securityDefiner: false, parallel: 'u', cost: '', rows: '', leakproof: false, owner: '', comment: '', variables: [] }
+const EMPTY: Form = { name: '', kind: 'function', arguments: [], returnType: 'integer', returnsSet: false, language: 'plpgsql', definition: '', objectFile: '', linkSymbol: '', volatility: 'v', strict: false, securityDefiner: false, parallel: 'u', cost: '', rows: '', leakproof: false, window: false, support: '', owner: '', comment: '', variables: [] }
 
 /** The form as an existing routine fills it. */
 function fromRoutine(routine: Routine, kind: RoutineKind): Form {
@@ -73,6 +76,8 @@ function fromRoutine(routine: Routine, kind: RoutineKind): Form {
     cost: routine.procost === null ? '' : String(routine.procost),
     rows: routine.prorows === null || Number(routine.prorows) === 0 ? '' : String(routine.prorows),
     leakproof: routine.proleakproof,
+    window: routine.proiswindow,
+    support: routine.prosupportfunc ?? '',
     owner: routine.funcowner,
     comment: routine.description ?? '',
     variables: routine.variables.map((v) => ({ name: v.name, value: v.value === false ? 'off' : String(v.value) })),
@@ -83,7 +88,7 @@ function fromRoutine(routine: Routine, kind: RoutineKind): Form {
  * phpMyAdmin's routine editor (database/routines/editor_form.twig), with PostgreSQL's options
  * where MySQL's were: the name and type, the parameters (direction, name, type, default), the
  * return type (with SETOF) of a function, the definition, then the language, volatility,
- * strictness, security, parallel safety, cost and rows, leakproof, owner, comment and the
+ * strictness, security, parallel safety, cost and rows, leakproof, WINDOW and SUPPORT, owner, comment and the
  * configuration variables. Go creates or alters the routine; Preview SQL shows the statements.
  */
 export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
@@ -156,6 +161,8 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
         procost: form.cost,
         prorows: form.returnsSet ? form.rows : '',
         proleakproof: form.leakproof,
+        prosupportfunc: form.support,
+        ...(editing ? {} : { proiswindow: form.window }),
       })
     } else if (isTrigger) {
       Object.assign(data, { prorettypename: 'trigger', provolatile: form.volatility, proisstrict: form.strict, proleakproof: form.leakproof, procost: form.cost })
@@ -408,6 +415,31 @@ export default function RoutineEditor({ mode }: { mode: 'create' | 'edit' }) {
                       <td>{t('editor.leakproof')}</td>
                       <td>
                         <input type="checkbox" name="item_leakproof" checked={form.leakproof} onChange={(e) => set('leakproof', e.target.checked)} />
+                      </td>
+                    </tr>
+                  </>
+                )}
+                {isFunction && (
+                  <>
+                    <tr>
+                      <td>{t('editor.window')}</td>
+                      <td>
+                        <input type="checkbox" name="item_window" checked={form.window} onChange={(e) => set('window', e.target.checked)} disabled={editing} />
+                        <div className="form-text">{t(editing ? 'editor.window_fixed' : 'editor.window_hint')}</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t('editor.support')}</td>
+                      <td>
+                        <select name="item_support" value={form.support} onChange={(e) => set('support', e.target.value)}>
+                          <option value="" />
+                          {[...new Set([form.support, ...options.support_functions])].filter(Boolean).map((f) => (
+                            <option key={f} value={f}>
+                              {f}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="form-text">{t('editor.support_hint')}</div>
                       </td>
                     </tr>
                   </>

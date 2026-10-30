@@ -93,6 +93,8 @@ Which rows appear depends on the **Type**:
 | **Estimated cost** | yes | | yes | `COST n` (placeholder 100) |
 | **Estimated rows** | only with SETOF | | | `ROWS n` (placeholder 1000) |
 | **Leak proof** | yes | | yes | `LEAKPROOF` |
+| **Window function** | when created | | | `WINDOW` |
+| **Support function** | yes | | | `SUPPORT schema.function` |
 | **Owner** | yes | yes | yes | `ALTER FUNCTION … OWNER TO` |
 | **Comment** | yes | yes | yes | `COMMENT ON FUNCTION` |
 | **Configuration variables** | yes | yes | yes | `SET name = value` |
@@ -160,9 +162,28 @@ pair becomes `SET name = value` on the routine, applied while it runs and restor
 The `search_path` value is written unquoted, so a list such as `public, pg_temp` works; other
 values are quoted. **Remove** deletes a pair.
 
-Options the editor does not have: `WINDOW`, `SUPPORT` functions, `TRANSFORM`, `SECURITY LABEL` and
-a C function's `AS 'obj_file', 'link_symbol'`. When you edit a routine that already has a window or
-support attribute, the editor keeps it.
+### Window and support functions
+
+**Window function** makes a function callable with `OVER (…)`. Only C and `internal` functions can
+be window functions; the flag is set when the function is created and shown read-only afterwards,
+since PostgreSQL cannot change a routine's kind:
+
+```sql
+CREATE FUNCTION public.my_rank()
+    RETURNS bigint
+    LANGUAGE 'internal'
+    VOLATILE WINDOW PARALLEL UNSAFE
+AS $BODY$window_rank$BODY$;
+```
+
+An `internal` function's definition is the name of the built-in C function, written without
+surrounding line breaks.
+
+**Support function** picks a planner support function (one taking and returning `internal`, in
+C or internal: the list shows the database's, `pg_catalog` included). Setting one needs a
+superuser; choosing the empty entry removes it (the function is restated without `SUPPORT`).
+
+Options the editor does not have: `TRANSFORM` and `SECURITY LABEL`.
 
 The editor above generates:
 
