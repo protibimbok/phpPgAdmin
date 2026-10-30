@@ -5,14 +5,19 @@ import { useRequest } from '@/api/useRequest'
 import ConfirmQuery from '@/components/ConfirmQuery'
 import PreviewSql from '@/components/PreviewSql'
 import { notifyError, notifySuccess } from '@/notify'
-import { runWizard, wizardObjects, wizardSql, type WizardGrant, type WizardObject } from './api'
+import { runWizard, wizardObjects, wizardSql, type WizardGrant, type WizardKind, type WizardObject } from './api'
 
-/** The relkind / prokind a wizard row names, as the object list's Type column says it. */
-const TYPES: Record<string, string> = { r: 'table', p: 'partitioned', v: 'view', m: 'mview', f: 'foreign', S: 'sequence' }
+/** The relkind, prokind ('t' a trigger function) or typtype a wizard row names, as the object list's Type column says it. */
+const TYPES: Record<WizardKind, Record<string, string>> = {
+  table: { r: 'table', p: 'partitioned', v: 'view', m: 'mview', f: 'foreign', S: 'sequence' },
+  sequence: { S: 'sequence' },
+  function: { f: 'function', p: 'procedure', t: 'trigger_function' },
+  type: { b: 'base', c: 'composite', d: 'domain', e: 'enum', r: 'range' },
+}
 
 /**
  * pgAdmin's Grant Wizard on the schema's Privileges page: check the objects (tables, views,
- * sequences, functions, procedures), pick a role and the privileges, and each object gets the
+ * foreign tables, sequences, functions, procedures, trigger functions, types, domains), pick a role and the privileges, and each object gets the
  * ones it accepts in a single run.
  */
 export default function GrantWizard({ db, scid, roles }: { db: string; scid: number; roles: string[] }) {
@@ -115,7 +120,7 @@ export default function GrantWizard({ db, scid, roles }: { db: string; scid: num
                     <td>
                       <label htmlFor={`wizard_${key(o)}`}>{o.name}</label>
                     </td>
-                    <td>{t(`wizard.type.${o.kind === 'function' ? (o.type === 'p' ? 'procedure' : 'function') : TYPES[o.type]}`)}</td>
+                    <td>{t(`wizard.type.${TYPES[o.kind][o.type] ?? o.kind}`)}</td>
                   </tr>
                 ))}
               </tbody>

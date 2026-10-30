@@ -142,7 +142,9 @@ final class PrivilegeController
     }
 
     /**
-     * The objects of a schema the grant wizard offers: relations, sequences and routines.
+     * The objects of a schema the grant wizard offers: pgAdmin's relations, sequences and
+     * routines (a trigger function typed 't'), then the types and domains. Array, multirange
+     * and table row types take their privileges from another type or relation, so they are left out.
      *
      * @return list<array{kind: string, oid: int, name: string, type: string, allowed: list<string>}>
      */
@@ -150,12 +152,19 @@ final class PrivilegeController
     {
         $objects = [];
         foreach ($conn->rows(
-            "SELECT 'table' AS kind, c.oid, c.relname AS name, c.relkind::text AS type FROM pg_catalog.pg_class c
+            "SELECT 'table' AS kind, c.oid, c.relname AS name, c.relkind::text AS type, 0 AS sort FROM pg_catalog.pg_class c
               WHERE c.relnamespace = $1 AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S') AND NOT c.relispartition
              UNION ALL
-             SELECT 'function', p.oid, p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')', p.prokind::text FROM pg_catalog.pg_proc p
+             SELECT 'function', p.oid, p.proname || '(' || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')',
+                    CASE WHEN p.prokind = 'f' AND p.prorettype = 'pg_catalog.trigger'::pg_catalog.regtype THEN 't' ELSE p.prokind::text END, 1
+               FROM pg_catalog.pg_proc p
               WHERE p.pronamespace = $1 AND p.prokind IN ('f', 'p')
-             ORDER BY 1 DESC, 3",
+             UNION ALL
+             SELECT 'type', t.oid, t.typname, t.typtype::text, 2 FROM pg_catalog.pg_type t
+               LEFT JOIN pg_catalog.pg_class ct ON ct.oid = t.typrelid AND ct.relkind <> 'c'
+              WHERE t.typnamespace = $1 AND t.typtype IN ('b', 'c', 'd', 'e', 'r') AND ct.oid IS NULL
+                AND NOT (t.typelem <> 0 AND t.typlen = -1)
+             ORDER BY 5, 3",
             [$scid],
         ) as $row) {
             $kind = $row['type'] === 'S' ? 'sequence' : $row['kind'];

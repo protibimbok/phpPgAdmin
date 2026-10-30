@@ -182,12 +182,15 @@ export function updateDefaultPrivileges(db: string, change: DefaultPrivilegeChan
   return api.post<DefaultPrivileges>(defaultsUrl(db), change)
 }
 
+/** The kinds of object the grant wizard offers. */
+export type WizardKind = 'table' | 'sequence' | 'function' | 'type'
+
 /** An object of a schema the grant wizard offers, with the privileges it accepts. */
 export interface WizardObject {
-  kind: PrivilegeKind
+  kind: WizardKind
   oid: number
   name: string
-  /** pg_class.relkind, or pg_proc.prokind for a routine. */
+  /** pg_class.relkind, pg_proc.prokind ('t' for a trigger function) or pg_type.typtype. */
   type: string
   allowed: string[]
 }

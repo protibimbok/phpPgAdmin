@@ -155,11 +155,13 @@ schema in one run:
 ![The grant wizard with every scratch object checked](/media/server/privileges-wizard.png)
 
 1. In **Objects**, check the tables, partitioned tables, views, materialized views, foreign
-   tables, sequences, functions and procedures to grant on. The search box filters the list;
+   tables, sequences, functions, procedures, trigger functions, types and domains to grant on
+   (pgAdmin's grant wizard list, plus types and domains; array and table row types are left out,
+   as PostgreSQL gives them the privileges of their element type or table). The search box filters the list;
    the **Objects** checkbox checks every object shown.
 2. Choose the **Role:** (or `PUBLIC`).
 3. Check the privileges. Only privileges at least one checked object accepts are offered; each object
-   gets the ones it accepts (`EXECUTE` on routines, `USAGE` on sequences, and so on).
+   gets the ones it accepts (`EXECUTE` on routines, `USAGE` on sequences, types and domains, and so on).
    **WITH GRANT OPTION** applies to all of them.
 4. **Preview SQL**, then **Go** and confirm.
 

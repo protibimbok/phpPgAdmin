@@ -209,7 +209,13 @@
       "foreign": "جدول خارجي",
       "sequence": "تسلسل",
       "function": "دالة",
-      "procedure": "إجراء"
+      "procedure": "إجراء",
+      "trigger_function": "دالة قادح",
+      "base": "نوع أساسي",
+      "composite": "نوع مركّب",
+      "domain": "نطاق",
+      "enum": "نوع تعداد",
+      "range": "نوع مدى"
     }
   },
   "tablespaces": {

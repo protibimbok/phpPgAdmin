@@ -201,7 +201,13 @@
       "foreign": "foreign table",
       "sequence": "sequence",
       "function": "function",
-      "procedure": "procedure"
+      "procedure": "procedure",
+      "trigger_function": "trigger function",
+      "base": "base type",
+      "composite": "composite type",
+      "domain": "domain",
+      "enum": "enum type",
+      "range": "range type"
     }
   },
   "tablespaces": {
