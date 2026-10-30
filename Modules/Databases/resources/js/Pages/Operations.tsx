@@ -13,6 +13,7 @@ import { listSchemas } from '@schemas/js/api'
 import MaintenanceCard from '@maintenance/js/MaintenanceCard'
 import { quoteIdent } from '@sql/js/sql'
 import { collationRemedy, createDatabase, databaseModifiedSql, databaseOptions, databaseProperties, dropDatabase, resolveDatabase, updateDatabase, type CollationRemedy, type DatabaseChanges, type NewDatabase } from '../api'
+import AutovacuumTablesCard from '../AutovacuumTablesCard'
 import CollationRefreshDialog from '../CollationRefreshDialog'
 import ParametersCard from '../ParametersCard'
 
@@ -395,6 +396,8 @@ export default function Operations() {
       </div>
 
       <MaintenanceCard target={{ database: db }} />
+
+      <AutovacuumTablesCard db={db} />
 
       <PreviewSql show={preview !== null} sql={preview?.sql ?? null} error={preview?.error} onClose={() => setPreview(null)} />
 

@@ -29,6 +29,7 @@ The classic phpPgAdmin's last release supports PostgreSQL up to 13, but most of 
 | Tables, columns, indexes, constraints, triggers, rules | Yes | Yes |
 | Table info: inheritance, referencing foreign keys | Yes | [Yes](/table/structure#referenced-by-and-inheritance) |
 | Per-table autovacuum settings, CLUSTER on an index | Yes | [Yes](/table/operations) |
+| Database-wide list of tables with their own autovacuum settings | Yes | [Yes](/database/operations#autovacuum-settings-of-tables) |
 | Views | Yes | Yes |
 | Materialized views | No | [Yes](/schema/views) |
 | Declarative partitioning | No | [Yes](/table/partitions) |

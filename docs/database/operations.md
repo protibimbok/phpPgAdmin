@@ -2,7 +2,8 @@
 
 The **Operations** tab of a database (`/db/<database>/operations`) holds one card per change you can
 make to the database as a whole: its comment, a shortcut to create a table, rename, drop, copy, the
-properties `ALTER DATABASE` can change, the fixed encoding and collation, and maintenance. The
+properties `ALTER DATABASE` can change, the fixed encoding and collation, maintenance, and the
+tables with autovacuum settings of their own. The
 layout follows phpMyAdmin's database Operations page.
 
 ![The Operations tab of a scratch database: the comment, create table, rename, remove and copy cards](/media/database/operations-overview.png)
@@ -208,3 +209,23 @@ shows on the [Show create](/database/schemas#show-create) tab.
 The **Maintenance** card runs `VACUUM`, `ANALYZE`, `REINDEX` or `CLUSTER` on the whole database as
 a background process, with the options your server supports. It is described on the
 [Maintenance](/tools/maintenance) page.
+
+## Autovacuum settings of tables
+
+The last card is the classic phpPgAdmin's Admin → Autovacuum page: every table and materialized
+view of the database, in any schema, that has autovacuum settings of its own (`autovacuum_*` in its
+storage parameters, or `toast.autovacuum_*` on its TOAST table), with the settings listed:
+
+| Schema | Table | Settings |
+| --- | --- | --- |
+| public | av1 | `autovacuum_enabled=false, autovacuum_vacuum_scale_factor=0.05, toast.autovacuum_vacuum_threshold=100` |
+
+**Edit** opens the table's [Operations](/table/operations) tab, whose storage card changes them.
+**Remove custom settings** asks, then resets only the autovacuum parameters, leaving the others
+(fillfactor, for example) as they are, so the server's settings apply to the table again:
+
+```sql
+ALTER TABLE public.av1 RESET (autovacuum_enabled, autovacuum_vacuum_scale_factor, toast.autovacuum_vacuum_threshold);
+```
+
+With no such table the card says so.

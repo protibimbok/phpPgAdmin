@@ -101,5 +101,16 @@
     "add": "Add parameter",
     "show_all": "Show all settings (SHOW ALL)",
     "saved": "The database parameters have been saved."
+  },
+  "autovacuum": {
+    "title": "Autovacuum settings of tables",
+    "none": "No table of this database has autovacuum settings of its own: the server's apply to every table.",
+    "schema": "Schema",
+    "table": "Table",
+    "settings": "Settings",
+    "action": "Action",
+    "edit": "Edit",
+    "reset": "Remove custom settings",
+    "reset_done": "The autovacuum settings of {{name}} have been removed."
   }
 }
